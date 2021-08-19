@@ -31,6 +31,7 @@ SET(_unity_include_src
   fe_dg_vector.cc
   fe_enriched.cc
   fe_face.cc
+  fe_hermite.cc
   fe_nedelec.cc
   fe_nedelec_sz.cc
   fe_nothing.cc
