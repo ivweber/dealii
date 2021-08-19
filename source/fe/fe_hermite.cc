@@ -52,31 +52,31 @@ namespace internal
           // Assign DOFs at nodes
           for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
             h2l[i] = i;
-          for (unsigned int i = 0; i < node_dofs_1d; i++, count++)
+          for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
             h2l[i + node_dofs_1d] = i + node_dofs_1d + nodes;
           // Assign DOFs on line if needed
-          for (unsigned int i = 0; i < nodes; i++, count++)
+          for (unsigned int i = 0; i < nodes; ++i, ++count)
             h2l[i + 2 * node_dofs_1d] = i + node_dofs_1d;
           AssertDimension(count, Utilities::pow(node_dofs_1d, dim));
           break;
         case 2:
           // Assign DOFs at nodes
-          for (unsigned int i = 0; i < node_dofs_1d; i++)
-            for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+          for (unsigned int i = 0; i < node_dofs_1d; ++i)
+            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
               h2l[j + i * node_dofs_1d] = j + i * dim_dofs_1d;
           offset = node_dofs_1d * node_dofs_1d;
-          for (unsigned int i = 0; i < node_dofs_1d; i++)
-            for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+          for (unsigned int i = 0; i < node_dofs_1d; ++i)
+            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
               h2l[j + i * node_dofs_1d + offset] =
                 j + node_dofs_1d + nodes + i * dim_dofs_1d;
           offset *= 2;
-          for (unsigned int i = 0; i < node_dofs_1d; i++)
-            for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+          for (unsigned int i = 0; i < node_dofs_1d; ++i)
+            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
               h2l[j + i * node_dofs_1d + offset] =
                 j + (i + node_dofs_1d + nodes) * dim_dofs_1d;
           offset += node_dofs_1d * node_dofs_1d;
-          for (unsigned int i = 0; i < node_dofs_1d; i++)
-            for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+          for (unsigned int i = 0; i < node_dofs_1d; ++i)
+            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
               h2l[j + i * node_dofs_1d + offset] =
                 j + (node_dofs_1d + nodes) * (dim_dofs_1d + 1) +
                 i * dim_dofs_1d;
@@ -84,31 +84,31 @@ namespace internal
             {
               offset += node_dofs_1d * node_dofs_1d;
               // Assign DOFs on edges
-              for (unsigned int i = 0; i < nodes; i++)
+              for (unsigned int i = 0; i < nodes; ++i)
                 {
-                  for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
                     h2l[j + 2 * i * node_dofs_1d + offset] =
                       j + (i + node_dofs_1d) * dim_dofs_1d;
-                  for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
                     h2l[j + (2 * i + 1) * node_dofs_1d + offset] =
                       j + (i + node_dofs_1d) * dim_dofs_1d + node_dofs_1d +
                       nodes;
                 }
               offset += 2 * nodes * node_dofs_1d;
-              for (unsigned int i = 0; i < nodes; i++)
+              for (unsigned int i = 0; i < nodes; ++i)
                 {
-                  for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
                     h2l[j + 2 * i * node_dofs_1d + offset] =
                       i + j * dim_dofs_1d + node_dofs_1d;
-                  for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
                     h2l[j + (2 * i + 1) * node_dofs_1d + offset] =
                       i + (j + node_dofs_1d + nodes) * dim_dofs_1d +
                       node_dofs_1d;
                 }
               offset += 2 * nodes * node_dofs_1d;
               // Assign DOFs on face
-              for (unsigned int i = 0; i < nodes; i++)
-                for (unsigned int j = 0; j < nodes; j++, count++)
+              for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int j = 0; j < nodes; ++j, ++count)
                   h2l[j + i * nodes + offset] =
                     j + (i + node_dofs_1d) * dim_dofs_1d + node_dofs_1d;
             }
@@ -117,13 +117,13 @@ namespace internal
         case 3:
           // Assign DOFs at nodes
           offset = 0;
-          for (unsigned int di = 0; di < 2; di++)
-            for (unsigned int dj = 0; dj < 2; dj++)
-              for (unsigned int dk = 0; dk < 2; dk++)
+          for (unsigned int di = 0; di < 2; ++di)
+            for (unsigned int dj = 0; dj < 2; ++dj)
+              for (unsigned int dk = 0; dk < 2; ++dk)
                 {
-                  for (unsigned int i = 0; i < node_dofs_1d; i++)
-                    for (unsigned int j = 0; j < node_dofs_1d; j++)
-                      for (unsigned int k = 0; k < node_dofs_1d; k++, count++)
+                  for (unsigned int i = 0; i < node_dofs_1d; ++i)
+                    for (unsigned int j = 0; j < node_dofs_1d; ++j)
+                      for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
                         h2l[k + j * node_dofs_1d + i * node_dofs_2d + offset] =
                           k + j * dim_dofs_1d + i * dim_dofs_2d +
                           (node_dofs_1d + nodes) *
@@ -134,12 +134,12 @@ namespace internal
             {
               // Assign DOFs on edges
               // edges parallel to z
-              for (unsigned int i = 0; i < nodes; i++)
-                for (unsigned int dj = 0; dj < 2; dj++)
-                  for (unsigned int dk = 0; dk < 2; dk++)
+              for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int dj = 0; dj < 2; ++dj)
+                  for (unsigned int dk = 0; dk < 2; ++dk)
                     {
-                      for (unsigned int j = 0; j < node_dofs_1d; j++)
-                        for (unsigned int k = 0; k < node_dofs_1d; k++, count++)
+                      for (unsigned int j = 0; j < node_dofs_1d; ++j)
+                        for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
                           h2l[k + j * node_dofs_1d + offset] =
                             k + j * dim_dofs_1d +
                             (i + node_dofs_1d) * dim_dofs_2d +
@@ -147,12 +147,12 @@ namespace internal
                       offset += node_dofs_2d;
                     }
               // edges parallel to y
-              for (unsigned int j = 0; j < nodes; j++)
-                for (unsigned int di = 0; di < 2; di++)
-                  for (unsigned int dk = 0; dk < 2; dk++)
+              for (unsigned int j = 0; j < nodes; ++j)
+                for (unsigned int di = 0; di < 2; ++di)
+                  for (unsigned int dk = 0; dk < 2; ++dk)
                     {
-                      for (unsigned int i = 0; i < node_dofs_1d; i++)
-                        for (unsigned int k = 0; k < node_dofs_1d; k++, count++)
+                      for (unsigned int i = 0; i < node_dofs_1d; ++i)
+                        for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
                           h2l[k + i * node_dofs_1d + offset] =
                             k + i * dim_dofs_2d +
                             (j + node_dofs_1d) * dim_dofs_1d +
@@ -160,12 +160,12 @@ namespace internal
                       offset += node_dofs_2d;
                     }
               // edges parallel to x
-              for (unsigned int k = 0; k < nodes; k++)
-                for (unsigned int di = 0; di < 2; di++)
-                  for (unsigned int dj = 0; dj < 2; dj++)
+              for (unsigned int k = 0; k < nodes; ++k)
+                for (unsigned int di = 0; di < 2; ++di)
+                  for (unsigned int dj = 0; dj < 2; ++dj)
                     {
-                      for (unsigned int i = 0; i < node_dofs_1d; i++)
-                        for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+                      for (unsigned int i = 0; i < node_dofs_1d; ++i)
+                        for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
                           h2l[j + i * node_dofs_1d + offset] =
                             j * dim_dofs_1d + i * dim_dofs_2d + k +
                             node_dofs_1d +
@@ -175,22 +175,22 @@ namespace internal
                     }
               // Assign DOFs on faces
               // faces normal to x
-              for (unsigned int i = 0; i < nodes; i++)
-                for (unsigned int j = 0; j < nodes; j++)
-                  for (unsigned int dk = 0; dk < 2; dk++)
+              for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int j = 0; j < nodes; ++j)
+                  for (unsigned int dk = 0; dk < 2; ++dk)
                     {
-                      for (unsigned int k = 0; k < node_dofs_1d; k++, count++)
+                      for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
                         h2l[k + offset] = k + (j + node_dofs_1d) * dim_dofs_1d +
                                           (i + node_dofs_1d) * dim_dofs_2d +
                                           (node_dofs_1d + nodes) * dk;
                       offset += node_dofs_1d;
                     }
               // faces normal to y
-              for (unsigned int i = 0; i < nodes; i++)
-                for (unsigned int k = 0; k < nodes; k++)
-                  for (unsigned int dj = 0; dj < 2; dj++)
+              for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int k = 0; k < nodes; ++k)
+                  for (unsigned int dj = 0; dj < 2; ++dj)
                     {
-                      for (unsigned int j = 0; j < node_dofs_1d; j++, count++)
+                      for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
                         h2l[j + offset] =
                           j * dim_dofs_1d + k + node_dofs_1d +
                           (i + node_dofs_1d) * dim_dofs_2d +
@@ -198,11 +198,11 @@ namespace internal
                       offset += node_dofs_1d;
                     }
               // faces normal to z
-              for (unsigned int j = 0; j < nodes; j++)
-                for (unsigned int k = 0; k < nodes; k++)
-                  for (unsigned int di = 0; di < 2; di++)
+              for (unsigned int j = 0; j < nodes; ++j)
+                for (unsigned int k = 0; k < nodes; ++k)
+                  for (unsigned int di = 0; di < 2; ++di)
                     {
-                      for (unsigned int i = 0; i < node_dofs_1d; i++, count++)
+                      for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
                         h2l[i + offset] =
                           i * dim_dofs_2d + k + node_dofs_1d +
                           (j + node_dofs_1d) * dim_dofs_1d +
@@ -210,9 +210,9 @@ namespace internal
                       offset += node_dofs_1d;
                     }
               // Assign DOFs in cell
-              for (unsigned int i = 0; i < nodes; i++)
-                for (unsigned int j = 0; j < nodes; j++)
-                  for (unsigned int k = 0; k < nodes; k++, count++)
+              for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int j = 0; j < nodes; ++j)
+                  for (unsigned int k = 0; k < nodes; ++k, ++count)
                     h2l[k + (j + i * nodes) * nodes + offset] =
                       k + node_dofs_1d + (j + node_dofs_1d) * dim_dofs_1d +
                       (i + node_dofs_1d) * dim_dofs_2d;
@@ -222,16 +222,16 @@ namespace internal
         case 4:
           // Assign DOFs at nodes
           offset = 0;
-          for (unsigned int di = 0; di < 2; di++)
-            for (unsigned int dj = 0; dj < 2; dj++)
-              for (unsigned int dk = 0; dk < 2; dk++)
-                for (unsigned int dl = 0; dl < 2; dl++)
+          for (unsigned int di = 0; di < 2; ++di)
+            for (unsigned int dj = 0; dj < 2; ++dj)
+              for (unsigned int dk = 0; dk < 2; ++dk)
+                for (unsigned int dl = 0; dl < 2; ++dl)
                   {
-                    for (unsigned int i = 0; i < node_dofs_1d; i++)
-                      for (unsigned int j = 0; j < node_dofs_1d; j++)
-                        for (unsigned int k = 0; k < node_dofs_1d; k++)
+                    for (unsigned int i = 0; i < node_dofs_1d; ++i)
+                      for (unsigned int j = 0; j < node_dofs_1d; ++j)
+                        for (unsigned int k = 0; k < node_dofs_1d; ++k)
                           for (unsigned int l = 0; l < node_dofs_1d;
-                               l++, count++)
+                               ++l, ++count)
                             h2l[l + k * node_dofs_1d + j * node_dofs_2d +
                                 i * node_dofs_3d + offset] =
                               l + k * dim_dofs_1d + j * dim_dofs_2d +
@@ -323,7 +323,7 @@ namespace internal
   binomial(const unsigned int n, const unsigned int i)
   {
     unsigned int C = 1, k = 1;
-    for (unsigned int j = n; j > i; j--)
+    for (unsigned int j = n; j > i; --j)
       {
         C *= j;
         C /= k++;
@@ -349,16 +349,16 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
     double       big_factor = 1, local_factor;
     unsigned int min_ij, diag_value;
     int          sign_1 = 1, sign_2, sign_3, temp;
-    for (unsigned int i = 0; i < sz; i++)
+    for (unsigned int i = 0; i < sz; ++i)
       {
         big_factor *= 2;
         bzero_inv_matrix[i + i * sz] = 1;
         sign_2                       = sign_1;
-        for (unsigned int j = 0; j < i; j++)
+        for (unsigned int j = 0; j < i; ++j)
           {
             sign_3 = sign_2;
             temp   = -sign_2 * internal::binomial(sz, i - j);
-            for (unsigned int k = j + 1; k < i; k++)
+            for (unsigned int k = j + 1; k < i; ++k)
               {
                 sign_3 = -sign_3;
                 temp -= sign_3 * internal::binomial(sz, i - k) *
@@ -371,16 +371,16 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
       }
     sign_1     = 1;
     diag_value = 1;
-    for (unsigned int i = 0; i < sz; i++)
+    for (unsigned int i = 0; i < sz; ++i)
       {
         local_factor = big_factor;
-        for (unsigned int j = 0; j < sz; j++)
+        for (unsigned int j = 0; j < sz; ++j)
           {
             F_matrix[j + i * sz] = 0;
             bzero_inv_matrix[i + j * sz] *= diag_value;
             min_ij = (i < j) ? i : j;
             temp = 0, sign_2 = 1;
-            for (unsigned int k = 0; k < min_ij; k++)
+            for (unsigned int k = 0; k < min_ij; ++k)
               {
                 temp += sign_2 * internal::binomial(j, k) *
                         internal::binomial(sz, i - k);
@@ -393,15 +393,15 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
         big_factor *= 0.5;
         diag_value *= 4;
       }
-    for (unsigned int i = 0; i < sz; i++)
-      for (unsigned int k = 0; k < sz; k++)
-        for (unsigned int j = 0; j < sz; j++)
+    for (unsigned int i = 0; i < sz; ++i)
+      for (unsigned int k = 0; k < sz; ++k)
+        for (unsigned int j = 0; j < sz; ++j)
           F_matrix[j + i * sz] +=
             bhalf_matrix[k + i * sz] * bzero_inv_matrix[j + k * sz];
     big_factor = 1;
-    for (unsigned int i = 0; i < sz; i++)
+    for (unsigned int i = 0; i < sz; ++i)
       {
-        for (unsigned int j = 0; j < sz; j++)
+        for (unsigned int j = 0; j < sz; ++j)
           F_matrix[j + i * sz] *= big_factor;
         big_factor *= i + 1;
       }
@@ -430,10 +430,10 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
     G_matrix.resize(sz * sz);
     int          sign_1, sign_2;
     sign_1 = 1;
-    for (unsigned int i = 0; i < sz; i++)
+    for (unsigned int i = 0; i < sz; ++i)
       {
         sign_2 = sign_1;
-        for (unsigned int j = 0; j < sz; j++)
+        for (unsigned int j = 0; j < sz; ++j)
           {
             G_matrix[j + i * sz] = sign_2 * F_matrix[j + i * sz];
             sign_2               = -sign_2;
@@ -479,28 +479,28 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
             regularity, 0);
         fe_hermite.interface_constraints.TableBase<2, double>::reinit(
         fe_hermite.interface_constraints_size());
-        for (unsigned int i = 0; i < sz; i++)
-            for (unsigned int j = 0; j < 2 * sz; j++)
+        for (unsigned int i = 0; i < sz; ++i)
+            for (unsigned int j = 0; j < 2 * sz; ++j)
                 fe_hermite.interface_constraints(i, face_index_map[j]) =
                   static_cast<double>(i == j);
-        for (unsigned int i = 0; i < sz; i++)
-            for (unsigned int j = 0; j < sz; j++)
+        for (unsigned int i = 0; i < sz; ++i)
+            for (unsigned int j = 0; j < sz; ++j)
             {
                 fe_hermite.interface_constraints(sz + i, face_index_map[j]) =
                   F_matrix[j + i * sz];
                 fe_hermite.interface_constraints(sz + i, face_index_map[sz + j]) =
                   G_matrix[j + i * sz];
             }
-        for (unsigned int i = 0; i < sz; i++)
-            for (unsigned int j = 0; j < sz; j++)
+        for (unsigned int i = 0; i < sz; ++i)
+            for (unsigned int j = 0; j < sz; ++j)
             {
                 fe_hermite.interface_constraints(2 * sz + i, face_index_map[j]) =
                   F_matrix[j + i * sz];
                 fe_hermite.interface_constraints(2 * sz + i, face_index_map[sz + j]) =
                   G_matrix[j + i * sz];
             }
-        for (unsigned int i = 0; i < sz; i++)
-            for (unsigned int j = 0; j < 2 * sz; j++)
+        for (unsigned int i = 0; i < sz; ++i)
+            for (unsigned int j = 0; j < 2 * sz; ++j)
                 fe_hermite.interface_constraints(3 * sz + i, face_index_map[j]) =
                   (i + sz == j) ? 1 : 0;
     }
@@ -513,7 +513,7 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
 
   template <int spacedim>
   static void
-  initialise_constraints(FE_MaxHermite<3, spacedim> &fe_hermite)
+  initialise_constraints(FE_Hermite<3, spacedim> &fe_hermite)
   {
       const unsigned int nodes = fe_hermite.nodes;
       if (nodes == 0)
@@ -531,8 +531,8 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
           fe_hermite.interface_constraints_size());
         unsigned int local_1, local_2;
         double       entry_1, entry_2, entry_3, entry_4, temp;
-        for (unsigned int i = 0; i < sz2; i++)
-            for (unsigned int j = 0; j < 4 * sz * sz; j++)
+        for (unsigned int i = 0; i < sz2; ++i)
+            for (unsigned int j = 0; j < 4 * sz * sz; ++j)
             {
                 entry_1 = static_cast<double>(i == j);
                 fe_hermite.interface_constraints(i, face_index_map[j])    = entry_1;
@@ -545,13 +545,13 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
                                            face_index_map[j + 3 * sz2]) =
                   entry_1;
             }
-        for (unsigned int i = 0; i < sz; i++)
-            for (unsigned int j = 0; j < sz; j++)
+        for (unsigned int i = 0; i < sz; ++i)
+            for (unsigned int j = 0; j < sz; ++j)
             {
                 entry_1 = F_matrix[j + i * sz];
                 entry_2 = G_matrix[j + i * sz];
-                for (unsigned int k = 0; k < sz; k++)
-                    for (unsigned int l = 0; l < sz; l++)
+                for (unsigned int k = 0; k < sz; ++k)
+                    for (unsigned int l = 0; l < sz; ++l)
                     {
                         entry_4 = static_cast<double>(k == l);
                         entry_3 = entry_1 * entry_4;
@@ -586,8 +586,8 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
                         local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
                     }
             entry_1 = static_cast<double>(i == j);
-            for (unsigned int k = 0; k < sz; k++)
-                for (unsigned int l = 0; l < sz; l++)
+            for (unsigned int k = 0; k < sz; ++k)
+                for (unsigned int l = 0; l < sz; ++l)
                 {
                     entry_3 = entry_1 * F_matrix[l + k * sz];
                     entry_4 = entry_1 * G_matrix[l + k * sz];
@@ -620,8 +620,8 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
                 }
             entry_1 = F_matrix[j + i * sz];
             entry_3 = G_matrix[j + i * sz];
-            for (unsigned int k = 0; k < sz; k++)
-                for (unsigned int l = 0; l < sz; l++)
+            for (unsigned int k = 0; k < sz; ++k)
+                for (unsigned int l = 0; l < sz; ++l)
                 {
                     temp    = G_matrix[l + k * sz];
                     entry_2 = entry_1 * temp;
@@ -700,10 +700,10 @@ FE_Hermite<dim, spacedim>::FE_Hermite(const unsigned int reg)
                                  std::vector<bool>(1, true)))
   , regularity(reg), nodes(0)
 {
-    std::vector<unsigned int> renumber =
+   /* std::vector<unsigned int> renumber =
     internal::hermite_face_lexicographic_to_hierarchic_numbering<dim + 1>(
       regularity, 0);
-    this->poly_space.set_numbering(renumber);
+    this->poly_space.set_numbering(renumber);*/
 }
 
 #if HERMITE_CUSTOM_FE_CLASS
@@ -721,10 +721,10 @@ FE_Hermite<dim, spacedim>::FE_Hermite(const unsigned int reg, const unsigned int
                                  std::vector<bool>(1, true)))
   , regularity(reg), nodes(nodes)
 {
-    std::vector<unsigned int> renumber =
+   /* std::vector<unsigned int> renumber =
     internal::hermite_face_lexicographic_to_hierarchic_numbering<dim + 1>(
       regularity, nodes);
-    this->poly_space.set_numbering(renumber);
+    this->poly_space.set_numbering(renumber);*/
 }
 #endif
 
@@ -742,7 +742,7 @@ FE_Hermite<dim, spacedim>::get_name() const
 {
   std::ostringstream name_buffer;
   name_buffer << "FE_Hermite<" << dim << "," << spacedim << ">("
-              << this->regularity << "," << this->nodes ")";
+              << this->regularity << "," << this->nodes << ")";
   return name_buffer.str();
 }
 

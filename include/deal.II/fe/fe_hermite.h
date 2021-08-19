@@ -165,49 +165,7 @@ public:
 #if HERMITE_CUSTOM_FE_CLASS
   FE_Hermite<dim, spacedim>(const unsigned int regularity, const unsigned int nodes);
 #endif
-  /*
-     virtual double
-     shape_value(const unsigned int i, const Point<dim> &p) const override;
 
-     virtual double
-     shape_value_component(const unsigned int i,
-                         const Point<dim> & p,
-                         const unsigned int component) const override;
-
-     virtual Tensor<1, dim>
-     shape_grad(const unsigned int i, const Point<dim> &p) const override;
-
-     virtual Tensor<1, dim>
-     shape_grad_component(const unsigned int i,
-                        const Point<dim> & p,
-                        const unsigned int component) const override;
-
-     virtual Tensor<2, dim>
-     shape_grad_grad(const unsigned int i, const Point<dim> &p) const override;
-
-     virtual Tensor<2, dim>
-     shape_grad_grad_component(const unsigned int i,
-                             const Point<dim> & p,
-                             const unsigned int component) const override;
-
-     virtual Tensor<3, dim>
-     shape_3rd_derivative(const unsigned int i,
-                        const Point<dim> & p) const override;
-
-     virtual Tensor<3, dim>
-     shape_3rd_derivative_component(const unsigned int i,
-                                  const Point<dim> & p,
-                                  const unsigned int component) const override;
-
-     virtual Tensor<4, dim>
-     shape_4th_derivative(const unsigned int i,
-                        const Point<dim> & p) const override;
-
-     virtual Tensor<4, dim>
-     shape_4th_derivative_component(const unsigned int i,
-                                  const Point<dim> & p,
-                                  const unsigned int component) const override;
-  */
   /*
    * Matrix functions, comparable to FE_Q_Base implementations
    */
@@ -249,7 +207,7 @@ public:
                      const bool         face_rotation = false) const override;
 
   virtual std::pair<Table<2, bool>, std::vector<unsigned int>>
-  get_constant_modes() const override;
+  get_constant_modes() const override;                                  // Should be quick to implement 
   */
   /*
    * hp functions
@@ -299,7 +257,7 @@ protected:
   friend struct FE_Hermite<dim, spacedim>::Implementation;
 
 private:
-  mutable Threads::Mutex mutex;
+  //mutable Threads::Mutex mutex;
   unsigned int           regularity;
   unsigned int           nodes;
 };
