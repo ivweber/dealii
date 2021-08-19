@@ -303,13 +303,27 @@ namespace internal
     poly_space.set_numbering(renumber);
     return poly_space;
   }
+  
+#if HERMITE_CUSTOM_FE_CLASS
+  template <int dim>
+  TensorProductPolynomials<dim>
+  get_hermite_polynomials(const unsigned int regularity, const unsigned int nodes)
+  {
+      TensorProductPolynomials<dim> poly_space(
+      Polynomials::HermiteCustomreg::generate_complete_basis(regularity, nodes));
+    std::vector<unsigned int> renumber =
+      internal::hermite_face_lexicographic_to_hierarchic_numbering<dim + 1>(
+        regularity, nodes);
+    poly_space.set_numbering(renumber);
+    return poly_space;
+  }
+#endif
 
   inline unsigned int
-  binomial(unsigned int n, unsigned int i)
+  binomial(const unsigned int n, const unsigned int i)
   {
-    unsigned int C = 1;
-    unsigned int j, k = 1;
-    for (j = n; j > i; j--)
+    unsigned int C = 1, k = 1;
+    for (unsigned int j = n; j > i; j--)
       {
         C *= j;
         C /= k++;
@@ -323,7 +337,7 @@ namespace internal
  * Implementation structs for providing constraint matrices for hanging nodes
  */
 template <int xdim, int xspacedim>
-struct FE_MaxHermite<xdim, xspacedim>::Implementation
+struct FE_Hermite<xdim, xspacedim>::Implementation
 {
   static void
   create_F_matrix(std::vector<double> &F_matrix, const unsigned int regularity)
@@ -333,18 +347,18 @@ struct FE_MaxHermite<xdim, xspacedim>::Implementation
     std::vector<unsigned int> bzero_inv_matrix(sz * sz);
     F_matrix.resize(sz * sz);
     double       big_factor = 1, local_factor;
-    unsigned int min_ij, i, j, k, diag_value;
+    unsigned int min_ij, diag_value;
     int          sign_1 = 1, sign_2, sign_3, temp;
-    for (i = 0; i < sz; i++)
+    for (unsigned int i = 0; i < sz; i++)
       {
         big_factor *= 2;
         bzero_inv_matrix[i + i * sz] = 1;
         sign_2                       = sign_1;
-        for (j = 0; j < i; j++)
+        for (unsigned int j = 0; j < i; j++)
           {
             sign_3 = sign_2;
             temp   = -sign_2 * internal::binomial(sz, i - j);
-            for (k = j + 1; k < i; k++)
+            for (unsigned int k = j + 1; k < i; k++)
               {
                 sign_3 = -sign_3;
                 temp -= sign_3 * internal::binomial(sz, i - k) *
@@ -357,16 +371,16 @@ struct FE_MaxHermite<xdim, xspacedim>::Implementation
       }
     sign_1     = 1;
     diag_value = 1;
-    for (i = 0; i < sz; i++)
+    for (unsigned int i = 0; i < sz; i++)
       {
         local_factor = big_factor;
-        for (j = 0; j < sz; j++)
+        for (unsigned int j = 0; j < sz; j++)
           {
             F_matrix[j + i * sz] = 0;
             bzero_inv_matrix[i + j * sz] *= diag_value;
             min_ij = (i < j) ? i : j;
             temp = 0, sign_2 = 1;
-            for (k = 0; k < min_ij; k++)
+            for (unsigned int k = 0; k < min_ij; k++)
               {
                 temp += sign_2 * internal::binomial(j, k) *
                         internal::binomial(sz, i - k);
@@ -379,20 +393,30 @@ struct FE_MaxHermite<xdim, xspacedim>::Implementation
         big_factor *= 0.5;
         diag_value *= 4;
       }
-    for (i = 0; i < sz; i++)
-      for (k = 0; k < sz; k++)
-        for (j = 0; j < sz; j++)
+    for (unsigned int i = 0; i < sz; i++)
+      for (unsigned int k = 0; k < sz; k++)
+        for (unsigned int j = 0; j < sz; j++)
           F_matrix[j + i * sz] +=
             bhalf_matrix[k + i * sz] * bzero_inv_matrix[j + k * sz];
     big_factor = 1;
-    for (i = 0; i < sz; i++)
+    for (unsigned int i = 0; i < sz; i++)
       {
-        for (j = 0; j < sz; j++)
+        for (unsigned int j = 0; j < sz; j++)
           F_matrix[j + i * sz] *= big_factor;
         big_factor *= i + 1;
       }
     return;
   }
+  
+#if HERMITE_CUSTOM_FE_CLASS
+  static void
+  create_F_matrix(std::vector<double> &      F_matrix,
+                  const unsigned int         regularity,
+                  const unsigned int         nodes)
+  {
+      Assert(false, ExcNotImplemented());
+  }
+#endif
 
   static inline void
   create_G_matrix(std::vector<double> &      G_matrix,
@@ -404,13 +428,12 @@ struct FE_MaxHermite<xdim, xspacedim>::Implementation
            ExcMessage(
              "Provided F_matrix has the wrong size for the regularity."));
     G_matrix.resize(sz * sz);
-    unsigned int i, j;
     int          sign_1, sign_2;
     sign_1 = 1;
-    for (i = 0; i < sz; i++)
+    for (unsigned int i = 0; i < sz; i++)
       {
         sign_2 = sign_1;
-        for (j = 0; j < sz; j++)
+        for (unsigned int j = 0; j < sz; j++)
           {
             G_matrix[j + i * sz] = sign_2 * F_matrix[j + i * sz];
             sign_2               = -sign_2;
@@ -419,53 +442,72 @@ struct FE_MaxHermite<xdim, xspacedim>::Implementation
       }
     return;
   }
+  
+#if HERMITE_CUSTOM_FE_CLASS
+  static inline void
+  create_G_matrix(std::vector<double> &      G_matrix,
+                  const std::vector<double> &F_matrix,
+                  const unsigned int         regularity,
+                  const unsigned int         nodes)
+  {
+      Assert(false, ExcNotImplemented());
+  }
+#endif
 
   template <int spacedim>
   static void
-  initialise_constraints(FE_MaxHermite<1, spacedim> &)
+  initialise_constraints(FE_Hermite<1, spacedim> &)
   {
     // Not needed for 1D
   }
 
   template <int spacedim>
   static void
-  initialise_constraints(FE_MaxHermite<2, spacedim> &fe_hermite)
+  initialise_constraints(FE_Hermite<2, spacedim> &fe_hermite)
   {
-    const unsigned int  regularity = fe_hermite.regularity;
-    const unsigned int  sz         = regularity + 1;
-    std::vector<double> F_matrix(sz * sz), G_matrix(sz * sz);
-    create_F_matrix(F_matrix, regularity);
-    create_G_matrix(G_matrix, F_matrix, regularity);
-    std::vector<unsigned int> face_index_map =
-      internal::hermite_face_lexicographic_to_hierarchic_numbering<2>(
-        regularity, 0);
-    fe_hermite.interface_constraints.TableBase<2, double>::reinit(
-      fe_hermite.interface_constraints_size());
-    unsigned int i, j;
-    for (i = 0; i < sz; i++)
-      for (j = 0; j < 2 * sz; j++)
-        fe_hermite.interface_constraints(i, face_index_map[j]) =
-          static_cast<double>(i == j);
-    for (i = 0; i < sz; i++)
-      for (j = 0; j < sz; j++)
-        {
-          fe_hermite.interface_constraints(sz + i, face_index_map[j]) =
-            F_matrix[j + i * sz];
-          fe_hermite.interface_constraints(sz + i, face_index_map[sz + j]) =
-            G_matrix[j + i * sz];
-        }
-    for (i = 0; i < sz; i++)
-      for (j = 0; j < sz; j++)
-        {
-          fe_hermite.interface_constraints(2 * sz + i, face_index_map[j]) =
-            F_matrix[j + i * sz];
-          fe_hermite.interface_constraints(2 * sz + i, face_index_map[sz + j]) =
-            G_matrix[j + i * sz];
-        }
-    for (i = 0; i < sz; i++)
-      for (j = 0; j < 2 * sz; j++)
-        fe_hermite.interface_constraints(3 * sz + i, face_index_map[j]) =
-          (i + sz == j) ? 1 : 0;
+    const unsigned int nodes = fe_hermite.nodes;
+    if (nodes == 0)
+    {    
+        const unsigned int  regularity = fe_hermite.regularity;
+        const unsigned int  sz         = regularity + 1;
+        std::vector<double> F_matrix(sz * sz), G_matrix(sz * sz);
+
+        create_F_matrix(F_matrix, regularity);
+        create_G_matrix(G_matrix, F_matrix, regularity);
+        std::vector<unsigned int> face_index_map =
+            internal::hermite_face_lexicographic_to_hierarchic_numbering<2>(
+            regularity, 0);
+        fe_hermite.interface_constraints.TableBase<2, double>::reinit(
+        fe_hermite.interface_constraints_size());
+        for (unsigned int i = 0; i < sz; i++)
+            for (unsigned int j = 0; j < 2 * sz; j++)
+                fe_hermite.interface_constraints(i, face_index_map[j]) =
+                  static_cast<double>(i == j);
+        for (unsigned int i = 0; i < sz; i++)
+            for (unsigned int j = 0; j < sz; j++)
+            {
+                fe_hermite.interface_constraints(sz + i, face_index_map[j]) =
+                  F_matrix[j + i * sz];
+                fe_hermite.interface_constraints(sz + i, face_index_map[sz + j]) =
+                  G_matrix[j + i * sz];
+            }
+        for (unsigned int i = 0; i < sz; i++)
+            for (unsigned int j = 0; j < sz; j++)
+            {
+                fe_hermite.interface_constraints(2 * sz + i, face_index_map[j]) =
+                  F_matrix[j + i * sz];
+                fe_hermite.interface_constraints(2 * sz + i, face_index_map[sz + j]) =
+                  G_matrix[j + i * sz];
+            }
+        for (unsigned int i = 0; i < sz; i++)
+            for (unsigned int j = 0; j < 2 * sz; j++)
+                fe_hermite.interface_constraints(3 * sz + i, face_index_map[j]) =
+                  (i + sz == j) ? 1 : 0;
+    }
+    else
+    {
+        Assert(false, ExcNotImplemented());
+    }
     return;
   }
 
@@ -473,201 +515,179 @@ struct FE_MaxHermite<xdim, xspacedim>::Implementation
   static void
   initialise_constraints(FE_MaxHermite<3, spacedim> &fe_hermite)
   {
-    const unsigned int  regularity = fe_hermite.regularity;
-    const unsigned int  sz         = regularity + 1;
-    const unsigned int  sz2        = sz * sz;
-    std::vector<double> F_matrix(sz * sz), G_matrix(sz * sz);
-    create_F_matrix(F_matrix, regularity);
-    create_G_matrix(G_matrix, F_matrix, regularity);
-    std::vector<unsigned int> face_index_map =
-      internal::hermite_face_lexicographic_to_hierarchic_numbering<3>(
-        regularity, 0);
-    fe_hermite.interface_constraints.TableBase<2, double>::reinit(
-      fe_hermite.interface_constraints_size());
-    unsigned int i, j, k, l, local_1, local_2;
-    double       entry_1, entry_2, entry_3, entry_4, temp;
-    for (i = 0; i < sz2; i++)
-      for (j = 0; j < 4 * sz * sz; j++)
-        {
-          entry_1 = static_cast<double>(i == j);
-          fe_hermite.interface_constraints(i, face_index_map[j])    = entry_1;
-          fe_hermite.interface_constraints(i + 3 * sz2,
+      const unsigned int nodes = fe_hermite.nodes;
+      if (nodes == 0)
+      {
+        const unsigned int  regularity = fe_hermite.regularity;
+        const unsigned int  sz         = regularity + 1;
+        const unsigned int  sz2        = sz * sz;
+        std::vector<double> F_matrix(sz * sz), G_matrix(sz * sz);
+        create_F_matrix(F_matrix, regularity);
+        create_G_matrix(G_matrix, F_matrix, regularity);
+        std::vector<unsigned int> face_index_map =
+          internal::hermite_face_lexicographic_to_hierarchic_numbering<3>(
+          regularity, 0);
+        fe_hermite.interface_constraints.TableBase<2, double>::reinit(
+          fe_hermite.interface_constraints_size());
+        unsigned int local_1, local_2;
+        double       entry_1, entry_2, entry_3, entry_4, temp;
+        for (unsigned int i = 0; i < sz2; i++)
+            for (unsigned int j = 0; j < 4 * sz * sz; j++)
+            {
+                entry_1 = static_cast<double>(i == j);
+                fe_hermite.interface_constraints(i, face_index_map[j])    = entry_1;
+                fe_hermite.interface_constraints(i + 3 * sz2,
                                            face_index_map[j + sz2]) = entry_1;
-          fe_hermite.interface_constraints(i + 12 * sz2,
+                fe_hermite.interface_constraints(i + 12 * sz2,
                                            face_index_map[j + 2 * sz2]) =
-            entry_1;
-          fe_hermite.interface_constraints(i + 15 * sz2,
+                  entry_1;
+                fe_hermite.interface_constraints(i + 15 * sz2,
                                            face_index_map[j + 3 * sz2]) =
-            entry_1;
+                  entry_1;
+            }
+        for (unsigned int i = 0; i < sz; i++)
+            for (unsigned int j = 0; j < sz; j++)
+            {
+                entry_1 = F_matrix[j + i * sz];
+                entry_2 = G_matrix[j + i * sz];
+                for (unsigned int k = 0; k < sz; k++)
+                    for (unsigned int l = 0; l < sz; l++)
+                    {
+                        entry_4 = static_cast<double>(k == l);
+                        entry_3 = entry_1 * entry_4;
+                        entry_4 *= entry_2;
+                        local_1 = k + i * sz + 4 * sz2;
+                        local_2 = l + j * sz;
+                        fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                          entry_3;
+                        fe_hermite.interface_constraints(
+                          local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
+                        local_1 += 3 * sz2;
+                        local_2 += sz2;
+                        fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                          entry_3;
+                        fe_hermite.interface_constraints(
+                          local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
+                        local_1 += sz2;
+                        local_2 -= sz2;
+                        fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                          entry_3;
+                        fe_hermite.interface_constraints(
+                          local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
+                        local_1 += 3 * sz2;
+                        local_2 += sz2;
+                        fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                          entry_3;
+                        fe_hermite.interface_constraints(
+                        local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
+                    }
+            entry_1 = static_cast<double>(i == j);
+            for (unsigned int k = 0; k < sz; k++)
+                for (unsigned int l = 0; l < sz; l++)
+                {
+                    entry_3 = entry_1 * F_matrix[l + k * sz];
+                    entry_4 = entry_1 * G_matrix[l + k * sz];
+                    local_1 = k * i * sz + sz2;
+                    local_2 = l + j * sz;
+                    fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                        entry_3;
+                    fe_hermite.interface_constraints(
+                        local_1, face_index_map[local_2 + sz2]) = entry_4;
+                    local_1 += sz2;
+                    fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                      entry_3;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + sz2]) = entry_4;
+                    local_1 += 11 * sz2;
+                    local_2 += 2 * sz2;
+                    fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                      entry_3;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + sz2]) = entry_4;
+                    local_1 += sz2;
+                    fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                      entry_3;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + sz2]) = entry_4;
+                }
+            entry_1 = F_matrix[j + i * sz];
+            entry_3 = G_matrix[j + i * sz];
+            for (unsigned int k = 0; k < sz; k++)
+                for (unsigned int l = 0; l < sz; l++)
+                {
+                    temp    = G_matrix[l + k * sz];
+                    entry_2 = entry_1 * temp;
+                    entry_4 = entry_3 * temp;
+                    temp    = F_matrix[l + k * sz];
+                    entry_1 *= temp;
+                    entry_3 *= temp;
+                    local_1 = k + i * sz + 5 * sz2;
+                    local_2 = l + j * sz;
+                    fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                      entry_1;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + sz2]) = entry_2;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + 2 * sz2]) = entry_3;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + 3 * sz2]) = entry_4;
+                    local_1 += sz2;
+                    fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                      entry_1;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + sz2]) = entry_2;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + 2 * sz2]) = entry_3;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + 3 * sz2]) = entry_4;
+                    local_1 += 3 * sz2;
+                    fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                      entry_1;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + sz2]) = entry_2;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + 2 * sz2]) = entry_3;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + 3 * sz2]) = entry_4;
+                    local_1 += sz2;
+                    fe_hermite.interface_constraints(local_1,
+                                                 face_index_map[local_2]) =
+                      entry_1;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + sz2]) = entry_2;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + 2 * sz2]) = entry_3;
+                    fe_hermite.interface_constraints(
+                      local_1, face_index_map[local_2 + 3 * sz2]) = entry_4;
+                }
+            }
         }
-    for (i = 0; i < sz; i++)
-      for (j = 0; j < sz; j++)
+        else
         {
-          entry_1 = F_matrix[j + i * sz];
-          entry_2 = G_matrix[j + i * sz];
-          for (k = 0; k < sz; k++)
-            for (l = 0; l < sz; l++)
-              {
-                entry_4 = static_cast<double>(k == l);
-                entry_3 = entry_1 * entry_4;
-                entry_4 *= entry_2;
-                local_1 = k + i * sz + 4 * sz2;
-                local_2 = l + j * sz;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
-                local_1 += 3 * sz2;
-                local_2 += sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
-                local_1 += sz2;
-                local_2 -= sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
-                local_1 += 3 * sz2;
-                local_2 += sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 2 * sz2]) = entry_4;
-              }
-          entry_1 = static_cast<double>(i == j);
-          for (k = 0; k < sz; k++)
-            for (l = 0; l < sz; l++)
-              {
-                entry_3 = entry_1 * F_matrix[l + k * sz];
-                entry_4 = entry_1 * G_matrix[l + k * sz];
-                local_1 = k * i * sz + sz2;
-                local_2 = l + j * sz;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + sz2]) = entry_4;
-                local_1 += sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + sz2]) = entry_4;
-                local_1 += 11 * sz2;
-                local_2 += 2 * sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + sz2]) = entry_4;
-                local_1 += sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + sz2]) = entry_4;
-              }
-          entry_1 = F_matrix[j + i * sz];
-          entry_3 = G_matrix[j + i * sz];
-          for (k = 0; k < sz; k++)
-            for (l = 0; l < sz; l++)
-              {
-                temp    = G_matrix[l + k * sz];
-                entry_2 = entry_1 * temp;
-                entry_4 = entry_3 * temp;
-                temp    = F_matrix[l + k * sz];
-                entry_1 *= temp;
-                entry_3 *= temp;
-                local_1 = k + i * sz + 5 * sz2;
-                local_2 = l + j * sz;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_1;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + sz2]) = entry_2;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 2 * sz2]) = entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 3 * sz2]) = entry_4;
-                local_1 += sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_1;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + sz2]) = entry_2;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 2 * sz2]) = entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 3 * sz2]) = entry_4;
-                local_1 += 3 * sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_1;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + sz2]) = entry_2;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 2 * sz2]) = entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 3 * sz2]) = entry_4;
-                local_1 += sz2;
-                fe_hermite.interface_constraints(local_1,
-                                                 face_index_map[local_2]) =
-                  entry_1;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + sz2]) = entry_2;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 2 * sz2]) = entry_3;
-                fe_hermite.interface_constraints(
-                  local_1, face_index_map[local_2 + 3 * sz2]) = entry_4;
-              }
+            Assert(false, ExcNotImplemented());
         }
     return;
   }
 };
 
-#if HERMITE_CUSTOM_FE_CLASS
-template <int xdim, int xspacedim>
-struct FE_CustomHermite<xdim, xspacedim>::Implementation
-{
-  template <int spacedim>
-  static void
-  initialise_constraints(FE_CustomHermite<1, spacedim> &fe_hermite)
-  {
-    // Not needed for 1D
-  }
-
-  template <int spacedim>
-  static void
-  initialise_constraints(FE_CustomHermite<2, spacedim> &fe_hermite)
-  {
-    const unsigned int dim = 2;
-    const unsigned int degree =
-      2 * fe_hermite.regularity + fe_hermite.nodes + 1;
-  }
-
-  template <int spacedim>
-  static void
-  initialise_constraints(FE_CustomHermite<3, spacedim> &fe_hermite)
-  {
-    const unsigned int dim = 3;
-    const unsigned int degree =
-      2 * fe_hermite.regularity + fe_hermite.nodes + 1;
-  }
-};
-#endif
-
 
 /*
- * Member functions for the maximum regularity class
+ * Member functions for the Hermite class
  */
+//Constructors
 template <int dim, int spacedim>
-FE_MaxHermite<dim, spacedim>::FE_MaxHermite(const unsigned int reg)
+FE_Hermite<dim, spacedim>::FE_Hermite(const unsigned int reg)
   : FE_Poly<dim, spacedim>(
       internal::get_hermite_polynomials<dim>(reg),
       FiniteElementData<dim>(internal::get_hermite_dpo_vector(dim, reg, 0),
@@ -678,12 +698,39 @@ FE_MaxHermite<dim, spacedim>::FE_MaxHermite(const unsigned int reg)
       std::vector<bool>(Utilities::pow(2 * (reg + 1), dim), false),
       std::vector<ComponentMask>(Utilities::pow(2 * (reg + 1), dim),
                                  std::vector<bool>(1, true)))
-  , regularity(reg)
-{}
+  , regularity(reg), nodes(0)
+{
+    std::vector<unsigned int> renumber =
+    internal::hermite_face_lexicographic_to_hierarchic_numbering<dim + 1>(
+      regularity, 0);
+    this->poly_space.set_numbering(renumber);
+}
+
+#if HERMITE_CUSTOM_FE_CLASS
+template <int dim, int spacedim>
+FE_Hermite<dim, spacedim>::FE_Hermite(const unsigned int reg, const unsigned int nodes)
+  : FE_Poly<dim, spacedim>(
+      internal::get_hermite_polynomials<dim>(reg, nodes),
+      FiniteElementData<dim>(internal::get_hermite_dpo_vector(dim, reg, nodes),
+                             1,
+                             nodes + 2 * reg + 1,
+                             (reg ? FiniteElementData<dim>::H2 :
+                                    FiniteElementData<dim>::H1)),
+      std::vector<bool>(Utilities::pow(nodes + 2 * reg + 2, dim), false),
+      std::vector<ComponentMask>(Utilities::pow(nodes + 2 * reg + 2, dim),
+                                 std::vector<bool>(1, true)))
+  , regularity(reg), nodes(nodes)
+{
+    std::vector<unsigned int> renumber =
+    internal::hermite_face_lexicographic_to_hierarchic_numbering<dim + 1>(
+      regularity, nodes);
+    this->poly_space.set_numbering(renumber);
+}
+#endif
 
 template <int dim, int spacedim>
 void
-FE_MaxHermite<dim, spacedim>::initialize_constraints()
+FE_Hermite<dim, spacedim>::initialize_constraints()
 {
   Implementation::initialise_constraints(*this);
   return;
@@ -691,23 +738,23 @@ FE_MaxHermite<dim, spacedim>::initialize_constraints()
 
 template <int dim, int spacedim>
 std::string
-FE_MaxHermite<dim, spacedim>::get_name() const
+FE_Hermite<dim, spacedim>::get_name() const
 {
   std::ostringstream name_buffer;
-  name_buffer << "FE_MaxHermite<" << dim << "," << spacedim << ">("
-              << this->regularity << ")";
+  name_buffer << "FE_Hermite<" << dim << "," << spacedim << ">("
+              << this->regularity << "," << this->nodes ")";
   return name_buffer.str();
 }
 
 template <int dim, int spacedim>
 std::unique_ptr<FiniteElement<dim, spacedim>>
-FE_MaxHermite<dim, spacedim>::clone() const
+FE_Hermite<dim, spacedim>::clone() const
 {
-  return std::make_unique<FE_MaxHermite<dim, spacedim>>(*this);
+  return std::make_unique<FE_Hermite<dim, spacedim>>(*this);
 }
 /*
 template <int dim, int spacedim>
-void FE_MaxHermite<dim, spacedim>::get_interpolation_matrix(const
+void FE_Hermite<dim, spacedim>::get_interpolation_matrix(const
 FiniteElement<dim, spacedim> &source, FullMatrix<double> &matrix) const
 {
     const unsigned int dofs = this->dofs_per_cell;
@@ -719,60 +766,6 @@ ExcDimensionMismatch(interpolation_matrix.n(), source_dofs));
 
 }
 */
-#if HERMITE_CUSTOM_FE_CLASS
-/*
- * Member functions for the custom regularity class
- */
-template <int dim, int spacedim>
-FE_CustomHermite<dim, spacedim>::FE_CustomHermite(const unsigned int regularity,
-                                                  const unsigned int nodes)
-  : regularity(regularity)
-  , nodes(nodes)
-  , FE_Poly<dim, spacedim>(
-      TensorProductPolynomials<dim>(
-        Polynomials::HermiteCustomreg::generate_complete_basis(
-          nodes + 2 * regularity + 1,
-          regularity)),
-      FiniteElementData<dim>(
-        internal::get_hermite_dpo_vector(dim, regularity, nodes),
-        1,
-        nodes + 2 * regularity + 1,
-        (regularity ? FiniteElementData<dim>::H2 : FiniteElementData<dim>::H1)),
-      std::vector<bool>(std::pow(nodes + 2 * regularity + 2, dim), false),
-      std::vector<ComponentMask>(std::pow(nodes + 2 * regularity + 2, dim),
-                                 std::vector<bool>(1, true)))
-{
-  std::vector<unsigned int> renumber =
-    internal::hermite_face_lexicographic_to_hierarchic_numbering<dim + 1>(
-      regularity, nodes);
-  this->poly_space.set_numbering(renumber);
-}
-
-template <int dim, int spacedim>
-void
-FE_CustomHermite<dim, spacedim>::initialize_constraints()
-{
-  Implementation::initialise_constraints(*this);
-  return;
-}
-
-template <int dim, int spacedim>
-std::string
-FE_CustomHermite<dim, spacedim>::get_name() const
-{
-  std::ostringstream name_buffer;
-  name_buffer << "FE_CustomHermite<" << dim << "," << spacedim << ">("
-              << this->regularity << "," << this->nodes << ")";
-  return name_buffer.str();
-}
-
-template <int dim, int spacedim>
-std::unique_ptr<FiniteElement<dim, spacedim>>
-FE_CustomHermite<dim, spacedim>::clone() const
-{
-  return std::make_unique<FE_CustomHermite<dim, spacedim>>(*this);
-}
-#endif
 
 #include "fe_hermite.inst.in"
 

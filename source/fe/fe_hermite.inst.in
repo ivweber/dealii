@@ -33,24 +33,11 @@ internal::hermite_face_lexicographic_to_hierarchic_numbering<4>(
   const unsigned int regularity,
   const unsigned int nodes);
 
-template class FE_MaxHermite<1>;
-template class FE_MaxHermite<1, 2>;
-template class FE_MaxHermite<1, 3>;
+template class FE_Hermite<1>;
+template class FE_Hermite<1, 2>;
+template class FE_Hermite<1, 3>;
 
-template class FE_MaxHermite<2>;
-template class FE_MaxHermite<2, 3>;
+template class FE_Hermite<2>;
+template class FE_Hermite<2, 3>;
 
-template class FE_MaxHermite<3>;
-
-#if HERMITE_CUSTOM_FE_CLASS
-
-template class FE_CustomHermite<1>;
-template class FE_CustomHermite<1, 2>;
-template class FE_CustomHermite<1, 3>;
-
-template class FE_CustomHermite<2>;
-template class FE_CustomHermite<2, 3>;
-
-template class FE_CustomHermite<3>;
-
-#endif
+template class FE_Hermite<3>;
