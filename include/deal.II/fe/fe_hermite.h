@@ -148,15 +148,23 @@ DEAL_II_NAMESPACE_OPEN
  * shared between elements.
  */
 
+/*
+ * Use one class for both maximum regularity and custom regularity. To take
+ * advantage of the easier math for the max regularity, define two sets of
+ * functions differentiated by the number of input arguments.
+ */
 
 template <int dim, int spacedim = dim>
-class FE_MaxHermite : public FE_Poly<dim, spacedim>
+class FE_Hermite : public FE_Poly<dim, spacedim>
 {
 public:
   /*
-   * Constructor
+   * Constructors
    */
-  FE_MaxHermite<dim, spacedim>(const unsigned int regularity);
+  FE_Hermite<dim, spacedim>(const unsigned int regularity);
+#if HERMITE_CUSTOM_FE_CLASS
+  FE_Hermite<dim, spacedim>(const unsigned int regularity, const unsigned int nodes);
+#endif
   /*
      virtual double
      shape_value(const unsigned int i, const Point<dim> &p) const override;
@@ -288,122 +296,15 @@ protected:
   // void initialize_quad_dof_index_permutation();
 
   struct Implementation;
-  friend struct FE_MaxHermite<dim, spacedim>::Implementation;
+  friend struct FE_Hermite<dim, spacedim>::Implementation;
 
 private:
   mutable Threads::Mutex mutex;
   unsigned int           regularity;
+  unsigned int           nodes;
 };
 
 
-
-#if HERMITE_CUSTOM_FE_CLASS
-
-template <int dim, int spacedim = dim>
-class FE_CustomHermite : public FE_Poly<dim, spacedim>
-{
-public:
-  /*
-   * Constructor
-   */
-  FE_CustomHermite(const unsigned int regularity, const unsigned int nodes);
-
-  /*
-   * Matrix functions
-
-  virtual void
-  get_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                         FullMatrix<double> &matrix) const override;
-
-  virtual void
-  get_face_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                              FullMatrix<double> &matrix) const override;
-
-  virtual void
-  get_subface_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                                 const unsigned int                  subface,
-                                 FullMatrix<double> &matrix) const override;
-
-  virtual bool
-  has_support_on_face(const unsigned int shape_index,
-                    const unsigned int face_index) const override;
-
-  virtual const FullMatrix<double> &
-  get_restriction_matrix(const unsigned int child,
-                    const RefinementCase<dim> &refinement_case =
-                    RefinementCase<dim>::isotropic_refinement) const override;
-
-  virtual const FullMatrix<double> &
-  get_prolongation_matrix(const unsigned int child,
-                          const RefinementCase<dim> &refinement_case =
-                          RefinementCase<dim>::isotropic_refinement) const
-  override;
-
-  virtual unsigned int
-  face_to_cell_index(const unsigned int face_dof_index,
-                     const unsigned int face,
-                     const bool         face_orientation = true,
-                     const bool         face_flip        = false,
-                     const bool         face_rotation = false) const override;
-
-  virtual std::pair<Table<2, bool>, std::vector<unsigned int>>
-  get_constant_modes() const override;
-  */
-  /*
-   * hp functions
-
-  virtual bool
-  hp_constraints_are_implemented() const override;
-
-  virtual std::vector<std::pair<unsigned int, unsigned int>>
-  hp_vertex_dof_identities(const FiniteElement<dim, spacedim> &fe_other) const
-  override;
-
-  virtual std::vector<std::pair<unsigned int, unsigned int>>
-  hp_line_dof_identities(const FiniteElement<dim, spacedim> &fe_other) const
-  override;
-
-  virtual std::vector<std::pair<unsigned int, unsigned int>>
-  hp_quad_dof_identities(const FiniteElement<dim, spacedim> &fe_other) const
-  override;
-  */
-  /*
-   * Other functions
-   */
-  virtual std::string
-  get_name() const override;
-
-  virtual std::unique_ptr<FiniteElement<dim, spacedim>>
-  clone() const override;
-  /*
-  virtual std::size_t
-  memory_consumption() const override;
-
-  virtual void
-  convert_generalized_support_point_values_to_dof_values(
-  const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const override;
-
-  virtual FiniteElementDomination::Domination
-  compare_for_domination(const FiniteElement<dim, spacedim> &fe_other,
-                       const unsigned int codim = 0) const override final;
-  */
-protected:
-  void
-  initialize_constraints();
-  // void initialize_unit_support_points(const std::vector<Point<1>> &points);
-  // void initialize_unit_face_support_points(const std::vector<Point<1>>
-  // &points); void initialize_quad_dof_index_permutation();
-
-  struct Implementation;
-  friend struct FE_CustomHermite<dim, spacedim>::Implementation;
-
-private:
-  mutable Threads::Mutex mutex;
-  const unsigned int     regularity;
-  const unsigned int     nodes;
-};
-#endif
 
 DEAL_II_NAMESPACE_CLOSE
 
