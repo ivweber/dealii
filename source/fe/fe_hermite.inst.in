@@ -1,0 +1,56 @@
+template void
+internal::hermite_hierarchic_to_lexicographic_numbering<1>(
+  const unsigned int         regularity,
+  const unsigned int         nodes,
+  std::vector<unsigned int> &h2l);
+template void
+internal::hermite_hierarchic_to_lexicographic_numbering<2>(
+  const unsigned int         regularity,
+  const unsigned int         nodes,
+  std::vector<unsigned int> &h2l);
+template void
+internal::hermite_hierarchic_to_lexicographic_numbering<3>(
+  const unsigned int         regularity,
+  const unsigned int         nodes,
+  std::vector<unsigned int> &h2l);
+template void
+internal::hermite_hierarchic_to_lexicographic_numbering<4>(
+  const unsigned int         regularity,
+  const unsigned int         nodes,
+  std::vector<unsigned int> &h2l);
+
+
+template std::vector<unsigned int>
+internal::hermite_face_lexicographic_to_hierarchic_numbering<2>(
+  const unsigned int regularity,
+  const unsigned int nodes);
+template std::vector<unsigned int>
+internal::hermite_face_lexicographic_to_hierarchic_numbering<3>(
+  const unsigned int regularity,
+  const unsigned int nodes);
+template std::vector<unsigned int>
+internal::hermite_face_lexicographic_to_hierarchic_numbering<4>(
+  const unsigned int regularity,
+  const unsigned int nodes);
+
+template class FE_MaxHermite<1>;
+template class FE_MaxHermite<1, 2>;
+template class FE_MaxHermite<1, 3>;
+
+template class FE_MaxHermite<2>;
+template class FE_MaxHermite<2, 3>;
+
+template class FE_MaxHermite<3>;
+
+#if HERMITE_CUSTOM_FE_CLASS
+
+template class FE_CustomHermite<1>;
+template class FE_CustomHermite<1, 2>;
+template class FE_CustomHermite<1, 3>;
+
+template class FE_CustomHermite<2>;
+template class FE_CustomHermite<2, 3>;
+
+template class FE_CustomHermite<3>;
+
+#endif
