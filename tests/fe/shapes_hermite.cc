@@ -32,29 +32,37 @@ plot_FE_Hermite_shape_functions()
 {
   MappingQ<dim> m(1);
 
-  FE_Hermite<dim> q1(0);
-  plot_shape_functions(m, q1, "H1");
-  plot_face_shape_functions(m, q1, "H1");
-  test_compute_functions(m, q1, "H1");
+  FE_Hermite<dim> herm0(0);
+  plot_shape_functions(m, herm0, "Hermite-0");
+  plot_face_shape_functions(m, herm0, "Hermite-01");
+  test_compute_functions(m, herm0, "Hermite-0");
 
-  FE_Hermite<dim> q2(1);
-  plot_shape_functions(m, q2, "H2");
-  plot_face_shape_functions(m, q2, "H2");
-  test_compute_functions(m, q2, "H2");
+  FE_Hermite<dim> herm1(1);
+  plot_shape_functions(m, herm1, "Hermite-1");
+  plot_face_shape_functions(m, herm1, "Hermite-1");
+  test_compute_functions(m, herm1, "Hermite-1");
 
   // skip the following tests to
   // reduce run-time
   if (dim < 3)
     {
-      FE_Hermite<dim> q3(2);
-      plot_shape_functions(m, q3, "H3");
-      plot_face_shape_functions(m, q3, "H3");
-      test_compute_functions(m, q3, "H3");
-
-      FE_Hermite<dim> q4(3);
-      plot_shape_functions(m, q4, "H4");
-      plot_face_shape_functions(m, q4, "H4");
-      test_compute_functions(m, q4, "H4");
+      FE_Hermite<dim> herm2(2);
+      plot_shape_functions(m, herm2, "Hermite-2");
+      plot_face_shape_functions(m, herm2, "Hermite-2");
+      test_compute_functions(m, herm2, "Hermite-2");
+    }
+    
+  if (dim == 1)
+    {
+      FE_Hermite<dim> herm3(3);
+      plot_shape_functions(m, herm3, "Hermite-3");
+      plot_face_shape_functions(m, herm3, "Hermite-3");
+      test_compute_functions(m, herm3, "Hermite-3");
+      
+      FE_Hermite<dim> herm4(4);
+      plot_shape_functions(m, herm4, "Hermite-4");
+      plot_face_shape_functions(m, herm4, "Hermite-4");
+      test_compute_functions(m, herm4, "Hermite-4");
     };
 }
 
