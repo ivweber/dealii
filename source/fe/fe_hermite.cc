@@ -45,66 +45,49 @@ namespace internal
     const unsigned int dim_dofs_2d  = dim_dofs_1d * dim_dofs_1d;
     const unsigned int dim_dofs_3d  = dim_dofs_2d * dim_dofs_1d;
     unsigned int       offset, count = 0;
-    AssertDimension(h2l.size(), Utilities::pow(node_dofs_1d, dim));
+    AssertDimension(h2l.size(), Utilities::pow(dim_dofs_1d, dim));
     switch (dim)
       {
         case 1:
           // Assign DOFs at nodes
-          for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
-            h2l[i] = i;
-          for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
-            h2l[i + node_dofs_1d] = i + node_dofs_1d + nodes;
+          for (unsigned int di = 0; di < 2; ++di)
+            for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
+              h2l[i + di * node_dofs_1d] = i + di * (node_dofs_1d + nodes);
           // Assign DOFs on line if needed
           for (unsigned int i = 0; i < nodes; ++i, ++count)
             h2l[i + 2 * node_dofs_1d] = i + node_dofs_1d;
-          AssertDimension(count, Utilities::pow(node_dofs_1d, dim));
           break;
+          
         case 2:
+          offset = 0;
           // Assign DOFs at nodes
-          for (unsigned int i = 0; i < node_dofs_1d; ++i)
-            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-              h2l[j + i * node_dofs_1d] = j + i * dim_dofs_1d;
-          offset = node_dofs_1d * node_dofs_1d;
-          for (unsigned int i = 0; i < node_dofs_1d; ++i)
-            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-              h2l[j + i * node_dofs_1d + offset] =
-                j + node_dofs_1d + nodes + i * dim_dofs_1d;
-          offset *= 2;
-          for (unsigned int i = 0; i < node_dofs_1d; ++i)
-            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-              h2l[j + i * node_dofs_1d + offset] =
-                j + (i + node_dofs_1d + nodes) * dim_dofs_1d;
-          offset += node_dofs_1d * node_dofs_1d;
-          for (unsigned int i = 0; i < node_dofs_1d; ++i)
-            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-              h2l[j + i * node_dofs_1d + offset] =
-                j + (node_dofs_1d + nodes) * (dim_dofs_1d + 1) +
-                i * dim_dofs_1d;
+          for (unsigned int di = 0; di < 2; ++di)
+            for (unsigned int dj = 0; dj < 2; ++dj)
+              {
+                for (unsigned int i = 0; i < node_dofs_1d; ++i)
+                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
+                    h2l[j + i * node_dofs_1d + offset] = 
+                      j + i * dim_dofs_1d + (dj + di * dim_dofs_1d) * (node_dofs_1d + nodes);
+                offset += node_dofs_1d * node_dofs_1d;
+              }
           if (nodes)
             {
-              offset += node_dofs_1d * node_dofs_1d;
               // Assign DOFs on edges
               for (unsigned int i = 0; i < nodes; ++i)
-                {
+                for (unsigned int dj = 0; dj < 2; ++dj)
                   for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                    h2l[j + 2 * i * node_dofs_1d + offset] =
-                      j + (i + node_dofs_1d) * dim_dofs_1d;
-                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                    h2l[j + (2 * i + 1) * node_dofs_1d + offset] =
-                      j + (i + node_dofs_1d) * dim_dofs_1d + node_dofs_1d +
-                      nodes;
-                }
+                    h2l[j + (2 * i + dj) * node_dofs_1d + offset] =
+                      j + (i + node_dofs_1d) * dim_dofs_1d + dj * (node_dofs_1d +
+                        nodes);
+                      
               offset += 2 * nodes * node_dofs_1d;
               for (unsigned int i = 0; i < nodes; ++i)
-                {
+                for (unsigned int di = 0; di < 2, ++di)
                   for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                    h2l[j + 2 * i * node_dofs_1d + offset] =
-                      i + j * dim_dofs_1d + node_dofs_1d;
-                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                    h2l[j + (2 * i + 1) * node_dofs_1d + offset] =
-                      i + (j + node_dofs_1d + nodes) * dim_dofs_1d +
+                    h2l[j + (2 * i + di) * node_dofs_1d + offset] =
+                      i + j * dim_dofs_1d + di * (node_dofs_1d + nodes) * dim_dofs_1d +
                       node_dofs_1d;
-                }
+
               offset += 2 * nodes * node_dofs_1d;
               // Assign DOFs on face
               for (unsigned int i = 0; i < nodes; ++i)
@@ -112,8 +95,8 @@ namespace internal
                   h2l[j + i * nodes + offset] =
                     j + (i + node_dofs_1d) * dim_dofs_1d + node_dofs_1d;
             }
-          AssertDimension(count, Utilities::pow(node_dofs_1d, dim));
           break;
+          
         case 3:
           // Assign DOFs at nodes
           offset = 0;
@@ -217,8 +200,8 @@ namespace internal
                       k + node_dofs_1d + (j + node_dofs_1d) * dim_dofs_1d +
                       (i + node_dofs_1d) * dim_dofs_2d;
             }
-          AssertDimension(count, Utilities::pow(node_dofs_1d, dim));
           break;
+          
         case 4:
           // Assign DOFs at nodes
           offset = 0;
@@ -263,11 +246,12 @@ namespace internal
               // faces normal to w
               // Assign DOFs in cell
             }
-          AssertDimension(count, Utilities::pow(node_dofs_1d, dim));
           break;
+          
         default:
           Assert(false, ExcNotImplemented());
       }
+      AssertDimension(count, Utilities::pow(dim_dofs_1d, dim));
   }
 
   template <int dim>
