@@ -9,6 +9,15 @@ factorial(const unsigned int n)
   return result;
 }
 
+/* Note:
+ * Several functions in this code file are sensitive to underflow error
+ * when using unsigned ints for arithmetic. At present static casts to
+ * int are used to fix the issue. If this bug occurs it usually affects
+ * FE_Hermite(2) and higher, with shape values taking large magnitude
+ * values in the interval (0,1).
+ *  - Weber
+ */
+
 DEAL_II_NAMESPACE_OPEN
 
 namespace Polynomials
@@ -28,7 +37,7 @@ namespace Polynomials
     for (unsigned int i = 1; i < sz; ++i)
       {
         mult      = -static_cast<int>(sz - i + 1);
-        coeffs[i] = (mult * coeffs[i - 1]) / i;
+        coeffs[i] = (mult * coeffs[i - 1]) / static_cast<int>(i);
       }
 
     for (unsigned int i = 0; i < sz; ++i)
@@ -51,17 +60,15 @@ namespace Polynomials
            ExcMessage("The provided function index is out of range."));
     FullMatrix<double> B          = hermite_to_bernstein_matrix(regularity);
     unsigned int       curr_index = index % (regularity + 1);
-    bool               at_next_node =
-      (index >
-       regularity); // Will need corrections based on g_k(x) = (-1)^{k} f_k(1-x)
+    bool               at_next_node = (index > regularity); 
+        // Next node needs corrections based on g_k(x) = (-1)^{k} f_k(1-x)
     std::vector<double> bern_coeffs(regularity + 1);
     for (unsigned int i = 0; i < curr_index; ++i)
       bern_coeffs[i] = 0.0;
     bern_coeffs[curr_index] = 1.0;
-    double temp;
     for (unsigned int i = curr_index + 1; i <= regularity; ++i)
       {
-        temp = 0;
+        double temp = 0;
         for (unsigned int j = 0; j < i; ++j)
           temp -= B(i, j) * bern_coeffs[j];
         bern_coeffs[i] = temp;
@@ -76,7 +83,7 @@ namespace Polynomials
           {
             binom[i] = temp_int;
             temp_int *= -static_cast<int>(regularity + 1 - i);
-            temp_int /= i + 1;
+            temp_int /= static_cast<int>(i + 1);
           }
         for (unsigned int i = 0; i <= regularity; ++i)
           for (unsigned int j = 0; j < regularity + 2; ++j)
@@ -94,16 +101,16 @@ namespace Polynomials
             for (unsigned int j = 1; j <= i; ++j)
               {
                 temp_int *= -static_cast<int>(i - j + 1);
-                temp_int /= j;
+                temp_int /= static_cast<int>(j);
                 poly_coeffs[j + regularity + 1] += temp_int * curr_coeff;
               }
           }
       }
     // rescale coefficients by a factor of 4^curr_index to account for reduced
     // L2-norms
-    temp = Utilities::pow(4, curr_index);
+    double precond_factor = Utilities::pow(4, curr_index);
     for (auto &it : poly_coeffs)
-      it *= temp;
+      it *= precond_factor;
     return poly_coeffs;
   }
 
@@ -186,9 +193,9 @@ namespace Polynomials
             int mult1   = factorial(j - i + 1);
             mult2       = factorial(j);
             double temp;
-            for (unsigned int k = j - i + 1; k != 0; --k)
+            for (unsigned int k = j - i + 1; k > 0; --k)
               {
-                mult1 /= k;
+                mult1 /= static_cast<int>(k);
                 temp = mult2 * deriv_vals[k - 1] / mult1;
                 B_new(j, i) += temp * B_std(j - k + 1, i);
               }
@@ -214,7 +221,6 @@ namespace Polynomials
       (2 * regularity + 1) < degree,
       ExcMessage(
         "Requested regularity is too high for the polynomial degree provided."));
-    double                temp;
     unsigned int          numnodes = degree - 2 * regularity - 1;
     std::vector<Point<1>> internal_nodes =
       create_chebyshevgausslobatto_nodes(numnodes);
@@ -230,6 +236,7 @@ namespace Polynomials
           }
       }
     std::vector<double> poly_coeffs(degree + 1);
+    double temp;
     if (group_index == 1)
       {
         temp                           = 1.0;
@@ -238,7 +245,7 @@ namespace Polynomials
           {
             poly_coeffs[i + edge_degree] = temp;
             temp *= -static_cast<int>(edge_degree - i);
-            temp /= i + 1;
+            temp /= static_cast<int>(i + 1);
           }
         unsigned int k = 1;
         for (unsigned int i = 0; i < numnodes; ++i)
@@ -256,7 +263,7 @@ namespace Polynomials
           }
         temp               = poly_coeffs[degree];
         const double temp2 = internal_nodes[local_index](0);
-        for (unsigned int i = degree; i != 0; --i)
+        for (unsigned int i = degree; i > 0; --i)
           {
             temp *= temp2;
             temp += poly_coeffs[i - 1];
@@ -291,7 +298,7 @@ namespace Polynomials
                 for (unsigned int j = 0; j <= regularity; ++j)
                   poly_coeffs[i + j] += temp * coeff_sol[j];
                 temp *= -static_cast<int>(regularity + 1 - i);
-                temp /= i + 1;
+                temp /= static_cast<int>(i + 1);
               }
           }
         else
@@ -306,7 +313,7 @@ namespace Polynomials
                   {
                     poly_coeffs[j + offset] += temp;
                     temp *= -static_cast<int>(i - j);
-                    temp /= j + 1;
+                    temp /= static_cast<int>(j + 1);
                   }
               }
           }
