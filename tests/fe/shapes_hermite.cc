@@ -34,7 +34,7 @@ plot_FE_Hermite_shape_functions()
 
   FE_Hermite<dim> herm0(0);
   plot_shape_functions(m, herm0, "Hermite-0");
-  plot_face_shape_functions(m, herm0, "Hermite-01");
+  plot_face_shape_functions(m, herm0, "Hermite-0");
   test_compute_functions(m, herm0, "Hermite-0");
 
   FE_Hermite<dim> herm1(1);
