@@ -235,6 +235,22 @@ public:
 
   virtual std::unique_ptr<FiniteElement<dim, spacedim>>
   clone() const override;
+  
+  virtual void
+  fill_fe_values(
+    const typename Triangulation<dim, spacedim>::cell_iterator &cell,
+    const CellSimilarity::Similarity                            cell_similarity,
+    const Quadrature<dim> &                                     quadrature,
+    const Mapping<dim, spacedim> &                              mapping,
+    const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
+    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
+                                                                       spacedim>
+      &                                                            mapping_data,
+    const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
+    dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
+                                                                       spacedim>
+      &output_data) const override;
+      
   /*
   virtual std::size_t
   memory_consumption() const override;
@@ -257,7 +273,7 @@ protected:
   friend struct FE_Hermite<dim, spacedim>::Implementation;
 
 private:
-  //mutable Threads::Mutex mutex;
+  //Mutable Threads::Mutex mutex;
   unsigned int           regularity;
   unsigned int           nodes;
 };
