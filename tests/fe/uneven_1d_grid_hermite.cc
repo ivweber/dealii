@@ -51,8 +51,8 @@ class test_poly : public Function<1>
 {
 public:
     virtual double
-    value(const Point<1> &p, unsigned int component = 0) const override {
-        return 1.0 - p(0) * p(0);
+    value(const Point<1> &p, unsigned int c=0) const override {
+        return p(0) * (1.0 + 0.5 * p(0) - p(0) * p(0));
     }
 };
 
@@ -63,7 +63,7 @@ test_fe_on_domain(const unsigned int regularity)
     
     Triangulation<1> tr;
     DoFHandler<1> dof(tr);
-    GridGenerator::hyper_cube(tr, -1.0, 1.0);
+    GridGenerator::hyper_cube(tr, -1.0, 1.0);  
     
     //Refine the right-most cell three times to get the elements [-1,0],[0,0.5],[0.5,0.75],[0.75,1]
     Point<1> right_point(1.0);
@@ -84,12 +84,31 @@ test_fe_on_domain(const unsigned int regularity)
     FE_Hermite<1> herm(regularity);
     dof.distribute_dofs(herm);
     
-    DynamicSparsityPattern dsp(dof.n_dofs());
-    DoFTools::make_sparsity_pattern(dof,dsp);
-    SparsityPattern sparsity;
-    sparsity.copy_from(dsp);
-    SparseMatrix mass(dof.n_dofs());
-    mass.reinit(sparsity);
+    QGauss<1> quadr(2*regularity + 2);
+    Vector<double> solution(dof.n_dofs());
+    test_poly rhs_func;
     
+    AffineConstraints<double> constraints;
+    constraints.close();
     
+    VectorTools::project(dof, constraints, quadr, rhs_func, solution, false);
+
+    DataOut<1> data_out;
+    data_out.attach_dof_handler(dof);
+    data_out.add_data_vector(solution, "hermite_solution");
+    data_out.build_patches(29);
+    char filename[20];
+    sprintf(filename, "solution-%d.vtu", regularity);
+    std::ofstream output(filename);
+    data_out.write_vtu(output);
+    output.close();
+}
+
+int main()
+{
+    test_fe_on_domain(1);
+    test_fe_on_domain(2);
+    test_fe_on_domain(3);
+    
+    return 0;
 }
