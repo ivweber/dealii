@@ -6,6 +6,8 @@
 
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_tools.h>
+#include <deal.II/fe/mapping_cartesian.h>
+#include <deal.II/fe/mapping_q.h>
 
 #include <cmath>
 #include <iterator>
@@ -82,7 +84,7 @@ namespace internal
                       
               offset += 2 * nodes * node_dofs_1d;
               for (unsigned int i = 0; i < nodes; ++i)
-                for (unsigned int di = 0; di < 2, ++di)
+                for (unsigned int di = 0; di < 2; ++di)
                   for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
                     h2l[j + (2 * i + di) * node_dofs_1d + offset] =
                       i + j * dim_dofs_1d + di * (node_dofs_1d + nodes) * dim_dofs_1d +
@@ -440,14 +442,31 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
 
   template <int spacedim>
   static void
-  initialise_constraints(FE_Hermite<1, spacedim> &)
+  initialise_constraints(FE_Hermite<1, spacedim> &fe_hermite)
   {
-    // Not needed for 1D
+    const unsigned int nodes = fe_hermite.nodes;
+    if (nodes == 0)
+    {
+        const unsigned int regularity = fe_hermite.regularity;
+        const unsigned int sz = regularity + 1;
+        
+        fe_hermite.interface_constraints.TableBase<2,double>::reinit(
+            fe_hermite.interface_constraints_size());
+        
+        for (unsigned int i = 0; i < sz; ++i)
+            fe_hermite.interface_constraints(i,i) =
+                std::pow(0.5, i);
+        //implement matching of function coefficients based on cell size here
+    }
+    else
+    {
+        Assert(false, ExcNotImplemented());
+    }
   }
 
   template <int spacedim>
   static void
-  initialise_constraints(FE_Hermite<2, spacedim> &fe_hermite)
+  initialise_constraints(FE_Hermite<2, spacedim> &fe_hermite)   //This function probably needs to be rewritten
   {
     const unsigned int nodes = fe_hermite.nodes;
     if (nodes == 0)
@@ -462,7 +481,7 @@ struct FE_Hermite<xdim, xspacedim>::Implementation
             internal::hermite_face_lexicographic_to_hierarchic_numbering<2>(
             regularity, 0);
         fe_hermite.interface_constraints.TableBase<2, double>::reinit(
-        fe_hermite.interface_constraints_size());
+            fe_hermite.interface_constraints_size());
         for (unsigned int i = 0; i < sz; ++i)
             for (unsigned int j = 0; j < 2 * sz; ++j)
                 fe_hermite.interface_constraints(i, face_index_map[j]) =
@@ -736,6 +755,111 @@ FE_Hermite<dim, spacedim>::clone() const
 {
   return std::make_unique<FE_Hermite<dim, spacedim>>(*this);
 }
+
+
+
+template <int dim, int spacedim>
+bool
+higher_derivatives_need_correcting(
+  const Mapping<dim, spacedim> &mapping,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    &                mapping_data,
+  const unsigned int n_q_points,
+  const UpdateFlags  update_flags)
+{
+  // If higher derivatives weren't requested we don't need to correct them.
+  const bool update_higher_derivatives =
+    (update_flags & update_hessians) || (update_flags & update_3rd_derivatives);
+  if (!update_higher_derivatives)
+    return false;
+
+  // If we have a Cartesian mapping, we know that jacoban_pushed_forward_grads
+  // are identically zero.
+  if (dynamic_cast<const MappingCartesian<dim> *>(&mapping))
+    return false;
+
+  // Here, we should check if jacobian_pushed_forward_grads are zero at the
+  // quadrature points. This is yet to be implemented.
+  (void)mapping_data;
+  (void)n_q_points;
+
+  return true;
+}
+
+
+template <int dim, int spacedim>
+void
+FE_Hermite<dim, spacedim>::fill_fe_values(
+  const typename Triangulation<dim, spacedim>::cell_iterator &,
+  const CellSimilarity::Similarity                         cell_similarity,
+  const Quadrature<dim> &                                  quadrature,
+  const Mapping<dim, spacedim> &                           mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
+  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
+                                                                     spacedim>
+    &                                                            mapping_data,
+  const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
+  dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
+                                                                     spacedim>
+    &output_data) const
+{
+  // convert data object to internal
+  // data for this class. fails with
+  // an exception if that is not
+  // possible
+  Assert((dynamic_cast<const typename FE_Hermite<dim,spacedim>::InternalData *>(&fe_internal) != nullptr),
+         ExcInternalError());
+  const typename FE_Hermite<dim,spacedim>::InternalData &fe_data = static_cast<const typename FE_Hermite<dim,spacedim>::InternalData &>(fe_internal);
+  
+  const typename MappingQ<dim, spacedim>::InternalData * mapping_internal_q = dynamic_cast<const typename MappingQ<dim, spacedim>::InternalData *>(&mapping_internal);
+
+  const UpdateFlags flags(fe_data.update_each);
+
+  const bool need_to_correct_higher_derivatives =
+    higher_derivatives_need_correcting(mapping,
+                                       mapping_data,
+                                       quadrature.size(),
+                                       flags);
+
+  // transform gradients and higher derivatives. there is nothing to do
+  // for values since we already emplaced them into output_data when
+  // we were in get_data()
+  if ((flags & update_gradients) &&
+      (cell_similarity != CellSimilarity::translation))
+    for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
+      mapping.transform(make_array_view(fe_data.shape_gradients, k),
+                        mapping_covariant,
+                        mapping_internal,
+                        make_array_view(output_data.shape_gradients, k));
+
+  if ((flags & update_hessians) &&
+      (cell_similarity != CellSimilarity::translation))
+    {
+      for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
+        mapping.transform(make_array_view(fe_data.shape_hessians, k),
+                          mapping_covariant_gradient,
+                          mapping_internal,
+                          make_array_view(output_data.shape_hessians, k));
+
+      if (need_to_correct_higher_derivatives)
+        FE_Poly<dim,spacedim>::correct_hessians(output_data, mapping_data, quadrature.size());
+    }
+
+  if ((flags & update_3rd_derivatives) &&
+      (cell_similarity != CellSimilarity::translation))
+    {
+      for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
+        mapping.transform(make_array_view(fe_data.shape_3rd_derivatives, k),
+                          mapping_covariant_hessian,
+                          mapping_internal,
+                          make_array_view(output_data.shape_3rd_derivatives,
+                                          k));
+
+      if (need_to_correct_higher_derivatives)
+        FE_Poly<dim,spacedim>::correct_third_derivatives(output_data, mapping_data, quadrature.size());
+    }
+}
+
 /*
 template <int dim, int spacedim>
 void FE_Hermite<dim, spacedim>::get_interpolation_matrix(const
