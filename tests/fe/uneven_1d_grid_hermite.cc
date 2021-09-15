@@ -102,6 +102,10 @@ test_fe_on_domain(const unsigned int regularity)
     std::ofstream output(filename);
     data_out.write_vtu(output);
     output.close();
+    
+    double err_sq = 0;
+    
+    FEValues<1> fe_herm(herm, quadr, update_values | update_JxW_values);
 }
 
 int main()
