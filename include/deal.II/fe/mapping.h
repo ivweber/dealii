@@ -152,7 +152,15 @@ enum MappingKind
    * Mapping of the hessian of a piola vector field (see Mapping::transform()
    * for details).
    */
-  mapping_piola_hessian
+  mapping_piola_hessian,
+  
+  /**
+   * The mappings used for the hessian of a hermite element vector field
+   * (needs to be implemented in Mapping::transform())
+   */
+  mapping_hermite,
+  mapping_hermite_gradient,
+  mapping_hermite_hessian
 };
 
 
