@@ -117,8 +117,6 @@ public:
    * @}
    */
 
-
-private:
   /**
    * @name Interface with FEValues
    * @{
