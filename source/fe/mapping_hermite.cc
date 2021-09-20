@@ -999,29 +999,36 @@ MappingHermite<dim, spacedim>::transform_unit_to_real_cell(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const Point<dim> &                                          p) const
 {
-  Tensor<1, dim>   length;
-  const Point<dim> start = cell->vertex(0);
+  std::vector<Tensor<1, spacedim>>   axes(dim);
+  const Point<spacedim> start = cell->vertex(0);
   switch (dim)
     {
       case 1:
-        length[0] = cell->vertex(1)(0) - start(0);
+        for (unsigned int i = 0; i < spacedim; ++i)
+          axes[0][i] = cell->vertex(1)(i) - start(i);
         break;
       case 2:
-        length[0] = cell->vertex(1)(0) - start(0);
-        length[1] = cell->vertex(2)(1) - start(1);
+        for (unsigned int i = 0; i < spacedim; ++i)
+        {
+          axes[0][i] = cell->vertex(1)(i) - start(i);
+          axes[1][i] = cell->vertex(2)(i) - start(i);
+        }
         break;
       case 3:
-        length[0] = cell->vertex(1)(0) - start(0);
-        length[1] = cell->vertex(2)(1) - start(1);
-        length[2] = cell->vertex(4)(2) - start(2);
+        for (unsigned int i = 0; i < spacedim; ++i)
+        {
+          axes[0][i] = cell->vertex(1)(i) - start(i);
+          axes[1][i] = cell->vertex(2)(i) - start(i);
+          axes[2][i] = cell->vertex(4)(i) - start(i);
+        }
         break;
       default:
         Assert(false, ExcNotImplemented());
     }
 
-  Point<dim> p_real = cell->vertex(0);
+  Point<spacedim> p_real = cell->vertex(0);
   for (unsigned int d = 0; d < dim; ++d)
-    p_real(d) += length[d] * p(d);
+    p_real += axes[d] * p(d);
 
   return p_real;
 }
@@ -1034,30 +1041,77 @@ MappingHermite<dim, spacedim>::transform_real_to_unit_cell(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const Point<spacedim> &                                     p) const
 {
-  if (dim != spacedim)
-    Assert(false, ExcNotImplemented());
-  const Point<dim> &start = cell->vertex(0);
-  Point<dim>        real  = p;
-  real -= start;
-
-  switch (dim)
+    std::vector<Tensor<1,spacedim>>   axes(dim);
+    Tensor<1,dim> lengths;
+    const Point<spacedim> &start = cell->vertex(0);
+    switch (dim)
     {
       case 1:
-        real(0) /= cell->vertex(1)(0) - start(0);
+        for (unsigned int i = 0; i < spacedim; ++i)
+          axes[0][i] = cell->vertex(1)(i) - start(i);
+        lengths[0] = start.distance(cell->vertex(1));
         break;
       case 2:
-        real(0) /= cell->vertex(1)(0) - start(0);
-        real(1) /= cell->vertex(2)(1) - start(1);
+        for (unsigned int i = 0; i < spacedim; ++i)
+        {
+          axes[0][i] = cell->vertex(1)(i) - start(i);
+          axes[1][i] = cell->vertex(2)(i) - start(i);
+        }
+        lengths[0] = start.distance(cell->vertex(1));
+        lengths[1] = start.distance(cell->vertex(2));
         break;
       case 3:
-        real(0) /= cell->vertex(1)(0) - start(0);
-        real(1) /= cell->vertex(2)(1) - start(1);
-        real(2) /= cell->vertex(4)(2) - start(2);
+        for (unsigned int i = 0; i < spacedim; ++i)
+        {
+          axes[0][i] = cell->vertex(1)(i) - start(i);
+          axes[1][i] = cell->vertex(2)(i) - start(i);
+          axes[2][i] = cell->vertex(4)(i) - start(i);
+        }
+        lengths[0] = start.distance(cell->vertex(1));
+        lengths[1] = start.distance(cell->vertex(2));
+        lengths[2] = start.distance(cell->vertex(4));
         break;
       default:
         Assert(false, ExcNotImplemented());
     }
-  return real;
+  
+    Point<spacedim> real = p;
+    Point<dim> reference;
+    real -= start;
+    double dot = 0;
+  switch (dim)
+    {
+      case 1:
+        for (unsigned int i = 0; i < spacedim; ++i)
+            dot += axes[0][i] * real(i);
+        reference(0) = dot / lengths[0];
+        break;
+      case 2:
+        for (unsigned int i = 0; i < spacedim; ++i)
+            dot += axes[0][i] * real(i);
+        reference(0) = dot / lengths[0];
+        dot = 0;
+        for (unsigned int i = 0; i < spacedim; ++i)
+            dot += axes[1][i] * real(i);
+        reference(1) = dot / lengths[1];
+        break;
+      case 3:
+        for (unsigned int i = 0; i < spacedim; ++i)
+            dot += axes[0][i] * real(i);
+        reference(0) = dot / lengths[0];
+        dot = 0;
+        for (unsigned int i = 0; i < spacedim; ++i)
+            dot += axes[1][i] * real(i);
+        reference(1) = dot / lengths[1];
+        dot = 0;
+        for (unsigned int i = 0; i < spacedim; ++i)
+            dot += axes[2][i] * real(i);
+        reference(2) = dot / lengths[2];
+        break;
+      default:
+        Assert(false, ExcNotImplemented());
+    }
+  return reference;
 }
 
 
