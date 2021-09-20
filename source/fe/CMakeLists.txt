@@ -62,6 +62,7 @@ SET(_unity_include_src
   mapping_cartesian.cc
   mapping.cc
   mapping_fe.cc
+  mapping_hermite.cc
   mapping_q1.cc
   mapping_q.cc
   mapping_q_cache.cc

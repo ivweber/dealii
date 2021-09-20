@@ -1,0 +1,4 @@
+for (deal_II_dimension : DIMENSIONS)
+  {
+    template class MappingHermite<deal_II_dimension>;
+  }
