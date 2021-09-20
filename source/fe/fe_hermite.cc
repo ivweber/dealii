@@ -6,8 +6,7 @@
 
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_tools.h>
-#include <deal.II/fe/mapping_cartesian.h>
-#include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping_hermite.h>
 
 #include <cmath>
 #include <iterator>
@@ -757,36 +756,6 @@ FE_Hermite<dim, spacedim>::clone() const
 }
 
 
-
-template <int dim, int spacedim>
-bool
-higher_derivatives_need_correcting(
-  const Mapping<dim, spacedim> &mapping,
-  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                mapping_data,
-  const unsigned int n_q_points,
-  const UpdateFlags  update_flags)
-{
-  // If higher derivatives weren't requested we don't need to correct them.
-  const bool update_higher_derivatives =
-    (update_flags & update_hessians) || (update_flags & update_3rd_derivatives);
-  if (!update_higher_derivatives)
-    return false;
-
-  // If we have a Cartesian mapping, we know that jacoban_pushed_forward_grads
-  // are identically zero.
-  if (dynamic_cast<const MappingCartesian<dim> *>(&mapping))
-    return false;
-
-  // Here, we should check if jacobian_pushed_forward_grads are zero at the
-  // quadrature points. This is yet to be implemented.
-  (void)mapping_data;
-  (void)n_q_points;
-
-  return true;
-}
-
-
 template <int dim, int spacedim>
 void
 FE_Hermite<dim, spacedim>::fill_fe_values(
@@ -811,15 +780,13 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
          ExcInternalError());
   const typename FE_Hermite<dim,spacedim>::InternalData &fe_data = static_cast<const typename FE_Hermite<dim,spacedim>::InternalData &>(fe_internal);
   
-  const typename MappingQ<dim, spacedim>::InternalData * mapping_internal_q = dynamic_cast<const typename MappingQ<dim, spacedim>::InternalData *>(&mapping_internal);
+  Assert((dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(&mapping_internal) != nullptr),
+         ExcInternalError());
+  const typename MappingHermite<dim, spacedim>::InternalData &mapping_internal_cart = static_cast<const typename MappingHermite<dim, spacedim>::InternalData &>(mapping_internal);
 
   const UpdateFlags flags(fe_data.update_each);
 
-  const bool need_to_correct_higher_derivatives =
-    higher_derivatives_need_correcting(mapping,
-                                       mapping_data,
-                                       quadrature.size(),
-                                       flags);
+  const bool need_to_correct_higher_derivatives = false;
 
   // transform gradients and higher derivatives. there is nothing to do
   // for values since we already emplaced them into output_data when
