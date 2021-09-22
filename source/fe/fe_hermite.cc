@@ -315,6 +315,11 @@ namespace internal
       }
     return C;
   }
+  
+  template <int dim, int spacedim, typename Number>
+  void rescale_fe_hermite_values(const FE_Hermite<dim, spacedim> &                  fe_herm,
+                                 const MappingHermite<dim, spacedim>::InternalData &mapping_data,
+                                 Table<dim, Number> value_list);
 } // namespace internal
 
 
@@ -769,7 +774,7 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
-                                                                     spacedim>  //This is the one that stores the shape values, got get 'em girlie!
+                                                                     spacedim>
     &output_data) const
 {
   // convert data object to internal
@@ -782,6 +787,7 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
   
   Assert((dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(&mapping_internal) != nullptr),
          ExcInternalError());
+            // Above throws exception, seems to be some problem casting a pointer to an internal data object
   const typename MappingHermite<dim, spacedim>::InternalData &mapping_internal_herm = static_cast<const typename MappingHermite<dim, spacedim>::InternalData &>(mapping_internal);
 
   const UpdateFlags flags(fe_data.update_each);
