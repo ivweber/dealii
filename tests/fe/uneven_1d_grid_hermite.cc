@@ -31,6 +31,7 @@
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/fe_interface_values.h>
+#include <deal.II/fe/mapping_hermite.h>
 
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/vector_tools.h>
@@ -52,7 +53,7 @@ class test_poly : public Function<1>
 public:
     virtual double
     value(const Point<1> &p, unsigned int c=0) const override {
-        return p(0) * (1.0 + 0.5 * p(0) - p(0) * p(0));
+        return p(0);// * (1.0 + 0.5 * p(0) - p(0) * p(0));
     }
 };
 
@@ -63,16 +64,18 @@ test_fe_on_domain(const unsigned int regularity)
     
     Triangulation<1> tr;
     DoFHandler<1> dof(tr);
-    GridGenerator::hyper_cube(tr, -1.0, 1.0);  
+    
+    double left = -1.0, right = 1.0;
+    Point<1> left_point(left), right_point(right);
+    GridGenerator::hyper_cube(tr, left, right);  
     
     //Refine the right-most cell three times to get the elements [-1,0],[0,0.5],[0.5,0.75],[0.75,1]
-    Point<1> right_point(1.0);
     for (unsigned int i = 0; i < 3; ++i)
     {
         for (auto &cell : tr.active_cell_iterators())
         {
             const double distance = right_point.distance(cell->vertex(1));
-            if (distance < 1e-6)
+            if (true || distance < 1e-6)
             {
                 cell->set_refine_flag();
                 break;
@@ -84,6 +87,8 @@ test_fe_on_domain(const unsigned int regularity)
     FE_Hermite<1> herm(regularity);
     dof.distribute_dofs(herm);
     
+    MappingHermite<1> mapping;
+    
     QGauss<1> quadr(2*regularity + 2);
     Vector<double> solution(dof.n_dofs());
     test_poly rhs_func;
@@ -91,11 +96,41 @@ test_fe_on_domain(const unsigned int regularity)
     AffineConstraints<double> constraints;
     constraints.close();
     
-    VectorTools::project(dof, constraints, quadr, rhs_func, solution, false);
-
+    FEValues<1> fe_herm(mapping, herm, quadr, update_values | update_JxW_values);
+    std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
+#define project_manually 1    
+#if project_manually
+    FullMatrix<double> mass_matrix(dof.n_dofs(), dof.n_dofs());
+    Vector<double> rhs_vec(dof.n_dofs());
+    for (const auto &cell : dof.active_cell_iterators())
+    {
+        fe_herm.reinit(cell);
+        cell->get_dof_indices(local_to_global);
+        for (const unsigned int q : fe_herm.quadrature_point_indices())
+            for (const unsigned int i : fe_herm.dof_indices())
+            {
+                for (const unsigned int j : fe_herm.dof_indices())
+                {
+                    mass_matrix(local_to_global[i], local_to_global[j]) += fe_herm.shape_value(i,q)
+                                                                            * fe_herm.shape_value(j,q)
+                                                                            * fe_herm.JxW(q);
+                }
+                rhs_vec(local_to_global[i]) += fe_herm.shape_value(i,q)
+                                                * rhs_func.value(quadr.point(q))
+                                                * fe_herm.JxW(q);
+            }
+    }
+    IterationNumberControl solver_control(100, 1e-9);
+    SolverCG<Vector<double>> solver(solver_control);
+    solver.solve(mass_matrix, solution, rhs_vec, PreconditionIdentity());
+#else
+    VectorTools::project(mapping, dof, constraints, quadr, rhs_func, solution, false);
+#endif
+    
     DataOut<1> data_out;
     data_out.attach_dof_handler(dof);
     data_out.add_data_vector(solution, "hermite_solution");
+ //   data_out.build_patches(mapping, 29, DataOut<1>::curved_inner_cells);
     data_out.build_patches(29);
     char filename[20];
     sprintf(filename, "solution-%d.vtu", regularity);
@@ -103,9 +138,31 @@ test_fe_on_domain(const unsigned int regularity)
     data_out.write_vtu(output);
     output.close();
     
+    std::ofstream text_output("printed_values.txt");
+    for (unsigned int i = 0; i < solution.size(); ++i)
+        text_output << solution(i) << "\t";
+    text_output << std::endl;
+    text_output.close();
+    
+#ifdef error_calculator   
     double err_sq = 0;
     
-    FEValues<1> fe_herm(herm, quadr, update_values | update_JxW_values);
+    for (auto &cell : tr.active_cell_iterators())
+    {
+        fe_herm.reinit(cell);
+        cell->get_dof_indices(local_to_global);
+        for (const unsigned int q : fe_herm.quadrature_point_indices())
+        {
+            double sol_at_point = 0;
+            for (const unsigned int i : fe_herm.dof_indices())
+                sol_at_point += fe_herm.shape_value(i,q) * solution(local_to_global[i]);
+            sol_at_point -= rhs_func.value(fe_herm.point(q));
+            err_sq += sol_at_point * sol_at_point * fe_herm.JxW(q);
+        }
+    }
+    
+    err_sq = std::sqrt(err_sq);
+#endif
 }
 
 int main()
