@@ -24,6 +24,8 @@
 
 DEAL_II_NAMESPACE_OPEN
 
+
+
 template <int dim, int spacedim>
 MappingHermite<dim, spacedim>::InternalData::InternalData(
   const Quadrature<dim> &q)
