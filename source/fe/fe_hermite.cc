@@ -769,7 +769,7 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
-                                                                     spacedim>
+                                                                     spacedim>  //This is the one that stores the shape values, got get 'em girlie!
     &output_data) const
 {
   // convert data object to internal
@@ -782,15 +782,112 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
   
   Assert((dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(&mapping_internal) != nullptr),
          ExcInternalError());
-  const typename MappingHermite<dim, spacedim>::InternalData &mapping_internal_cart = static_cast<const typename MappingHermite<dim, spacedim>::InternalData &>(mapping_internal);
+  const typename MappingHermite<dim, spacedim>::InternalData &mapping_internal_herm = static_cast<const typename MappingHermite<dim, spacedim>::InternalData &>(mapping_internal);
 
   const UpdateFlags flags(fe_data.update_each);
 
   const bool need_to_correct_higher_derivatives = false;
 
-  // transform gradients and higher derivatives. there is nothing to do
-  // for values since we already emplaced them into output_data when
-  // we were in get_data()
+  // transform values gradients and higher derivatives. Values need to
+  // be rescaled according the the nodal derivative they correspond to
+  if (flags & update_values)
+    if (cell_similarity != CellSimilarity::translation)
+      {
+        const unsigned int dofs = this->n_dofs_per_cell();
+        const unsigned int dofs_per_dim = static_cast<unsigned int>( std::pow(dofs,1.0/dim) + 0.01 );
+        const unsigned int regularity = dofs_per_dim / 2 - 1;
+        double factor_1, factor_2, factor_3;
+        switch (dim)
+          {
+            case 1:
+                for (unsigned int q = 0; q < mapping_internal_herm.quadrature_points.size(); ++q)
+                {
+                    factor_1 = 1.0;
+                    for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                    {
+                        output_data.shape_values(d1, q) *= factor_1;
+                        output_data.shape_values(d1 + regularity + 1, q) *= factor_1;
+                        factor_1 *= mapping_internal_herm.cell_extents[0];
+                    }
+                }
+                break;
+            case 2:
+                for (unsigned int q = 0; q < mapping_internal_herm.quadrature_points.size(); ++q)
+                {
+                    factor_1 = factor_2 = 1.0;
+                    for (unsigned int d2 = 0; d2 <= regularity; ++d2)
+                    {
+                        for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                        {
+                            output_data.shape_values(d1 + d2 * dofs_per_dim,q)                                         *= factor_1 * factor_2;
+                            output_data.shape_values(d1 + regularity + 1 + d2 * dofs_per_dim,q)                        *= factor_1 * factor_2;
+                            output_data.shape_values(d1 + (d2 + regularity + 1) * dofs_per_dim,q)                      *= factor_1 * factor_2;
+                            output_data.shape_values(d1 + d2 * dofs_per_dim + (regularity + 1) * (dofs_per_dim + 1),q) *= factor_1 * factor_2;
+                            factor_1 *= mapping_internal_herm.cell_extents[0];
+                        }
+                        factor_2 *= mapping_internal_herm.cell_extents[1];
+                    }
+                }
+                break;
+            case 3:
+                for (unsigned int q = 0; q < mapping_internal_herm.quadrature_points.size(); ++q)
+                {
+                    factor_1 = factor_2 = factor_3 = 1.0;
+                    for (unsigned int d3 = 0; d3 <= regularity; ++d3)
+                    {
+                        for (unsigned int d2 = 0; d2 <= regularity; ++d2)
+                        {
+                            for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                            {
+                                output_data.shape_values(d1 
+                                        + d2 * dofs_per_dim 
+                                        + d3 * dofs_per_dim * dofs_per_dim, q) *= 
+                                    factor_1 * factor_2 * factor_3;
+                                output_data.shape_values(d1 + regularity + 1 
+                                        + d2 * dofs_per_dim 
+                                        + d3 * dofs_per_dim * dofs_per_dim, q) *= 
+                                    factor_1 * factor_2 * factor_3;
+                                output_data.shape_values(d1 
+                                        + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
+                                        + d3 * dofs_per_dim * dofs_per_dim, q) *= 
+                                    factor_1 * factor_2 * factor_3;
+                                output_data.shape_values(d1 + regularity + 1
+                                        + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
+                                        + d3 * dofs_per_dim * dofs_per_dim, q) *= 
+                                    factor_1 * factor_2 * factor_3;
+                                output_data.shape_values(d1 
+                                        + d2 * dofs_per_dim 
+                                        + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
+                                    factor_1 * factor_2 * factor_3;
+                                output_data.shape_values(d1 + regularity + 1 
+                                        + d2 * dofs_per_dim 
+                                        + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
+                                    factor_1 * factor_2 * factor_3;
+                                output_data.shape_values(d1 
+                                        + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
+                                        + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
+                                    factor_1 * factor_2 * factor_3;
+                                output_data.shape_values(d1 + regularity + 1
+                                        + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
+                                        + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
+                                    factor_1 * factor_2 * factor_3;
+                                factor_1 *= mapping_internal_herm.cell_extents[0];
+                            }
+                            factor_2 *= mapping_internal_herm.cell_extents[1];
+                        }
+                        factor_3 *= mapping_internal_herm.cell_extents[2];
+                    }
+                }
+                break;
+            default:
+                ExcNotImplemented();
+                break;
+          }
+      }
+  
+  
+  
+  
   if ((flags & update_gradients) &&
       (cell_similarity != CellSimilarity::translation))
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
