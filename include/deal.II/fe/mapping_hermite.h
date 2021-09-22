@@ -38,12 +38,13 @@ template <int dim, int spacedim = dim>
 class MappingHermite : public Mapping<dim, spacedim>
 {
 public:
+    
   // for documentation, see the Mapping base class
   virtual std::unique_ptr<Mapping<dim, spacedim>>
   clone() const override;
 
   /**
-   * Return @p true because MappingCartesian preserves vertex
+   * Return @p true because MappingHermite currently preserves vertex
    * locations.
    */
   virtual bool
