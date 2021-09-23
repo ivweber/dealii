@@ -3,6 +3,7 @@
  */
 
 #include <deal.II/base/template_constraints.h>
+#include <deal.II/base/table.h>
 
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_tools.h>
@@ -32,227 +33,294 @@ namespace internal
       }
     return result;
   }
-
+  
+  /**
+   * Renumbering function. Function needs different levels of for loop nesting
+   * for different values of dim, so different definitions are used for 
+   * simplicity.
+   */
   template <int dim>
   void
   hermite_hierarchic_to_lexicographic_numbering(const unsigned int regularity,
                                                 const unsigned int nodes,
+                                                std::vector<unsigned int> &h2l);
+  
+  template<>
+  void
+  hermite_hierarchic_to_lexicographic_numbering<1>(const unsigned int regularity,
+                                                const unsigned int nodes,
                                                 std::vector<unsigned int> &h2l)
   {
-    const unsigned int node_dofs_1d = regularity + 1;
-    const unsigned int node_dofs_2d = node_dofs_1d * node_dofs_1d;
-    const unsigned int node_dofs_3d = node_dofs_2d * node_dofs_1d;
-    const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
-    const unsigned int dim_dofs_2d  = dim_dofs_1d * dim_dofs_1d;
-    const unsigned int dim_dofs_3d  = dim_dofs_2d * dim_dofs_1d;
-    unsigned int       offset, count = 0;
-    AssertDimension(h2l.size(), Utilities::pow(dim_dofs_1d, dim));
-    switch (dim)
-      {
-        case 1:
-          // Assign DOFs at nodes
-          for (unsigned int di = 0; di < 2; ++di)
+        const unsigned int node_dofs_1d = regularity + 1;
+        const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
+        
+        AssertDimension(h2l.size(), dim_dofs_1d);
+        
+        unsigned int count = 0;
+        // Assign DOFs at vertices
+        for (unsigned int di = 0; di < 2; ++di)
             for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
-              h2l[i + di * node_dofs_1d] = i + di * (node_dofs_1d + nodes);
-          // Assign DOFs on line if needed
-          for (unsigned int i = 0; i < nodes; ++i, ++count)
+                h2l[i + di * node_dofs_1d] = i + di * (node_dofs_1d + nodes);
+            
+        // Assign DOFs on line if needed
+        for (unsigned int i = 0; i < nodes; ++i, ++count)
             h2l[i + 2 * node_dofs_1d] = i + node_dofs_1d;
-          break;
-          
-        case 2:
-          offset = 0;
-          // Assign DOFs at nodes
-          for (unsigned int di = 0; di < 2; ++di)
+        
+        AssertDimension(count, dim_dofs_1d);
+  }
+  
+  template<>
+  void
+  hermite_hierarchic_to_lexicographic_numbering<2>(const unsigned int regularity,
+                                                const unsigned int nodes,
+                                                std::vector<unsigned int> &h2l)
+  {
+        const unsigned int node_dofs_1d = regularity + 1;
+        
+        const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
+        const unsigned int dim_dofs_2d  = dim_dofs_1d * dim_dofs_1d;
+        
+        AssertDimension(h2l.size(), dim_dofs_2d);
+        
+        unsigned int count = 0, offset = 0;
+        
+        // Assign DOFs at vertices
+        for (unsigned int di = 0; di < 2; ++di)
             for (unsigned int dj = 0; dj < 2; ++dj)
-              {
+            {
                 for (unsigned int i = 0; i < node_dofs_1d; ++i)
-                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                    h2l[j + i * node_dofs_1d + offset] = 
-                      j + i * dim_dofs_1d + (dj + di * dim_dofs_1d) * (node_dofs_1d + nodes);
+                    for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
+                        h2l[j + i * node_dofs_1d + offset] = 
+                            j + i * dim_dofs_1d + (dj + di * dim_dofs_1d) * (node_dofs_1d + nodes);
                 offset += node_dofs_1d * node_dofs_1d;
-              }
-          if (nodes)
-            {
-              // Assign DOFs on edges
-              for (unsigned int i = 0; i < nodes; ++i)
+            }
+                
+        if (nodes)
+        {
+            // Assign DOFs on edges
+            for (unsigned int i = 0; i < nodes; ++i)
                 for (unsigned int dj = 0; dj < 2; ++dj)
-                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                    h2l[j + (2 * i + dj) * node_dofs_1d + offset] =
-                      j + (i + node_dofs_1d) * dim_dofs_1d + dj * (node_dofs_1d +
-                        nodes);
-                      
-              offset += 2 * nodes * node_dofs_1d;
-              for (unsigned int i = 0; i < nodes; ++i)
+                    for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
+                        h2l[j + (2 * i + dj) * node_dofs_1d + offset] =
+                            j + (i + node_dofs_1d) * dim_dofs_1d + dj * (node_dofs_1d +
+                            nodes);
+            offset += 2 * nodes * node_dofs_1d;
+            
+            for (unsigned int i = 0; i < nodes; ++i)
                 for (unsigned int di = 0; di < 2; ++di)
-                  for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                    h2l[j + (2 * i + di) * node_dofs_1d + offset] =
-                      i + j * dim_dofs_1d + di * (node_dofs_1d + nodes) * dim_dofs_1d +
-                      node_dofs_1d;
-
-              offset += 2 * nodes * node_dofs_1d;
-              // Assign DOFs on face
-              for (unsigned int i = 0; i < nodes; ++i)
+                    for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
+                        h2l[j + (2 * i + di) * node_dofs_1d + offset] =
+                            i + j * dim_dofs_1d + di * (node_dofs_1d + nodes) * dim_dofs_1d +
+                            node_dofs_1d;
+            offset += 2 * nodes * node_dofs_1d;
+            
+            // Assign DOFs on face
+            for (unsigned int i = 0; i < nodes; ++i)
                 for (unsigned int j = 0; j < nodes; ++j, ++count)
-                  h2l[j + i * nodes + offset] =
-                    j + (i + node_dofs_1d) * dim_dofs_1d + node_dofs_1d;
-            }
-          break;
-          
-        case 3:
-          // Assign DOFs at nodes
-          offset = 0;
-          for (unsigned int di = 0; di < 2; ++di)
+                    h2l[j + i * nodes + offset] =
+                        j + (i + node_dofs_1d) * dim_dofs_1d + node_dofs_1d;
+        }
+            
+        AssertDimension(count, dim_dofs_2d);
+  }  
+  
+  template<>
+  void
+  hermite_hierarchic_to_lexicographic_numbering<3>(const unsigned int regularity,
+                                                const unsigned int nodes,
+                                                std::vector<unsigned int> &h2l)
+  {
+        const unsigned int node_dofs_1d = regularity + 1;
+        const unsigned int node_dofs_2d = node_dofs_1d * node_dofs_1d;
+    
+        const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
+        const unsigned int dim_dofs_2d  = dim_dofs_1d * dim_dofs_1d;
+        const unsigned int dim_dofs_3d  = dim_dofs_2d * dim_dofs_1d;
+    
+        AssertDimension(h2l.size(), dim_dofs_3d);
+    
+        unsigned int offset = 0, count = 0;
+    
+        // Assign DOFs at nodes
+        for (unsigned int di = 0; di < 2; ++di)
             for (unsigned int dj = 0; dj < 2; ++dj)
-              for (unsigned int dk = 0; dk < 2; ++dk)
+                for (unsigned int dk = 0; dk < 2; ++dk)
                 {
-                  for (unsigned int i = 0; i < node_dofs_1d; ++i)
-                    for (unsigned int j = 0; j < node_dofs_1d; ++j)
-                      for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
-                        h2l[k + j * node_dofs_1d + i * node_dofs_2d + offset] =
-                          k + j * dim_dofs_1d + i * dim_dofs_2d +
-                          (node_dofs_1d + nodes) *
-                            (dk + dj * dim_dofs_1d + di * dim_dofs_2d);
-                  offset += node_dofs_1d * node_dofs_2d;
-                }
-          if (nodes)
-            {
-              // Assign DOFs on edges
-              // edges parallel to z
-              for (unsigned int i = 0; i < nodes; ++i)
-                for (unsigned int dj = 0; dj < 2; ++dj)
-                  for (unsigned int dk = 0; dk < 2; ++dk)
-                    {
-                      for (unsigned int j = 0; j < node_dofs_1d; ++j)
-                        for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
-                          h2l[k + j * node_dofs_1d + offset] =
-                            k + j * dim_dofs_1d +
-                            (i + node_dofs_1d) * dim_dofs_2d +
-                            (node_dofs_1d + nodes) * (dk + dj * dim_dofs_1d);
-                      offset += node_dofs_2d;
-                    }
-              // edges parallel to y
-              for (unsigned int j = 0; j < nodes; ++j)
-                for (unsigned int di = 0; di < 2; ++di)
-                  for (unsigned int dk = 0; dk < 2; ++dk)
-                    {
-                      for (unsigned int i = 0; i < node_dofs_1d; ++i)
-                        for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
-                          h2l[k + i * node_dofs_1d + offset] =
-                            k + i * dim_dofs_2d +
-                            (j + node_dofs_1d) * dim_dofs_1d +
-                            (node_dofs_1d + nodes) * (dk + di * dim_dofs_2d);
-                      offset += node_dofs_2d;
-                    }
-              // edges parallel to x
-              for (unsigned int k = 0; k < nodes; ++k)
-                for (unsigned int di = 0; di < 2; ++di)
-                  for (unsigned int dj = 0; dj < 2; ++dj)
-                    {
-                      for (unsigned int i = 0; i < node_dofs_1d; ++i)
-                        for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                          h2l[j + i * node_dofs_1d + offset] =
-                            j * dim_dofs_1d + i * dim_dofs_2d + k +
-                            node_dofs_1d +
-                            (node_dofs_1d + nodes) *
-                              (dj * dim_dofs_1d + di * dim_dofs_2d);
-                      offset += node_dofs_2d;
-                    }
-              // Assign DOFs on faces
-              // faces normal to x
-              for (unsigned int i = 0; i < nodes; ++i)
-                for (unsigned int j = 0; j < nodes; ++j)
-                  for (unsigned int dk = 0; dk < 2; ++dk)
-                    {
-                      for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
-                        h2l[k + offset] = k + (j + node_dofs_1d) * dim_dofs_1d +
-                                          (i + node_dofs_1d) * dim_dofs_2d +
-                                          (node_dofs_1d + nodes) * dk;
-                      offset += node_dofs_1d;
-                    }
-              // faces normal to y
-              for (unsigned int i = 0; i < nodes; ++i)
-                for (unsigned int k = 0; k < nodes; ++k)
-                  for (unsigned int dj = 0; dj < 2; ++dj)
-                    {
-                      for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
-                        h2l[j + offset] =
-                          j * dim_dofs_1d + k + node_dofs_1d +
-                          (i + node_dofs_1d) * dim_dofs_2d +
-                          (node_dofs_1d + nodes) * dj * dim_dofs_1d;
-                      offset += node_dofs_1d;
-                    }
-              // faces normal to z
-              for (unsigned int j = 0; j < nodes; ++j)
-                for (unsigned int k = 0; k < nodes; ++k)
-                  for (unsigned int di = 0; di < 2; ++di)
-                    {
-                      for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
-                        h2l[i + offset] =
-                          i * dim_dofs_2d + k + node_dofs_1d +
-                          (j + node_dofs_1d) * dim_dofs_1d +
-                          (node_dofs_1d + nodes) * di * dim_dofs_2d;
-                      offset += node_dofs_1d;
-                    }
-              // Assign DOFs in cell
-              for (unsigned int i = 0; i < nodes; ++i)
-                for (unsigned int j = 0; j < nodes; ++j)
-                  for (unsigned int k = 0; k < nodes; ++k, ++count)
-                    h2l[k + (j + i * nodes) * nodes + offset] =
-                      k + node_dofs_1d + (j + node_dofs_1d) * dim_dofs_1d +
-                      (i + node_dofs_1d) * dim_dofs_2d;
-            }
-          break;
-          
-        case 4:
-          // Assign DOFs at nodes
-          offset = 0;
-          for (unsigned int di = 0; di < 2; ++di)
-            for (unsigned int dj = 0; dj < 2; ++dj)
-              for (unsigned int dk = 0; dk < 2; ++dk)
-                for (unsigned int dl = 0; dl < 2; ++dl)
-                  {
                     for (unsigned int i = 0; i < node_dofs_1d; ++i)
-                      for (unsigned int j = 0; j < node_dofs_1d; ++j)
-                        for (unsigned int k = 0; k < node_dofs_1d; ++k)
-                          for (unsigned int l = 0; l < node_dofs_1d;
-                               ++l, ++count)
-                            h2l[l + k * node_dofs_1d + j * node_dofs_2d +
-                                i * node_dofs_3d + offset] =
-                              l + k * dim_dofs_1d + j * dim_dofs_2d +
-                              i * dim_dofs_3d +
-                              (node_dofs_1d + nodes) *
-                                (dl + dk * dim_dofs_1d + dj * dim_dofs_2d +
-                                 di * dim_dofs_3d);
-                    offset += node_dofs_1d * node_dofs_3d;
-                  }
-          if (nodes)
-            {
-              Assert(false, ExcNotImplemented());
-              // Assign DOFs on edges
-              // edges parallel to w
-              // edges parallel to z
-              // edges parallel to y
-              // edges parallel to x
-              // Assign DOFs on 2D faces
-              // faces normal to xy
-              // faces normal to xz
-              // faces normal to xw
-              // faces normal to yz
-              // faces normal to yw
-              // faces normal to zw
-              // Assign DOFs on 3D faces
-              // faces normal to x
-              // faces normal to y
-              // faces normal to z
-              // faces normal to w
-              // Assign DOFs in cell
-            }
-          break;
+                        for (unsigned int j = 0; j < node_dofs_1d; ++j)
+                            for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
+                                h2l[k + j * node_dofs_1d + i * node_dofs_2d + offset] =
+                                    k + j * dim_dofs_1d + i * dim_dofs_2d +
+                                    (node_dofs_1d + nodes) *
+                                    (dk + dj * dim_dofs_1d + di * dim_dofs_2d);
+                    offset += node_dofs_1d * node_dofs_2d;
+                }
+                
+        if (nodes)
+        {
+            // Assign DOFs on edges
+            // edges parallel to z
+            for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int dj = 0; dj < 2; ++dj)
+                    for (unsigned int dk = 0; dk < 2; ++dk)
+                    {
+                        for (unsigned int j = 0; j < node_dofs_1d; ++j)
+                            for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
+                                h2l[k + j * node_dofs_1d + offset] =
+                                    k + j * dim_dofs_1d +
+                                    (i + node_dofs_1d) * dim_dofs_2d +
+                                    (node_dofs_1d + nodes) * (dk + dj * dim_dofs_1d);
+                        offset += node_dofs_2d;
+                    }
+                    
+            // edges parallel to y
+            for (unsigned int j = 0; j < nodes; ++j)
+                for (unsigned int di = 0; di < 2; ++di)
+                    for (unsigned int dk = 0; dk < 2; ++dk)
+                    {
+                        for (unsigned int i = 0; i < node_dofs_1d; ++i)
+                            for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
+                                h2l[k + i * node_dofs_1d + offset] =
+                                    k + i * dim_dofs_2d +
+                                    (j + node_dofs_1d) * dim_dofs_1d +
+                                    (node_dofs_1d + nodes) * (dk + di * dim_dofs_2d);
+                        offset += node_dofs_2d;
+                    }
+                    
+            // edges parallel to x
+            for (unsigned int k = 0; k < nodes; ++k)
+                for (unsigned int di = 0; di < 2; ++di)
+                    for (unsigned int dj = 0; dj < 2; ++dj)
+                    {
+                        for (unsigned int i = 0; i < node_dofs_1d; ++i)
+                            for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
+                                h2l[j + i * node_dofs_1d + offset] =
+                                    j * dim_dofs_1d + i * dim_dofs_2d + k +
+                                    node_dofs_1d +
+                                    (node_dofs_1d + nodes) *
+                                    (dj * dim_dofs_1d + di * dim_dofs_2d);
+                        offset += node_dofs_2d;
+                    }
+                    
+            // Assign DOFs on faces
+            // faces normal to x
+            for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int j = 0; j < nodes; ++j)
+                    for (unsigned int dk = 0; dk < 2; ++dk)
+                    {
+                        for (unsigned int k = 0; k < node_dofs_1d; ++k, ++count)
+                            h2l[k + offset] = k + (j + node_dofs_1d) * dim_dofs_1d +
+                                (i + node_dofs_1d) * dim_dofs_2d +
+                                (node_dofs_1d + nodes) * dk;
+                        offset += node_dofs_1d;
+                    }
+                    
+            // faces normal to y
+            for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int k = 0; k < nodes; ++k)
+                    for (unsigned int dj = 0; dj < 2; ++dj)
+                    {
+                        for (unsigned int j = 0; j < node_dofs_1d; ++j, ++count)
+                            h2l[j + offset] =
+                                j * dim_dofs_1d + k + node_dofs_1d +
+                                (i + node_dofs_1d) * dim_dofs_2d +
+                                (node_dofs_1d + nodes) * dj * dim_dofs_1d;
+                        offset += node_dofs_1d;
+                    }
+                    
+            // faces normal to z
+            for (unsigned int j = 0; j < nodes; ++j)
+                for (unsigned int k = 0; k < nodes; ++k)
+                    for (unsigned int di = 0; di < 2; ++di)
+                    {
+                        for (unsigned int i = 0; i < node_dofs_1d; ++i, ++count)
+                            h2l[i + offset] =
+                                i * dim_dofs_2d + k + node_dofs_1d +
+                                (j + node_dofs_1d) * dim_dofs_1d +
+                                (node_dofs_1d + nodes) * di * dim_dofs_2d;
+                        offset += node_dofs_1d;
+                    }
+                    
+            // Assign DOFs in cell
+            for (unsigned int i = 0; i < nodes; ++i)
+                for (unsigned int j = 0; j < nodes; ++j)
+                    for (unsigned int k = 0; k < nodes; ++k, ++count)
+                        h2l[k + (j + i * nodes) * nodes + offset] =
+                            k + node_dofs_1d + (j + node_dofs_1d) * dim_dofs_1d +
+                            (i + node_dofs_1d) * dim_dofs_2d;
+        }
+        
+        AssertDimension(count, dim_dofs_3d);
+  }
           
-        default:
-          Assert(false, ExcNotImplemented());
-      }
-      AssertDimension(count, Utilities::pow(dim_dofs_1d, dim));
+          
+  template <>
+  void
+  hermite_hierarchic_to_lexicographic_numbering<4>(const unsigned int regularity,
+                                                   const unsigned int nodes,
+                                                   std::vector<unsigned int> &h2l)
+  {
+        const unsigned int node_dofs_1d = regularity + 1;
+        const unsigned int node_dofs_2d = node_dofs_1d * node_dofs_1d;
+        const unsigned int node_dofs_3d = node_dofs_2d * node_dofs_1d;
+      
+        const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
+        const unsigned int dim_dofs_2d  = dim_dofs_1d * dim_dofs_1d;
+        const unsigned int dim_dofs_3d  = dim_dofs_2d * dim_dofs_1d;
+        const unsigned int dim_dofs_4d  = dim_dofs_2d * dim_dofs_2d;
+    
+        unsigned int       offset = 0, count = 0;
+    
+        AssertDimension(h2l.size(), dim_dofs_4d);
+
+        // Assign DOFs at nodes
+        for (unsigned int di = 0; di < 2; ++di)
+            for (unsigned int dj = 0; dj < 2; ++dj)
+                for (unsigned int dk = 0; dk < 2; ++dk)
+                    for (unsigned int dl = 0; dl < 2; ++dl)
+                    {
+                        for (unsigned int i = 0; i < node_dofs_1d; ++i)
+                            for (unsigned int j = 0; j < node_dofs_1d; ++j)
+                                for (unsigned int k = 0; k < node_dofs_1d; ++k)
+                                    for (unsigned int l = 0; l < node_dofs_1d; ++l, ++count)
+                                        h2l[l + k * node_dofs_1d + j * node_dofs_2d +
+                                            i * node_dofs_3d + offset] =
+                                                l + k * dim_dofs_1d + j * dim_dofs_2d +
+                                                i * dim_dofs_3d +
+                                                (node_dofs_1d + nodes) *
+                                                (dl + dk * dim_dofs_1d + dj * dim_dofs_2d +
+                                                di * dim_dofs_3d);
+                        offset += node_dofs_1d * node_dofs_3d;
+                    }
+                    
+        if (nodes)
+        {
+            Assert(false, ExcNotImplemented());
+            
+            // Assign DOFs on edges
+            // edges parallel to w
+            // edges parallel to z
+            // edges parallel to y
+            // edges parallel to x
+            
+            // Assign DOFs on 2D faces
+            // faces normal to xy
+            // faces normal to xz
+            // faces normal to xw
+            // faces normal to yz
+            // faces normal to yw
+            // faces normal to zw
+            
+            // Assign DOFs on 3D faces
+            // faces normal to x
+            // faces normal to y
+            // faces normal to z
+            // faces normal to w
+            
+            // Assign DOFs in cell
+        }
+
+        AssertDimension(count, dim_dofs_4d);
   }
 
   template <int dim>
@@ -316,11 +384,162 @@ namespace internal
     return C;
   }
   
-  template <int dim, int spacedim, typename Number>
-  void rescale_fe_hermite_values(const FE_Hermite<dim, spacedim> &                  fe_herm,
-                                 const MappingHermite<dim, spacedim>::InternalData &mapping_data,
-                                 Table<dim, Number> value_list);
-} // namespace internal
+  /**
+   * Declaration of function for rescaling shape values and derivatives
+   * for matching Hermite shape functions across elements of different
+   * size. This function does different things for different values of 
+   * dim, so three different definitions are used to avoid switch statements
+   */
+/*  template <int dim, int spacedim, typename Number>
+  static void 
+  rescale_fe_hermite_values(
+  */
+  template <int dim, int spacedim = dim, typename Number = double>
+  class Rescaler
+  {
+  public:
+      void
+      rescale_fe_hermite_values(Rescaler<dim, spacedim, Number> &                           rescaler,
+                                const FE_Hermite<dim, spacedim> &                           fe_herm,
+                                const typename MappingHermite<dim, spacedim>::InternalData &mapping_data,
+                                Table<2, Number> &                                          value_list);
+  };
+  
+  template <int spacedim, typename Number>
+  void 
+  rescale_fe_hermite_values(Rescaler<1, spacedim, Number> &                           rescaler,
+                            const FE_Hermite<1, spacedim> &                           fe_herm,
+                            const typename MappingHermite<1, spacedim>::InternalData &mapping_data,
+                            Table<2, Number> &                                        value_list)
+  {
+        const unsigned int dofs = fe_herm.n_dofs_per_cell();
+        const unsigned int regularity = dofs / 2 - 1;
+        
+        for (unsigned int q = 0; q < mapping_data.quadrature_points.size(); ++q)
+        {
+            double factor_1 = 1.0;
+            
+            for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+            {
+                value_list(d1, q) *= factor_1;
+                value_list(d1 + regularity + 1, q) *= factor_1;
+                        
+                factor_1 *= mapping_data.cell_extents[0];
+            }
+        }
+  }
+  
+  template <int spacedim, typename Number>
+  void 
+  rescale_fe_hermite_values(Rescaler<2, spacedim, Number> &                           rescaler,
+                            const FE_Hermite<2, spacedim> &                           fe_herm,
+                            const typename MappingHermite<2, spacedim>::InternalData &mapping_data,
+                            Table<2, Number> &                                        value_list)
+  {
+        const unsigned int dofs = fe_herm.n_dofs_per_cell();
+        const unsigned int dofs_per_dim = static_cast<unsigned int>( std::sqrt(dofs) + 0.01 );
+        const unsigned int regularity = dofs_per_dim / 2 - 1;
+      
+        for (unsigned int q = 0; q < mapping_data.quadrature_points.size(); ++q)
+        {
+            double factor_2 = 1.0;
+                    
+            for (unsigned int d2 = 0; d2 <= regularity; ++d2)
+            {
+                double factor_1 = 1.0;
+                
+                for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                {
+                    value_list(d1 + d2 * dofs_per_dim, q)                                         *= factor_1 * factor_2;
+                    value_list(d1 + regularity + 1 + d2 * dofs_per_dim, q)                        *= factor_1 * factor_2;
+                    value_list(d1 + (d2 + regularity + 1) * dofs_per_dim, q)                      *= factor_1 * factor_2;
+                    value_list(d1 + d2 * dofs_per_dim + (regularity + 1) * (dofs_per_dim + 1), q) *= factor_1 * factor_2;
+                            
+                    factor_1 *= mapping_data.cell_extents[0];
+                }
+                
+                factor_2 *= mapping_data.cell_extents[1];
+            }
+        }
+  }
+  
+  template <int spacedim, typename Number>
+  void 
+  rescale_fe_hermite_values(Rescaler<3, spacedim, Number> &                           rescaler,
+                            const FE_Hermite<3, spacedim> &                           fe_herm,
+                            const typename MappingHermite<3, spacedim>::InternalData &mapping_data,
+                            Table<2, Number> &                                        value_list)
+  {
+        const unsigned int dofs = fe_herm.n_dofs_per_cell();
+        const unsigned int dofs_per_dim = static_cast<unsigned int>( std::cbrt(dofs) + 0.01 );
+        const unsigned int regularity = dofs_per_dim / 2 - 1;
+      
+        for (unsigned int q = 0; q < mapping_data.quadrature_points.size(); ++q)
+        {
+            double factor_3 = 1.0;
+                    
+            for (unsigned int d3 = 0; d3 <= regularity; ++d3)
+            {
+                double factor_2 = 1.0;
+
+                for (unsigned int d2 = 0; d2 <= regularity; ++d2)
+                {
+                    double factor_1 = 1.0;
+                        
+                    for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                    {
+                        value_list(d1 
+                                   + d2 * dofs_per_dim 
+                                   + d3 * dofs_per_dim * dofs_per_dim, q) *= 
+                            factor_1 * factor_2 * factor_3;
+                            
+                        value_list(d1 + regularity + 1 
+                                   + d2 * dofs_per_dim 
+                                   + d3 * dofs_per_dim * dofs_per_dim, q) *= 
+                            factor_1 * factor_2 * factor_3;
+                            
+                        value_list(d1 
+                                   + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
+                                   + d3 * dofs_per_dim * dofs_per_dim, q) *= 
+                            factor_1 * factor_2 * factor_3;
+                            
+                        value_list(d1 + regularity + 1
+                                   + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
+                                   + d3 * dofs_per_dim * dofs_per_dim, q) *= 
+                            factor_1 * factor_2 * factor_3;
+                            
+                        value_list(d1 
+                                   + d2 * dofs_per_dim 
+                                   + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
+                            factor_1 * factor_2 * factor_3;
+                            
+                        value_list(d1 + regularity + 1 
+                                   + d2 * dofs_per_dim 
+                                   + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
+                            factor_1 * factor_2 * factor_3;
+                            
+                        value_list(d1 
+                                   + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
+                                   + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
+                            factor_1 * factor_2 * factor_3;
+                            
+                        value_list(d1 + regularity + 1
+                                   + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
+                                   + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
+                            factor_1 * factor_2 * factor_3;
+                            
+                        factor_1 *= mapping_data.cell_extents[0];
+                    }
+                    
+                    factor_2 *= mapping_data.cell_extents[1];
+                }
+                
+                factor_3 *= mapping_data.cell_extents[2];
+            }
+        }
+  }
+}   //namespace internal
+  
 
 
 /*
@@ -792,115 +1011,27 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
 
   const UpdateFlags flags(fe_data.update_each);
 
-  const bool need_to_correct_higher_derivatives = false;
-
   // transform values gradients and higher derivatives. Values need to
   // be rescaled according the the nodal derivative they correspond to
   if (flags & update_values)
     if (cell_similarity != CellSimilarity::translation)
-      {
-        const unsigned int dofs = this->n_dofs_per_cell();
-        const unsigned int dofs_per_dim = static_cast<unsigned int>( std::pow(dofs,1.0/dim) + 0.01 );
-        const unsigned int regularity = dofs_per_dim / 2 - 1;
-        double factor_1, factor_2, factor_3;
-        switch (dim)
-          {
-            case 1:
-                for (unsigned int q = 0; q < mapping_internal_herm.quadrature_points.size(); ++q)
-                {
-                    factor_1 = 1.0;
-                    for (unsigned int d1 = 0; d1 <= regularity; ++d1)
-                    {
-                        output_data.shape_values(d1, q) *= factor_1;
-                        output_data.shape_values(d1 + regularity + 1, q) *= factor_1;
-                        factor_1 *= mapping_internal_herm.cell_extents[0];
-                    }
-                }
-                break;
-            case 2:
-                for (unsigned int q = 0; q < mapping_internal_herm.quadrature_points.size(); ++q)
-                {
-                    factor_1 = factor_2 = 1.0;
-                    for (unsigned int d2 = 0; d2 <= regularity; ++d2)
-                    {
-                        for (unsigned int d1 = 0; d1 <= regularity; ++d1)
-                        {
-                            output_data.shape_values(d1 + d2 * dofs_per_dim,q)                                         *= factor_1 * factor_2;
-                            output_data.shape_values(d1 + regularity + 1 + d2 * dofs_per_dim,q)                        *= factor_1 * factor_2;
-                            output_data.shape_values(d1 + (d2 + regularity + 1) * dofs_per_dim,q)                      *= factor_1 * factor_2;
-                            output_data.shape_values(d1 + d2 * dofs_per_dim + (regularity + 1) * (dofs_per_dim + 1),q) *= factor_1 * factor_2;
-                            factor_1 *= mapping_internal_herm.cell_extents[0];
-                        }
-                        factor_2 *= mapping_internal_herm.cell_extents[1];
-                    }
-                }
-                break;
-            case 3:
-                for (unsigned int q = 0; q < mapping_internal_herm.quadrature_points.size(); ++q)
-                {
-                    factor_1 = factor_2 = factor_3 = 1.0;
-                    for (unsigned int d3 = 0; d3 <= regularity; ++d3)
-                    {
-                        for (unsigned int d2 = 0; d2 <= regularity; ++d2)
-                        {
-                            for (unsigned int d1 = 0; d1 <= regularity; ++d1)
-                            {
-                                output_data.shape_values(d1 
-                                        + d2 * dofs_per_dim 
-                                        + d3 * dofs_per_dim * dofs_per_dim, q) *= 
-                                    factor_1 * factor_2 * factor_3;
-                                output_data.shape_values(d1 + regularity + 1 
-                                        + d2 * dofs_per_dim 
-                                        + d3 * dofs_per_dim * dofs_per_dim, q) *= 
-                                    factor_1 * factor_2 * factor_3;
-                                output_data.shape_values(d1 
-                                        + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
-                                        + d3 * dofs_per_dim * dofs_per_dim, q) *= 
-                                    factor_1 * factor_2 * factor_3;
-                                output_data.shape_values(d1 + regularity + 1
-                                        + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
-                                        + d3 * dofs_per_dim * dofs_per_dim, q) *= 
-                                    factor_1 * factor_2 * factor_3;
-                                output_data.shape_values(d1 
-                                        + d2 * dofs_per_dim 
-                                        + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
-                                    factor_1 * factor_2 * factor_3;
-                                output_data.shape_values(d1 + regularity + 1 
-                                        + d2 * dofs_per_dim 
-                                        + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
-                                    factor_1 * factor_2 * factor_3;
-                                output_data.shape_values(d1 
-                                        + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
-                                        + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
-                                    factor_1 * factor_2 * factor_3;
-                                output_data.shape_values(d1 + regularity + 1
-                                        + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
-                                        + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
-                                    factor_1 * factor_2 * factor_3;
-                                factor_1 *= mapping_internal_herm.cell_extents[0];
-                            }
-                            factor_2 *= mapping_internal_herm.cell_extents[1];
-                        }
-                        factor_3 *= mapping_internal_herm.cell_extents[2];
-                    }
-                }
-                break;
-            default:
-                ExcNotImplemented();
-                break;
-          }
-      }
-  
-  
-  
+    {
+      internal::Rescaler<dim, spacedim, double> shape_fix;
+      shape_fix.rescale_fe_hermite_values(shape_fix, *this, mapping_internal_herm, output_data.shape_values);
+    }
   
   if ((flags & update_gradients) &&
       (cell_similarity != CellSimilarity::translation))
+  {
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       mapping.transform(make_array_view(fe_data.shape_gradients, k),
                         mapping_covariant,
                         mapping_internal,
                         make_array_view(output_data.shape_gradients, k));
+    
+    internal::Rescaler<dim, spacedim, Tensor<1,spacedim>> grad_fix;
+    grad_fix.rescale_fe_hermite_values(grad_fix, *this, mapping_internal_herm, output_data.shape_gradients);
+  }
 
   if ((flags & update_hessians) &&
       (cell_similarity != CellSimilarity::translation))
@@ -910,9 +1041,9 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
                           mapping_covariant_gradient,
                           mapping_internal,
                           make_array_view(output_data.shape_hessians, k));
-
-      if (need_to_correct_higher_derivatives)
-        FE_Poly<dim,spacedim>::correct_hessians(output_data, mapping_data, quadrature.size());
+  
+      internal::Rescaler<dim, spacedim, Tensor<2,spacedim>> hessian_fix;
+      hessian_fix.rescale_fe_hermite_values(hessian_fix, *this, mapping_internal_herm, output_data.shape_hessians);
     }
 
   if ((flags & update_3rd_derivatives) &&
@@ -924,9 +1055,9 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
                           mapping_internal,
                           make_array_view(output_data.shape_3rd_derivatives,
                                           k));
-
-      if (need_to_correct_higher_derivatives)
-        FE_Poly<dim,spacedim>::correct_third_derivatives(output_data, mapping_data, quadrature.size());
+  
+      internal::Rescaler<dim, spacedim, Tensor<3,spacedim>> third_dev_fix;
+      third_dev_fix.rescale_fe_hermite_values(third_dev_fix, *this, mapping_internal_herm, output_data.shape_3rd_derivatives);
     }
 }
 
@@ -945,6 +1076,7 @@ ExcDimensionMismatch(interpolation_matrix.n(), source_dofs));
 }
 */
 
+//Explicit instantiations
 #include "fe_hermite.inst.in"
 
 DEAL_II_NAMESPACE_CLOSE
