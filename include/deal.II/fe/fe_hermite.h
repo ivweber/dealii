@@ -271,6 +271,7 @@ protected:
 
   struct Implementation;
   friend struct FE_Hermite<dim, spacedim>::Implementation;
+  
 
 private:
   //Mutable Threads::Mutex mutex;
