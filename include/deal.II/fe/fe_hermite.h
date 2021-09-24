@@ -11,6 +11,7 @@
 #include <deal.II/base/thread_management.h>
 
 #include <deal.II/fe/fe_poly.h>
+#include <deal.II/fe/mapping_hermite.h>
 
 #include <string>
 #include <vector>
@@ -153,6 +154,7 @@ DEAL_II_NAMESPACE_OPEN
  * advantage of the easier math for the max regularity, define two sets of
  * functions differentiated by the number of input arguments.
  */
+
 
 template <int dim, int spacedim = dim>
 class FE_Hermite : public FE_Poly<dim, spacedim>

@@ -384,26 +384,16 @@ namespace internal
     return C;
   }
   
-  /**
-   * Declaration of function for rescaling shape values and derivatives
-   * for matching Hermite shape functions across elements of different
-   * size. This function does different things for different values of 
-   * dim, so three different definitions are used to avoid switch statements
-   */
-/*  template <int dim, int spacedim, typename Number>
-  static void 
-  rescale_fe_hermite_values(
-  */
-  template <int dim, int spacedim = dim, typename Number = double>
+  template <int xdim, int xspacedim = xdim, typename xNumber = double>
   class Rescaler
   {
   public:
       void
-      rescale_fe_hermite_values(Rescaler<dim, spacedim, Number> &                           rescaler,
-                                const FE_Hermite<dim, spacedim> &                           fe_herm,
-                                const typename MappingHermite<dim, spacedim>::InternalData &mapping_data,
-                                Table<2, Number> &                                          value_list);
-  };
+      rescale_fe_hermite_values(//Rescaler<dim, spacedim, Number> &                           rescaler,
+                                const FE_Hermite<xdim, xspacedim> &                           fe_herm,
+                                const typename MappingHermite<xdim, xspacedim>::InternalData &mapping_data,
+                                Table<2, xNumber> &                                          value_list);
+  
   
   template <int spacedim, typename Number>
   void 
@@ -415,7 +405,12 @@ namespace internal
         const unsigned int dofs = fe_herm.n_dofs_per_cell();
         const unsigned int regularity = dofs / 2 - 1;
         
-        for (unsigned int q = 0; q < mapping_data.quadrature_points.size(); ++q)
+        const unsigned int q_points = mapping_data.quadrature_points.size();
+        
+        AssertDimension(value_list.size(0), dofs);
+        AssertDimension(value_list.size(1), q_points);
+        
+        for (unsigned int q = 0; q < q_points; ++q)
         {
             double factor_1 = 1.0;
             
@@ -538,6 +533,7 @@ namespace internal
             }
         }
   }
+  };
 }   //namespace internal
   
 
@@ -1017,7 +1013,10 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
     if (cell_similarity != CellSimilarity::translation)
     {
       internal::Rescaler<dim, spacedim, double> shape_fix;
-      shape_fix.rescale_fe_hermite_values(shape_fix, *this, mapping_internal_herm, output_data.shape_values);
+      shape_fix.rescale_fe_hermite_values(shape_fix,
+                                          *this, 
+                                          mapping_internal_herm, 
+                                          output_data.shape_values);
     }
   
   if ((flags & update_gradients) &&
@@ -1030,7 +1029,10 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
                         make_array_view(output_data.shape_gradients, k));
     
     internal::Rescaler<dim, spacedim, Tensor<1,spacedim>> grad_fix;
-    grad_fix.rescale_fe_hermite_values(grad_fix, *this, mapping_internal_herm, output_data.shape_gradients);
+    grad_fix.rescale_fe_hermite_values(grad_fix, 
+                                       *this, 
+                                       mapping_internal_herm, 
+                                       output_data.shape_gradients);
   }
 
   if ((flags & update_hessians) &&
@@ -1043,7 +1045,10 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
                           make_array_view(output_data.shape_hessians, k));
   
       internal::Rescaler<dim, spacedim, Tensor<2,spacedim>> hessian_fix;
-      hessian_fix.rescale_fe_hermite_values(hessian_fix, *this, mapping_internal_herm, output_data.shape_hessians);
+      hessian_fix.rescale_fe_hermite_values(hessian_fix, 
+                                            *this, 
+                                            mapping_internal_herm, 
+                                            output_data.shape_hessians);
     }
 
   if ((flags & update_3rd_derivatives) &&
@@ -1057,7 +1062,10 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
                                           k));
   
       internal::Rescaler<dim, spacedim, Tensor<3,spacedim>> third_dev_fix;
-      third_dev_fix.rescale_fe_hermite_values(third_dev_fix, *this, mapping_internal_herm, output_data.shape_3rd_derivatives);
+      third_dev_fix.rescale_fe_hermite_values(third_dev_fix, 
+                                              *this, 
+                                              mapping_internal_herm, 
+                                              output_data.shape_3rd_derivatives);
     }
 }
 
