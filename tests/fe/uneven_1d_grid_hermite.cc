@@ -53,7 +53,7 @@ class test_poly : public Function<1>
 public:
     virtual double
     value(const Point<1> &p, unsigned int c=0) const override {
-        return p(0);// * (1.0 + 0.5 * p(0) - p(0) * p(0));
+        return p(0) * (1.0 + 0.5 * p(0) - p(0) * p(0));
     }
 };
 
@@ -96,7 +96,7 @@ test_fe_on_domain(const unsigned int regularity)
     AffineConstraints<double> constraints;
     constraints.close();
     
-    FEValues<1> fe_herm(mapping, herm, quadr, update_values | update_JxW_values);
+    FEValues<1> fe_herm(mapping, herm, quadr, update_values | update_quadrature_points | update_JxW_values);
     std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
 #define project_manually 1    
 #if project_manually
@@ -116,7 +116,7 @@ test_fe_on_domain(const unsigned int regularity)
                                                                             * fe_herm.JxW(q);
                 }
                 rhs_vec(local_to_global[i]) += fe_herm.shape_value(i,q)
-                                                * rhs_func.value(quadr.point(q))
+                                                * rhs_func.value(fe_herm.quadrature_point(q))
                                                 * fe_herm.JxW(q);
             }
     }
@@ -130,8 +130,7 @@ test_fe_on_domain(const unsigned int regularity)
     DataOut<1> data_out;
     data_out.attach_dof_handler(dof);
     data_out.add_data_vector(solution, "hermite_solution");
- //   data_out.build_patches(mapping, 29, DataOut<1>::curved_inner_cells);
-    data_out.build_patches(29);
+    data_out.build_patches(mapping, 29, DataOut<1>::curved_inner_cells);
     char filename[20];
     sprintf(filename, "solution-%d.vtu", regularity);
     std::ofstream output(filename);
