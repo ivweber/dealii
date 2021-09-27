@@ -395,144 +395,154 @@ namespace internal
                                 Table<2, xNumber> &                                          value_list);
   
   
-  template <int spacedim, typename Number>
-  void 
-  rescale_fe_hermite_values(Rescaler<1, spacedim, Number> &                           rescaler,
-                            const FE_Hermite<1, spacedim> &                           fe_herm,
-                            const typename MappingHermite<1, spacedim>::InternalData &mapping_data,
-                            Table<2, Number> &                                        value_list)
-  {
-        const unsigned int dofs = fe_herm.n_dofs_per_cell();
-        const unsigned int regularity = dofs / 2 - 1;
+      template <int spacedim, typename Number>
+      void 
+      rescale_fe_hermite_values(Rescaler<1, spacedim, Number> &                           rescaler,
+                                const FE_Hermite<1, spacedim> &                           fe_herm,
+                                const typename MappingHermite<1, spacedim>::InternalData &mapping_data,
+                                Table<2, Number> &                                        value_list)
+      {
+          const unsigned int dofs = fe_herm.n_dofs_per_cell();
+          const unsigned int regularity = dofs / 2 - 1;
         
-        const unsigned int q_points = mapping_data.quadrature_points.size();
+          const unsigned int q_points = mapping_data.quadrature_points.size();
         
-        AssertDimension(value_list.size(0), dofs);
-        AssertDimension(value_list.size(1), q_points);
+          AssertDimension(value_list.size(0), dofs);
+          AssertDimension(value_list.size(1), q_points);
         
-        for (unsigned int q = 0; q < q_points; ++q)
-        {
-            double factor_1 = 1.0;
+          for (unsigned int q = 0; q < q_points; ++q)
+          {
+              double factor_1 = 1.0;
             
-            for (unsigned int d1 = 0; d1 <= regularity; ++d1)
-            {
-                value_list(d1, q) *= factor_1;
-                value_list(d1 + regularity + 1, q) *= factor_1;
-                        
-                factor_1 *= mapping_data.cell_extents[0];
-            }
-        }
-  }
+              for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+              {
+                  value_list(d1,                  q) *= factor_1;
+                  value_list(d1 + regularity + 1, q) *= factor_1; //This appears to be rescaled less than the above entries, by a factor of about 1.5
+                                                                    // could this factor actually be sqrt(h), in this case sqrt(2) or 1.41 approx?
+                  factor_1 *= mapping_data.cell_extents[0];    //This seems to be reading the correct value for the cells, and calculating factor_1 correctly    
+              }
+          }
+      }
   
-  template <int spacedim, typename Number>
-  void 
-  rescale_fe_hermite_values(Rescaler<2, spacedim, Number> &                           rescaler,
-                            const FE_Hermite<2, spacedim> &                           fe_herm,
-                            const typename MappingHermite<2, spacedim>::InternalData &mapping_data,
-                            Table<2, Number> &                                        value_list)
-  {
-        const unsigned int dofs = fe_herm.n_dofs_per_cell();
-        const unsigned int dofs_per_dim = static_cast<unsigned int>( std::sqrt(dofs) + 0.01 );
-        const unsigned int regularity = dofs_per_dim / 2 - 1;
+      template <int spacedim, typename Number>
+      void 
+      rescale_fe_hermite_values(Rescaler<2, spacedim, Number> &                           rescaler,
+                                const FE_Hermite<2, spacedim> &                           fe_herm,
+                                const typename MappingHermite<2, spacedim>::InternalData &mapping_data,
+                                Table<2, Number> &                                        value_list)
+      {
+          const unsigned int dofs = fe_herm.n_dofs_per_cell();
+          const unsigned int dofs_per_dim = static_cast<unsigned int>( std::sqrt(dofs) + 0.01 );
+          const unsigned int regularity = dofs_per_dim / 2 - 1;
+          
+          const unsigned int q_points = mapping_data.quadrature_points.size();
       
-        for (unsigned int q = 0; q < mapping_data.quadrature_points.size(); ++q)
-        {
-            double factor_2 = 1.0;
+          AssertDimension(value_list.size(0), dofs);
+          AssertDimension(value_list.size(1), q_points);
+          
+          for (unsigned int q = 0; q < q_points; ++q)
+          {
+              double factor_2 = 1.0;
                     
-            for (unsigned int d2 = 0; d2 <= regularity; ++d2)
-            {
-                double factor_1 = 1.0;
+              for (unsigned int d2 = 0; d2 <= regularity; ++d2)
+              {
+                  double factor_1 = 1.0;
                 
-                for (unsigned int d1 = 0; d1 <= regularity; ++d1)
-                {
-                    value_list(d1 + d2 * dofs_per_dim, q)                                         *= factor_1 * factor_2;
-                    value_list(d1 + regularity + 1 + d2 * dofs_per_dim, q)                        *= factor_1 * factor_2;
-                    value_list(d1 + (d2 + regularity + 1) * dofs_per_dim, q)                      *= factor_1 * factor_2;
-                    value_list(d1 + d2 * dofs_per_dim + (regularity + 1) * (dofs_per_dim + 1), q) *= factor_1 * factor_2;
+                  for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                  {
+                      value_list(d1 + d2 * dofs_per_dim,                                         q) *= factor_1 * factor_2;
+                      value_list(d1 + regularity + 1 + d2 * dofs_per_dim,                        q) *= factor_1 * factor_2;
+                      value_list(d1 + (d2 + regularity + 1) * dofs_per_dim,                      q) *= factor_1 * factor_2;
+                      value_list(d1 + d2 * dofs_per_dim + (regularity + 1) * (dofs_per_dim + 1), q) *= factor_1 * factor_2;
                             
-                    factor_1 *= mapping_data.cell_extents[0];
-                }
+                      factor_1 *= mapping_data.cell_extents[0];
+                  }
                 
-                factor_2 *= mapping_data.cell_extents[1];
-            }
-        }
-  }
+                  factor_2 *= mapping_data.cell_extents[1];
+              }
+          }
+      }
   
-  template <int spacedim, typename Number>
-  void 
-  rescale_fe_hermite_values(Rescaler<3, spacedim, Number> &                           rescaler,
-                            const FE_Hermite<3, spacedim> &                           fe_herm,
-                            const typename MappingHermite<3, spacedim>::InternalData &mapping_data,
-                            Table<2, Number> &                                        value_list)
-  {
-        const unsigned int dofs = fe_herm.n_dofs_per_cell();
-        const unsigned int dofs_per_dim = static_cast<unsigned int>( std::cbrt(dofs) + 0.01 );
-        const unsigned int regularity = dofs_per_dim / 2 - 1;
+      template <int spacedim, typename Number>
+      void
+      rescale_fe_hermite_values(Rescaler<3, spacedim, Number> &                           rescaler,
+                                const FE_Hermite<3, spacedim> &                           fe_herm,
+                                const typename MappingHermite<3, spacedim>::InternalData &mapping_data,
+                                Table<2, Number> &                                        value_list)
+      {
+          const unsigned int dofs = fe_herm.n_dofs_per_cell();
+          const unsigned int dofs_per_dim = static_cast<unsigned int>( std::cbrt(dofs) + 0.01 );
+          const unsigned int regularity = dofs_per_dim / 2 - 1;
       
-        for (unsigned int q = 0; q < mapping_data.quadrature_points.size(); ++q)
-        {
-            double factor_3 = 1.0;
+          const unsigned int q_points = mapping_data.quadrature_points.size();
+      
+          AssertDimension(value_list.size(0), dofs);
+          AssertDimension(value_list.size(1), q_points);
+          
+          for (unsigned int q = 0; q < q_points; ++q)
+          {
+              double factor_3 = 1.0;
                     
-            for (unsigned int d3 = 0; d3 <= regularity; ++d3)
-            {
-                double factor_2 = 1.0;
+              for (unsigned int d3 = 0; d3 <= regularity; ++d3)
+              {
+                  double factor_2 = 1.0;
 
-                for (unsigned int d2 = 0; d2 <= regularity; ++d2)
-                {
-                    double factor_1 = 1.0;
+                  for (unsigned int d2 = 0; d2 <= regularity; ++d2)
+                  {
+                      double factor_1 = 1.0;
                         
-                    for (unsigned int d1 = 0; d1 <= regularity; ++d1)
-                    {
-                        value_list(d1 
-                                   + d2 * dofs_per_dim 
-                                   + d3 * dofs_per_dim * dofs_per_dim, q) *= 
-                            factor_1 * factor_2 * factor_3;
+                      for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                      {
+                          value_list(d1
+                                     + d2 * dofs_per_dim
+                                     + d3 * dofs_per_dim * dofs_per_dim,
+                                     q) *= factor_1 * factor_2 * factor_3;
                             
-                        value_list(d1 + regularity + 1 
-                                   + d2 * dofs_per_dim 
-                                   + d3 * dofs_per_dim * dofs_per_dim, q) *= 
-                            factor_1 * factor_2 * factor_3;
+                          value_list(d1 + regularity + 1 
+                                     + d2 * dofs_per_dim
+                                     + d3 * dofs_per_dim * dofs_per_dim,
+                                     q) *= factor_1 * factor_2 * factor_3;
                             
-                        value_list(d1 
-                                   + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
-                                   + d3 * dofs_per_dim * dofs_per_dim, q) *= 
-                            factor_1 * factor_2 * factor_3;
+                          value_list(d1 
+                                     + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim
+                                     + d3 * dofs_per_dim * dofs_per_dim,
+                                     q) *= factor_1 * factor_2 * factor_3;
                             
-                        value_list(d1 + regularity + 1
-                                   + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
-                                   + d3 * dofs_per_dim * dofs_per_dim, q) *= 
-                            factor_1 * factor_2 * factor_3;
+                          value_list(d1 + regularity + 1
+                                     + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim
+                                     + d3 * dofs_per_dim * dofs_per_dim,
+                                     q) *= factor_1 * factor_2 * factor_3;
                             
-                        value_list(d1 
-                                   + d2 * dofs_per_dim 
-                                   + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
-                            factor_1 * factor_2 * factor_3;
+                          value_list(d1 
+                                     + d2 * dofs_per_dim
+                                     + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim,
+                                     q) *= factor_1 * factor_2 * factor_3;
                             
-                        value_list(d1 + regularity + 1 
-                                   + d2 * dofs_per_dim 
-                                   + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
-                            factor_1 * factor_2 * factor_3;
+                          value_list(d1 + regularity + 1 
+                                     + d2 * dofs_per_dim
+                                     + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim,
+                                     q) *= factor_1 * factor_2 * factor_3;
                             
-                        value_list(d1 
-                                   + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
-                                   + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
-                            factor_1 * factor_2 * factor_3;
+                          value_list(d1 
+                                     + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim
+                                     + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim,
+                                     q) *= factor_1 * factor_2 * factor_3;
                             
-                        value_list(d1 + regularity + 1
-                                   + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim 
-                                   + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim, q) *= 
-                            factor_1 * factor_2 * factor_3;
+                          value_list(d1 + regularity + 1
+                                     + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim
+                                     + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim,
+                                     q) *= factor_1 * factor_2 * factor_3;
                             
-                        factor_1 *= mapping_data.cell_extents[0];
-                    }
+                          factor_1 *= mapping_data.cell_extents[0];
+                      }
                     
-                    factor_2 *= mapping_data.cell_extents[1];
-                }
+                      factor_2 *= mapping_data.cell_extents[1];
+                  }
                 
-                factor_3 *= mapping_data.cell_extents[2];
-            }
-        }
-  }
+                  factor_3 *= mapping_data.cell_extents[2];
+              }
+          }
+      }
   };
 }   //namespace internal
   
