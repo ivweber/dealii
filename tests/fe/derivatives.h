@@ -36,7 +36,7 @@ char fname[50];
 
 template <int dim>
 inline void
-plot_function_derivatives(MappingQ<dim> &      mapping,
+plot_function_derivatives(Mapping<dim> &      mapping,
                           FiniteElement<dim> &finel,
                           const char *        name)
 {
