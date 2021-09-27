@@ -52,8 +52,9 @@ class test_poly : public Function<1>
 {
 public:
     virtual double
-    value(const Point<1> &p, unsigned int c=0) const override {
-        return p(0) * (1.0 + 0.5 * p(0) - p(0) * p(0));
+    value(const Point<1> &p, unsigned int c=0) const override 
+    {
+        return p(c);// * (1.0 + 0.5 * p(c) - p(c) * p(c));
     }
 };
 
@@ -70,7 +71,7 @@ test_fe_on_domain(const unsigned int regularity)
     GridGenerator::hyper_cube(tr, left, right);  
     
     //Refine the right-most cell three times to get the elements [-1,0],[0,0.5],[0.5,0.75],[0.75,1]
-    for (unsigned int i = 0; i < 3; ++i)
+    for (unsigned int i = 0; i < 2; ++i)
     {
         for (auto &cell : tr.active_cell_iterators())
         {
@@ -78,7 +79,7 @@ test_fe_on_domain(const unsigned int regularity)
             if (true || distance < 1e-6)
             {
                 cell->set_refine_flag();
-                break;
+                //break;
             }
         }
         tr.execute_coarsening_and_refinement();
@@ -98,7 +99,7 @@ test_fe_on_domain(const unsigned int regularity)
     
     FEValues<1> fe_herm(mapping, herm, quadr, update_values | update_quadrature_points | update_JxW_values);
     std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
-#define project_manually 1    
+#define project_manually 0    
 #if project_manually
     FullMatrix<double> mass_matrix(dof.n_dofs(), dof.n_dofs());
     Vector<double> rhs_vec(dof.n_dofs());
