@@ -1,5 +1,5 @@
 #include <deal.II/fe/fe_hermite.h>
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping_hermite.h>
 
 #include <string>
 
@@ -13,7 +13,7 @@ template <int dim>
 void
 print_hermite_endpoint_derivatives()
 {
-    MappingQ<dim> m(1);
+    MappingHermite<dim> m;
     
     FE_Hermite<dim> herm0(0);
     plot_function_derivatives<dim>(m, herm0, "Hermite-0");

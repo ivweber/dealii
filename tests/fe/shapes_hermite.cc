@@ -15,7 +15,7 @@
 
 
 #include <deal.II/fe/fe_hermite.h>
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping_hermite.h>
 
 #include <string>
 
@@ -30,7 +30,7 @@ template <int dim>
 void
 plot_FE_Hermite_shape_functions()
 {
-  MappingQ<dim> m(1);
+  MappingHermite<dim> m;
 
   FE_Hermite<dim> herm0(0);
   plot_shape_functions(m, herm0, "Hermite-0");
