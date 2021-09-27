@@ -178,23 +178,8 @@ MappingHermite<dim, spacedim>::update_cell_extents(
   if (cell_similarity != CellSimilarity::translation)
     {
       const Point<dim> &start = cell->vertex(0);
-      switch (dim)
-        {
-          case 1:
-            data.cell_extents[0] = cell->vertex(1)(0) - start(0);
-            break;
-          case 2:
-            data.cell_extents[0] = cell->vertex(1)(0) - start(0);
-            data.cell_extents[1] = cell->vertex(2)(1) - start(1);
-            break;
-          case 3:
-            data.cell_extents[0] = cell->vertex(1)(0) - start(0);
-            data.cell_extents[1] = cell->vertex(2)(1) - start(1);
-            data.cell_extents[2] = cell->vertex(4)(2) - start(2);
-            break;
-          default:
-            Assert(false, ExcNotImplemented());
-        }
+      for (unsigned int i = 0, j = 1; i < dim; ++i, j *= 2)
+          data.cell_extents[i] = start.distance(cell->vertex(j));
     }
 }
 
@@ -1003,30 +988,10 @@ MappingHermite<dim, spacedim>::transform_unit_to_real_cell(
 {
   std::vector<Tensor<1, spacedim>>   axes(dim);
   const Point<spacedim> start = cell->vertex(0);
-  switch (dim)
-    {
-      case 1:
-        for (unsigned int i = 0; i < spacedim; ++i)
-          axes[0][i] = cell->vertex(1)(i) - start(i);
-        break;
-      case 2:
-        for (unsigned int i = 0; i < spacedim; ++i)
-        {
-          axes[0][i] = cell->vertex(1)(i) - start(i);
-          axes[1][i] = cell->vertex(2)(i) - start(i);
-        }
-        break;
-      case 3:
-        for (unsigned int i = 0; i < spacedim; ++i)
-        {
-          axes[0][i] = cell->vertex(1)(i) - start(i);
-          axes[1][i] = cell->vertex(2)(i) - start(i);
-          axes[2][i] = cell->vertex(4)(i) - start(i);
-        }
-        break;
-      default:
-        Assert(false, ExcNotImplemented());
-    }
+  
+  for (unsigned int i = 0; i < spacedim; ++i)
+      for (unsigned int j = 0, k = 1; j < dim; ++j, k *= 2)
+          axes[j][i] = cell->vertex(k)(i) - start(i);
 
   Point<spacedim> p_real = cell->vertex(0);
   for (unsigned int d = 0; d < dim; ++d)
@@ -1045,75 +1010,33 @@ MappingHermite<dim, spacedim>::transform_real_to_unit_cell(
 {
     std::vector<Tensor<1,spacedim>>   axes(dim);
     Tensor<1,dim> lengths;
+    
     const Point<spacedim> &start = cell->vertex(0);
-    switch (dim)
+    
+    for (unsigned int j = 0, k = 1; j < dim; ++j, k *= 2)
     {
-      case 1:
         for (unsigned int i = 0; i < spacedim; ++i)
-          axes[0][i] = cell->vertex(1)(i) - start(i);
-        lengths[0] = start.distance(cell->vertex(1));
-        break;
-      case 2:
-        for (unsigned int i = 0; i < spacedim; ++i)
-        {
-          axes[0][i] = cell->vertex(1)(i) - start(i);
-          axes[1][i] = cell->vertex(2)(i) - start(i);
-        }
-        lengths[0] = start.distance(cell->vertex(1));
-        lengths[1] = start.distance(cell->vertex(2));
-        break;
-      case 3:
-        for (unsigned int i = 0; i < spacedim; ++i)
-        {
-          axes[0][i] = cell->vertex(1)(i) - start(i);
-          axes[1][i] = cell->vertex(2)(i) - start(i);
-          axes[2][i] = cell->vertex(4)(i) - start(i);
-        }
-        lengths[0] = start.distance(cell->vertex(1));
-        lengths[1] = start.distance(cell->vertex(2));
-        lengths[2] = start.distance(cell->vertex(4));
-        break;
-      default:
-        Assert(false, ExcNotImplemented());
+            axes[j][i] = cell->vertex(k)(i) - start(i);
+        
+        lengths[j] = start.distance(cell->vertex(k));
     }
   
     Point<spacedim> real = p;
     Point<dim> reference;
+    
     real -= start;
-    double dot = 0;
-  switch (dim)
+    
+    double dot;
+    
+    for (unsigned int j = 0; j < dim; ++j)
     {
-      case 1:
-        for (unsigned int i = 0; i < spacedim; ++i)
-            dot += axes[0][i] * real(i);
-        reference(0) = dot / lengths[0];
-        break;
-      case 2:
-        for (unsigned int i = 0; i < spacedim; ++i)
-            dot += axes[0][i] * real(i);
-        reference(0) = dot / lengths[0];
         dot = 0;
         for (unsigned int i = 0; i < spacedim; ++i)
-            dot += axes[1][i] * real(i);
-        reference(1) = dot / lengths[1];
-        break;
-      case 3:
-        for (unsigned int i = 0; i < spacedim; ++i)
-            dot += axes[0][i] * real(i);
-        reference(0) = dot / lengths[0];
-        dot = 0;
-        for (unsigned int i = 0; i < spacedim; ++i)
-            dot += axes[1][i] * real(i);
-        reference(1) = dot / lengths[1];
-        dot = 0;
-        for (unsigned int i = 0; i < spacedim; ++i)
-            dot += axes[2][i] * real(i);
-        reference(2) = dot / lengths[2];
-        break;
-      default:
-        Assert(false, ExcNotImplemented());
+            dot += axes[j][i] * real(i);
+        reference(j) = dot / lengths[j];
     }
-  return reference;
+    
+    return reference;
 }
 
 
