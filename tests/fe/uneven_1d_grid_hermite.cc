@@ -45,9 +45,6 @@
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/affine_constraints.h>
-    
-#define project_manually 0       
-#define visual_output 1
 
 
 using namespace dealii;
@@ -110,45 +107,7 @@ test_fe_on_domain(const unsigned int regularity)
     FEValues<1> fe_herm(mapping, herm, quadr, update_values | update_quadrature_points | update_JxW_values);
     std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
  
-#if project_manually
-    FullMatrix<double> mass_matrix(dof.n_dofs(), dof.n_dofs());
-    Vector<double> rhs_vec(dof.n_dofs());
-    for (const auto &cell : dof.active_cell_iterators())
-    {
-        fe_herm.reinit(cell);
-        cell->get_dof_indices(local_to_global);
-        for (const unsigned int q : fe_herm.quadrature_point_indices())
-            for (const unsigned int i : fe_herm.dof_indices())
-            {
-                for (const unsigned int j : fe_herm.dof_indices())
-                {
-                    mass_matrix(local_to_global[i], local_to_global[j]) += fe_herm.shape_value(i,q)
-                                                                            * fe_herm.shape_value(j,q)
-                                                                            * fe_herm.JxW(q);
-                }
-                rhs_vec(local_to_global[i]) += fe_herm.shape_value(i,q)
-                                                * rhs_func.value(fe_herm.quadrature_point(q))
-                                                * fe_herm.JxW(q);
-            }
-    }
-    IterationNumberControl solver_control(100, 1e-9);
-    SolverCG<Vector<double>> solver(solver_control);
-    solver.solve(mass_matrix, solution, rhs_vec, PreconditionIdentity());
-#else
     VectorTools::project(mapping, dof, constraints, quadr, rhs_func, solution, false);
-#endif
-
-#if visual_output
-    DataOut<1> data_out;
-    data_out.attach_dof_handler(dof);
-    data_out.add_data_vector(solution, "hermite_solution");
-    data_out.build_patches(mapping, 29, DataOut<1>::curved_inner_cells);
-    char filename_visual[20];
-    sprintf(filename_visual, "solution-%d.vtu", regularity);
-    std::ofstream output_visual(filename_visual);
-    data_out.write_vtu(output_visual);
-    output_visual.close();
-#endif
     
     double err_sq = 0;
     
