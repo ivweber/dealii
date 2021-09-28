@@ -274,9 +274,105 @@ protected:
   struct Implementation;
   friend struct FE_Hermite<dim, spacedim>::Implementation;
   
+  virtual std::unique_ptr<
+  typename FiniteElement<dim, spacedim>::InternalDataBase>
+  get_data(
+    const UpdateFlags update_flags,
+    const Mapping<dim, spacedim> & /*mapping*/,
+    const Quadrature<dim> &quadrature,
+    dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
+                                                                       spacedim>
+      &/* output_data*/) const override
+  {
+    // generate a new data object and
+    // initialize some fields
+    std::unique_ptr<typename FiniteElement<dim, spacedim>::InternalDataBase>
+          data_ptr   = std::make_unique<typename FE_Poly<dim, spacedim>::InternalData>();
+    auto &data       = dynamic_cast<typename FE_Poly<dim, spacedim>::InternalData &>(*data_ptr);
+    data.update_each = this->requires_update_flags(update_flags);
+
+    const unsigned int n_q_points = quadrature.size();
+
+    // initialize some scratch arrays. we need them for the underlying
+    // polynomial to put the values and derivatives of shape functions
+    // to put there, depending on what the user requested
+    std::vector<double> values(
+      update_flags & update_values ? this->dofs_per_cell : 0);
+    std::vector<Tensor<1, dim>> grads(
+      update_flags & update_gradients ? this->dofs_per_cell : 0);
+    std::vector<Tensor<2, dim>> grad_grads(
+      update_flags & update_hessians ? this->dofs_per_cell : 0);
+    std::vector<Tensor<3, dim>> third_derivatives(
+      update_flags & update_3rd_derivatives ? this->dofs_per_cell : 0);
+    std::vector<Tensor<4, dim>>
+      fourth_derivatives; // won't be needed, so leave empty
+
+    // now also initialize fields the fields of this class's own
+    // temporary storage, depending on what we need for the given
+    // update flags.
+    //
+    // there is one exception from the rule: if we are dealing with
+    // cells (i.e., if this function is not called via
+    // get_(sub)face_data()), then we can already store things in the
+    // final location where FEValues::reinit() later wants to see
+    // things. we then don't need the intermediate space. we determine
+    // whether we are on a cell by asking whether the number of
+    // elements in the output array equals the number of quadrature
+    // points (yes, it's a cell) or not (because in that case the
+    // number of quadrature points we use here equals the number of
+    // quadrature points summed over *all* faces or subfaces, whereas
+    // the number of output slots equals the number of quadrature
+    // points on only *one* face)
+    if (update_flags & update_values)
+      data.shape_values.reinit(this->dofs_per_cell, n_q_points);
+
+    if (update_flags & update_gradients)
+      data.shape_gradients.reinit(this->dofs_per_cell, n_q_points);
+
+    if (update_flags & update_hessians)
+      data.shape_hessians.reinit(this->dofs_per_cell, n_q_points);
+
+    if (update_flags & update_3rd_derivatives)
+      data.shape_3rd_derivatives.reinit(this->dofs_per_cell, n_q_points);
+
+    // next already fill those fields of which we have information by
+    // now. note that the shape gradients are only those on the unit
+    // cell, and need to be transformed when visiting an actual cell
+    if (update_flags & (update_values | update_gradients | update_hessians |
+                        update_3rd_derivatives))
+      for (unsigned int i = 0; i < n_q_points; ++i)
+        {
+          this->poly_space->evaluate(quadrature.point(i),
+                              values,
+                              grads,
+                              grad_grads,
+                              third_derivatives,
+                              fourth_derivatives);
+
+          // for Hermite everything needs to be transformed,
+          // so we write them into our scratch space and only later
+          // copy stuff into where FEValues wants it
+          if (update_flags & update_values)
+            for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
+              data.shape_values[k][i] = values[k];
+
+          if (update_flags & update_gradients)
+            for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
+              data.shape_gradients[k][i] = grads[k];
+
+          if (update_flags & update_hessians)
+            for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
+              data.shape_hessians[k][i] = grad_grads[k];
+
+          if (update_flags & update_3rd_derivatives)
+            for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
+              data.shape_3rd_derivatives[k][i] = third_derivatives[k];
+        }
+    return data_ptr;
+  }
 
 private:
-  //Mutable Threads::Mutex mutex;
+  mutable Threads::Mutex mutex;
   unsigned int           regularity;
   unsigned int           nodes;
 };
