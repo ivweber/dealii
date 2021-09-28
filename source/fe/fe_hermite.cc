@@ -13,6 +13,7 @@
 #include <iterator>
 #include <memory>
 #include <sstream>
+#include <iostream>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -397,14 +398,14 @@ namespace internal
   
       template <int spacedim, typename Number>
       void 
-      rescale_fe_hermite_values(Rescaler<1, spacedim, Number> &                           rescaler,
+      rescale_fe_hermite_values(Rescaler<1, spacedim, Number> &                           /*rescaler*/,
                                 const FE_Hermite<1, spacedim> &                           fe_herm,
                                 const typename MappingHermite<1, spacedim>::InternalData &mapping_data,
                                 Table<2, Number> &                                        value_list)
       {
-          const unsigned int dofs = fe_herm.n_dofs_per_cell();
+          const unsigned int dofs = fe_herm.n_dofs_per_cell();  //  This reads the expected values for each cell, no issue here
           const unsigned int regularity = dofs / 2 - 1;
-        
+          
           const unsigned int q_points = mapping_data.quadrature_points.size();
         
           AssertDimension(value_list.size(0), dofs);
@@ -414,19 +415,19 @@ namespace internal
           {
               double factor_1 = 1.0;
             
-              for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+              for (unsigned int d1 = 0, d2 = regularity + 1; d2 < dofs; ++d1, ++d2)
               {
-                  value_list(d1,                  q) *= factor_1;
-                  value_list(d1 + regularity + 1, q) *= factor_1; //This appears to be rescaled less than the above entries, by a factor of about 1.5
-                                                                    // could this factor actually be sqrt(h), in this case sqrt(2) or 1.41 approx?
-                  factor_1 *= mapping_data.cell_extents[0];    //This seems to be reading the correct value for the cells, and calculating factor_1 correctly    
+                  value_list(d1, q) *= factor_1;
+                  value_list(d2, q) *= factor_1; // This appears to be rescaled less than the above entries, by a factor of about factor_1
+                                                                 //  
+                  factor_1 *= mapping_data.cell_extents[0];     //   This seems to be reading the correct value for the cells, and calculating factor_1 correctly    
               }
           }
       }
   
       template <int spacedim, typename Number>
       void 
-      rescale_fe_hermite_values(Rescaler<2, spacedim, Number> &                           rescaler,
+      rescale_fe_hermite_values(Rescaler<2, spacedim, Number> &                           /*rescaler*/,
                                 const FE_Hermite<2, spacedim> &                           fe_herm,
                                 const typename MappingHermite<2, spacedim>::InternalData &mapping_data,
                                 Table<2, Number> &                                        value_list)
@@ -444,16 +445,16 @@ namespace internal
           {
               double factor_2 = 1.0;
                     
-              for (unsigned int d2 = 0; d2 <= regularity; ++d2)
+              for (unsigned int d3 = 0, d4 = regularity + 1; d4 < dofs_per_dim; ++d3, ++d4)
               {
                   double factor_1 = 1.0;
                 
-                  for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                  for (unsigned int d1 = 0, d2 = regularity + 1; d2 < dofs_per_dim; ++d1, ++d2)
                   {
-                      value_list(d1 + d2 * dofs_per_dim,                                         q) *= factor_1 * factor_2;
-                      value_list(d1 + regularity + 1 + d2 * dofs_per_dim,                        q) *= factor_1 * factor_2;
-                      value_list(d1 + (d2 + regularity + 1) * dofs_per_dim,                      q) *= factor_1 * factor_2;
-                      value_list(d1 + d2 * dofs_per_dim + (regularity + 1) * (dofs_per_dim + 1), q) *= factor_1 * factor_2;
+                      value_list(d1 + d3 * dofs_per_dim, q) *= factor_1 * factor_2;
+                      value_list(d2 + d3 * dofs_per_dim, q) *= factor_1 * factor_2;
+                      value_list(d1 + d4 * dofs_per_dim, q) *= factor_1 * factor_2;
+                      value_list(d2 + d4 * dofs_per_dim, q) *= factor_1 * factor_2;
                             
                       factor_1 *= mapping_data.cell_extents[0];
                   }
@@ -465,7 +466,7 @@ namespace internal
   
       template <int spacedim, typename Number>
       void
-      rescale_fe_hermite_values(Rescaler<3, spacedim, Number> &                           rescaler,
+      rescale_fe_hermite_values(Rescaler<3, spacedim, Number> &                           /*rescaler*/,
                                 const FE_Hermite<3, spacedim> &                           fe_herm,
                                 const typename MappingHermite<3, spacedim>::InternalData &mapping_data,
                                 Table<2, Number> &                                        value_list)
@@ -483,55 +484,32 @@ namespace internal
           {
               double factor_3 = 1.0;
                     
-              for (unsigned int d3 = 0; d3 <= regularity; ++d3)
+              for (unsigned int d5 = 0, d6 = regularity + 1; d6 < dofs_per_dim; ++d5, ++d6)
               {
                   double factor_2 = 1.0;
 
-                  for (unsigned int d2 = 0; d2 <= regularity; ++d2)
+                  for (unsigned int d3 = 0, d4 = regularity + 1; d4 < dofs_per_dim; ++d3, ++d4)
                   {
                       double factor_1 = 1.0;
                         
-                      for (unsigned int d1 = 0; d1 <= regularity; ++d1)
+                      for (unsigned int d1 = 0, d2 = regularity + 1; d2 < dofs_per_dim; ++d1, ++d2)
                       {
-                          value_list(d1
-                                     + d2 * dofs_per_dim
-                                     + d3 * dofs_per_dim * dofs_per_dim,
-                                     q) *= factor_1 * factor_2 * factor_3;
-                            
-                          value_list(d1 + regularity + 1 
-                                     + d2 * dofs_per_dim
-                                     + d3 * dofs_per_dim * dofs_per_dim,
-                                     q) *= factor_1 * factor_2 * factor_3;
-                            
-                          value_list(d1 
-                                     + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim
-                                     + d3 * dofs_per_dim * dofs_per_dim,
-                                     q) *= factor_1 * factor_2 * factor_3;
-                            
-                          value_list(d1 + regularity + 1
-                                     + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim
-                                     + d3 * dofs_per_dim * dofs_per_dim,
-                                     q) *= factor_1 * factor_2 * factor_3;
-                            
-                          value_list(d1 
-                                     + d2 * dofs_per_dim
-                                     + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim,
-                                     q) *= factor_1 * factor_2 * factor_3;
-                            
-                          value_list(d1 + regularity + 1 
-                                     + d2 * dofs_per_dim
-                                     + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim,
-                                     q) *= factor_1 * factor_2 * factor_3;
-                            
-                          value_list(d1 
-                                     + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim
-                                     + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim,
-                                     q) *= factor_1 * factor_2 * factor_3;
-                            
-                          value_list(d1 + regularity + 1
-                                     + d2 * dofs_per_dim + (regularity + 1) * dofs_per_dim
-                                     + d3 * dofs_per_dim * dofs_per_dim + (regularity + 1) * dofs_per_dim * dofs_per_dim,
-                                     q) *= factor_1 * factor_2 * factor_3;
+                          value_list(d1 + d3 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim, q) 
+                            *= factor_1 * factor_2 * factor_3;
+                          value_list(d2 + d3 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim, q) 
+                            *= factor_1 * factor_2 * factor_3;
+                          value_list(d1 + d4 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim, q) 
+                            *= factor_1 * factor_2 * factor_3;
+                          value_list(d2 + d4 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim, q) 
+                            *= factor_1 * factor_2 * factor_3;
+                          value_list(d1 + d3 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim, q) 
+                            *= factor_1 * factor_2 * factor_3;
+                          value_list(d2 + d3 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim, q) 
+                            *= factor_1 * factor_2 * factor_3;
+                          value_list(d1 + d4 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim, q) 
+                            *= factor_1 * factor_2 * factor_3;
+                          value_list(d2 + d4 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim, q) 
+                            *= factor_1 * factor_2 * factor_3;
                             
                           factor_1 *= mapping_data.cell_extents[0];
                       }
@@ -1023,6 +1001,9 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
     if (cell_similarity != CellSimilarity::translation)
     {
       internal::Rescaler<dim, spacedim, double> shape_fix;
+      for (unsigned int i=0; i<output_data.shape_values.size(0); ++i)
+        for (unsigned int q=0; q<output_data.shape_values.size(1); ++q)
+          output_data.shape_values(i, q) = fe_data.shape_values(i, q);
       shape_fix.rescale_fe_hermite_values(shape_fix,
                                           *this, 
                                           mapping_internal_herm, 
