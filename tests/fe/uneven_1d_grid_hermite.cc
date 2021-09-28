@@ -7,11 +7,12 @@
  */
 
 //Standard library files to be used
-#include <iostream>
+#include <sstream>
 #include <fstream>
 #include <cmath>
 #include <vector>
 #include <cstdlib>
+#include <iterator>
 
 //General Deal.II libraries to be used
 #include <deal.II/grid/tria.h>
@@ -44,25 +45,34 @@
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/affine_constraints.h>
+    
+#define project_manually 0       
+#define visual_output 1
+
 
 using namespace dealii;
 
 //Define a function to project onto the domain
 class test_poly : public Function<1>
-{
+{    
 public:
+    
     virtual double
     value(const Point<1> &p, unsigned int c=0) const override 
     {
-        return p(c);// * (1.0 + 0.5 * p(c) - p(c) * p(c));
+        return p(c) * (1.0 + p(c) * (0.5 - p(c)));
+    }
+    
+    std::string
+    get_polynomial_string()
+    {
+        return "X + 0.5 X^2 - X^3";
     }
 };
 
 void
 test_fe_on_domain(const unsigned int regularity)
 {
-    AssertThrow(regularity != 0, ExcInternalError());   //Projecting a quadratic with linear polynomials won't be exact
-    
     Triangulation<1> tr;
     DoFHandler<1> dof(tr);
     
@@ -71,12 +81,12 @@ test_fe_on_domain(const unsigned int regularity)
     GridGenerator::hyper_cube(tr, left, right);  
     
     //Refine the right-most cell three times to get the elements [-1,0],[0,0.5],[0.5,0.75],[0.75,1]
-    for (unsigned int i = 0; i < 2; ++i)
+    for (unsigned int i = 0; i < 3; ++i)
     {
         for (auto &cell : tr.active_cell_iterators())
         {
             const double distance = right_point.distance(cell->vertex(1));
-            if (true || distance < 1e-6)
+            if (distance < 1e-6)
             {
                 cell->set_refine_flag();
                 //break;
@@ -99,7 +109,7 @@ test_fe_on_domain(const unsigned int regularity)
     
     FEValues<1> fe_herm(mapping, herm, quadr, update_values | update_quadrature_points | update_JxW_values);
     std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
-#define project_manually 0    
+ 
 #if project_manually
     FullMatrix<double> mass_matrix(dof.n_dofs(), dof.n_dofs());
     Vector<double> rhs_vec(dof.n_dofs());
@@ -127,27 +137,22 @@ test_fe_on_domain(const unsigned int regularity)
 #else
     VectorTools::project(mapping, dof, constraints, quadr, rhs_func, solution, false);
 #endif
-    
+
+#if visual_output
     DataOut<1> data_out;
     data_out.attach_dof_handler(dof);
     data_out.add_data_vector(solution, "hermite_solution");
     data_out.build_patches(mapping, 29, DataOut<1>::curved_inner_cells);
-    char filename[20];
-    sprintf(filename, "solution-%d.vtu", regularity);
-    std::ofstream output(filename);
-    data_out.write_vtu(output);
-    output.close();
+    char filename_visual[20];
+    sprintf(filename_visual, "solution-%d.vtu", regularity);
+    std::ofstream output_visual(filename_visual);
+    data_out.write_vtu(output_visual);
+    output_visual.close();
+#endif
     
-    std::ofstream text_output("printed_values.txt");
-    for (unsigned int i = 0; i < solution.size(); ++i)
-        text_output << solution(i) << "\t";
-    text_output << std::endl;
-    text_output.close();
-    
-#ifdef error_calculator   
     double err_sq = 0;
     
-    for (auto &cell : tr.active_cell_iterators())
+    for (auto &cell : dof.active_cell_iterators())
     {
         fe_herm.reinit(cell);
         cell->get_dof_indices(local_to_global);
@@ -156,17 +161,41 @@ test_fe_on_domain(const unsigned int regularity)
             double sol_at_point = 0;
             for (const unsigned int i : fe_herm.dof_indices())
                 sol_at_point += fe_herm.shape_value(i,q) * solution(local_to_global[i]);
-            sol_at_point -= rhs_func.value(fe_herm.point(q));
+            sol_at_point -= rhs_func.value(fe_herm.quadrature_point(q));
             err_sq += sol_at_point * sol_at_point * fe_herm.JxW(q);
         }
     }
     
     err_sq = std::sqrt(err_sq);
-#endif
+    
+    char fname[50];
+    sprintf(fname, "Cell-1d-Hermite-%d", regularity);
+    deallog.push(fname);
+    
+    deallog << "Test polynomial:" << std::endl;
+    deallog << rhs_func.get_polynomial_string() << std::endl;
+    deallog << std::endl;
+    
+    deallog << "Grid cells:" << std::endl;
+    for (const auto &cell : tr.active_cell_iterators())
+    {
+        deallog << "(\t" << cell->vertex(0) << ","
+                << "\t" << cell->vertex(1) << "\t)" << std::endl;
+    }
+    deallog << std::endl;
+    
+    deallog << "Interpolation error:" << std::endl;
+    deallog << err_sq << "\n\n" << std::endl;
+    deallog.pop();
 }
 
 int main()
 {
+    std::ofstream logfile("output");
+    deallog << std::setprecision(8) << std::fixed;
+    deallog.attach(logfile);
+    
+    test_fe_on_domain(0);
     test_fe_on_domain(1);
     test_fe_on_domain(2);
     test_fe_on_domain(3);
