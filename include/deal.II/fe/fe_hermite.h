@@ -274,15 +274,15 @@ protected:
   struct Implementation;
   friend struct FE_Hermite<dim, spacedim>::Implementation;
   
-  virtual std::unique_ptr<
+  /*virtual std::unique_ptr<
   typename FiniteElement<dim, spacedim>::InternalDataBase>
   get_data(
     const UpdateFlags update_flags,
-    const Mapping<dim, spacedim> & /*mapping*/,
+    const Mapping<dim, spacedim> & / *mapping* /,
     const Quadrature<dim> &quadrature,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                        spacedim>
-      &/* output_data*/) const override
+      &/ * output_data* /) const override
   {
     // generate a new data object and
     // initialize some fields
@@ -368,6 +368,27 @@ protected:
             for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
               data.shape_3rd_derivatives[k][i] = third_derivatives[k];
         }
+    return data_ptr;
+  }*/
+  
+  virtual std::unique_ptr<
+  typename FiniteElement<dim, spacedim>::InternalDataBase>
+  get_data(
+    const UpdateFlags             update_flags,
+    const Mapping<dim, spacedim> &mapping,
+    const Quadrature<dim> &       quadrature,
+    dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
+                                                                       spacedim>
+      &output_data) const override
+  {
+    std::unique_ptr<typename FiniteElement<dim, spacedim>::InternalDataBase>
+          data_ptr   = FE_Poly<dim, spacedim>::get_data(update_flags, mapping, quadrature, output_data);
+    auto &data       = dynamic_cast<typename FE_Poly<dim, spacedim>::InternalData &>(*data_ptr);
+    const unsigned int n_q_points = quadrature.size();
+    if ((update_flags & update_values) &&
+        ((output_data.shape_values.n_rows() > 0) &&
+         (output_data.shape_values.n_cols() == n_q_points)))
+      data.shape_values = output_data.shape_values;
     return data_ptr;
   }
 
