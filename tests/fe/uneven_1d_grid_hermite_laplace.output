@@ -1,4 +1,7 @@
 
+DEAL:cg::Starting value 3.09548562
+DEAL:cg::Convergence step 3 value 0.00000000
+DEAL::
 DEAL:Cell-1d-Hermite-0::Test polynomial:
 DEAL:Cell-1d-Hermite-0::X + 0.5 X^2 - X^3
 DEAL:Cell-1d-Hermite-0::
@@ -9,9 +12,12 @@ DEAL:Cell-1d-Hermite-0::(	0.50000000,	0.75000000	)
 DEAL:Cell-1d-Hermite-0::(	0.75000000,	1.00000000	)
 DEAL:Cell-1d-Hermite-0::
 DEAL:Cell-1d-Hermite-0::Interpolation error:
-DEAL:Cell-1d-Hermite-0::0.07498485
+DEAL:Cell-1d-Hermite-0::0.33715327
 
 
+DEAL:cg::Starting value 3.96403372
+DEAL:cg::Convergence step 9 value 0.00000000
+DEAL::
 DEAL:Cell-1d-Hermite-1::Test polynomial:
 DEAL:Cell-1d-Hermite-1::X + 0.5 X^2 - X^3
 DEAL:Cell-1d-Hermite-1::
@@ -25,6 +31,9 @@ DEAL:Cell-1d-Hermite-1::Interpolation error:
 DEAL:Cell-1d-Hermite-1::0.00000000
 
 
+DEAL:cg::Starting value 4.86496327
+DEAL:cg::Convergence step 18 value 0.00000000
+DEAL::
 DEAL:Cell-1d-Hermite-2::Test polynomial:
 DEAL:Cell-1d-Hermite-2::X + 0.5 X^2 - X^3
 DEAL:Cell-1d-Hermite-2::
@@ -38,6 +47,9 @@ DEAL:Cell-1d-Hermite-2::Interpolation error:
 DEAL:Cell-1d-Hermite-2::0.00000000
 
 
+DEAL:cg::Starting value 5.78691142
+DEAL:cg::Convergence step 38 value 0.00000000
+DEAL::
 DEAL:Cell-1d-Hermite-3::Test polynomial:
 DEAL:Cell-1d-Hermite-3::X + 0.5 X^2 - X^3
 DEAL:Cell-1d-Hermite-3::

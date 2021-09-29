@@ -47,6 +47,8 @@
 #include <deal.II/lac/affine_constraints.h>
 
 #define manual_laplace 0
+#define manual_boundary 1
+#define visual_output 0
 
 using namespace dealii;
 
@@ -160,18 +162,35 @@ test_fe_on_domain(const unsigned int regularity)
     }
 
     std::map<types::global_dof_index, double> bound_vals;
+#if manual_boundary
+    for (const auto &cell : dof.active_cell_iterators())
+    {
+        if (left_point.distance(cell->vertex(0)) <= 1e-6)
+        {
+            cell->get_dof_indices(local_to_global);
+            bound_vals.emplace(std::make_pair(local_to_global[0], sol_object.value(left_point)));
+        }
+        if (right_point.distance(cell->vertex(1)) <= 1e-6)
+        {
+            cell->get_dof_indices(local_to_global);
+            bound_vals.emplace(std::make_pair(local_to_global[herm.get_regularity()+1], sol_object.value(right_point)));
+        }
+    }
+#else
     std::map<types::boundary_id, const Function<1,double>*> bound_map;
     bound_map.emplace(std::make_pair(0U, &sol_object));
     bound_map.emplace(std::make_pair(1U, &sol_object));
     
-    VectorTools::project_boundary_values(dof, bound_map, QGauss<0>(1), bound_vals);
+    VectorTools::project_boundary_values(mapping, dof, bound_map, QGauss<0>(1), bound_vals);
+#endif
     MatrixTools::apply_boundary_values(bound_vals, stiffness_matrix, sol, rhs);
     
-    SolverControl solver_deets(50, 1e-11);
+    IterationNumberControl solver_deets(50, 1e-11);
     SolverCG<> solver(solver_deets);
     
     solver.solve(stiffness_matrix, sol, rhs, PreconditionIdentity() );
-   
+  
+#if visual_output
     DataOut<1> data;
     data.attach_dof_handler(dof);
     data.add_data_vector(sol, "Solution");
@@ -181,6 +200,7 @@ test_fe_on_domain(const unsigned int regularity)
     std::ofstream outpt(filename);
     data.write_vtu(outpt);
     outpt.close();
+#endif
     
     double err_sq = 0;
     
