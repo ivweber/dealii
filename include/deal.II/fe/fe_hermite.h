@@ -253,6 +253,7 @@ public:
                                                                        spacedim>
       &output_data) const override;
       
+  
   /*
   virtual std::size_t
   memory_consumption() const override;
@@ -396,6 +397,11 @@ private:
   mutable Threads::Mutex mutex;
   unsigned int           regularity;
   unsigned int           nodes;
+  
+public:
+  unsigned int
+  get_regularity() const
+  {return this->regularity;}
 };
 
 
