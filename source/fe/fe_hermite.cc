@@ -521,7 +521,6 @@ namespace internal
 }   //namespace internal
   
 
-
 /*
  * Implementation structs for providing constraint matrices for hanging nodes
  */
@@ -1070,6 +1069,14 @@ ExcDimensionMismatch(interpolation_matrix.n(), source_dofs));
 
 }
 */
+
+namespace VectorTools
+{
+    
+} //namespace VectorTools
+
+
+
 
 //Explicit instantiations
 #include "fe_hermite.inst.in"
