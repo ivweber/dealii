@@ -53,9 +53,8 @@ namespace internal
                                                 std::vector<unsigned int> &h2l)
   {
         const unsigned int node_dofs_1d = regularity + 1;
-        const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
         
-        AssertDimension(h2l.size(), dim_dofs_1d);
+        AssertDimension(h2l.size(), 2 * node_dofs_1d + nodes);
         
         unsigned int count = 0;
         // Assign DOFs at vertices
@@ -67,7 +66,7 @@ namespace internal
         for (unsigned int i = 0; i < nodes; ++i, ++count)
             h2l[i + 2 * node_dofs_1d] = i + node_dofs_1d;
         
-        AssertDimension(count, dim_dofs_1d);
+        AssertDimension(count, 2 * node_dofs_1d + nodes);
   }
   
   template<>
@@ -79,9 +78,8 @@ namespace internal
         const unsigned int node_dofs_1d = regularity + 1;
         
         const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
-        const unsigned int dim_dofs_2d  = dim_dofs_1d * dim_dofs_1d;
         
-        AssertDimension(h2l.size(), dim_dofs_2d);
+        AssertDimension(h2l.size(), dim_dofs_1d * dim_dofs_1d);
         
         unsigned int count = 0, offset = 0;
         
@@ -122,7 +120,7 @@ namespace internal
                         j + (i + node_dofs_1d) * dim_dofs_1d + node_dofs_1d;
         }
             
-        AssertDimension(count, dim_dofs_2d);
+        AssertDimension(count, dim_dofs_1d * dim_dofs_1d);
   }  
   
   template<>
@@ -136,9 +134,8 @@ namespace internal
     
         const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
         const unsigned int dim_dofs_2d  = dim_dofs_1d * dim_dofs_1d;
-        const unsigned int dim_dofs_3d  = dim_dofs_2d * dim_dofs_1d;
     
-        AssertDimension(h2l.size(), dim_dofs_3d);
+        AssertDimension(h2l.size(), dim_dofs_2d * dim_dofs_1d);
     
         unsigned int offset = 0, count = 0;
     
@@ -251,7 +248,7 @@ namespace internal
                             (i + node_dofs_1d) * dim_dofs_2d;
         }
         
-        AssertDimension(count, dim_dofs_3d);
+        AssertDimension(count, dim_dofs_1d * dim_dofs_2d);
   }
           
           
@@ -268,11 +265,10 @@ namespace internal
         const unsigned int dim_dofs_1d  = 2 * node_dofs_1d + nodes;
         const unsigned int dim_dofs_2d  = dim_dofs_1d * dim_dofs_1d;
         const unsigned int dim_dofs_3d  = dim_dofs_2d * dim_dofs_1d;
-        const unsigned int dim_dofs_4d  = dim_dofs_2d * dim_dofs_2d;
     
         unsigned int       offset = 0, count = 0;
     
-        AssertDimension(h2l.size(), dim_dofs_4d);
+        AssertDimension(h2l.size(), dim_dofs_2d * dim_dofs_2d);
 
         // Assign DOFs at nodes
         for (unsigned int di = 0; di < 2; ++di)
@@ -321,7 +317,7 @@ namespace internal
             // Assign DOFs in cell
         }
 
-        AssertDimension(count, dim_dofs_4d);
+        AssertDimension(count, dim_dofs_2d * dim_dofs_2d);
   }
 
   template <int dim>
@@ -969,12 +965,12 @@ void
 FE_Hermite<dim, spacedim>::fill_fe_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &,
   const CellSimilarity::Similarity                         cell_similarity,
-  const Quadrature<dim> &                                  quadrature,
+  const Quadrature<dim> &                                  /*quadrature*/,
   const Mapping<dim, spacedim> &                           mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
   const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
                                                                      spacedim>
-    &                                                            mapping_data,
+    &                                                            /*mapping_data*/,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -997,9 +993,9 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
 
   // transform values gradients and higher derivatives. Values need to
   // be rescaled according the the nodal derivative they correspond to
-  if (flags & update_values)
-    if (cell_similarity != CellSimilarity::translation)
-    {
+  if ((flags & update_values) &&
+      (cell_similarity != CellSimilarity::translation))
+  {
       internal::Rescaler<dim, spacedim, double> shape_fix;
       for (unsigned int i=0; i<output_data.shape_values.size(0); ++i)
         for (unsigned int q=0; q<output_data.shape_values.size(1); ++q)
@@ -1008,7 +1004,7 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
                                           *this, 
                                           mapping_internal_herm, 
                                           output_data.shape_values);
-    }
+  }
   
   if ((flags & update_gradients) &&
       (cell_similarity != CellSimilarity::translation))

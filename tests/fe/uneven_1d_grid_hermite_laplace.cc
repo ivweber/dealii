@@ -46,6 +46,7 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/affine_constraints.h>
 
+#define manual_laplace 0
 
 using namespace dealii;
 
@@ -72,7 +73,7 @@ public:
     virtual double
     value(const Point<1> &p, unsigned int c=0) const override
     {
-        return - 1.0 + 6 * p(0);
+        return - 1.0 + 6 * p(c);
     }
 };
 
@@ -108,7 +109,7 @@ test_fe_on_domain(const unsigned int regularity)
     
     QGauss<1> quadr(2*regularity + 2);
     
-    Vector<double> solution(dof.n_dofs());
+    Vector<double> sol(dof.n_dofs());
     Vector<double> rhs(dof.n_dofs());
     
     solution sol_object;
@@ -124,7 +125,9 @@ test_fe_on_domain(const unsigned int regularity)
     
     SparseMatrix<double> stiffness_matrix;
     stiffness_matrix.reinit(sp);
+#if !manual_laplace
     MatrixCreator::create_laplace_matrix(mapping, dof, quadr, stiffness_matrix);
+#endif 
     
     FEValues<1> fe_herm(mapping, herm, quadr, update_values | update_gradients | update_quadrature_points | update_JxW_values);
     std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
@@ -135,14 +138,49 @@ test_fe_on_domain(const unsigned int regularity)
         cell->get_dof_indices(local_to_global);
         for (const unsigned int i : fe_herm.dof_indices())
         {
+#if manual_laplace
+            for (const unsigned int j : fe_herm.dof_indices())
+            {
+                double laplace_temp = 0;
+                for (const unsigned int q : fe_herm.quadrature_point_indices())
+                    laplace_temp += fe_herm.shape_grad(i,q)
+                                    * fe_herm.shape_grad(j,q)
+                                    * fe_herm.JxW(q);
+                stiffness_matrix(local_to_global[i], local_to_global[j]) += laplace_temp;
+            }
+#endif
+            
             double rhs_temp = 0;
             for (const unsigned int q : fe_herm.quadrature_point_indices())
-                double rhs_temp += fe_herm.shape_value(i,q) 
-                                * rhs_object.value(fe_herm.quadrature_point(q))
-                                * fe_herm.JxW(q);
+                rhs_temp += fe_herm.shape_value(i,q) 
+                            * rhs_object.value(fe_herm.quadrature_point(q))
+                            * fe_herm.JxW(q);
             rhs(local_to_global[i]) += rhs_temp;
         }
     }
+
+    std::map<types::global_dof_index, double> bound_vals;
+    std::map<types::boundary_id, const Function<1,double>*> bound_map;
+    bound_map.emplace(std::make_pair(0U, &sol_object));
+    bound_map.emplace(std::make_pair(1U, &sol_object));
+    
+    VectorTools::project_boundary_values(dof, bound_map, QGauss<0>(1), bound_vals);
+    MatrixTools::apply_boundary_values(bound_vals, stiffness_matrix, sol, rhs);
+    
+    SolverControl solver_deets(50, 1e-11);
+    SolverCG<> solver(solver_deets);
+    
+    solver.solve(stiffness_matrix, sol, rhs, PreconditionIdentity() );
+   
+    DataOut<1> data;
+    data.attach_dof_handler(dof);
+    data.add_data_vector(sol, "Solution");
+    data.build_patches(mapping, 29, DataOut<1>::CurvedCellRegion::curved_inner_cells);
+    char filename[15];
+    sprintf(filename, "solution-%d.vtu", regularity);
+    std::ofstream outpt(filename);
+    data.write_vtu(outpt);
+    outpt.close();
     
     double err_sq = 0;
     
@@ -154,20 +192,21 @@ test_fe_on_domain(const unsigned int regularity)
         {
             double sol_at_point = 0;
             for (const unsigned int i : fe_herm.dof_indices())
-                sol_at_point += fe_herm.shape_value(i,q) * solution(local_to_global[i]);
-            sol_at_point -= rhs_func.value(fe_herm.quadrature_point(q));
+                sol_at_point += fe_herm.shape_value(i,q) * sol(local_to_global[i]);
+            sol_at_point -= sol_object.value(fe_herm.quadrature_point(q));
             err_sq += sol_at_point * sol_at_point * fe_herm.JxW(q);
         }
     }
     
     err_sq = std::sqrt(err_sq);
     
+    deallog << std::endl;
     char fname[50];
     sprintf(fname, "Cell-1d-Hermite-%d", regularity);
     deallog.push(fname);
     
     deallog << "Test polynomial:" << std::endl;
-    deallog << rhs_func.get_polynomial_string() << std::endl;
+    deallog << sol_object.get_function_string() << std::endl;
     deallog << std::endl;
     
     deallog << "Grid cells:" << std::endl;
