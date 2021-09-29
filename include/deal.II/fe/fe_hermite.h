@@ -406,6 +406,18 @@ public:
 
 
 
+namespace VectorTools
+{
+    template <int dim, int spacedim, typename Number>
+    void
+    project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                                const DoFHandler<dim, spacedim> &                                      dof_handler,
+                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                                const Quadrature<dim - 1> &                                            quadrature,
+                                std::map<types::global_dof_index, Number> &                            boundary_values,
+                                std::vector<unsigned int>                                              component_mapping = {});
+}
+
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
