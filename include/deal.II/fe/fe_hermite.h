@@ -408,13 +408,32 @@ public:
 
 namespace VectorTools
 {
+    enum HermiteBoundaryType {
+            hermite_dirichlet,
+            hermite_neumann,
+            hermite_2nd_derivative,
+            hermite_robin,
+            hermite_other_combined
+    };
+    
     template <int dim, int spacedim, typename Number>
     void
     project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
                                 const DoFHandler<dim, spacedim> &                                      dof_handler,
                                 const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
                                 const Quadrature<dim - 1> &                                            quadrature,
+                                const HermiteBoundaryType                                              projection_mode,
                                 std::map<types::global_dof_index, Number> &                            boundary_values,
+                                std::vector<unsigned int>                                              component_mapping = {});
+    
+    template <int dim, int spacedim, typename Number>
+    void
+    project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                                const DoFHandler<dim, spacedim> &                                      dof_handler,
+                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                                const Quadrature<dim - 1> &                                            quadrature,
+                                const HermiteBoundaryType                                              projection_mode,
+                                AffineConstraints<Number>                                              constraints,
                                 std::vector<unsigned int>                                              component_mapping = {});
 }
 

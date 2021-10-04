@@ -1072,7 +1072,117 @@ ExcDimensionMismatch(interpolation_matrix.n(), source_dofs));
 
 namespace VectorTools
 {
+    // internal namespace for implement Hermite boundary projection methods
+    namespace internal
+    {
+        template <int dim, int spacedim = dim, typename Number = double>
+        void
+        do_hermite_dirichlet_projection(const MappingHermite<dim, spacedim> &                          mapping_h,
+                                const DoFHandler<dim, spacedim> &                                      dof_handler,
+                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                                const Quadrature<dim - 1> &                                            quadrature,
+                                std::map<types::global_dof_index, Number> &                            boundary_values,
+                                std::vector<unsigned int>                                              component_mapping = {})
+        {
+            //For dim=1, the problem simplifies to interpolation at the boundaries
+            if (dim == 1)
+            {
+                Assert(component_mapping.size() == 0, ExcNotImplemented());
+                for (const auto &cell : dof_handler.active_cell_iterators())
+                {
+                    for (const unsigned int direction : GeometryInfo<dim>::face_indices)
+                    {
+                        if (cell->at_boundary(direction) &&
+                            boundary_functions.find(cell->face(direction)->boundary_id()) != boundary_functions.end())
+                        {
+                            const Function<spacedim, Number> & current_function =
+                                *boundary_functions.find(cell->face(direction)->boundary_id())->second();
+                                
+                            const FiniteElement<dim, spacedim> &fe_herm = dof_handler.get_fe();
+                            AssertDimension(fe_herm.n_components(), current_function.n_components);
+                            
+                            
+                        }
+                    }
+                }
+                
+                return;
+            }
+        }
+        
+        template <int dim, int spacedim = dim, typename Number = double>
+        void
+        do_hermite_neumann_projection(const MappingHermite<dim, spacedim> &                            mapping_h,
+                                const DoFHandler<dim, spacedim> &                                      dof_handler,
+                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                                const Quadrature<dim - 1> &                                            quadrature,
+                                std::map<types::global_dof_index, Number> &                            boundary_values,
+                                std::vector<unsigned int>                                              component_mapping = {})
+        {
+            
+        }
+        
+        template <int dim, int spacedim = dim, typename Number = double>
+        void
+        do_hermite_2nd_derivative_projection(const MappingHermite<dim, spacedim> &                     mapping_h,
+                                const DoFHandler<dim, spacedim> &                                      dof_handler,
+                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                                const Quadrature<dim - 1> &                                            quadrature,
+                                std::map<types::global_dof_index, Number> &                            boundary_values,
+                                std::vector<unsigned int>                                              component_mapping = {})
+        {
+            
+        }
+        
+        
+    }   //namespace internal
     
+    template <int dim, int spacedim = dim, typename Number = double>
+    void
+    project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                                const DoFHandler<dim, spacedim> &                                      dof_handler,
+                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                                const Quadrature<dim - 1> &                                            quadrature,
+                                const HermiteBoundaryType                                              projection_mode,
+                                std::map<types::global_dof_index, Number> &                            boundary_values,
+                                std::vector<unsigned int>                                              component_mapping = {})
+    {
+        //This version implements projected values directly, so it's necessary to check that this is possible
+        const bool check_mode = (projection_mode == HermiteBoundaryType::hermite_dirichlet) ||
+                                (projection_mode == HermiteBoundaryType::hermite_neumann) ||
+                                (projection_mode == HermiteBoundaryType::hermite_2nd_derivative);
+        Assert(check_mode, ExcNotImplemented());
+        
+        switch(projection_mode)
+        {
+            case HermiteBoundaryType::hermite_dirichlet:
+                internal::do_hermite_dirichlet_projection(mapping_h, dof_handler, boundary_functions, quadrature, boundary_values, component_mapping);
+                break;
+            case HermiteBoundaryType::hermite_neumann:
+                Assert(dof_handler.get_fe().degree > 2, ExcDimensionMismatch(dof_handler.get_fe().degree, 3));
+                internal::do_hermite_neumann_projection(mapping_h, dof_handler, boundary_functions, quadrature, boundary_values, component_mapping);
+                break;
+            case HermiteBoundaryType::hermite_2nd_derivative:
+                Assert(dof_handler.get_fe().degree > 4, ExcDimensionMismatch(dof_handler.get_fe().degree, 5));
+                internal::do_hermite_2nd_derivative_projection(mapping_h, dof_handler, boundary_functions, quadrature, boundary_values, component_mapping);
+                break;
+            default:
+                Assert(false, ExcInternalError());
+        }
+    }
+    
+    template <int dim, int spacedim, typename Number>
+    void
+    project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                                const DoFHandler<dim, spacedim> &                                      dof_handler,
+                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                                const Quadrature<dim - 1> &                                            quadrature,
+                                const HermiteBoundaryType                                              projection_mode,
+                                AffineConstraints<Number>                                              constraints,
+                                std::vector<unsigned int>                                              component_mapping = {})
+    {
+        
+    }
 } //namespace VectorTools
 
 
