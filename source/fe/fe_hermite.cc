@@ -1054,7 +1054,7 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
                                               output_data.shape_3rd_derivatives);
     }
 }
-
+//TODO: Implement partial grid refinement (ie hanging nodes)
 /*
 template <int dim, int spacedim>
 void FE_Hermite<dim, spacedim>::get_interpolation_matrix(const
@@ -1112,9 +1112,23 @@ namespace VectorTools
                         }
                     }
                 }
-                
                 return;
             }
+            
+            //dim=2 or higher, needs actual projection
+            //make assumption for now that grid contains no hanging nodes 
+            //TODO Add boundary functionality for hanging nodes when grid refinement is implemented
+            if (component_mapping.size() == 0)
+            {
+                AssertDimension(dof_handler.get_fe().n_components(), boundary_functions.begin()->second.n_components);
+                component_mapping.resize(dof_handler.get_fe().n_components());
+                for (unsigned int i = 0; i < component_mapping.size(); ++i)
+                    component_mapping[i] = i;
+            }
+            else AssertDimension(component_mapping.size(), dof_handler.get_fe().n_components());
+            
+            
+            
         }
         
         template <int dim, int spacedim = dim, typename Number = double>
