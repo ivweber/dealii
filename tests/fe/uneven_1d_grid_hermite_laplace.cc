@@ -46,9 +46,6 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/affine_constraints.h>
 
-#define manual_laplace 0
-#define manual_boundary 0
-#define visual_output 0
 
 using namespace dealii;
 
@@ -127,9 +124,8 @@ test_fe_on_domain(const unsigned int regularity)
     
     SparseMatrix<double> stiffness_matrix;
     stiffness_matrix.reinit(sp);
-#if !manual_laplace
+
     MatrixCreator::create_laplace_matrix(mapping, dof, quadr, stiffness_matrix);
-#endif 
     
     FEValues<1> fe_herm(mapping, herm, quadr, update_values | update_gradients | update_quadrature_points | update_JxW_values);
     std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
@@ -140,18 +136,6 @@ test_fe_on_domain(const unsigned int regularity)
         cell->get_dof_indices(local_to_global);
         for (const unsigned int i : fe_herm.dof_indices())
         {
-#if manual_laplace
-            for (const unsigned int j : fe_herm.dof_indices())
-            {
-                double laplace_temp = 0;
-                for (const unsigned int q : fe_herm.quadrature_point_indices())
-                    laplace_temp += fe_herm.shape_grad(i,q)
-                                    * fe_herm.shape_grad(j,q)
-                                    * fe_herm.JxW(q);
-                stiffness_matrix(local_to_global[i], local_to_global[j]) += laplace_temp;
-            }
-#endif
-            
             double rhs_temp = 0;
             for (const unsigned int q : fe_herm.quadrature_point_indices())
                 rhs_temp += fe_herm.shape_value(i,q) 
@@ -162,46 +146,20 @@ test_fe_on_domain(const unsigned int regularity)
     }
 
     std::map<types::global_dof_index, double> bound_vals;
-#if manual_boundary
-    for (const auto &cell : dof.active_cell_iterators())
-    {
-        if (left_point.distance(cell->vertex(0)) <= 1e-6)
-        {
-            cell->get_dof_indices(local_to_global);
-            bound_vals.emplace(std::make_pair(local_to_global[0], sol_object.value(left_point)));
-        }
-        if (right_point.distance(cell->vertex(1)) <= 1e-6)
-        {
-            cell->get_dof_indices(local_to_global);
-            bound_vals.emplace(std::make_pair(local_to_global[herm.get_regularity()+1], sol_object.value(right_point)));
-        }
-    }
-#else
+
     std::map<types::boundary_id, const Function<1,double>*> bound_map;
     bound_map.emplace(std::make_pair(0U, &sol_object));
     bound_map.emplace(std::make_pair(1U, &sol_object));
     
     VectorTools::project_boundary_values(mapping, dof, bound_map, QGauss<0>(1), VectorTools::HermiteBoundaryType::hermite_dirichlet, bound_vals);
-#endif
+
     MatrixTools::apply_boundary_values(bound_vals, stiffness_matrix, sol, rhs);
     
-    IterationNumberControl solver_deets(50, 1e-11);
-    SolverCG<> solver(solver_deets);
+    IterationNumberControl solver_control_values(50, 1e-11);
+    SolverCG<> solver(solver_control_values);
     
     solver.solve(stiffness_matrix, sol, rhs, PreconditionIdentity() );
   
-#if visual_output
-    DataOut<1> data;
-    data.attach_dof_handler(dof);
-    data.add_data_vector(sol, "Solution");
-    data.build_patches(mapping, 29, DataOut<1>::CurvedCellRegion::curved_inner_cells);
-    char filename[15];
-    sprintf(filename, "solution-%d.vtu", regularity);
-    std::ofstream outpt(filename);
-    data.write_vtu(outpt);
-    outpt.close();
-#endif
-    
     double err_sq = 0;
     
     for (auto &cell : dof.active_cell_iterators())
