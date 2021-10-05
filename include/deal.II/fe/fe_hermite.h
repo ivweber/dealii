@@ -420,23 +420,23 @@ namespace VectorTools
     
     template <int dim, int spacedim = dim, typename Number = double>
     void
-    project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
-                                const DoFHandler<dim, spacedim> &                                      dof_handler,
-                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
-                                const Quadrature<dim - 1> &                                            quadrature,
-                                const HermiteBoundaryType                                              projection_mode,
-                                std::map<types::global_dof_index, Number> &                            boundary_values,
-                                std::vector<unsigned int>                                              component_mapping = {});
+    project_boundary_values(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                            const DoFHandler<dim, spacedim> &                                      dof_handler,
+                            const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                            const Quadrature<dim - 1> &                                            quadrature,
+                            const HermiteBoundaryType                                              projection_mode,
+                            std::map<types::global_dof_index, Number> &                            boundary_values,
+                            std::vector<unsigned int>                                              component_mapping = {});
     
     template <int dim, int spacedim = dim, typename Number = double>
     void
-    project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
-                                const DoFHandler<dim, spacedim> &                                      dof_handler,
-                                const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
-                                const Quadrature<dim - 1> &                                            quadrature,
-                                const HermiteBoundaryType                                              projection_mode,
-                                AffineConstraints<Number>                                              constraints,
-                                std::vector<unsigned int>                                              component_mapping = {});
+    project_boundary_values(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                            const DoFHandler<dim, spacedim> &                                      dof_handler,
+                            const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                            const Quadrature<dim - 1> &                                            quadrature,
+                            const HermiteBoundaryType                                              projection_mode,
+                            AffineConstraints<Number>                                              constraints,
+                            std::vector<unsigned int>                                              component_mapping = {});
 }
 
 DEAL_II_NAMESPACE_CLOSE
