@@ -10,6 +10,8 @@
 #include <deal.II/base/tensor_product_polynomials.h>
 #include <deal.II/base/thread_management.h>
 
+#include <deal.II/dofs/dof_handler.h>
+
 #include <deal.II/fe/fe_poly.h>
 #include <deal.II/fe/mapping_hermite.h>
 
@@ -416,7 +418,7 @@ namespace VectorTools
             hermite_other_combined
     };
     
-    template <int dim, int spacedim, typename Number>
+    template <int dim, int spacedim = dim, typename Number = double>
     void
     project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
                                 const DoFHandler<dim, spacedim> &                                      dof_handler,
@@ -426,7 +428,7 @@ namespace VectorTools
                                 std::map<types::global_dof_index, Number> &                            boundary_values,
                                 std::vector<unsigned int>                                              component_mapping = {});
     
-    template <int dim, int spacedim, typename Number>
+    template <int dim, int spacedim = dim, typename Number = double>
     void
     project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
                                 const DoFHandler<dim, spacedim> &                                      dof_handler,
