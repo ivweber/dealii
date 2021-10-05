@@ -35,7 +35,7 @@
 #include <deal.II/fe/mapping_hermite.h>
 
 #include <deal.II/numerics/data_out.h>
-#include <deal.II/numerics/vector_tools.h>
+//#include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/matrix_tools.h>
 
 #include <deal.II/lac/vector.h>
@@ -47,7 +47,7 @@
 #include <deal.II/lac/affine_constraints.h>
 
 #define manual_laplace 0
-#define manual_boundary 1
+#define manual_boundary 0
 #define visual_output 0
 
 using namespace dealii;
@@ -181,7 +181,7 @@ test_fe_on_domain(const unsigned int regularity)
     bound_map.emplace(std::make_pair(0U, &sol_object));
     bound_map.emplace(std::make_pair(1U, &sol_object));
     
-    VectorTools::project_boundary_values(mapping, dof, bound_map, QGauss<0>(1), bound_vals);
+    VectorTools::project_boundary_values(mapping, dof, bound_map, QGauss<0>(1), VectorTools::HermiteBoundaryType::hermite_dirichlet, bound_vals);
 #endif
     MatrixTools::apply_boundary_values(bound_vals, stiffness_matrix, sol, rhs);
     
