@@ -1101,7 +1101,14 @@ namespace VectorTools
                             const FiniteElement<dim, spacedim> &fe_herm = dof_handler.get_fe();
                             AssertDimension(fe_herm.n_components(), current_function.n_components);
                             
+                            Vector<Number> boundary_value(fe_herm.n_components());
+                            if (boundary_value.size() == 1)
+                                boundary_value(0) = current_function.value(cell->vertex(direction));
+                            else
+                                current_function.vector_value(cell->vertex(direction), boundary_value);
                             
+                            boundary_values[cell->vertex_dof_index(direction, 0, cell->active_fe_index())] =
+                                function_values(fe_herm.face_system_to_component_index(0).first);
                         }
                     }
                 }
@@ -1120,6 +1127,7 @@ namespace VectorTools
                                 std::vector<unsigned int>                                              component_mapping = {})
         {
             
+            Assert(false, ExcMessage("Sorry, work in progress!\n");
         }
         
         template <int dim, int spacedim = dim, typename Number = double>
@@ -1132,12 +1140,13 @@ namespace VectorTools
                                 std::vector<unsigned int>                                              component_mapping = {})
         {
             
+            Assert(false, ExcMessage("Sorry, work in progress!\n");
         }
         
         
     }   //namespace internal
     
-    template <int dim, int spacedim = dim, typename Number = double>
+    template <int dim, int spacedim, typename Number>
     void
     project_boundary_conditions(const MappingHermite<dim, spacedim> &                                  mapping_h,
                                 const DoFHandler<dim, spacedim> &                                      dof_handler,
@@ -1145,7 +1154,7 @@ namespace VectorTools
                                 const Quadrature<dim - 1> &                                            quadrature,
                                 const HermiteBoundaryType                                              projection_mode,
                                 std::map<types::global_dof_index, Number> &                            boundary_values,
-                                std::vector<unsigned int>                                              component_mapping = {})
+                                std::vector<unsigned int>                                              component_mapping)
     {
         //This version implements projected values directly, so it's necessary to check that this is possible
         const bool check_mode = (projection_mode == HermiteBoundaryType::hermite_dirichlet) ||
@@ -1179,7 +1188,7 @@ namespace VectorTools
                                 const Quadrature<dim - 1> &                                            quadrature,
                                 const HermiteBoundaryType                                              projection_mode,
                                 AffineConstraints<Number>                                              constraints,
-                                std::vector<unsigned int>                                              component_mapping = {})
+                                std::vector<unsigned int>                                              component_mapping)
     {
         
     }
