@@ -88,7 +88,7 @@ template void VectorTools::internal::do_hermite_2nd_derivative_projection<1,1,do
     std::map<types::global_dof_index, double> &                     boundary_values,
     std::vector<unsigned int>                                       component_mapping = {});
     
-template void VectorTools::project_boundary_conditions<1,1,double>(
+template void VectorTools::project_boundary_values<1,1,double>(
     const MappingHermite<1,1> &                                     mapping_h,
     const DoFHandler<1,1> &                                         dof_handler,
     const std::map<types::boundary_id, const Function<1, double>*> &boundary_functions,
