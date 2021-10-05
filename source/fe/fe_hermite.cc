@@ -1090,13 +1090,13 @@ namespace VectorTools
                 Assert(component_mapping.size() == 0, ExcNotImplemented());
                 for (const auto &cell : dof_handler.active_cell_iterators())
                 {
-                    for (const unsigned int direction : GeometryInfo<dim>::face_indices)
+                    for (const unsigned int direction : GeometryInfo<dim>::face_indices())
                     {
                         if (cell->at_boundary(direction) &&
                             boundary_functions.find(cell->face(direction)->boundary_id()) != boundary_functions.end())
                         {
                             const Function<spacedim, Number> & current_function =
-                                *boundary_functions.find(cell->face(direction)->boundary_id())->second();
+                                *boundary_functions.find(cell->face(direction)->boundary_id())->second;
                                 
                             const FiniteElement<dim, spacedim> &fe_herm = dof_handler.get_fe();
                             AssertDimension(fe_herm.n_components(), current_function.n_components);
@@ -1108,7 +1108,7 @@ namespace VectorTools
                                 current_function.vector_value(cell->vertex(direction), boundary_value);
                             
                             boundary_values[cell->vertex_dof_index(direction, 0, cell->active_fe_index())] =
-                                function_values(fe_herm.face_system_to_component_index(0).first);
+                                boundary_value(fe_herm.face_system_to_component_index(0).first);
                         }
                     }
                 }
@@ -1127,7 +1127,7 @@ namespace VectorTools
                                 std::vector<unsigned int>                                              component_mapping = {})
         {
             
-            Assert(false, ExcMessage("Sorry, work in progress!\n");
+            Assert(false, ExcMessage("Sorry, work in progress!\n"));
         }
         
         template <int dim, int spacedim = dim, typename Number = double>
@@ -1140,7 +1140,7 @@ namespace VectorTools
                                 std::vector<unsigned int>                                              component_mapping = {})
         {
             
-            Assert(false, ExcMessage("Sorry, work in progress!\n");
+            Assert(false, ExcMessage("Sorry, work in progress!\n"));
         }
         
         
