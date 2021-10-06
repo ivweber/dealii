@@ -4,12 +4,16 @@
 
 #include <deal.II/base/template_constraints.h>
 #include <deal.II/base/table.h>
+#include <deal.II/base/quadrature.h>
+#include <deal.II/base/quadrature_lib.h>
 
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/fe/mapping_hermite.h>
+#include <deal.II/fe/fe_face.h>
+#include <deal.II/fe/fe_values.h>
 
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/sparsity_pattern.h>
@@ -19,6 +23,8 @@
 #include <deal.II/lac/solver_control.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
+
+#include <deal.II/numerics/matrix_tools.h>
 
 #include <cmath>
 #include <iterator>
@@ -1153,11 +1159,62 @@ namespace VectorTools
             //Need a vector of length domain.size() (NOT CODE!) with non-constrained dofs
             //marked with numbers::invalid_dof_index
             Assert(selected_boundary_components.find(numbers::internal_face_boundary_id) ==
-                    selected_boundary_components.end(), ExcInvalidBoundaryIndicator());
+                    selected_boundary_components.end(), DoFTools::ExcInvalidBoundaryIndicator());
             
             std::vector<types::global_dof_index> dofs_on_face;
-            dofs_on_face.reserve(dof_handler.get_fe_collection().max_dofs_per_face());
             types::global_dof_index next_boundary_index = 0;
+            
+            //Create a look-up table for finding constrained dofs on all 4 or six faces of reference cell
+                //Need some way to find the dofs of shape functions with the required non-zero component here
+#define DEBUG_VERSION 1
+            const unsigned int regularity = (dof_handler.get_fe().degree - 1) / 2;
+            const auto test_cell = dof_handler.begin();
+            const unsigned int dofs_per_face = test_cell->get_fe().n_dofs_per_face();
+            dofs_on_face.resize(dofs_per_face);
+            const unsigned int constrained_dofs_per_face = dofs_per_face / regularity;
+                        
+            Table<2, double> constrained_to_local_indices(2 * dim, constrained_dofs_per_face);
+            
+#if DEBUG_VERSION
+//Use FEValues with this version, sampling values even though it will be expensive
+            FEFaceValues<dim, spacedim> herm_vals(mapping_h, dof_handler.get_fe(), quadrature,
+                                                  update_values | update_gradients | update_hessians);
+            
+            for (const unsigned int f : test_cell->face_indices())
+            {
+                herm_vals.reinit(test_cell, f);
+                test_cell->face(f)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
+                unsigned int ic = 0;
+                
+                for (const unsigned int i : dofs_on_face)
+                {
+                    bool constraint_indicator = false;
+                    for (const unsigned int q : herm_vals.quadrature_point_indices())
+                    {
+                        switch(position)
+                        {
+                            case 0:
+                                if (herm_vals.shape_value(i,q) > 0.01) constraint_indicator = true;
+                                break;
+                            case 1:
+                                if (herm_vals.shape_grad(i,q)[f/2] > 0) constraint_indicator = true;
+                                break;
+                            case 2:
+                                if (herm_vals.shape_hessian(i,q)[f/2][f/2] > 0) constraint_indicator = true;
+                        }
+                        if (constraint_indicator) break;
+                    }
+                    
+                    if (constraint_indicator)
+                        constrained_to_local_indices(f, ic++) = i;
+                }
+                
+                AssertDimension(ic, constrained_dofs_per_face);
+            }
+#else
+//Use knowledge of the local degree numbering for this version, saving expensive calls to reinit
+
+#endif            
             
             for (const auto &cell : dof_handler.active_cell_iterators())
             {
@@ -1167,21 +1224,24 @@ namespace VectorTools
                     if (selected_boundary_components.find(cell->face(f)->boundary_id()) !=
                         selected_boundary_components.end())
                     {
-                        const unsigned int dofs_per_face = cell->get_fe().n_dofs_per_face(f);
-                        dofs_on_face.resize(dofs_per_face);
                         cell->face(f)->get_dof_indices(dofs_on_face, cell->active_fe_index());
                         
-                        
+                        for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
+                        {
+                            unsigned int index = constrained_to_local_indices(f, i);
+                            
+                            if (dof_to_boundary_mapping[dofs_on_face[index]] == numbers::invalid_dof_index)
+                                dof_to_boundary_mapping[dofs_on_face[index]] = next_boundary_index++;
+                        }
                     }
                 }
             }
             
+            AssertDimension(next_boundary_index, dof_handler.n_boundary_dofs(selected_boundary_components));
             
+            if (next_boundary_index) return;
             
-            if (dof_handler.n_boundary_dofs(boundary_functions) == 0) return;
-            
-            DynamicSparsityPattern dsp(dof_handler.n_boundary_dofs(boundary_functions),
-                                       dof_handler.n_boundary_dofs(boundary_functions));
+            DynamicSparsityPattern dsp(next_boundary_index, next_boundary_index);
             DoFTools::make_boundary_sparsity_pattern(dof_handler,
                                                      boundary_functions,
                                                      dof_to_boundary_mapping,
@@ -1211,9 +1271,50 @@ namespace VectorTools
             // make mass matrix and right hand side
             SparseMatrix<Number> mass_matrix(sparsity);
             Vector<Number>       rhs(sparsity.n_rows());
-            Vector<Number>       projection(rhs.size());
+            Vector<Number>       boundary_projection(rhs.size());
             
-            
+            MatrixCreator::create_boundary_mass_matrix(mapping_h,
+                                                       dof_handler,
+                                                       quadrature,
+                                                       mass_matrix,
+                                                       boundary_functions,
+                                                       rhs,
+                                                       dof_to_boundary_mapping,
+                                                       static_cast<const Function<spacedim, Number> *>(nullptr),
+                                                       component_mapping);
+
+      if (rhs.norm_sqr() < 1e-8)
+        boundary_projection = 0;
+      else
+        {
+          // Allow for a maximum of 5*n steps to reduce the residual by 10^-12.
+          // n steps may not be sufficient, since roundoff errors may accumulate
+          // for badly conditioned matrices
+          ReductionControl control(5 * rhs.size(), 0., 1e-12, false, false);
+          GrowingVectorMemory<Vector<Number>> memory;
+          SolverCG<Vector<Number>>            cg(control, memory);
+
+          PreconditionSSOR<SparseMatrix<Number>> prec;
+          prec.initialize(mass_matrix, 1.2);
+
+          cg.solve(mass_matrix, boundary_projection, rhs, prec);
+        }
+      // fill in boundary values
+      for (unsigned int i = 0; i < dof_to_boundary_mapping.size(); ++i)
+        if (dof_to_boundary_mapping[i] != numbers::invalid_dof_index)
+          {
+            AssertIsFinite(boundary_projection(dof_to_boundary_mapping[i]));
+
+            // this dof is on one of the
+            // interesting boundary parts
+            //
+            // remember: i is the global dof
+            // number, dof_to_boundary_mapping[i]
+            // is the number on the boundary and
+            // thus in the solution vector
+            boundary_values[i] =
+              boundary_projection(dof_to_boundary_mapping[i]);
+          }
         }
     }   //namespace internal
     

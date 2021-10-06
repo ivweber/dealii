@@ -80,6 +80,15 @@ template void VectorTools::internal::do_hermite_direct_projection<2,2,double>(
     const Quadrature<1> &                                           quadrature,
     const unsigned int                                              position,
     std::map<types::global_dof_index, double> &                     boundary_values,
+    std::vector<unsigned int>                                       component_mapping = {});    
+    
+template void VectorTools::internal::do_hermite_direct_projection<3,3,double>(
+    const MappingHermite<3,3> &                                     mapping_h,
+    const DoFHandler<3,3> &                                         dof_handler,
+    const std::map<types::boundary_id, const Function<3, double>*> &boundary_functions,
+    const Quadrature<2> &                                           quadrature,
+    const unsigned int                                              position,
+    std::map<types::global_dof_index, double> &                     boundary_values,
     std::vector<unsigned int>                                       component_mapping = {});
     
 template void VectorTools::project_boundary_values<1,1,double>(
@@ -87,6 +96,24 @@ template void VectorTools::project_boundary_values<1,1,double>(
     const DoFHandler<1,1> &                                         dof_handler,
     const std::map<types::boundary_id, const Function<1, double>*> &boundary_functions,
     const Quadrature<0> &                                           quadrature,
+    const HermiteBoundaryType                                       projection_mode,
+    std::map<types::global_dof_index, double> &                     boundary_values,
+    std::vector<unsigned int>                                       component_mapping);
+    
+template void VectorTools::project_boundary_values<2,2,double>(
+    const MappingHermite<2,2> &                                     mapping_h,
+    const DoFHandler<2,2> &                                         dof_handler,
+    const std::map<types::boundary_id, const Function<2, double>*> &boundary_functions,
+    const Quadrature<1> &                                           quadrature,
+    const HermiteBoundaryType                                       projection_mode,
+    std::map<types::global_dof_index, double> &                     boundary_values,
+    std::vector<unsigned int>                                       component_mapping);
+    
+template void VectorTools::project_boundary_values<3,3,double>(
+    const MappingHermite<3,3> &                                     mapping_h,
+    const DoFHandler<3,3> &                                         dof_handler,
+    const std::map<types::boundary_id, const Function<3, double>*> &boundary_functions,
+    const Quadrature<2> &                                           quadrature,
     const HermiteBoundaryType                                       projection_mode,
     std::map<types::global_dof_index, double> &                     boundary_values,
     std::vector<unsigned int>                                       component_mapping);
