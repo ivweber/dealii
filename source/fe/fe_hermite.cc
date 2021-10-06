@@ -5,9 +5,20 @@
 #include <deal.II/base/template_constraints.h>
 #include <deal.II/base/table.h>
 
+#include <deal.II/dofs/dof_tools.h>
+
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/fe/mapping_hermite.h>
+
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/lac/sparsity_pattern.h>
+#include <deal.II/lac/sparsity_tools.h>
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/vector.h>
+#include <deal.II/lac/solver_control.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/precondition.h>
 
 #include <cmath>
 #include <iterator>
@@ -985,7 +996,6 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
   
   Assert((dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(&mapping_internal) != nullptr),
          ExcInternalError());
-            // Above throws exception, seems to be some problem casting a pointer to an internal data object
   const typename MappingHermite<dim, spacedim>::InternalData &mapping_internal_herm = static_cast<const typename MappingHermite<dim, spacedim>::InternalData &>(mapping_internal);
 
   const UpdateFlags flags(fe_data.update_each);
@@ -1077,7 +1087,7 @@ namespace VectorTools
     {
         template <int dim, int spacedim = dim, typename Number = double>
         void
-        do_hermite_direct_projection(const MappingHermite<dim, spacedim> &                          mapping_h,
+        do_hermite_direct_projection(const MappingHermite<dim, spacedim> &                             mapping_h,
                                 const DoFHandler<dim, spacedim> &                                      dof_handler,
                                 const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
                                 const Quadrature<dim - 1> &                                            quadrature,
@@ -1085,6 +1095,9 @@ namespace VectorTools
                                 std::map<types::global_dof_index, Number> &                            boundary_values,
                                 std::vector<unsigned int>                                              component_mapping = {})
         {
+            //Return immediately if no constraint functions are provided
+            if (boundary_functions.size() == 0) return;
+            
             //For dim=1, the problem simplifies to interpolation at the boundaries
             if (dim == 1)
             {
@@ -1117,17 +1130,88 @@ namespace VectorTools
             }
             
             //dim=2 or higher, needs actual projection
-            //make assumption for now that grid contains no hanging nodes 
-            //TODO Add boundary functionality for hanging nodes when grid refinement is implemented
             if (component_mapping.size() == 0)
             {
-                AssertDimension(dof_handler.get_fe().n_components(), boundary_functions.begin()->second.n_components);
+                AssertDimension(dof_handler.get_fe().n_components(), boundary_functions.begin()->second->n_components);
                 component_mapping.resize(dof_handler.get_fe().n_components());
                 for (unsigned int i = 0; i < component_mapping.size(); ++i)
                     component_mapping[i] = i;
             }
             else AssertDimension(component_mapping.size(), dof_handler.get_fe().n_components());
             
+            std::vector<types::global_dof_index> dof_to_boundary_mapping(dof_handler.n_dofs(), numbers::invalid_dof_index);
+            std::set<types::boundary_id>         selected_boundary_components;
+            for (auto i = boundary_functions.cbegin(); i != boundary_functions.cend(); ++i)
+                selected_boundary_components.insert(i->first);
+
+            //The following function call needs to be re-written with custom code to prevent
+            //dofs that should be left free from being included in projection
+            //DoFTools::map_dof_to_boundary_indices(dof_handler,
+            //                                      selected_boundary_components,
+            //                                      dof_to_boundary_mapping);
+            
+            //Need a vector of length domain.size() (NOT CODE!) with non-constrained dofs
+            //marked with numbers::invalid_dof_index
+            Assert(selected_boundary_components.find(numbers::internal_face_boundary_id) ==
+                    selected_boundary_components.end(), ExcInvalidBoundaryIndicator());
+            
+            std::vector<types::global_dof_index> dofs_on_face;
+            dofs_on_face.reserve(dof_handler.get_fe_collection().max_dofs_per_face());
+            types::global_dof_index next_boundary_index = 0;
+            
+            for (const auto &cell : dof_handler.active_cell_iterators())
+            {
+                for (const unsigned int f : cell->face_indices())
+                {
+                    //Check if face is on selected boundary section
+                    if (selected_boundary_components.find(cell->face(f)->boundary_id()) !=
+                        selected_boundary_components.end())
+                    {
+                        const unsigned int dofs_per_face = cell->get_fe().n_dofs_per_face(f);
+                        dofs_on_face.resize(dofs_per_face);
+                        cell->face(f)->get_dof_indices(dofs_on_face, cell->active_fe_index());
+                        
+                        
+                    }
+                }
+            }
+            
+            
+            
+            if (dof_handler.n_boundary_dofs(boundary_functions) == 0) return;
+            
+            DynamicSparsityPattern dsp(dof_handler.n_boundary_dofs(boundary_functions),
+                                       dof_handler.n_boundary_dofs(boundary_functions));
+            DoFTools::make_boundary_sparsity_pattern(dof_handler,
+                                                     boundary_functions,
+                                                     dof_to_boundary_mapping,
+                                                     dsp);
+            
+            SparsityPattern sparsity;
+            sparsity.copy_from(dsp);
+            
+            //Assert mesh is not partially refined
+            //TODO: Add functionality on partially refined meshes
+            int level = -1;
+            for (const auto &cell : dof_handler.active_cell_iterators())
+                for (auto f : cell->face_indices())
+                {
+                    if (cell->at_boundary(f))
+                    {
+                        if (level == -1) level = cell->level();
+                        else Assert(level == cell->level(),
+                                    ExcMessage("The mesh you use in projecting boundary values "
+                                               "has hanging nodes at the boundary. This would require "
+                                               "dealing with hanging node constraints when solving "
+                                               "the linear system on the boundary, but this is not "
+                                               "currently implemented."));
+                    }
+                }
+            
+            // make mass matrix and right hand side
+            SparseMatrix<Number> mass_matrix(sparsity);
+            Vector<Number>       rhs(sparsity.n_rows());
+            Vector<Number>       projection(rhs.size());
             
             
         }
