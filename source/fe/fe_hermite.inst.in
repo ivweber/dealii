@@ -73,6 +73,15 @@ template void VectorTools::internal::do_hermite_direct_projection<1,1,double>(
     std::map<types::global_dof_index, double> &                     boundary_values,
     std::vector<unsigned int>                                       component_mapping = {});
     
+template void VectorTools::internal::do_hermite_direct_projection<2,2,double>(
+    const MappingHermite<2,2> &                                     mapping_h,
+    const DoFHandler<2,2> &                                         dof_handler,
+    const std::map<types::boundary_id, const Function<2, double>*> &boundary_functions,
+    const Quadrature<1> &                                           quadrature,
+    const unsigned int                                              position,
+    std::map<types::global_dof_index, double> &                     boundary_values,
+    std::vector<unsigned int>                                       component_mapping = {});
+    
 template void VectorTools::project_boundary_values<1,1,double>(
     const MappingHermite<1,1> &                                     mapping_h,
     const DoFHandler<1,1> &                                         dof_handler,
