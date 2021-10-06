@@ -71,17 +71,22 @@ public:
     std::string
     get_function_string()
     {
-        if (dim == 0) Assert(false, ExcNotImplemented());
-        else if (dim == 1)
-            return "X + 0.5 X^2 - X^3";
-        else if (dim == 2)
-            return "(X + 0.5 X^2 - X^3)(1 - Y^2)";
-        else if (dim == 3)
-            return "(X + 0.5 X^2 - X^3)(1 - Y^2)Z";
-        else return "";
+        switch (dim)
+        {
+            case 1:
+                return "X + 0.5 X^2 - X^3";
+            case 2:
+                return "(X + 0.5 X^2 - X^3)(1 - Y^2)";
+            case 3:
+                return "(X + 0.5 X^2 - X^3)(1 - Y^2)Z";
+            default:
+                Assert(false, ExcNotImplemented());
+                return "";
+        }
     }
 };
 
+template <int dim>
 class rhs_function : public Function<dim>
 {
 public:
@@ -123,8 +128,8 @@ test_fe_on_domain(const unsigned int regularity)
     Vector<double> sol(dof.n_dofs());
     Vector<double> rhs(dof.n_dofs());
     
-    solution sol_object;
-    rhs_function rhs_object;
+    solution<dim> sol_object;
+    rhs_function<dim> rhs_object;
     
     AffineConstraints<double> constraints;
     constraints.close();
@@ -172,8 +177,10 @@ test_fe_on_domain(const unsigned int regularity)
 
     std::map<types::global_dof_index, double> bound_vals;
     
-    std::map<types::boundary_id, const Function<1,double>*> bound_map;
+    std::map<types::boundary_id, const Function<dim,double>*> bound_map;
     bound_map.emplace(std::make_pair(0U, &sol_object));
+    if (dim == 1)
+        bound_map.emplace(std::make_pair(1U, &sol_object));
     
     //The following is the main function being tested here
     VectorTools::project_boundary_values(mapping, 
@@ -182,7 +189,6 @@ test_fe_on_domain(const unsigned int regularity)
                                          QGauss<dim-1>(2*regularity+2), 
                                          VectorTools::HermiteBoundaryType::hermite_dirichlet, 
                                          bound_vals);
-
     MatrixTools::apply_boundary_values(bound_vals, stiffness_matrix, sol, rhs);
     
     IterationNumberControl solver_control_values(8000, 1e-11);
@@ -250,9 +256,9 @@ int main()
     test_fe_on_domain<2>(2);
     test_fe_on_domain<2>(3);
     
-    test_fe_on_domain<3>(0);
-    test_fe_on_domain<3>(1);
-    test_fe_on_domain<3>(2);
+    //test_fe_on_domain<3>(0);
+    //test_fe_on_domain<3>(1);
+    //test_fe_on_domain<3>(2);
     
     return 0;
 }
