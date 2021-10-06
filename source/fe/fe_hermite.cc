@@ -1136,6 +1136,7 @@ namespace VectorTools
             }
             
             //dim=2 or higher, needs actual projection
+            //TODO: This code generates a floating point error that crashes the test, specifically for dim=2, regularity=0
             if (component_mapping.size() == 0)
             {
                 AssertDimension(dof_handler.get_fe().n_components(), boundary_functions.begin()->second->n_components);
