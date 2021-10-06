@@ -1167,12 +1167,13 @@ namespace VectorTools
             
             //Create a look-up table for finding constrained dofs on all 4 or six faces of reference cell
                 //Need some way to find the dofs of shape functions with the required non-zero component here
-#define DEBUG_VERSION 1
+#define DEBUG_VERSION 0
+            //TODO: This assumes no interpolation support points inside elements. Find a better way to get regularity
             const unsigned int regularity = (dof_handler.get_fe().degree - 1) / 2;
             const auto test_cell = dof_handler.begin();
             const unsigned int dofs_per_face = test_cell->get_fe().n_dofs_per_face();
             dofs_on_face.resize(dofs_per_face);
-            const unsigned int constrained_dofs_per_face = dofs_per_face / regularity;
+            const unsigned int constrained_dofs_per_face = dofs_per_face / (regularity + 1);
                         
             Table<2, double> constrained_to_local_indices(2 * dim, constrained_dofs_per_face);
             
@@ -1193,15 +1194,15 @@ namespace VectorTools
                     for (const unsigned int q : herm_vals.quadrature_point_indices())
                     {
                         switch(position)
-                        {
+                        {//This is missing a shape function somehow for dim=2, reg=1
                             case 0:
                                 if (herm_vals.shape_value(i,q) > 0.01) constraint_indicator = true;
                                 break;
                             case 1:
-                                if (herm_vals.shape_grad(i,q)[f/2] > 0) constraint_indicator = true;
+                                if (herm_vals.shape_grad(i,q)[f/2] > 0.01) constraint_indicator = true;
                                 break;
                             case 2:
-                                if (herm_vals.shape_hessian(i,q)[f/2][f/2] > 0) constraint_indicator = true;
+                                if (herm_vals.shape_hessian(i,q)[f/2][f/2] > 0.01) constraint_indicator = true;
                         }
                         if (constraint_indicator) break;
                     }
@@ -1214,7 +1215,25 @@ namespace VectorTools
             }
 #else
 //Use knowledge of the local degree numbering for this version, saving expensive calls to reinit
-
+            unsigned int batch_size = 1;
+            for (unsigned int d = 0; d < dim; ++d)
+            {
+                for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
+                {
+                    const unsigned int local_index = i % batch_size;
+                    const unsigned int batch_index = i / batch_size;
+                    
+                    unsigned int index = local_index + batch_index * (regularity + 1) * std::pow(2 * regularity + 2, dim - 2) + position * batch_size;
+                
+                    test_cell->face(2*d)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
+                    constrained_to_local_indices(2*d, i) = dofs_on_face[index];
+                
+                    test_cell->face(2*d + 1)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
+                    constrained_to_local_indices(2*d + 1,i) = dofs_on_face[index];
+                }
+                
+                batch_size *= 2 * regularity + 2;
+            }
 #endif            
             
             for (const auto &cell : dof_handler.active_cell_iterators())
@@ -1238,7 +1257,6 @@ namespace VectorTools
                 }
             }
             
-            AssertDimension(next_boundary_index, dof_handler.n_boundary_dofs(selected_boundary_components));
             
             if (next_boundary_index) return;
             
