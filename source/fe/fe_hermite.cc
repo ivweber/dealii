@@ -1168,11 +1168,17 @@ namespace VectorTools
             //Create a look-up table for finding constrained dofs on all 4 or six faces of reference cell
                 //Need some way to find the dofs of shape functions with the required non-zero component here
 #define DEBUG_VERSION 0
-            //TODO: This assumes no interpolation support points inside elements. Find a better way to get regularity
-            const unsigned int regularity = (dof_handler.get_fe().degree - 1) / 2;
+            const unsigned int degree = dof_handler.get_fe().degree;
+            //TODO: Rewrite so it doesn't assume dim <= 3
+            const unsigned int regularity = ((dim == 2) ? 
+                                             std::sqrt(dof_handler.get_fe().n_dofs_per_vertex()) : 
+                                             std::cbrt(dof_handler.get_fe().n_dofs_per_vertex())   ) - 1;
+            
             const auto test_cell = dof_handler.begin();
             const unsigned int dofs_per_face = test_cell->get_fe().n_dofs_per_face();
+            AssertDimension(dofs_per_face, (regularity + 1) * std::pow(degree + 1, dim - 1));
             dofs_on_face.resize(dofs_per_face);
+            
             const unsigned int constrained_dofs_per_face = dofs_per_face / (regularity + 1);
                         
             Table<2, double> constrained_to_local_indices(2 * dim, constrained_dofs_per_face);
@@ -1223,7 +1229,8 @@ namespace VectorTools
                     const unsigned int local_index = i % batch_size;
                     const unsigned int batch_index = i / batch_size;
                     
-                    unsigned int index = local_index + batch_index * (regularity + 1) * std::pow(2 * regularity + 2, dim - 2) + position * batch_size;
+                    unsigned int index = local_index + (batch_index * (regularity + 1) + position) * batch_size;
+                    Assert(index < dofs_per_face, ExcDimensionMismatch(index, dofs_per_face));
                 
                     test_cell->face(2*d)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
                     constrained_to_local_indices(2*d, i) = dofs_on_face[index];
@@ -1232,9 +1239,12 @@ namespace VectorTools
                     constrained_to_local_indices(2*d + 1,i) = dofs_on_face[index];
                 }
                 
-                batch_size *= 2 * regularity + 2;
+                batch_size *= degree + 1;
             }
-#endif            
+#endif
+            
+            //Segmentation fault occurs in for loop below
+            AssertDimension(dof_to_boundary_mapping.size(), dof_handler.n_dofs());
             
             for (const auto &cell : dof_handler.active_cell_iterators())
             {
@@ -1244,19 +1254,20 @@ namespace VectorTools
                     if (selected_boundary_components.find(cell->face(f)->boundary_id()) !=
                         selected_boundary_components.end())
                     {
-                        cell->face(f)->get_dof_indices(dofs_on_face, cell->active_fe_index());
+                        //The following produces a vector containing junk values, which causes bugs when trying to use junk as indices!
+                        cell->face(f)->get_dof_indices(dofs_on_face);//, cell->active_fe_index()); Do not currently need HP with Hermite
                         
                         for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
                         {
-                            unsigned int index = constrained_to_local_indices(f, i);
+                            const types::global_dof_index index = dofs_on_face[constrained_to_local_indices(f, i)];
+                            Assert(index < dof_to_boundary_mapping.size(), ExcDimensionMismatch(index, dof_to_boundary_mapping.size()));
                             
-                            if (dof_to_boundary_mapping[dofs_on_face[index]] == numbers::invalid_dof_index)
-                                dof_to_boundary_mapping[dofs_on_face[index]] = next_boundary_index++;
+                            if (dof_to_boundary_mapping[index] == numbers::invalid_dof_index)
+                                dof_to_boundary_mapping[index] = next_boundary_index++;
                         }
                     }
                 }
             }
-            
             
             if (next_boundary_index) return;
             
