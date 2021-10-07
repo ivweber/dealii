@@ -1248,6 +1248,8 @@ namespace VectorTools
             
             for (const auto &cell : dof_handler.active_cell_iterators())
             {
+                Assert(cell->get_fe().n_dofs_per_face() == dofs_on_face.size(), ExcDimensionMismatch(cell->get_fe().n_dofs_per_face(), dofs_on_face.size()));
+                
                 for (const unsigned int f : cell->face_indices())
                 {
                     //Check if face is on selected boundary section
