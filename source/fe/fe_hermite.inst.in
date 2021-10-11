@@ -11,7 +11,17 @@ template void internal::hermite_hierarchic_to_lexicographic_numbering<3>(
         const unsigned int         regularity,
         const unsigned int         nodes,
         std::vector<unsigned int> &h2l);
-        
+  
+  
+template std::vector<unsigned int> internal::hermite_lexicographic_to_hierarchic_numbering<1>(
+        const unsigned int regularity,
+        const unsigned int nodes);        
+template std::vector<unsigned int> internal::hermite_lexicographic_to_hierarchic_numbering<2>(
+        const unsigned int regularity,
+        const unsigned int nodes);        
+template std::vector<unsigned int> internal::hermite_lexicographic_to_hierarchic_numbering<3>(
+        const unsigned int regularity,
+        const unsigned int nodes);        
         
 template std::vector<unsigned int> internal::hermite_face_lexicographic_to_hierarchic_numbering<1>(
         const unsigned int regularity,
