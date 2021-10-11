@@ -428,6 +428,16 @@ namespace VectorTools
                             std::map<types::global_dof_index, Number> &                            boundary_values,
                             std::vector<unsigned int>                                              component_mapping = {});
     
+    //The following does exactly the same as the above, but uses hermite_dirichlet. This is to match existing function calls
+    template <int dim, int spacedim = dim, typename Number = double>
+    void
+    project_boundary_values(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                            const DoFHandler<dim, spacedim> &                                      dof_handler,
+                            const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                            const Quadrature<dim - 1> &                                            quadrature,
+                            std::map<types::global_dof_index, Number> &                            boundary_values,
+                            std::vector<unsigned int>                                              component_mapping = {});
+    
     template <int dim, int spacedim = dim, typename Number = double>
     void
     project_boundary_values(const MappingHermite<dim, spacedim> &                                  mapping_h,
@@ -435,6 +445,16 @@ namespace VectorTools
                             const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
                             const Quadrature<dim - 1> &                                            quadrature,
                             const HermiteBoundaryType                                              projection_mode,
+                            AffineConstraints<Number>                                              constraints,
+                            std::vector<unsigned int>                                              component_mapping = {});
+    
+    //Same as above, but with hermite_dirichlet set
+    template <int dim, int spacedim = dim, typename Number = double>
+    void
+    project_boundary_values(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                            const DoFHandler<dim, spacedim> &                                      dof_handler,
+                            const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                            const Quadrature<dim - 1> &                                            quadrature,
                             AffineConstraints<Number>                                              constraints,
                             std::vector<unsigned int>                                              component_mapping = {});
 }
