@@ -46,8 +46,8 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/affine_constraints.h>
 
-#define manual_laplace 0
-#define visual_output 0
+#define manual_laplace 1
+#define visual_output 1
 
 using namespace dealii;
 
