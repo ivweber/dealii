@@ -1233,10 +1233,10 @@ namespace VectorTools
                     Assert(index < dofs_per_face, ExcDimensionMismatch(index, dofs_per_face));
                 
                     test_cell->face(2*d)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
-                    constrained_to_local_indices(2*d, i) = dofs_on_face[index];
+                    constrained_to_local_indices(2*d, i) = index;//dofs_on_face[index];
                 
                     test_cell->face(2*d + 1)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
-                    constrained_to_local_indices(2*d + 1,i) = dofs_on_face[index];
+                    constrained_to_local_indices(2*d + 1,i) = index;//dofs_on_face[index];
                 }
                 
                 batch_size *= degree + 1;
@@ -1248,19 +1248,22 @@ namespace VectorTools
             
             for (const auto &cell : dof_handler.active_cell_iterators())
             {
-                Assert(cell->get_fe().n_dofs_per_face() == dofs_on_face.size(), ExcDimensionMismatch(cell->get_fe().n_dofs_per_face(), dofs_on_face.size()));
-                
                 for (const unsigned int f : cell->face_indices())
                 {
+                    AssertDimension(cell->get_fe().n_dofs_per_face(f), dofs_on_face.size());
+                    
                     //Check if face is on selected boundary section
                     if (selected_boundary_components.find(cell->face(f)->boundary_id()) !=
                         selected_boundary_components.end())
                     {
-                        //The following produces a vector containing junk values, which causes bugs when trying to use junk as indices!
-                        cell->face(f)->get_dof_indices(dofs_on_face);//, cell->active_fe_index()); Do not currently need HP with Hermite
-                        
+                        cell->face(f)->get_dof_indices(dofs_on_face, cell->active_fe_index());
+                        for (const auto &it : dofs_on_face)
+                            std::cout << it << std::endl;
+                        std::cout << f << "\n" << std::endl;
                         for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
                         {
+                            //The following returns a junk value, despite dofs_per_face containing the correct values
+                            //Number is large, but definitely not caused by an integral underflow (bad cast to unsigned)
                             const types::global_dof_index index = dofs_on_face[constrained_to_local_indices(f, i)];
                             Assert(index < dof_to_boundary_mapping.size(), ExcDimensionMismatch(index, dof_to_boundary_mapping.size()));
                             
@@ -1366,7 +1369,7 @@ namespace VectorTools
                                 (projection_mode == HermiteBoundaryType::hermite_2nd_derivative);
         Assert(check_mode, ExcNotImplemented());
         
-        unsigned int position;
+        unsigned int position = 0;
         switch(projection_mode)
         {
             case HermiteBoundaryType::hermite_dirichlet:
@@ -1383,6 +1386,7 @@ namespace VectorTools
             default:
                 Assert(false, ExcInternalError());
         }
+        
         internal::do_hermite_direct_projection(mapping_h, dof_handler, boundary_functions, quadrature, position, boundary_values, component_mapping);
     }
     
@@ -1392,7 +1396,31 @@ namespace VectorTools
                             const DoFHandler<dim, spacedim> &                                      dof_handler,
                             const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
                             const Quadrature<dim - 1> &                                            quadrature,
+                            std::map<types::global_dof_index, Number> &                            boundary_values,
+                            std::vector<unsigned int>                                              component_mapping)
+    {
+        internal::do_hermite_direct_projection(mapping_h, dof_handler, boundary_functions, quadrature, 0, boundary_values, component_mapping);
+    }
+    
+    template <int dim, int spacedim, typename Number>
+    void
+    project_boundary_values(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                            const DoFHandler<dim, spacedim> &                                      dof_handler,
+                            const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                            const Quadrature<dim - 1> &                                            quadrature,
                             const HermiteBoundaryType                                              projection_mode,
+                            AffineConstraints<Number>                                              constraints,
+                            std::vector<unsigned int>                                              component_mapping)
+    {
+        
+    }
+    
+    template <int dim, int spacedim, typename Number>
+    void
+    project_boundary_values(const MappingHermite<dim, spacedim> &                                  mapping_h,
+                            const DoFHandler<dim, spacedim> &                                      dof_handler,
+                            const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                            const Quadrature<dim - 1> &                                            quadrature,
                             AffineConstraints<Number>                                              constraints,
                             std::vector<unsigned int>                                              component_mapping)
     {
