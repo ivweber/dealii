@@ -62,7 +62,7 @@ public:
         if (dim == 0) Assert(false, ExcNotImplemented());
         double temp = p(0) * (1.0 + p(0) * (0.5 - p(0)));
         if (dim > 1)
-            temp *= 1.0 - p(1) * p(1);
+            return p(0) * p(1);//temp *= 1.0 - p(1) * p(1);
         if (dim == 3)
             temp *= p(2);
         return temp;
@@ -97,6 +97,7 @@ public:
         double temp = - 1.0 + 6 * p(0);
         if (dim > 1)
         {
+            return 0;
             temp *= - p(1) * p(1);
             temp += 1.0 - 8.0 * p(0) - p(0) * p(0) + 2.0 * p(0) * p(0) * p(0);
         }
