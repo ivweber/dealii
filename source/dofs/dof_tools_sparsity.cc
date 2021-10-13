@@ -473,12 +473,7 @@ namespace DoFTools
     Assert(boundary_ids.find(numbers::internal_face_boundary_id) ==
              boundary_ids.end(),
            (typename DoFHandler<dim, spacedim>::ExcInvalidBoundaryIndicator()));
-    Assert(sparsity.n_rows() == dof.n_boundary_dofs(boundary_ids),
-           ExcDimensionMismatch(sparsity.n_rows(),
-                                dof.n_boundary_dofs(boundary_ids)));
-    Assert(sparsity.n_cols() == dof.n_boundary_dofs(boundary_ids),
-           ExcDimensionMismatch(sparsity.n_cols(),
-                                dof.n_boundary_dofs(boundary_ids)));
+
 #ifdef DEBUG
     if (sparsity.n_rows() != 0)
       {
@@ -506,6 +501,8 @@ namespace DoFTools
             // make sparsity pattern for this cell
             for (unsigned int i = 0; i < dofs_per_face; ++i)
               for (unsigned int j = 0; j < dofs_per_face; ++j)
+                  if (dof_to_boundary_mapping[dofs_on_this_face[i]] != numbers::invalid_dof_index &&
+                      dof_to_boundary_mapping[dofs_on_this_face[j]] != numbers::invalid_dof_index)
                 sparsity.add(dof_to_boundary_mapping[dofs_on_this_face[i]],
                              dof_to_boundary_mapping[dofs_on_this_face[j]]);
           }
