@@ -425,28 +425,35 @@ namespace internal
                                 const typename MappingHermite<1, spacedim>::InternalData &mapping_data,
                                 Table<2, Number> &                                        value_list)
       {
-          const unsigned int dofs = fe_herm.n_dofs_per_cell();  //  This reads the expected values for each cell, no issue here
-          const unsigned int regularity = dofs / 2 - 1;
+          const unsigned int dofs = fe_herm.n_dofs_per_cell();
+          
+          AssertDimension(value_list.size(0), dofs);
+          
+          const unsigned int regularity = fe_herm.get_regularity();
+          const unsigned int nodes = fe_herm.n_nodes();
+          
+          AssertDimension(dofs, 2 * regularity + nodes + 2);
           
           const unsigned int q_points = mapping_data.quadrature_points.size();
         
-          AssertDimension(value_list.size(0), dofs);
           AssertDimension(value_list.size(1), q_points);
         
+          std::vector<unsigned int> l2h = hermite_lexicographic_to_hierarchic_numbering<1>(regularity, nodes);
+          
           for (unsigned int q = 0; q < q_points; ++q)
           {
               double factor_1 = 1.0;
             
-              for (unsigned int d1 = 0, d2 = regularity + 1; d2 < dofs; ++d1, ++d2)
+              for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs; ++d1, ++d2)
               {
-                  value_list(d1, q) *= factor_1;
-                  value_list(d2, q) *= factor_1; // This appears to be rescaled less than the above entries, by a factor of about factor_1
+                  value_list(l2h[d1], q) *= factor_1;
+                  value_list(l2h[d2], q) *= factor_1; // This appears to be rescaled less than the above entries, by a factor of about factor_1
                                                                  //  
                   factor_1 *= mapping_data.cell_extents[0];     //   This seems to be reading the correct value for the cells, and calculating factor_1 correctly    
               }
           }
       }
-  
+      
       template <int spacedim, typename Number>
       void 
       rescale_fe_hermite_values(Rescaler<2, spacedim, Number> &                           /*rescaler*/,
@@ -455,28 +462,35 @@ namespace internal
                                 Table<2, Number> &                                        value_list)
       {
           const unsigned int dofs = fe_herm.n_dofs_per_cell();
-          const unsigned int dofs_per_dim = static_cast<unsigned int>( std::sqrt(dofs) + 0.01 );
-          const unsigned int regularity = dofs_per_dim / 2 - 1;
+          
+          AssertDimension(value_list.size(0), dofs);
+          
+          const unsigned int regularity = fe_herm.get_regularity();
+          const unsigned int nodes = 0;//fe_herm.n_nodes();
+          const unsigned int dofs_per_dim = 2 * regularity + nodes + 2;
+          
+          AssertDimension(dofs_per_dim * dofs_per_dim, dofs);
           
           const unsigned int q_points = mapping_data.quadrature_points.size();
-      
-          AssertDimension(value_list.size(0), dofs);
+          
           AssertDimension(value_list.size(1), q_points);
           
+          std::vector<unsigned int> l2h = hermite_lexicographic_to_hierarchic_numbering<2>(regularity, nodes);
+      
           for (unsigned int q = 0; q < q_points; ++q)
           {
               double factor_2 = 1.0;
                     
-              for (unsigned int d3 = 0, d4 = regularity + 1; d4 < dofs_per_dim; ++d3, ++d4)
+              for (unsigned int d3 = 0, d4 = regularity + nodes + 1; d4 < dofs_per_dim; ++d3, ++d4)
               {
                   double factor_1 = 1.0;
                 
-                  for (unsigned int d1 = 0, d2 = regularity + 1; d2 < dofs_per_dim; ++d1, ++d2)
+                  for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs_per_dim; ++d1, ++d2)
                   {
-                      value_list(d1 + d3 * dofs_per_dim, q) *= factor_1 * factor_2;
-                      value_list(d2 + d3 * dofs_per_dim, q) *= factor_1 * factor_2;
-                      value_list(d1 + d4 * dofs_per_dim, q) *= factor_1 * factor_2;
-                      value_list(d2 + d4 * dofs_per_dim, q) *= factor_1 * factor_2;
+                      value_list(l2h[d1 + d3 * dofs_per_dim], q) *= factor_1 * factor_2;
+                      value_list(l2h[d2 + d3 * dofs_per_dim], q) *= factor_1 * factor_2;
+                      value_list(l2h[d1 + d4 * dofs_per_dim], q) *= factor_1 * factor_2;
+                      value_list(l2h[d2 + d4 * dofs_per_dim], q) *= factor_1 * factor_2;
                             
                       factor_1 *= mapping_data.cell_extents[0];
                   }
@@ -494,43 +508,50 @@ namespace internal
                                 Table<2, Number> &                                        value_list)
       {
           const unsigned int dofs = fe_herm.n_dofs_per_cell();
-          const unsigned int dofs_per_dim = static_cast<unsigned int>( std::cbrt(dofs) + 0.01 );
-          const unsigned int regularity = dofs_per_dim / 2 - 1;
+          
+          AssertDimension(value_list.size(0), dofs);
+          
+          const unsigned int regularity = fe_herm.get_regularity();
+          const unsigned int nodes = fe_herm.n_nodes();
+          const unsigned int dofs_per_dim = 2 * regularity + nodes + 2;
+          
+          AssertDimension(dofs_per_dim * dofs_per_dim * dofs_per_dim, dofs);
       
           const unsigned int q_points = mapping_data.quadrature_points.size();
-      
-          AssertDimension(value_list.size(0), dofs);
+          
           AssertDimension(value_list.size(1), q_points);
+          
+          std::vector<unsigned int> l2h = hermite_lexicographic_to_hierarchic_numbering<3>(regularity, nodes);
           
           for (unsigned int q = 0; q < q_points; ++q)
           {
               double factor_3 = 1.0;
                     
-              for (unsigned int d5 = 0, d6 = regularity + 1; d6 < dofs_per_dim; ++d5, ++d6)
+              for (unsigned int d5 = 0, d6 = regularity + nodes + 1; d6 < dofs_per_dim; ++d5, ++d6)
               {
                   double factor_2 = 1.0;
 
-                  for (unsigned int d3 = 0, d4 = regularity + 1; d4 < dofs_per_dim; ++d3, ++d4)
+                  for (unsigned int d3 = 0, d4 = regularity + nodes + 1; d4 < dofs_per_dim; ++d3, ++d4)
                   {
                       double factor_1 = 1.0;
                         
-                      for (unsigned int d1 = 0, d2 = regularity + 1; d2 < dofs_per_dim; ++d1, ++d2)
+                      for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs_per_dim; ++d1, ++d2)
                       {
-                          value_list(d1 + d3 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim, q) 
+                          value_list(l2h[d1 + d3 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim], q) 
                             *= factor_1 * factor_2 * factor_3;
-                          value_list(d2 + d3 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim, q) 
+                          value_list(l2h[d2 + d3 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim], q) 
                             *= factor_1 * factor_2 * factor_3;
-                          value_list(d1 + d4 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim, q) 
+                          value_list(l2h[d1 + d4 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim], q) 
                             *= factor_1 * factor_2 * factor_3;
-                          value_list(d2 + d4 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim, q) 
+                          value_list(l2h[d2 + d4 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim], q) 
                             *= factor_1 * factor_2 * factor_3;
-                          value_list(d1 + d3 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim, q) 
+                          value_list(l2h[d1 + d3 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim], q) 
                             *= factor_1 * factor_2 * factor_3;
-                          value_list(d2 + d3 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim, q) 
+                          value_list(l2h[d2 + d3 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim], q) 
                             *= factor_1 * factor_2 * factor_3;
-                          value_list(d1 + d4 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim, q) 
+                          value_list(l2h[d1 + d4 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim], q) 
                             *= factor_1 * factor_2 * factor_3;
-                          value_list(d2 + d4 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim, q) 
+                          value_list(l2h[d2 + d4 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim], q) 
                             *= factor_1 * factor_2 * factor_3;
                             
                           factor_1 *= mapping_data.cell_extents[0];
@@ -1172,44 +1193,6 @@ namespace VectorTools
                         
             Table<2, double> constrained_to_local_indices(2 * dim, constrained_dofs_per_face);
             
-#define DEBUG_VERSION 0
-#if DEBUG_VERSION
-//Use FEValues with this version, sampling values even though it will be expensive
-            FEFaceValues<dim, spacedim> herm_vals(mapping_h, dof_handler.get_fe(), quadrature,
-                                                  update_values | update_gradients | update_hessians);
-            
-            for (const unsigned int f : test_cell->face_indices())
-            {
-                herm_vals.reinit(test_cell, f);
-                test_cell->face(f)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
-                unsigned int ic = 0;
-                
-                for (const unsigned int i : dofs_on_face)
-                {
-                    bool constraint_indicator = false;
-                    for (const unsigned int q : herm_vals.quadrature_point_indices())
-                    {
-                        switch(position)
-                        {//This is missing a shape function somehow for dim=2, reg=1
-                            case 0:
-                                if (herm_vals.shape_value(i,q) > 0.01) constraint_indicator = true;
-                                break;
-                            case 1:
-                                if (herm_vals.shape_grad(i,q)[f/2] > 0.01) constraint_indicator = true;
-                                break;
-                            case 2:
-                                if (herm_vals.shape_hessian(i,q)[f/2][f/2] > 0.01) constraint_indicator = true;
-                        }
-                        if (constraint_indicator) break;
-                    }
-                    
-                    if (constraint_indicator)
-                        constrained_to_local_indices(f, ic++) = i;
-                }
-                
-                AssertDimension(ic, constrained_dofs_per_face);
-            }
-#else
 //Use knowledge of the local degree numbering for this version, saving expensive calls to reinit
             std::vector<unsigned int> l2h = dealii::internal::hermite_lexicographic_to_hierarchic_numbering<dim>(regularity, degree - 2*regularity - 1);
 
@@ -1233,7 +1216,6 @@ namespace VectorTools
                 
                 batch_size *= degree + 1;
             }
-#endif
 
             std::set<types::boundary_id> selected_boundary_components;
             for (auto i = boundary_functions.cbegin(); i != boundary_functions.cend(); ++i)
@@ -1269,11 +1251,12 @@ namespace VectorTools
                 }
             }
             
-            if (next_boundary_index) return;
+            if (!next_boundary_index) return;
             Assert((next_boundary_index != dof_handler.n_boundary_dofs(boundary_functions)) || (regularity == 0),
                    ExcInternalError());
             
             DynamicSparsityPattern dsp(next_boundary_index, next_boundary_index);
+            //Following call generates exception for 2D, 3D and regularity >= 1
             DoFTools::make_boundary_sparsity_pattern(dof_handler,
                                                      boundary_functions,
                                                      dof_to_boundary_mapping,
@@ -1330,6 +1313,8 @@ namespace VectorTools
           prec.initialize(mass_matrix, 1.2);
 
           cg.solve(mass_matrix, boundary_projection, rhs, prec);
+          
+          deallog << "Number of CG iterations in project boundary values: " << control.last_step() << std::endl;
         }
       // fill in boundary values
       for (unsigned int i = 0; i < dof_to_boundary_mapping.size(); ++i)
