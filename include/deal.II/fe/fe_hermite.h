@@ -401,9 +401,13 @@ private:
   unsigned int           nodes;
   
 public:
-  unsigned int
+  inline unsigned int
   get_regularity() const
-  {return this->regularity;}
+  {return this->regularity;};
+  
+  inline unsigned int
+  n_nodes() const
+  {return this->nodes;};
 };
 
 
