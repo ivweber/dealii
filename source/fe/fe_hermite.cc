@@ -417,7 +417,7 @@ namespace internal
                                 const typename MappingHermite<xdim, xspacedim>::InternalData &mapping_data,
                                 Table<2, xNumber> &                                          value_list);
   
-  
+      //TODO: Adapt these functions to work with DOFs assigned on edges, faces etc
       template <int spacedim, typename Number>
       void 
       rescale_fe_hermite_values(Rescaler<1, spacedim, Number> &                           /*rescaler*/,
@@ -430,7 +430,7 @@ namespace internal
           AssertDimension(value_list.size(0), dofs);
           
           const unsigned int regularity = fe_herm.get_regularity();
-          const unsigned int nodes = fe_herm.n_nodes();
+          const unsigned int nodes = 0;//fe_herm.n_nodes();
           
           AssertDimension(dofs, 2 * regularity + nodes + 2);
           
@@ -477,20 +477,25 @@ namespace internal
           
           std::vector<unsigned int> l2h = hermite_lexicographic_to_hierarchic_numbering<2>(regularity, nodes);
       
+          AssertDimension(l2h.size(), dofs);
+          
+          //Something is going wrong below. The rescaling factors appear to be correct, but dofs running in
+          //the x-direction are not rescaled properly, causing a factor 2 jump going from x- to x+ at each 
+          //cell boundary
           for (unsigned int q = 0; q < q_points; ++q)
           {
               double factor_2 = 1.0;
                     
               for (unsigned int d3 = 0, d4 = regularity + nodes + 1; d4 < dofs_per_dim; ++d3, ++d4)
               {
-                  double factor_1 = 1.0;
+                  double factor_1 = factor_2;
                 
                   for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs_per_dim; ++d1, ++d2)
                   {
-                      value_list(l2h[d1 + d3 * dofs_per_dim], q) *= factor_1 * factor_2;
-                      value_list(l2h[d2 + d3 * dofs_per_dim], q) *= factor_1 * factor_2;
-                      value_list(l2h[d1 + d4 * dofs_per_dim], q) *= factor_1 * factor_2;
-                      value_list(l2h[d2 + d4 * dofs_per_dim], q) *= factor_1 * factor_2;
+                      value_list(l2h[d1 + d3 * dofs_per_dim], q) *= factor_1;
+                      value_list(l2h[d2 + d3 * dofs_per_dim], q) *= factor_1;
+                      value_list(l2h[d1 + d4 * dofs_per_dim], q) *= factor_1;
+                      value_list(l2h[d2 + d4 * dofs_per_dim], q) *= factor_1;
                             
                       factor_1 *= mapping_data.cell_extents[0];
                   }
@@ -512,7 +517,7 @@ namespace internal
           AssertDimension(value_list.size(0), dofs);
           
           const unsigned int regularity = fe_herm.get_regularity();
-          const unsigned int nodes = fe_herm.n_nodes();
+          const unsigned int nodes = 0;//fe_herm.n_nodes();
           const unsigned int dofs_per_dim = 2 * regularity + nodes + 2;
           
           AssertDimension(dofs_per_dim * dofs_per_dim * dofs_per_dim, dofs);
@@ -529,30 +534,30 @@ namespace internal
                     
               for (unsigned int d5 = 0, d6 = regularity + nodes + 1; d6 < dofs_per_dim; ++d5, ++d6)
               {
-                  double factor_2 = 1.0;
+                  double factor_2 = factor_3;
 
                   for (unsigned int d3 = 0, d4 = regularity + nodes + 1; d4 < dofs_per_dim; ++d3, ++d4)
                   {
-                      double factor_1 = 1.0;
+                      double factor_1 = factor_2;
                         
                       for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs_per_dim; ++d1, ++d2)
                       {
                           value_list(l2h[d1 + d3 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim], q) 
-                            *= factor_1 * factor_2 * factor_3;
+                            *= factor_1;
                           value_list(l2h[d2 + d3 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim], q) 
-                            *= factor_1 * factor_2 * factor_3;
+                            *= factor_1;
                           value_list(l2h[d1 + d4 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim], q) 
-                            *= factor_1 * factor_2 * factor_3;
+                            *= factor_1;
                           value_list(l2h[d2 + d4 * dofs_per_dim + d5 * dofs_per_dim * dofs_per_dim], q) 
-                            *= factor_1 * factor_2 * factor_3;
+                            *= factor_1;
                           value_list(l2h[d1 + d3 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim], q) 
-                            *= factor_1 * factor_2 * factor_3;
+                            *= factor_1;
                           value_list(l2h[d2 + d3 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim], q) 
-                            *= factor_1 * factor_2 * factor_3;
+                            *= factor_1;
                           value_list(l2h[d1 + d4 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim], q) 
-                            *= factor_1 * factor_2 * factor_3;
+                            *= factor_1;
                           value_list(l2h[d2 + d4 * dofs_per_dim + d6 * dofs_per_dim * dofs_per_dim], q) 
-                            *= factor_1 * factor_2 * factor_3;
+                            *= factor_1;
                             
                           factor_1 *= mapping_data.cell_extents[0];
                       }
