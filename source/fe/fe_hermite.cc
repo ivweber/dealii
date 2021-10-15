@@ -486,21 +486,25 @@ namespace internal
           {
               double factor_2 = 1.0;
                     
-              for (unsigned int d3 = 0, d4 = regularity + nodes + 1; d4 < dofs_per_dim; ++d3, ++d4)
+              for (unsigned int d3 = 0, d4 = regularity + nodes + 1; d4 < dofs_per_dim; ++d3, ++d4, factor_2 *= mapping_data.cell_extents[1])
               {
                   double factor_1 = factor_2;
                 
-                  for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs_per_dim; ++d1, ++d2)
+                  for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs_per_dim; ++d1, ++d2, factor_1 *= mapping_data.cell_extents[0])
                   {
                       value_list(l2h[d1 + d3 * dofs_per_dim], q) *= factor_1;
+                      std::cout << d1 + d3 * dofs_per_dim << std::endl;
                       value_list(l2h[d2 + d3 * dofs_per_dim], q) *= factor_1;
+                      std::cout << d2 + d3 * dofs_per_dim << std::endl;
                       value_list(l2h[d1 + d4 * dofs_per_dim], q) *= factor_1;
+                      std::cout << d1 + d4 * dofs_per_dim << std::endl;
                       value_list(l2h[d2 + d4 * dofs_per_dim], q) *= factor_1;
+                      std::cout << d2 + d4 * dofs_per_dim << std::endl;
                             
-                      factor_1 *= mapping_data.cell_extents[0];
+                      //factor_1 *= mapping_data.cell_extents[0];
                   }
                 
-                  factor_2 *= mapping_data.cell_extents[1];
+                  //factor_2 *= mapping_data.cell_extents[1];
               }
           }
       }
