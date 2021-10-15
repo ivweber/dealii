@@ -122,7 +122,7 @@ test_fe_on_domain(const unsigned int regularity)
     mass_matrix.reinit(sp);
     MatrixCreator::create_mass_matrix(mapping, dof, quadr, mass_matrix);
     
-    FEValues<dim> fe_herm(mapping, herm, quadr, update_values | update_gradients | update_quadrature_points | update_JxW_values);
+    FEValues<dim> fe_herm(mapping, herm, quadr, update_values | update_quadrature_points | update_JxW_values);
     std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
  
     for (const auto &cell : dof.active_cell_iterators())
