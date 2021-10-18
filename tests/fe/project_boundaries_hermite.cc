@@ -254,8 +254,8 @@ int main()
     
     test_fe_on_domain<2>(0);
     test_fe_on_domain<2>(1);
-    //test_fe_on_domain<2>(2);
-    //test_fe_on_domain<2>(3);
+    test_fe_on_domain<2>(2);
+    test_fe_on_domain<2>(3);
     
     //test_fe_on_domain<3>(0);
     //test_fe_on_domain<3>(1);
