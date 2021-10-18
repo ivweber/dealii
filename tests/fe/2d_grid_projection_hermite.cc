@@ -194,6 +194,7 @@ int main()
     std::ofstream logfile("output");
     deallog << std::setprecision(8) << std::fixed;
     deallog.attach(logfile);
+    MultithreadInfo::set_thread_limit(1);
 
     test_fe_on_domain<2>(0);
     test_fe_on_domain<2>(1);
