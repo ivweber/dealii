@@ -339,7 +339,7 @@ namespace internal
 
   template <int dim>
   inline std::vector<unsigned int>
-  hermite_lexicographic_to_hierarchic_numbering(
+  hermite_hierarchic_to_lexicographic_numbering(
     const unsigned int regularity,
     const unsigned int nodes)
   {
@@ -351,8 +351,16 @@ namespace internal
     hermite_hierarchic_to_lexicographic_numbering<dim>(regularity,
                                                        nodes,
                                                        renumbering);
-    Utilities::invert_permutation(renumbering);
     return renumbering;
+  }
+    
+  template <int dim>
+  inline std::vector<unsigned int>
+  hermite_lexicographic_to_hierarchic_numbering(
+    const unsigned int regularity,
+    const unsigned int nodes)
+  {    
+    return Utilities::invert_permutation(hermite_hierarchic_to_lexicographic_numbering<dim>(regularity,nodes));
   }
   
   template <int dim>
@@ -374,7 +382,7 @@ namespace internal
     TensorProductPolynomials<dim> poly_space(
       Polynomials::HermiteMaxreg::generate_complete_basis(regularity));
     std::vector<unsigned int> renumber =
-      internal::hermite_face_lexicographic_to_hierarchic_numbering<dim + 1>(
+      internal::hermite_hierarchic_to_lexicographic_numbering<dim>(
         regularity, 0);
     poly_space.set_numbering(renumber);
     return poly_space;
@@ -482,24 +490,27 @@ namespace internal
           //Something is going wrong below. The rescaling factors appear to be correct, but dofs running in
           //the x-direction are not rescaled properly, causing a factor 2 jump going from x- to x+ at each 
           //cell boundary
+          FullMatrix<double> factors(dofs_per_dim, dofs_per_dim);
           for (unsigned int q = 0; q < q_points; ++q)
           {
-              double factor_2 = 1.0;
+              //double factor_2 = 1.0;
                     
-              for (unsigned int d3 = 0, d4 = regularity + nodes + 1; d4 < dofs_per_dim; ++d3, ++d4, factor_2 *= mapping_data.cell_extents[1])
+              for (unsigned int d3 = 0, d4 = regularity + nodes + 1; d4 < dofs_per_dim; ++d3, ++d4)
               {
-                  double factor_1 = factor_2;
+                  //double factor_1 = factor_2;
                 
-                  for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs_per_dim; ++d1, ++d2, factor_1 *= mapping_data.cell_extents[0])
+                  for (unsigned int d1 = 0, d2 = regularity + nodes + 1; d2 < dofs_per_dim; ++d1, ++d2)
                   {
+                      double factor_1 = std::pow(mapping_data.cell_extents[0], d1) * std::pow(mapping_data.cell_extents[1], d3);
+                      factors(d1,d3) = factor_1;
+                      factors(d2,d3) = factor_1;
+                      factors(d1,d4) = factor_1;
+                      factors(d2,d4) = factor_1;
+                      
                       value_list(l2h[d1 + d3 * dofs_per_dim], q) *= factor_1;
-                      std::cout << d1 + d3 * dofs_per_dim << std::endl;
                       value_list(l2h[d2 + d3 * dofs_per_dim], q) *= factor_1;
-                      std::cout << d2 + d3 * dofs_per_dim << std::endl;
                       value_list(l2h[d1 + d4 * dofs_per_dim], q) *= factor_1;
-                      std::cout << d1 + d4 * dofs_per_dim << std::endl;
                       value_list(l2h[d2 + d4 * dofs_per_dim], q) *= factor_1;
-                      std::cout << d2 + d4 * dofs_per_dim << std::endl;
                             
                       //factor_1 *= mapping_data.cell_extents[0];
                   }
@@ -1109,6 +1120,98 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
                                               output_data.shape_3rd_derivatives);
     }
 }
+//TODO: Create a fill_fe_face_values function for Hermite elements
+template <int dim, int spacedim>
+void
+FE_Hermite<dim, spacedim>::fill_fe_face_values(
+  const typename Triangulation<dim, spacedim>::cell_iterator &cell,
+  const unsigned int                                          face_no,
+  const Quadrature<dim - 1> &                                 quadrature,
+  const Mapping<dim, spacedim> &                              mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
+  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
+                                                                     spacedim>
+    &                                                            mapping_data,
+  const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
+  dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
+                                                                     spacedim>
+    &output_data) const
+{
+  // convert data object to internal
+  // data for this class. fails with
+  // an exception if that is not
+  // possible
+  Assert((dynamic_cast<const typename FE_Hermite<dim,spacedim>::InternalData *>(&fe_internal) != nullptr), ExcInternalError());
+  const typename FE_Hermite<dim,spacedim>::InternalData &fe_data = static_cast<const typename FE_Hermite<dim,spacedim>::InternalData &>(fe_internal);
+  Assert((dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(&mapping_internal) != nullptr), ExcInternalError());
+  const typename MappingHermite<dim, spacedim>::InternalData &mapping_internal_herm = static_cast<const typename MappingHermite<dim, spacedim>::InternalData &>(mapping_internal);
+
+  // offset determines which data set
+  // to take (all data sets for all
+  // faces are stored contiguously)
+
+  const typename QProjector<dim>::DataSetDescriptor offset =
+    QProjector<dim>::DataSetDescriptor::face(face_no,
+                                             cell->face_orientation(face_no),
+                                             cell->face_flip(face_no),
+                                             cell->face_rotation(face_no),
+                                             quadrature.size());
+
+  const UpdateFlags flags(fe_data.update_each);
+
+  const bool need_to_correct_higher_derivatives =
+    higher_derivatives_need_correcting(mapping,
+                                       mapping_data,
+                                       quadrature.size(),
+                                       flags);
+
+  // transform gradients and higher derivatives. we also have to copy
+  // the values (unlike in the case of fill_fe_values()) since
+  // we need to take into account the offsets
+  if (flags & update_values)
+    for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
+      for (unsigned int i = 0; i < quadrature.size(); ++i)
+        output_data.shape_values(k, i) = fe_data.shape_values[k][i + offset];
+
+  if (flags & update_gradients)
+    for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
+      mapping.transform(
+        make_array_view(fe_data.shape_gradients, k, offset, quadrature.size()),
+        mapping_covariant,
+        mapping_internal,
+        make_array_view(output_data.shape_gradients, k));
+
+  if (flags & update_hessians)
+    {
+      for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
+        mapping.transform(
+          make_array_view(fe_data.shape_hessians, k, offset, quadrature.size()),
+          mapping_covariant_gradient,
+          mapping_internal,
+          make_array_view(output_data.shape_hessians, k));
+
+      if (need_to_correct_higher_derivatives)
+        correct_hessians(output_data, mapping_data, quadrature.size());
+    }
+
+  if (flags & update_3rd_derivatives)
+    {
+      for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
+        mapping.transform(make_array_view(fe_data.shape_3rd_derivatives,
+                                          k,
+                                          offset,
+                                          quadrature.size()),
+                          mapping_covariant_hessian,
+                          mapping_internal,
+                          make_array_view(output_data.shape_3rd_derivatives,
+                                          k));
+
+      if (need_to_correct_higher_derivatives)
+        correct_third_derivatives(output_data, mapping_data, quadrature.size());
+    }
+}
+
+
 //TODO: Implement partial grid refinement (ie hanging nodes)
 /*
 template <int dim, int spacedim>
