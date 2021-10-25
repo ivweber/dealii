@@ -1159,27 +1159,37 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
 
   const UpdateFlags flags(fe_data.update_each);
 
-  const bool need_to_correct_higher_derivatives =
-    higher_derivatives_need_correcting(mapping,
-                                       mapping_data,
-                                       quadrature.size(),
-                                       flags);
-
   // transform gradients and higher derivatives. we also have to copy
   // the values (unlike in the case of fill_fe_values()) since
   // we need to take into account the offsets
   if (flags & update_values)
+  {
     for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
       for (unsigned int i = 0; i < quadrature.size(); ++i)
         output_data.shape_values(k, i) = fe_data.shape_values[k][i + offset];
+      
+    internal::Rescaler<dim, spacedim, double> shape_face_fix;
+    shape_face_fix.rescale_fe_hermite_values(shape_face_fix,
+                                             *this, 
+                                             mapping_internal_herm, 
+                                             output_data.shape_values);
+  }
 
   if (flags & update_gradients)
+  {
     for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
       mapping.transform(
         make_array_view(fe_data.shape_gradients, k, offset, quadrature.size()),
         mapping_covariant,
         mapping_internal,
         make_array_view(output_data.shape_gradients, k));
+    
+    internal::Rescaler<dim, spacedim, Tensor<1,spacedim>> grad_face_fix;
+    grad_face_fix.rescale_fe_hermite_values(grad_face_fix,
+                                            *this, 
+                                            mapping_internal_herm, 
+                                            output_data.shape_gradients);
+  }
 
   if (flags & update_hessians)
     {
@@ -1190,8 +1200,11 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
           mapping_internal,
           make_array_view(output_data.shape_hessians, k));
 
-      if (need_to_correct_higher_derivatives)
-        correct_hessians(output_data, mapping_data, quadrature.size());
+      internal::Rescaler<dim, spacedim, Tensor<2,spacedim>> hessian_face_fix;
+      hessian_face_fix.rescale_fe_hermite_values(hessian_face_fix,
+                                                 *this, 
+                                                 mapping_internal_herm, 
+                                                 output_data.shape_hessians);
     }
 
   if (flags & update_3rd_derivatives)
@@ -1206,8 +1219,11 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
                           make_array_view(output_data.shape_3rd_derivatives,
                                           k));
 
-      if (need_to_correct_higher_derivatives)
-        correct_third_derivatives(output_data, mapping_data, quadrature.size());
+      internal::Rescaler<dim, spacedim, Tensor<3,spacedim>> shape_3rd_face_fix;
+      shape_3rd_face_fix.rescale_fe_hermite_values(shape_3rd_face_fix,
+                                                   *this, 
+                                                   mapping_internal_herm, 
+                                                   output_data.shape_3rd_derivatives);
     }
 }
 

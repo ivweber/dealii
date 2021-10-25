@@ -255,6 +255,21 @@ public:
                                                                        spacedim>
       &output_data) const override;
       
+  virtual void
+  fill_fe_face_values(
+    const typename Triangulation<dim, spacedim>::cell_iterator &cell,
+    const unsigned int                                          face_no,
+    const Quadrature<dim - 1> &                                 quadrature,
+    const Mapping<dim, spacedim> &                              mapping,
+    const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
+    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
+                                                                     spacedim>
+      &                                                            mapping_data,
+    const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
+    dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
+                                                                     spacedim>
+    &output_data) const override;
+      
   
   /*
   virtual std::size_t
