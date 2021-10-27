@@ -1137,6 +1137,7 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
                                                                      spacedim>
     &output_data) const
 {
+  Assert(false, ExcMessage("Looks like it finally found the function!"));
   // convert data object to internal
   // data for this class. fails with
   // an exception if that is not
