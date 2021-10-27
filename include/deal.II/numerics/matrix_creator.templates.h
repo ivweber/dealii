@@ -28,6 +28,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe.h>
+#include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_q1.h>
 
@@ -1002,6 +1003,7 @@ namespace MatrixCreator
       const unsigned int n_function_components =
         boundary_functions.begin()->second->n_components;
       const bool fe_is_system    = (n_components != 1);
+      const bool fe_is_hermite   = (dynamic_cast<const FE_Hermite<dim, spacedim> *>(&fe) != nullptr);
       const bool fe_is_primitive = fe.is_primitive();
 
       copy_data.cell          = cell;
@@ -1010,6 +1012,7 @@ namespace MatrixCreator
       UpdateFlags update_flags =
         UpdateFlags(update_values | update_JxW_values | update_normal_vectors |
                     update_quadrature_points);
+      if (fe_is_hermite) update_flags = update_flags | update_mapping;
       FEFaceValues<dim, spacedim> fe_values(mapping, fe, q, update_flags);
 
       // two variables for the coefficient, one for the two cases

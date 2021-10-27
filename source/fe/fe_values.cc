@@ -4645,7 +4645,7 @@ void
 FEFaceValues<dim, spacedim>::do_reinit(const unsigned int face_no)
 {
   this->present_face_no = face_no;
-
+  std::cout << "Has this ever happened to you?!" << std::endl;
   // first of all, set the present_face_index (if available)
   const typename Triangulation<dim, spacedim>::cell_iterator cell =
     this->present_cell;
