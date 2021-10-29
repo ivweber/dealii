@@ -46,8 +46,6 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/affine_constraints.h>
 
-#define visual_output 1
-
 using namespace dealii;
 
 //Define a function to project onto the domain [-1,1]^dim
@@ -58,13 +56,17 @@ public:
     virtual double
     value(const Point<dim> &p, unsigned int c=0) const override 
     {
-        if (dim == 0) Assert(false, ExcNotImplemented());
-        double temp = p(0) * (1.0 + p(0) * (0.5 - p(0)));
-        if (dim > 1)
-            return p(0) * p(1);//temp *= 1.0 - p(1) * p(1);
-        if (dim == 3)
-            temp *= p(2);
-        return temp;
+        (void)c;
+        switch (dim)
+        {
+            case 2:
+                return p(0) * p(1);
+            case 1:
+            case 3:
+            default:
+                Assert(false, ExcNotImplemented());
+                return 0;
+        }
     }
     
     std::string
@@ -72,12 +74,10 @@ public:
     {
         switch (dim)
         {
-            case 1:
-                return "X + 0.5 X^2 - X^3";
             case 2:
-                return "(X + 0.5 X^2 - X^3)(1 - Y^2)";
+                return "XY";
+            case 1:
             case 3:
-                return "(X + 0.5 X^2 - X^3)(1 - Y^2)Z";
             default:
                 Assert(false, ExcNotImplemented());
                 return "";
@@ -144,18 +144,6 @@ test_fe_on_domain(const unsigned int regularity)
     SolverCG<> solver(solver_control_values);
     
     solver.solve(mass_matrix, sol, rhs, PreconditionIdentity() );
-  
-#if visual_output
-    DataOut<dim> data;
-    data.attach_dof_handler(dof);
-    data.add_data_vector(sol, "Solution");
-    data.build_patches(mapping, 29, DataOut<dim>::CurvedCellRegion::curved_inner_cells);
-    char filename[18];
-    sprintf(filename, "solution-%d-%dd.vtu", regularity, dim);
-    std::ofstream outpt(filename);
-    data.write_vtu(outpt);
-    outpt.close();
-#endif
     
     double err_sq = 0;
     
@@ -200,10 +188,6 @@ int main()
     test_fe_on_domain<2>(1);
     test_fe_on_domain<2>(2);
     test_fe_on_domain<2>(3);
-    
-    //test_fe_on_domain<3>(0);
-    //test_fe_on_domain<3>(1);
-    //test_fe_on_domain<3>(2);
     
     return 0;
 }
