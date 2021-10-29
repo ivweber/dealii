@@ -434,6 +434,7 @@ namespace internal
                                 Table<2, Number> &                                        value_list)
       {
           const unsigned int dofs = fe_herm.n_dofs_per_cell();
+          (void)dofs;
           
           AssertDimension(value_list.size(0), dofs);
           
@@ -442,9 +443,8 @@ namespace internal
           
           AssertDimension(dofs, 2 * regularity + nodes + 2);
           
-          const unsigned int q_points = mapping_data.quadrature_points.size();
-        
-          AssertDimension(value_list.size(1), q_points);
+          const unsigned int q_points = value_list.size(1);
+          AssertIndexRange(q_points, mapping_data.quadrature_points.size() + 1);
         
           std::vector<unsigned int> l2h = hermite_lexicographic_to_hierarchic_numbering<1>(regularity, nodes);
           
@@ -470,6 +470,7 @@ namespace internal
                                 Table<2, Number> &                                        value_list)
       {
           const unsigned int dofs = fe_herm.n_dofs_per_cell();
+          (void)dofs;
           
           AssertDimension(value_list.size(0), dofs);
           
@@ -479,9 +480,8 @@ namespace internal
           
           AssertDimension(dofs_per_dim * dofs_per_dim, dofs);
           
-          const unsigned int q_points = mapping_data.quadrature_points.size();
-          
-          AssertDimension(value_list.size(1), q_points);
+          const unsigned int q_points = value_list.size(1);
+          AssertIndexRange(q_points, mapping_data.quadrature_points.size() + 1);
           
           std::vector<unsigned int> l2h = hermite_lexicographic_to_hierarchic_numbering<2>(regularity, nodes);
       
@@ -528,6 +528,7 @@ namespace internal
                                 Table<2, Number> &                                        value_list)
       {
           const unsigned int dofs = fe_herm.n_dofs_per_cell();
+          (void)dofs;
           
           AssertDimension(value_list.size(0), dofs);
           
@@ -537,9 +538,8 @@ namespace internal
           
           AssertDimension(dofs_per_dim * dofs_per_dim * dofs_per_dim, dofs);
       
-          const unsigned int q_points = mapping_data.quadrature_points.size();
-          
-          AssertDimension(value_list.size(1), q_points);
+          const unsigned int q_points = value_list.size(1);
+          AssertIndexRange(q_points, mapping_data.quadrature_points.size() + 1);
           
           std::vector<unsigned int> l2h = hermite_lexicographic_to_hierarchic_numbering<3>(regularity, nodes);
           
@@ -1126,18 +1126,17 @@ void
 FE_Hermite<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const Quadrature<dim - 1> &                                 quadrature,
+  const hp::QCollection<dim - 1> &                                 quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
   const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
                                                                      spacedim>
-    &                                                            mapping_data,
+    &                                                            ,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
     &output_data) const
 {
-  Assert(false, ExcMessage("Looks like it finally found the function!"));
   // convert data object to internal
   // data for this class. fails with
   // an exception if that is not
@@ -1146,6 +1145,7 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
   const typename FE_Hermite<dim,spacedim>::InternalData &fe_data = static_cast<const typename FE_Hermite<dim,spacedim>::InternalData &>(fe_internal);
   Assert((dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(&mapping_internal) != nullptr), ExcInternalError());
   const typename MappingHermite<dim, spacedim>::InternalData &mapping_internal_herm = static_cast<const typename MappingHermite<dim, spacedim>::InternalData &>(mapping_internal);
+  AssertDimension(quadrature.size(), 1U);
 
   // offset determines which data set
   // to take (all data sets for all
@@ -1156,7 +1156,7 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
                                              cell->face_orientation(face_no),
                                              cell->face_flip(face_no),
                                              cell->face_rotation(face_no),
-                                             quadrature.size());
+                                             quadrature[0].size());
 
   const UpdateFlags flags(fe_data.update_each);
 
@@ -1166,7 +1166,7 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
   if (flags & update_values)
   {
     for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
-      for (unsigned int i = 0; i < quadrature.size(); ++i)
+      for (unsigned int i = 0; i < quadrature[0].size(); ++i)
         output_data.shape_values(k, i) = fe_data.shape_values[k][i + offset];
       
     internal::Rescaler<dim, spacedim, double> shape_face_fix;
@@ -1180,7 +1180,7 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
   {
     for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
       mapping.transform(
-        make_array_view(fe_data.shape_gradients, k, offset, quadrature.size()),
+        make_array_view(fe_data.shape_gradients, k, offset, quadrature[0].size()),
         mapping_covariant,
         mapping_internal,
         make_array_view(output_data.shape_gradients, k));
@@ -1196,7 +1196,7 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
     {
       for (unsigned int k = 0; k < this->dofs_per_cell; ++k)
         mapping.transform(
-          make_array_view(fe_data.shape_hessians, k, offset, quadrature.size()),
+          make_array_view(fe_data.shape_hessians, k, offset, quadrature[0].size()),
           mapping_covariant_gradient,
           mapping_internal,
           make_array_view(output_data.shape_hessians, k));
@@ -1214,7 +1214,7 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
         mapping.transform(make_array_view(fe_data.shape_3rd_derivatives,
                                           k,
                                           offset,
-                                          quadrature.size()),
+                                          quadrature[0].size()),
                           mapping_covariant_hessian,
                           mapping_internal,
                           make_array_view(output_data.shape_3rd_derivatives,
@@ -1479,6 +1479,7 @@ namespace VectorTools
                                 (projection_mode == HermiteBoundaryType::hermite_neumann) ||
                                 (projection_mode == HermiteBoundaryType::hermite_2nd_derivative);
         Assert(check_mode, ExcNotImplemented());
+        (void)check_mode;
         
         unsigned int position = 0;
         switch(projection_mode)
