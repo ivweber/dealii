@@ -1,65 +1,118 @@
 
-DEAL:cg::Starting value 3.09548562
+DEAL:cg::Starting value 2.29128785
 DEAL:cg::Convergence step 3 value 0.00000000
 DEAL::
 DEAL:Cell-1d-Hermite-0::Test polynomial:
 DEAL:Cell-1d-Hermite-0::X + 0.5 X^2 - X^3
 DEAL:Cell-1d-Hermite-0::
-DEAL:Cell-1d-Hermite-0::Grid cells:
-DEAL:Cell-1d-Hermite-0::(	-1.00000000,	0.00000000	)
-DEAL:Cell-1d-Hermite-0::(	0.00000000,	0.50000000	)
-DEAL:Cell-1d-Hermite-0::(	0.50000000,	0.75000000	)
-DEAL:Cell-1d-Hermite-0::(	0.75000000,	1.00000000	)
-DEAL:Cell-1d-Hermite-0::
 DEAL:Cell-1d-Hermite-0::Interpolation error:
-DEAL:Cell-1d-Hermite-0::0.33715327
+DEAL:Cell-1d-Hermite-0::0.10346989
 
 
-DEAL:cg::Starting value 3.96403372
-DEAL:cg::Convergence step 9 value 0.00000000
+DEAL:cg::Starting value 2.53190749
+DEAL:cg::Convergence step 8 value 0.00000000
 DEAL::
 DEAL:Cell-1d-Hermite-1::Test polynomial:
 DEAL:Cell-1d-Hermite-1::X + 0.5 X^2 - X^3
-DEAL:Cell-1d-Hermite-1::
-DEAL:Cell-1d-Hermite-1::Grid cells:
-DEAL:Cell-1d-Hermite-1::(	-1.00000000,	0.00000000	)
-DEAL:Cell-1d-Hermite-1::(	0.00000000,	0.50000000	)
-DEAL:Cell-1d-Hermite-1::(	0.50000000,	0.75000000	)
-DEAL:Cell-1d-Hermite-1::(	0.75000000,	1.00000000	)
 DEAL:Cell-1d-Hermite-1::
 DEAL:Cell-1d-Hermite-1::Interpolation error:
 DEAL:Cell-1d-Hermite-1::0.00000000
 
 
-DEAL:cg::Starting value 4.86496327
-DEAL:cg::Convergence step 18 value 0.00000000
+DEAL:cg::Starting value 2.86316429
+DEAL:cg::Convergence step 15 value 0.00000000
 DEAL::
 DEAL:Cell-1d-Hermite-2::Test polynomial:
 DEAL:Cell-1d-Hermite-2::X + 0.5 X^2 - X^3
-DEAL:Cell-1d-Hermite-2::
-DEAL:Cell-1d-Hermite-2::Grid cells:
-DEAL:Cell-1d-Hermite-2::(	-1.00000000,	0.00000000	)
-DEAL:Cell-1d-Hermite-2::(	0.00000000,	0.50000000	)
-DEAL:Cell-1d-Hermite-2::(	0.50000000,	0.75000000	)
-DEAL:Cell-1d-Hermite-2::(	0.75000000,	1.00000000	)
 DEAL:Cell-1d-Hermite-2::
 DEAL:Cell-1d-Hermite-2::Interpolation error:
 DEAL:Cell-1d-Hermite-2::0.00000000
 
 
-DEAL:cg::Starting value 5.78691142
-DEAL:cg::Convergence step 38 value 0.00000000
+DEAL:cg::Starting value 3.22267736
+DEAL:cg::Convergence step 31 value 0.00000000
 DEAL::
 DEAL:Cell-1d-Hermite-3::Test polynomial:
 DEAL:Cell-1d-Hermite-3::X + 0.5 X^2 - X^3
 DEAL:Cell-1d-Hermite-3::
-DEAL:Cell-1d-Hermite-3::Grid cells:
-DEAL:Cell-1d-Hermite-3::(	-1.00000000,	0.00000000	)
-DEAL:Cell-1d-Hermite-3::(	0.00000000,	0.50000000	)
-DEAL:Cell-1d-Hermite-3::(	0.50000000,	0.75000000	)
-DEAL:Cell-1d-Hermite-3::(	0.75000000,	1.00000000	)
-DEAL:Cell-1d-Hermite-3::
 DEAL:Cell-1d-Hermite-3::Interpolation error:
 DEAL:Cell-1d-Hermite-3::0.00000000
+
+
+DEAL::Number of CG iterations in project boundary values: 9
+DEAL:cg::Starting value 1.96141139
+DEAL:cg::Convergence step 5 value 0.00000000
+DEAL::
+DEAL:Cell-2d-Hermite-0::Test polynomial:
+DEAL:Cell-2d-Hermite-0::(X + 0.5 X^2 - X^3)(1 - Y^2)
+DEAL:Cell-2d-Hermite-0::
+DEAL:Cell-2d-Hermite-0::Interpolation error:
+DEAL:Cell-2d-Hermite-0::0.09659442
+
+
+DEAL::Number of CG iterations in project boundary values: 21
+DEAL:cg::Starting value 2.17016013
+DEAL:cg::Convergence step 42 value 0.00000000
+DEAL::
+DEAL:Cell-2d-Hermite-1::Test polynomial:
+DEAL:Cell-2d-Hermite-1::(X + 0.5 X^2 - X^3)(1 - Y^2)
+DEAL:Cell-2d-Hermite-1::
+DEAL:Cell-2d-Hermite-1::Interpolation error:
+DEAL:Cell-2d-Hermite-1::0.00000000
+
+
+DEAL::Number of CG iterations in project boundary values: 51
+DEAL:cg::Starting value 2.43035327
+DEAL:cg::Convergence step 624 value 0.00000000
+DEAL::
+DEAL:Cell-2d-Hermite-2::Test polynomial:
+DEAL:Cell-2d-Hermite-2::(X + 0.5 X^2 - X^3)(1 - Y^2)
+DEAL:Cell-2d-Hermite-2::
+DEAL:Cell-2d-Hermite-2::Interpolation error:
+DEAL:Cell-2d-Hermite-2::0.00000000
+
+
+DEAL::Number of CG iterations in project boundary values: 123
+DEAL:cg::Starting value 2.70648775
+DEAL:cg::Convergence step 8000 value 0.00000001
+DEAL::
+DEAL:Cell-2d-Hermite-3::Test polynomial:
+DEAL:Cell-2d-Hermite-3::(X + 0.5 X^2 - X^3)(1 - Y^2)
+DEAL:Cell-2d-Hermite-3::
+DEAL:Cell-2d-Hermite-3::Interpolation error:
+DEAL:Cell-2d-Hermite-3::0.00000000
+
+
+DEAL::Number of CG iterations in project boundary values: 13
+DEAL:cg::Starting value 0.87033579
+DEAL:cg::Convergence step 3 value 0.00000000
+DEAL::
+DEAL:Cell-3d-Hermite-0::Test polynomial:
+DEAL:Cell-3d-Hermite-0::(X + 0.5 X^2 - X^3)(1 - Y^2)Z
+DEAL:Cell-3d-Hermite-0::
+DEAL:Cell-3d-Hermite-0::Interpolation error:
+DEAL:Cell-3d-Hermite-0::0.05105713
+
+
+DEAL::Number of CG iterations in project boundary values: 91
+DEAL:cg::Starting value 1.13796467
+DEAL:cg::Convergence step 384 value 0.00000000
+DEAL::
+DEAL:Cell-3d-Hermite-1::Test polynomial:
+DEAL:Cell-3d-Hermite-1::(X + 0.5 X^2 - X^3)(1 - Y^2)Z
+DEAL:Cell-3d-Hermite-1::
+DEAL:Cell-3d-Hermite-1::Interpolation error:
+DEAL:Cell-3d-Hermite-1::0.00000000
+
+
+DEAL::Number of CG iterations in project boundary values: 1185
+DEAL:cg::Starting value 1.39820663
+DEAL:cg::Convergence step 8000 value 0.00000001
+DEAL::
+DEAL:Cell-3d-Hermite-2::Test polynomial:
+DEAL:Cell-3d-Hermite-2::(X + 0.5 X^2 - X^3)(1 - Y^2)Z
+DEAL:Cell-3d-Hermite-2::
+DEAL:Cell-3d-Hermite-2::Interpolation error:
+DEAL:Cell-3d-Hermite-2::0.00000004
 
 
