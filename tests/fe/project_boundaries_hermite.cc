@@ -46,9 +46,6 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/affine_constraints.h>
 
-#define manual_laplace 1
-#define visual_output 1
-
 using namespace dealii;
 
 //Define a function to project onto the domain [-1,1]^dim
@@ -59,10 +56,11 @@ public:
     virtual double
     value(const Point<dim> &p, unsigned int c=0) const override 
     {
+        (void)c;
         if (dim == 0) Assert(false, ExcNotImplemented());
         double temp = p(0) * (1.0 + p(0) * (0.5 - p(0)));
         if (dim > 1)
-            return p(0) * p(1);//temp *= 1.0 - p(1) * p(1);
+            temp *= 1.0 - p(1) * p(1);
         if (dim == 3)
             temp *= p(2);
         return temp;
@@ -93,13 +91,13 @@ public:
     virtual double
     value(const Point<dim> &p, unsigned int c=0) const override
     {
+        (void)c;
         if (dim == 0) Assert(false, ExcNotImplemented());
         double temp = - 1.0 + 6 * p(0);
         if (dim > 1)
         {
-            return 0;
             temp *= - p(1) * p(1);
-            temp += 1.0 - 8.0 * p(0) - p(0) * p(0) + 2.0 * p(0) * p(0) * p(0);
+            temp -= 1.0 - 8.0 * p(0) - p(0) * p(0) + 2.0 * p(0) * p(0) * p(0);
         }
         if (dim == 3) temp *= p(2);
         return temp;
@@ -142,9 +140,7 @@ test_fe_on_domain(const unsigned int regularity)
     
     SparseMatrix<double> stiffness_matrix;
     stiffness_matrix.reinit(sp);
-#if !manual_laplace
     MatrixCreator::create_laplace_matrix(mapping, dof, quadr, stiffness_matrix);
-#endif 
     
     FEValues<dim> fe_herm(mapping, herm, quadr, update_values | update_gradients | update_quadrature_points | update_JxW_values);
     std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
@@ -155,18 +151,6 @@ test_fe_on_domain(const unsigned int regularity)
         cell->get_dof_indices(local_to_global);
         for (const unsigned int i : fe_herm.dof_indices())
         {
-#if manual_laplace
-            for (const unsigned int j : fe_herm.dof_indices())
-            {
-                double laplace_temp = 0;
-                for (const unsigned int q : fe_herm.quadrature_point_indices())
-                    laplace_temp += fe_herm.shape_grad(i,q)
-                                    * fe_herm.shape_grad(j,q)
-                                    * fe_herm.JxW(q);
-                stiffness_matrix(local_to_global[i], local_to_global[j]) += laplace_temp;
-            }
-#endif
-            
             double rhs_temp = 0;
             for (const unsigned int q : fe_herm.quadrature_point_indices())
                 rhs_temp += fe_herm.shape_value(i,q) 
@@ -196,18 +180,6 @@ test_fe_on_domain(const unsigned int regularity)
     SolverCG<> solver(solver_control_values);
     
     solver.solve(stiffness_matrix, sol, rhs, PreconditionIdentity() );
-  
-#if visual_output
-    DataOut<dim> data;
-    data.attach_dof_handler(dof);
-    data.add_data_vector(sol, "Solution");
-    data.build_patches(mapping, 29, DataOut<dim>::CurvedCellRegion::curved_inner_cells);
-    char filename[18];
-    sprintf(filename, "solution-%d-%dd.vtu", regularity, dim);
-    std::ofstream outpt(filename);
-    data.write_vtu(outpt);
-    outpt.close();
-#endif
     
     double err_sq = 0;
     
@@ -257,9 +229,9 @@ int main()
     test_fe_on_domain<2>(2);
     test_fe_on_domain<2>(3);
     
-    //test_fe_on_domain<3>(0);
-    //test_fe_on_domain<3>(1);
-    //test_fe_on_domain<3>(2);
+    test_fe_on_domain<3>(0);
+    test_fe_on_domain<3>(1);
+    test_fe_on_domain<3>(2);
     
     return 0;
 }
