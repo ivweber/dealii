@@ -112,9 +112,6 @@ test_fe_on_domain(const unsigned int regularity)
     DoFHandler<dim> dof(tr);
     
     double left = -1.0, right = 1.0;
-    Point<dim> left_point, right_point;
-    for (unsigned int i = 0; i < dim; ++i)
-        left_point(i) = left, right_point(i) = right;
     GridGenerator::subdivided_hyper_cube(tr, 4, left, right);
     
     FE_Hermite<dim> herm(regularity);
