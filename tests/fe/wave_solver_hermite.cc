@@ -57,6 +57,7 @@
 
 using namespace dealii;
 
+#define ZERO_BOUNDARY_TEST 0
 
 template <int dim>
 class Solution : public Function<dim>
@@ -85,6 +86,13 @@ public:
     value(const Point<dim> &p, const unsigned int component = 0) const override
     {
         (void)component;
+#if ZERO_BOUNDARY_TEST
+        double return_val = 1.;
+        for (unsigned int i = 0; i < dim; ++i)
+            return_val *= std::sin( numbers::PI * p(i) );
+        return_val *= std::cos( numbers::PI * std::sqrt(dim) * this->current_time );
+        return return_val;
+#else
         double y = p(0) + 0.5 - this->current_time;
         y *= 10.0/3.0;
         double output = 0;
@@ -101,6 +109,7 @@ public:
                 break;
         }
         return output;
+#endif
     }
 };
 
@@ -118,6 +127,13 @@ public:
     value(const Point<dim> &p, const unsigned int component = 0) const override
     {
         (void)component;
+#if ZERO_BOUNDARY_TEST
+        double return_val = - numbers::PI * std::sqrt(dim);
+        for (unsigned int i = 0; i < dim; ++i)
+            return_val *= std::sin( numbers::PI * p(i) );
+        return_val *= std::sin( numbers::PI * std::sqrt(dim) * this->parent_solution.get_time() );
+        return return_val;
+#else
         double result = 0;
         double y = p(0) + 0.5 - this->parent_solution.get_time();
         y *= 10.0/3.0;
@@ -134,6 +150,7 @@ public:
                 break;
         }
         return result;
+#endif
     }
 };
 
@@ -172,6 +189,31 @@ l2_error(const MappingHermite<dim> & mapping,
     }
     
     return std::sqrt(err_sq);
+}
+
+template <int dim> void
+print_to_vtu(const MappingHermite<dim> & mapping,
+             const DoFHandler<dim> & dof,
+             const Vector<double> & sol,
+             const double time,
+             const unsigned int regularity)
+{
+    DataOut<dim> data_out;
+    data_out.attach_dof_handler(dof);
+    
+    std::stringstream solution_name, file_name;
+    solution_name << std::setprecision(0) << std::fixed;
+    solution_name << "Solution_at_t_" << time;
+    data_out.add_data_vector(sol, solution_name.str());
+    data_out.build_patches(mapping, 29, DataOut<dim>::CurvedCellRegion::curved_inner_cells);
+    
+    file_name << std::setprecision(2) << std::fixed;
+    file_name << "wave_hermite_" << regularity << "_" << dim << "d_t" << time << ".vtu";
+    std::ofstream output(file_name.str());
+    data_out.write_vtu(output);
+    output.close();
+    
+    return;
 }
 
 template <int dim> void
@@ -219,7 +261,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     
     MatrixCreator::create_mass_matrix(   mapping_h, dof, quadrature, mass);
     MatrixCreator::create_laplace_matrix(mapping_h, dof, quadrature, tstep_noninvert);
-    tstep_noninvert *= 0.5 * dt * dt;
+    tstep_noninvert *= -0.5 * dt * dt;
     tstep_noninvert.add(1.0, mass);
     
     VectorTools::project(mapping_h, dof, constraints, quadrature, wave, sol_curr);
@@ -266,6 +308,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     l2_errors.emplace_back(l2_error<dim>(mapping_h, dof, quadrature, wave, sol_curr));
     max_error = std::max(max_error, *l2_errors.cend());
     
+    bool guilty = false;
     while (wave.get_time() < final_time)
     {
         mass.vmult(sol_next, sol_prev);
@@ -292,7 +335,13 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
         boundary_values.clear();
         
         l2_errors.emplace_back(l2_error<dim>(mapping_h, dof, quadrature, wave, sol_curr));
-        max_error = std::max(max_error, *l2_errors.cend());
+        max_error = std::max(max_error, *(--l2_errors.cend()));
+        
+        if (!guilty && (wave.get_time() > 1.0))
+        {
+            print_to_vtu<dim>(mapping_h, dof, sol_curr, wave.get_time(), regularity);
+            guilty = true;
+        }
     }
     
     deallog << std::endl;
@@ -304,7 +353,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     deallog << "Final time: " << final_time << std::endl;
     deallog << std::endl;
     
-    deallog << "Error at final time: " << *l2_errors.cend() << std::endl;
+    deallog << "Error at final time: " << *(--l2_errors.cend()) << std::endl;
     deallog << "Largest error: " << max_error << std::endl;
     deallog << std::endl;
     
@@ -324,17 +373,19 @@ int main()
     deallog << std::setprecision(8) << std::fixed;
     deallog.attach(logfile);
     
+    
     test_wave_solver<1>(-0.3, 1);
-    /*
+    
     test_wave_solver<1>(0.0, 1);
     test_wave_solver<1>(0.0, 2);
     test_wave_solver<1>(0.0, 3);
+    
     test_wave_solver<2>(0.0, 1);
     test_wave_solver<2>(0.0, 2);
     test_wave_solver<2>(0.0, 3);
     
     test_wave_solver<3>(0.0, 1);
     test_wave_solver<3>(0.0, 2);
-    */
+    
     return 0;
 }
