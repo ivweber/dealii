@@ -264,8 +264,8 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     tstep_noninvert *= -0.5 * dt * dt;
     tstep_noninvert.add(1.0, mass);
     
-    VectorTools::project(mapping_h, dof, constraints, quadrature, wave, sol_curr);
-    VectorTools::project(mapping_h, dof, constraints, quadrature, wave_tdev, sol_prev);
+    VectorTools::project(mapping_h, dof, constraints, quadrature, wave, sol_curr, false, face_quadrature, true);
+    VectorTools::project(mapping_h, dof, constraints, quadrature, wave_tdev, sol_prev, false, face_quadrature, true);
     
     std::map<types::global_dof_index, double> boundary_values;
     
