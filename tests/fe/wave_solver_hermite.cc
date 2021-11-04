@@ -42,7 +42,9 @@
 
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_hermite.h>
+#include <deal.II/fe/mapping_q.h>
 #include <deal.II/fe/fe_hermite.h>
+#include <deal.II/fe/fe_q.h>
 
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/vector_tools.h>
@@ -162,7 +164,7 @@ get_cfl_number(const unsigned int regularity)
 }
 
 template <int dim> double
-l2_error(const MappingHermite<dim> & mapping,
+l2_error(const Mapping<dim> &        mapping,
          const DoFHandler<dim> &         dof,
          const Quadrature<dim> &  quadrature,
          const Function<dim> &      solution,
@@ -192,7 +194,7 @@ l2_error(const MappingHermite<dim> & mapping,
 }
 
 template <int dim> void
-print_to_vtu(const MappingHermite<dim> & mapping,
+print_to_vtu(const Mapping<dim> & mapping,
              const DoFHandler<dim> & dof,
              const Vector<double> & sol,
              const double time,
@@ -228,9 +230,14 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     double dx = (x_right - x_left) / divisions;
     double dt = dx * get_cfl_number<dim>(regularity);
     double final_time = 4.0;
-    
+#define YES_HERMITE 1
+#if YES_HERMITE
     MappingHermite<dim> mapping_h;
     FE_Hermite<dim> fe_h(regularity);
+#else
+    MappingQ<dim> mapping_h(1);
+    FE_Q<dim> fe_h(2*regularity + 1);
+#endif
     dof.distribute_dofs(fe_h);
     
     AffineConstraints<double> constraints;
