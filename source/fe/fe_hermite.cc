@@ -31,6 +31,7 @@
 #include <memory>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -1252,6 +1253,87 @@ namespace VectorTools
     {
         template <int dim, int spacedim = dim, typename Number = double>
         void
+        get_constrained_hermite_boundary_dofs(const DoFHandler<dim, spacedim> &                                      dof_handler,
+                                              const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
+                                              const unsigned int                                                     position,
+                                              std::vector<types::global_dof_index> &                                 dof_to_boundary,
+                                              types::global_dof_index &                                              no_constrained_dofs)
+        {
+            AssertDimension(dof_handler.n_dofs(), dof_to_boundary.size());
+            std::fill_n(dof_to_boundary.begin(), dof_handler.n_dofs(), numbers::invalid_dof_index);
+            
+            //Create a look-up table for finding constrained dofs on all 4 or six faces of reference cell
+            //TODO: Rewrite so it doesn't assume dim <= 3
+            const unsigned int degree = dof_handler.get_fe().degree;
+            const unsigned int regularity = ((dim == 2) ? 
+                                             std::sqrt(dof_handler.get_fe().n_dofs_per_vertex()) : 
+                                             std::cbrt(dof_handler.get_fe().n_dofs_per_vertex()) ) - 1;
+            const unsigned int dofs_per_face = dof_handler.get_fe().n_dofs_per_face();
+            const unsigned int constrained_dofs_per_face = dofs_per_face / (regularity + 1);
+            
+            AssertDimension(dofs_per_face, (regularity + 1) * std::pow(degree + 1, dim - 1));
+            
+            std::vector<types::global_dof_index> dofs_on_face(dofs_per_face);
+            Table<2, double> constrained_to_local_indices(2 * dim, constrained_dofs_per_face);
+            
+            //Use knowledge of the local degree numbering for this version, saving expensive calls to reinit
+            const std::vector<unsigned int> l2h = dealii::internal::hermite_lexicographic_to_hierarchic_numbering<dim>(regularity, degree - 2*regularity - 1);
+            const auto test_cell = dof_handler.begin();
+
+            for (unsigned int d = 0, batch_size = 1; d < dim; ++d, batch_size *= degree+1)
+                for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
+                {
+                    const unsigned int local_index = i % batch_size;
+                    const unsigned int batch_index = i / batch_size;
+                    
+                    unsigned int index = local_index + (batch_index * (regularity + 1) + position) * batch_size;
+                    Assert(index < dofs_per_face, ExcDimensionMismatch(index, dofs_per_face));
+                
+                    test_cell->face(2*d)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
+                    constrained_to_local_indices(2*d, i) = l2h[index];//dofs_on_face[index];
+                
+                    test_cell->face(2*d + 1)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
+                    constrained_to_local_indices(2*d + 1,i) = l2h[index];//dofs_on_face[index];
+                }
+
+            std::set<types::boundary_id> selected_boundary_components;
+            for (auto i = boundary_functions.cbegin(); i != boundary_functions.cend(); ++i)
+                selected_boundary_components.insert(i->first);
+            
+            Assert(selected_boundary_components.find(numbers::internal_face_boundary_id) ==
+                    selected_boundary_components.end(), DoFTools::ExcInvalidBoundaryIndicator());
+            
+            no_constrained_dofs = 0;
+            
+            for (const auto &cell : dof_handler.active_cell_iterators())
+                for (const unsigned int f : cell->face_indices())
+                {
+                    AssertDimension(cell->get_fe().n_dofs_per_face(f), dofs_on_face.size());
+                    
+                    //Check if face is on selected boundary section
+                    if (selected_boundary_components.find(cell->face(f)->boundary_id()) !=
+                        selected_boundary_components.end())
+                    {
+                        cell->face(f)->get_dof_indices(dofs_on_face, cell->active_fe_index());
+                        
+                        for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
+                        {
+                            const types::global_dof_index index = dofs_on_face[constrained_to_local_indices(f, i)];
+                            Assert(index < dof_to_boundary.size(), ExcDimensionMismatch(index, dof_to_boundary.size()));
+                            
+                            if (dof_to_boundary[index] == numbers::invalid_dof_index)
+                                dof_to_boundary[index] = no_constrained_dofs++;
+                        }
+                    }
+                }
+            
+            Assert((no_constrained_dofs != dof_handler.n_boundary_dofs(boundary_functions)) || (regularity == 0),
+                   ExcInternalError());
+        }
+                                
+        
+        template <int dim, int spacedim = dim, typename Number = double>
+        void
         do_hermite_direct_projection(const MappingHermite<dim, spacedim> &                             mapping_h,
                                 const DoFHandler<dim, spacedim> &                                      dof_handler,
                                 const std::map<types::boundary_id, const Function<spacedim, Number>*> &boundary_functions,
@@ -1295,7 +1377,6 @@ namespace VectorTools
             }
             
             //dim=2 or higher, needs actual projection
-            //TODO: This code generates a floating point error that crashes the test, specifically for dim=2, regularity=0
             if (component_mapping.size() == 0)
             {
                 AssertDimension(dof_handler.get_fe().n_components(), boundary_functions.begin()->second->n_components);
@@ -1305,94 +1386,21 @@ namespace VectorTools
             }
             else AssertDimension(component_mapping.size(), dof_handler.get_fe().n_components());
             
-            //Create a look-up table for finding constrained dofs on all 4 or six faces of reference cell
-                //Need some way to find the dofs of shape functions with the required non-zero component here
-            //TODO: Rewrite so it doesn't assume dim <= 3
-            const unsigned int degree = dof_handler.get_fe().degree;
-            const unsigned int regularity = ((dim == 2) ? 
-                                             std::sqrt(dof_handler.get_fe().n_dofs_per_vertex()) : 
-                                             std::cbrt(dof_handler.get_fe().n_dofs_per_vertex())   ) - 1;
-            
-            const auto test_cell = dof_handler.begin();
-            const unsigned int dofs_per_face = test_cell->get_fe().n_dofs_per_face();
-            const unsigned int constrained_dofs_per_face = dofs_per_face / (regularity + 1);
-            
-            AssertDimension(dofs_per_face, (regularity + 1) * std::pow(degree + 1, dim - 1));
-            std::vector<types::global_dof_index> dofs_on_face(dofs_per_face);
-                        
-            Table<2, double> constrained_to_local_indices(2 * dim, constrained_dofs_per_face);
-            
-//Use knowledge of the local degree numbering for this version, saving expensive calls to reinit
-            std::vector<unsigned int> l2h = dealii::internal::hermite_lexicographic_to_hierarchic_numbering<dim>(regularity, degree - 2*regularity - 1);
-
-            unsigned int batch_size = 1;
-            for (unsigned int d = 0; d < dim; ++d)
-            {
-                for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
-                {
-                    const unsigned int local_index = i % batch_size;
-                    const unsigned int batch_index = i / batch_size;
-                    
-                    unsigned int index = local_index + (batch_index * (regularity + 1) + position) * batch_size;
-                    Assert(index < dofs_per_face, ExcDimensionMismatch(index, dofs_per_face));
-                
-                    test_cell->face(2*d)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
-                    constrained_to_local_indices(2*d, i) = l2h[index];//dofs_on_face[index];
-                
-                    test_cell->face(2*d + 1)->get_dof_indices(dofs_on_face, test_cell->active_fe_index());
-                    constrained_to_local_indices(2*d + 1,i) = l2h[index];//dofs_on_face[index];
-                }
-                
-                batch_size *= degree + 1;
-            }
-
-            std::set<types::boundary_id> selected_boundary_components;
-            for (auto i = boundary_functions.cbegin(); i != boundary_functions.cend(); ++i)
-                selected_boundary_components.insert(i->first);
-            
-            Assert(selected_boundary_components.find(numbers::internal_face_boundary_id) ==
-                    selected_boundary_components.end(), DoFTools::ExcInvalidBoundaryIndicator());
-            
             std::vector<types::global_dof_index> dof_to_boundary_mapping(dof_handler.n_dofs(), numbers::invalid_dof_index);
-            types::global_dof_index next_boundary_index = 0;
+            types::global_dof_index next_boundary_index;
             
-            for (const auto &cell : dof_handler.active_cell_iterators())
-            {
-                for (const unsigned int f : cell->face_indices())
-                {
-                    AssertDimension(cell->get_fe().n_dofs_per_face(f), dofs_on_face.size());
-                    
-                    //Check if face is on selected boundary section
-                    if (selected_boundary_components.find(cell->face(f)->boundary_id()) !=
-                        selected_boundary_components.end())
-                    {
-                        cell->face(f)->get_dof_indices(dofs_on_face, cell->active_fe_index());
-                        
-                        for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
-                        {
-                            const types::global_dof_index index = dofs_on_face[constrained_to_local_indices(f, i)];
-                            Assert(index < dof_to_boundary_mapping.size(), ExcDimensionMismatch(index, dof_to_boundary_mapping.size()));
-                            
-                            if (dof_to_boundary_mapping[index] == numbers::invalid_dof_index)
-                                dof_to_boundary_mapping[index] = next_boundary_index++;
-                        }
-                    }
-                }
-            }
-            
-            if (!next_boundary_index) return;
-            Assert((next_boundary_index != dof_handler.n_boundary_dofs(boundary_functions)) || (regularity == 0),
-                   ExcInternalError());
-            
-            DynamicSparsityPattern dsp(next_boundary_index, next_boundary_index);
-            //Following call generates exception for 2D, 3D and regularity >= 1
-            DoFTools::make_boundary_sparsity_pattern(dof_handler,
-                                                     boundary_functions,
-                                                     dof_to_boundary_mapping,
-                                                     dsp);
+            get_constrained_hermite_boundary_dofs(dof_handler, boundary_functions, position, dof_to_boundary_mapping, next_boundary_index);
             
             SparsityPattern sparsity;
-            sparsity.copy_from(dsp);
+            {
+                DynamicSparsityPattern dsp(next_boundary_index, next_boundary_index);
+                DoFTools::make_boundary_sparsity_pattern(dof_handler,
+                                                         boundary_functions,
+                                                         dof_to_boundary_mapping,
+                                                         dsp);
+            
+                sparsity.copy_from(dsp);
+            }
             
             //Assert mesh is not partially refined
             //TODO: Add functionality on partially refined meshes
@@ -1546,13 +1554,132 @@ namespace VectorTools
             const Quadrature<dim> &                                   quadrature,
             const Function<spacedim, typename VectorType::value_type> &function,
             VectorType &                                               vec,
-            const bool                 enforce_zero_boundary     = false,
-            const Quadrature<dim - 1> &q_boundary                = (dim > 1 ?
-                                                       QGauss<dim - 1>(2) :
-                                                       Quadrature<dim - 1>(0)),
+            const bool                 enforce_zero_boundary,
+            const Quadrature<dim - 1> &q_boundary,
             const bool                 project_to_boundary_first = false)
     {
+        using number = typename VectorType::value_type;
+        Assert((dynamic_cast<const FE_Hermite<dim, spacedim>*>( &dof.get_fe() ) != nullptr),
+               ExcMessage("The project function with the MappingHermite mapping class "
+                          "should only be used with a DoF handler associated with an "
+                          "FE_Hermite object with the same dim and spacedim as the mapping."));
+        Assert(dof.get_fe(0).n_components() == function.n_components,
+               ExcDimensionMismatch(dof.get_fe(0).n_components(),
+                                    function.n_components));
+        Assert(vec.size() == dof.n_dofs(),
+               ExcDimensionMismatch(vec.size(), dof.n_dofs()));
         
+        // make up boundary values
+        std::map<types::global_dof_index, number> boundary_values;
+        const std::vector<types::boundary_id> active_boundary_ids = dof.get_triangulation().get_boundary_ids();
+        
+        if (enforce_zero_boundary)
+        {
+            std::map<types::boundary_id, Function<spacedim, number>*> boundary;
+            for (const auto it : active_boundary_ids)
+                boundary.emplace(std::make_pair(it, nullptr));
+            
+            std::vector<types::global_dof_index> dof_to_boundary(dof_handler.n_dofs(), numbers::invalid_dof_index);
+            types::global_dof_index end_boundary_dof = 0;
+            
+            internal::get_constrained_hermite_boundary_dofs(dof_handler, boundary, 0, dof_to_boundary, end_boundary_dof);
+            
+            if (end_boundary_dof == 0) break;
+            
+            for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i)
+                if (dof_to_boundary[i] != numbers::invalid_dof_index)
+                    boundary_values.emplace(std::make_pair(i, 0));
+        }
+        else if (project_to_boundary_first)
+        {
+            std::map<types::boundary_id, Function<spacedim, number>*> boundary_function;
+            for (const auto it : active_boundary_ids)
+                boundary_function.emplace(std::make_pair(it, &function));
+            
+            project_boundary_values<dim, spacedim, number>(mapping,
+                                                           dof,
+                                                           boundary_function,
+                                                           q_boundary,
+                                                           HermiteBoundaryType::hermite_dirichlet,
+                                                           boundary_values);
+        }
+        
+        // check if constraints are compatible (see below)
+        bool constraints_are_compatible = true;
+        for (const auto &value : boundary_values)
+            if (constraints.is_constrained(value.first())
+                if ((constraints.get_constraint_entries(value.first())->size > 0) &&
+                    (constraints.get_inhomogeneity(value.first()) != value.second))
+                    constraints_are_compatible = false;
+        
+        //TODO: Continue re-writing function from here!
+        //TODO: resolve confusion about vec and vec_result
+                
+        // set up mass matrix and right hand side
+        Vector<number>  vec(dof.n_dofs());
+        SparsityPattern sparsity;
+        
+        {
+            DynamicSparsityPattern dsp(dof.n_dofs(), dof.n_dofs());
+            DoFTools::make_sparsity_pattern(dof,
+                                            dsp,
+                                            constraints,
+                                            !constraints_are_compatible);
+
+            sparsity.copy_from(dsp);
+        }
+        
+        SparseMatrix<number> mass_matrix(sparsity);
+        Vector<number>       tmp(mass_matrix.n());
+
+        // If the constraints object does not conflict with the given boundary
+        // values (i.e., it either does not contain boundary values or it contains
+        // the same as boundary_values), we can let it call
+        // distribute_local_to_global straight away, otherwise we need to first
+        // interpolate the boundary values and then condense the matrix and vector
+        if (constraints_are_compatible)
+        {
+            const Function<spacedim, number> *dummy = nullptr;
+            MatrixCreator::create_mass_matrix(mapping,
+                                              dof,
+                                              quadrature,
+                                              mass_matrix,
+                                              function,
+                                              tmp,
+                                              dummy,
+                                              constraints);
+            
+            if (boundary_values.size() > 0)
+                MatrixTools::apply_boundary_values(boundary_values, mass_matrix, vec, tmp, true);
+        }
+        else
+        {
+            // create mass matrix and rhs at once, which is faster.
+            MatrixCreator::create_mass_matrix(mapping, dof, quadrature, mass_matrix, function, tmp);
+            MatrixTools::apply_boundary_values(boundary_values, mass_matrix, vec, tmp, true);
+            constraints.condense(mass_matrix, tmp);
+        }
+
+        // Allow for a maximum of 5*n steps to reduce the residual by 10^-12. n
+        // steps may not be sufficient, since roundoff errors may accumulate for
+        // badly conditioned matrices
+        ReductionControl control(5 * tmp.size(), 0., 1e-12, false, false);
+        GrowingVectorMemory<Vector<number>> memory;
+        SolverCG<Vector<number>>            cg(control, memory);
+
+        PreconditionSSOR<SparseMatrix<number>> prec;
+        prec.initialize(mass_matrix, 1.2);
+
+        cg.solve(mass_matrix, vec, tmp, prec);
+        constraints.distribute(vec);
+
+        // copy vec into vec_result. we can't use vec_result itself above, since
+        // it may be of another type than Vector<double> and that wouldn't
+        // necessarily go together with the matrix and other functions
+        for (unsigned int i = 0; i < vec.size(); ++i)
+            ::dealii::internal::ElementAccess<VectorType>::set(vec(i),
+                                                               i,
+                                                               vec_result);
     }
 } //namespace VectorTools
 
