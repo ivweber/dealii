@@ -127,3 +127,36 @@ template void VectorTools::project_boundary_values<3,3,double>(
     const HermiteBoundaryType                                       projection_mode,
     std::map<types::global_dof_index, double> &                     boundary_values,
     std::vector<unsigned int>                                       component_mapping);
+
+template void VectorTools::project(
+    const MappingHermite<1> &                     mapping,
+    const DoFHandler<1> &                         dof,
+    const AffineConstraints<Vector<double>::value_type> &constraints,
+    const Quadrature<1> &                                   quadrature,
+    const Function<1, Vector<double>::value_type> &function,
+    Vector<double> &                                               vec,
+    const bool                 enforce_zero_boundary,
+    const Quadrature<0> &q_boundary,
+    const bool                 project_to_boundary_first);
+    
+    template void VectorTools::project(
+    const MappingHermite<2> &                     mapping,
+    const DoFHandler<2> &                         dof,
+    const AffineConstraints<Vector<double>::value_type> &constraints,
+    const Quadrature<2> &                                   quadrature,
+    const Function<2, Vector<double>::value_type> &function,
+    Vector<double> &                                               vec,
+    const bool                 enforce_zero_boundary,
+    const Quadrature<1> &q_boundary,
+    const bool                 project_to_boundary_first);
+    
+    template void VectorTools::project(
+    const MappingHermite<3> &                     mapping,
+    const DoFHandler<3> &                         dof,
+    const AffineConstraints<Vector<double>::value_type> &constraints,
+    const Quadrature<3> &                                   quadrature,
+    const Function<3, Vector<double>::value_type> &function,
+    Vector<double> &                                               vec,
+    const bool                 enforce_zero_boundary,
+    const Quadrature<2> &q_boundary,
+    const bool                 project_to_boundary_first);

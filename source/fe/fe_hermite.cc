@@ -1556,7 +1556,7 @@ namespace VectorTools
             VectorType &                                               vec,
             const bool                 enforce_zero_boundary,
             const Quadrature<dim - 1> &q_boundary,
-            const bool                 project_to_boundary_first = false)
+            const bool                 project_to_boundary_first)
     {
         using number = typename VectorType::value_type;
         Assert((dynamic_cast<const FE_Hermite<dim, spacedim>*>( &dof.get_fe() ) != nullptr),
@@ -1575,30 +1575,35 @@ namespace VectorTools
         
         if (enforce_zero_boundary)
         {
-            std::map<types::boundary_id, Function<spacedim, number>*> boundary;
+            std::map<types::boundary_id, const Function<spacedim, number>*> boundary;
             for (const auto it : active_boundary_ids)
                 boundary.emplace(std::make_pair(it, nullptr));
             
-            std::vector<types::global_dof_index> dof_to_boundary(dof_handler.n_dofs(), numbers::invalid_dof_index);
+            const std::map<types::boundary_id, const Function<spacedim, number>* > new_boundary = 
+                static_cast<const std::map<types::boundary_id, const Function<spacedim, number>*>>(boundary);
+            
+            std::vector<types::global_dof_index> dof_to_boundary(dof.n_dofs(), numbers::invalid_dof_index);
             types::global_dof_index end_boundary_dof = 0;
             
-            internal::get_constrained_hermite_boundary_dofs(dof_handler, boundary, 0, dof_to_boundary, end_boundary_dof);
+            internal::get_constrained_hermite_boundary_dofs(dof, new_boundary, 0, dof_to_boundary, end_boundary_dof);
             
-            if (end_boundary_dof == 0) break;
-            
-            for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i)
-                if (dof_to_boundary[i] != numbers::invalid_dof_index)
-                    boundary_values.emplace(std::make_pair(i, 0));
+            if (end_boundary_dof != 0)            
+                for (types::global_dof_index i = 0; i < dof.n_dofs(); ++i)
+                    if (dof_to_boundary[i] != numbers::invalid_dof_index)
+                        boundary_values.emplace(std::make_pair(i, 0));
         }
         else if (project_to_boundary_first)
         {
-            std::map<types::boundary_id, Function<spacedim, number>*> boundary_function;
+            std::map<types::boundary_id, const Function<spacedim, number>*> boundary_function;
             for (const auto it : active_boundary_ids)
                 boundary_function.emplace(std::make_pair(it, &function));
+            //TODO: Why is this line causing bugs when the previous one works fine?! ARGH!
+            const std::map<types::boundary_id, const Function<spacedim, number>* > new_boundary_2 =
+                static_cast<const std::map< types::boundary_id, const Function<spacedim, number>* >>(boundary_function);
             
             project_boundary_values<dim, spacedim, number>(mapping,
                                                            dof,
-                                                           boundary_function,
+                                                           new_boundary_2,
                                                            q_boundary,
                                                            HermiteBoundaryType::hermite_dirichlet,
                                                            boundary_values);
@@ -1607,16 +1612,13 @@ namespace VectorTools
         // check if constraints are compatible (see below)
         bool constraints_are_compatible = true;
         for (const auto &value : boundary_values)
-            if (constraints.is_constrained(value.first())
-                if ((constraints.get_constraint_entries(value.first())->size > 0) &&
-                    (constraints.get_inhomogeneity(value.first()) != value.second))
+            if (constraints.is_constrained(value.first))
+                if ((constraints.get_constraint_entries(value.first)->size() > 0) &&
+                    (constraints.get_inhomogeneity(value.first) != value.second))
                     constraints_are_compatible = false;
-        
-        //TODO: Continue re-writing function from here!
-        //TODO: resolve confusion about vec and vec_result
                 
         // set up mass matrix and right hand side
-        Vector<number>  vec(dof.n_dofs());
+        Vector<number>  vec_result(dof.n_dofs());
         SparsityPattern sparsity;
         
         {
@@ -1650,13 +1652,13 @@ namespace VectorTools
                                               constraints);
             
             if (boundary_values.size() > 0)
-                MatrixTools::apply_boundary_values(boundary_values, mass_matrix, vec, tmp, true);
+                MatrixTools::apply_boundary_values(boundary_values, mass_matrix, vec_result, tmp, true);
         }
         else
         {
             // create mass matrix and rhs at once, which is faster.
             MatrixCreator::create_mass_matrix(mapping, dof, quadrature, mass_matrix, function, tmp);
-            MatrixTools::apply_boundary_values(boundary_values, mass_matrix, vec, tmp, true);
+            MatrixTools::apply_boundary_values(boundary_values, mass_matrix, vec_result, tmp, true);
             constraints.condense(mass_matrix, tmp);
         }
 
@@ -1670,16 +1672,16 @@ namespace VectorTools
         PreconditionSSOR<SparseMatrix<number>> prec;
         prec.initialize(mass_matrix, 1.2);
 
-        cg.solve(mass_matrix, vec, tmp, prec);
-        constraints.distribute(vec);
+        cg.solve(mass_matrix, vec_result, tmp, prec);
+        constraints.distribute(vec_result);
 
-        // copy vec into vec_result. we can't use vec_result itself above, since
+        // copy vec_result into vec. we can't use vec itself above, since
         // it may be of another type than Vector<double> and that wouldn't
         // necessarily go together with the matrix and other functions
         for (unsigned int i = 0; i < vec.size(); ++i)
-            ::dealii::internal::ElementAccess<VectorType>::set(vec(i),
+            ::dealii::internal::ElementAccess<VectorType>::set(vec_result(i),
                                                                i,
-                                                               vec_result);
+                                                               vec);
     }
 } //namespace VectorTools
 
