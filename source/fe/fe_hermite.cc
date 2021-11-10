@@ -1665,7 +1665,7 @@ namespace VectorTools
         // Allow for a maximum of 5*n steps to reduce the residual by 10^-12. n
         // steps may not be sufficient, since roundoff errors may accumulate for
         // badly conditioned matrices
-        ReductionControl control(5 * tmp.size(), 0., 1e-12, false, false);
+        ReductionControl control(5 * tmp.size(), 0., 1e-8, false, false);
         GrowingVectorMemory<Vector<number>> memory;
         SolverCG<Vector<number>>            cg(control, memory);
 
