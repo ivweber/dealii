@@ -381,14 +381,14 @@ int main()
     deallog.attach(logfile);
     
     
-    test_wave_solver<1>(-0.3, 1);
+    /*test_wave_solver<1>(-0.3, 1);
     
     test_wave_solver<1>(0.0, 1);
     test_wave_solver<1>(0.0, 2);
     test_wave_solver<1>(0.0, 3);
     
     test_wave_solver<2>(0.0, 1);
-    test_wave_solver<2>(0.0, 2);
+    test_wave_solver<2>(0.0, 2);*/
     test_wave_solver<2>(0.0, 3);
     
     test_wave_solver<3>(0.0, 1);
