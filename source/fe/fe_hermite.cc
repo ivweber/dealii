@@ -22,6 +22,7 @@
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/solver_control.h>
 #include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/sparse_direct.h>
 #include <deal.II/lac/precondition.h>
 
 #include <deal.II/numerics/matrix_tools.h>
@@ -1442,7 +1443,8 @@ namespace VectorTools
           // Allow for a maximum of 5*n steps to reduce the residual by 10^-12.
           // n steps may not be sufficient, since roundoff errors may accumulate
           // for badly conditioned matrices
-          ReductionControl control(5 * rhs.size(), 0., 1e-12, false, false);
+          /*
+            ReductionControl control(5 * rhs.size(), 0., 1e-12, false, false);
           GrowingVectorMemory<Vector<Number>> memory;
           SolverCG<Vector<Number>>            cg(control, memory);
 
@@ -1450,8 +1452,11 @@ namespace VectorTools
           prec.initialize(mass_matrix, 1.2);
 
           cg.solve(mass_matrix, boundary_projection, rhs, prec);
-          
           deallog << "Number of CG iterations in project boundary values: " << control.last_step() << std::endl;
+          */
+          SparseDirectUMFPACK mass_inv;
+          mass_inv.initialize(mass_matrix);
+          mass_inv.vmult(boundary_projection, rhs);
         }
       // fill in boundary values
       for (unsigned int i = 0; i < dof_to_boundary_mapping.size(); ++i)
@@ -1665,7 +1670,8 @@ namespace VectorTools
         // Allow for a maximum of 5*n steps to reduce the residual by 10^-12. n
         // steps may not be sufficient, since roundoff errors may accumulate for
         // badly conditioned matrices
-        ReductionControl control(5 * tmp.size(), 0., 1e-8, false, false);
+        /*
+        ReductionControl control(5 * tmp.size(), 1e-8, 1e-8, false, false);
         GrowingVectorMemory<Vector<number>> memory;
         SolverCG<Vector<number>>            cg(control, memory);
 
@@ -1673,6 +1679,12 @@ namespace VectorTools
         prec.initialize(mass_matrix, 1.2);
 
         cg.solve(mass_matrix, vec_result, tmp, prec);
+        */
+        
+        SparseDirectUMFPACK eggmans_announcement;
+        eggmans_announcement.initialize(mass_matrix);
+        eggmans_announcement.vmult(vec_result, tmp);
+        
         constraints.distribute(vec_result);
 
         // copy vec_result into vec. we can't use vec itself above, since
