@@ -56,6 +56,7 @@
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/sparse_direct.h>
 
 using namespace dealii;
 
@@ -225,7 +226,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     DoFHandler<dim> dof(tr);
     
     double x_left = 0.0, x_right = 3.0;
-    int divisions = 4;
+    int divisions = 2;
     GridGenerator::subdivided_hyper_cube(tr, divisions, x_left, x_right);
     double dx = (x_right - x_left) / divisions;
     double dt = dx * get_cfl_number<dim>(regularity);
@@ -279,9 +280,11 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     std::map<types::boundary_id, const Function<dim>*> boundary_functions;
     boundary_functions.emplace(std::make_pair(0U, &wave));
     if (dim == 1) boundary_functions.emplace(std::make_pair(1U, &wave));
-    
+    /*
     IterationNumberControl solver_control(3500, 1e-11);
     SolverCG<> solver_wave(solver_control);
+    */
+    SparseDirectUMFPACK mass_inv;
     
     std::vector<double> l2_errors;
     double max_error;
@@ -305,7 +308,9 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     
     mass_solve.copy_from(mass);
     MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp);
-    solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
+    //solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
+    mass_inv.initialize(mass_solve);
+    mass_inv.vmult(sol_next, temp);
     
     sol_prev = sol_curr;
     sol_curr = sol_next;
@@ -334,7 +339,9 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
         
         mass_solve.copy_from(mass);
         MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp);
-        solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
+        //solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
+        mass_inv.initialize(mass_solve);
+        mass_inv.vmult(sol_next, temp);
         
         sol_prev = sol_curr;
         sol_curr = sol_next;
@@ -381,14 +388,14 @@ int main()
     deallog.attach(logfile);
     
     
-    /*test_wave_solver<1>(-0.3, 1);
+    test_wave_solver<1>(-0.3, 1);
     
     test_wave_solver<1>(0.0, 1);
     test_wave_solver<1>(0.0, 2);
     test_wave_solver<1>(0.0, 3);
     
     test_wave_solver<2>(0.0, 1);
-    test_wave_solver<2>(0.0, 2);*/
+    test_wave_solver<2>(0.0, 2);
     test_wave_solver<2>(0.0, 3);
     
     test_wave_solver<3>(0.0, 1);
