@@ -12,12 +12,13 @@
  * This allows both the use of boundary projection and initial projectiion
  * for both value and derivatives to be tested.
  * 
- * Solution uses y = x-t-0.5 as a local coordinate and is as follows:
- * (100/3)y^2 - (2000/27)y^3            y in [0  , 0.3]
- * -4 + 40y - 100y^2 + (2000/27)y^3     y in [0.3, 0.6]
- * 0                                    otherwise
- * The right-most tail of the wave is already in the domain at t=0, but
- * can be excluded by setting the initial time to less that -0.1.
+ * Solution uses y = x-t-0.5 as a local coordinate and has the Gaussian
+ * bell shape:
+ * 
+ * u(x,t) = exp(-a y^2)
+ * 
+ * where a is some predefined constant. The right-most tail of the wave 
+ * is already in the domain at t=0.
  */
 
 #include <cmath>
@@ -62,18 +63,19 @@ using namespace dealii;
 
 #define ZERO_BOUNDARY_TEST 1
 
-double alpha = 40;
-
 template <int dim>
 class Solution : public Function<dim>
 {    
 private:
     double current_time = 0;
+    bool zero_boundary = false;
     
 public:
-    Solution() = default;
+    double alpha = 40;
+    
     Solution(const Solution &sol) = default;
-    Solution(double initial_time) : current_time(initial_time) {};
+    Solution(double initial_time = 0, double alpha = 40, bool boundary = false) : 
+        current_time(initial_time), zero_boundary(boundary), alpha(alpha) {};
     
     double inline 
     update_time(double time_step)
@@ -87,36 +89,29 @@ public:
         return this->current_time;
     }
     
+    bool inline
+    is_boundary_zero() const
+    {
+        return this->zero_boundary;
+    }
+    
     virtual double 
     value(const Point<dim> &p, const unsigned int component = 0) const override
     {
         (void)component;
-/*#if ZERO_BOUNDARY_TEST
-        double return_val = 1.;
-        for (unsigned int i = 0; i < dim; ++i)
-            return_val *= std::sin( numbers::PI * p(i) );
-        return_val *= std::cos( numbers::PI * std::sqrt(dim) * this->current_time );
-        return return_val;
-#else
-        double y = p(0) + 0.5 - this->current_time;
-        y *= 10.0/3.0;
-        double output = 0;
-        int ind = std::floor(y);
-        switch (ind)
+        if (zero_boundary)
         {
-            case 0:
-                output = y * y * (3 - 2 * y);
-                break;
-            case 1:
-                output = -4 + y*(12 - y*(9 - 2*y));
-                break;
-            default:
-                break;
+            double return_val = 1.;
+            for (unsigned int i = 0; i < dim; ++i)
+                return_val *= std::sin( numbers::PI * p(i) );
+            return_val *= std::cos( numbers::PI * std::sqrt(dim) * current_time );
+            return return_val;
         }
-        return output;
-#endif*/
-        double y = p(0) + 0.5 - this->current_time;
-        return std::exp(-alpha*y*y);
+        else
+        {
+            double y = p(0) + 0.5 - current_time;
+            return std::exp(-alpha*y*y);
+        }
     }
 };
 
@@ -134,38 +129,26 @@ public:
     value(const Point<dim> &p, const unsigned int component = 0) const override
     {
         (void)component;
-/*#if ZERO_BOUNDARY_TEST
-        double return_val = - numbers::PI * std::sqrt(dim);
-        for (unsigned int i = 0; i < dim; ++i)
-            return_val *= std::sin( numbers::PI * p(i) );
-        return_val *= std::sin( numbers::PI * std::sqrt(dim) * this->parent_solution.get_time() );
-        return return_val;
-#else
-        double result = 0;
-        double y = p(0) + 0.5 - this->parent_solution.get_time();
-        y *= 10.0/3.0;
-        int ind = std::floor(y);
-        switch (ind)
+        if (parent_solution.is_boundary_zero())
         {
-            case 0:
-                result = 20.0 * y * (y - 1.0);
-                break;
-            case 1:
-                result = 20.0 * (-2.0 + y * (3.0 - y));
-                break;
-            default:
-                break;
+            double return_val = - numbers::PI * std::sqrt(dim);
+            for (unsigned int i = 0; i < dim; ++i)
+                return_val *= std::sin( numbers::PI * p(i) );
+            return_val *= std::sin( numbers::PI * std::sqrt(dim) * this->parent_solution.get_time() );
+            return return_val;
         }
-#endif*/
-        double y = p(0) + 0.5 - this->parent_solution.get_time();
-        return 2*alpha*y*std::exp(-alpha*y*y);
+        else
+        {
+            double y = p(0) + 0.5 - this->parent_solution.get_time();
+            return 2*(parent_solution.alpha)*y*std::exp(-(parent_solution.alpha)*y*y);
+        }
     }
 };
 
 template <int dim> double
 get_cfl_number(const unsigned int regularity)
 {
-    double c_eff = 1;
+    double c_eff = 1.0;
     return c_eff / (std::sqrt(12.0 * dim) * (regularity + 1));
 }
 
