@@ -60,7 +60,9 @@
 
 using namespace dealii;
 
-#define ZERO_BOUNDARY_TEST 0
+#define ZERO_BOUNDARY_TEST 1
+
+double alpha = 40;
 
 template <int dim>
 class Solution : public Function<dim>
@@ -89,7 +91,7 @@ public:
     value(const Point<dim> &p, const unsigned int component = 0) const override
     {
         (void)component;
-#if ZERO_BOUNDARY_TEST
+/*#if ZERO_BOUNDARY_TEST
         double return_val = 1.;
         for (unsigned int i = 0; i < dim; ++i)
             return_val *= std::sin( numbers::PI * p(i) );
@@ -112,7 +114,9 @@ public:
                 break;
         }
         return output;
-#endif
+#endif*/
+        double y = p(0) + 0.5 - this->current_time;
+        return std::exp(-alpha*y*y);
     }
 };
 
@@ -130,7 +134,7 @@ public:
     value(const Point<dim> &p, const unsigned int component = 0) const override
     {
         (void)component;
-#if ZERO_BOUNDARY_TEST
+/*#if ZERO_BOUNDARY_TEST
         double return_val = - numbers::PI * std::sqrt(dim);
         for (unsigned int i = 0; i < dim; ++i)
             return_val *= std::sin( numbers::PI * p(i) );
@@ -152,15 +156,16 @@ public:
             default:
                 break;
         }
-        return result;
-#endif
+#endif*/
+        double y = p(0) + 0.5 - this->parent_solution.get_time();
+        return 2*alpha*y*std::exp(-alpha*y*y);
     }
 };
 
 template <int dim> double
 get_cfl_number(const unsigned int regularity)
 {
-    double c_eff = 1.0;
+    double c_eff = 1;
     return c_eff / (std::sqrt(12.0 * dim) * (regularity + 1));
 }
 
@@ -203,12 +208,19 @@ print_to_vtu(const Mapping<dim> & mapping,
 {
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof);
+    DataOutBase::VtkFlags flags;
+    flags.write_higher_order_cells = true;
+    if(dim > 1)
+    data_out.set_flags(flags);
     
     std::stringstream solution_name, file_name;
     solution_name << std::setprecision(0) << std::fixed;
     solution_name << "Solution_at_t_" << time;
     data_out.add_data_vector(sol, solution_name.str());
+    if(dim == 1)
     data_out.build_patches(mapping, 29, DataOut<dim>::CurvedCellRegion::curved_inner_cells);
+    else
+    data_out.build_patches(mapping, dof.get_fe().degree, DataOut<dim>::CurvedCellRegion::curved_inner_cells);
     
     file_name << std::setprecision(2) << std::fixed;
     file_name << "wave_hermite_" << regularity << "_" << dim << "d_t" << time << ".vtu";
@@ -226,7 +238,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     DoFHandler<dim> dof(tr);
     
     double x_left = 0.0, x_right = 3.0;
-    int divisions = 2;
+    int divisions = 8;
     GridGenerator::subdivided_hyper_cube(tr, divisions, x_left, x_right);
     double dx = (x_right - x_left) / divisions;
     double dt = dx * get_cfl_number<dim>(regularity);
@@ -317,6 +329,19 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     sol_next = 0;
     boundary_values.clear();
     
+            VectorTools::project_boundary_values(mapping_h,
+                                             dof,
+                                             boundary_functions,
+                                             face_quadrature,
+                                             VectorTools::HermiteBoundaryType::hermite_dirichlet,
+                                             boundary_values);
+        
+        mass_solve.copy_from(mass);
+        MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp, true);
+        //solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
+        mass_inv.initialize(mass_solve);
+
+    
     l2_errors.emplace_back(l2_error<dim>(mapping_h, dof, quadrature, wave, sol_curr));
     max_error = std::max(max_error, *l2_errors.cend());
     
@@ -338,9 +363,9 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
                                              boundary_values);
         
         mass_solve.copy_from(mass);
-        MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp);
+        MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp, true);
         //solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
-        mass_inv.initialize(mass_solve);
+        //mass_inv.initialize(mass_solve);
         mass_inv.vmult(sol_next, temp);
         
         sol_prev = sol_curr;
@@ -387,7 +412,7 @@ int main()
     deallog << std::setprecision(8) << std::fixed;
     deallog.attach(logfile);
     
-    
+    /*
     test_wave_solver<1>(-0.3, 1);
     
     test_wave_solver<1>(0.0, 1);
@@ -395,11 +420,11 @@ int main()
     test_wave_solver<1>(0.0, 3);
     
     test_wave_solver<2>(0.0, 1);
-    test_wave_solver<2>(0.0, 2);
+    test_wave_solver<2>(0.0, 2);*/
     test_wave_solver<2>(0.0, 3);
     
-    test_wave_solver<3>(0.0, 1);
-    test_wave_solver<3>(0.0, 2);
+    //test_wave_solver<3>(0.0, 1);
+   // test_wave_solver<3>(0.0, 2);
     
     return 0;
 }
