@@ -4,7 +4,7 @@
  * correctly. Uses a manufactured solution of a plane wave
  * entering the domain at x=0 and leaving at x=3.
  * 
- * To avoid derivative discontinuities, use a Hermite polynomial
+ * To avoid derivative discontinuities, use a Gaussian bell curve
  * to define the wavefront's profile.
  * 
  * Solution is chosen so that initial conditions are not uniformly zero
@@ -55,27 +55,17 @@
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/precondition.h>
-#include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/sparse_direct.h>
 
 using namespace dealii;
 
-#define ZERO_BOUNDARY_TEST 1
-
 template <int dim>
 class Solution : public Function<dim>
-{    
-private:
-    double current_time = 0;
-    bool zero_boundary = false;
-    
+{
 public:
-    double alpha = 40;
-    
     Solution(const Solution &sol) = default;
     Solution(double initial_time = 0, double alpha = 40, bool boundary = false) : 
-        current_time(initial_time), zero_boundary(boundary), alpha(alpha) {};
+        alpha(alpha), current_time(initial_time), zero_boundary(boundary) {};
     
     double inline 
     update_time(double time_step)
@@ -113,14 +103,17 @@ public:
             return std::exp(-alpha*y*y);
         }
     }
+    
+    double alpha;
+    
+private:
+    double current_time;
+    bool zero_boundary;
 };
 
 template <int dim>
 class Solution_derivative : public Function<dim>
 {
-private:
-    Solution<dim> parent_solution;
-    
 public:
     Solution_derivative() = delete;
     Solution_derivative(const Solution<dim> & parent) : parent_solution(parent) {};
@@ -143,6 +136,9 @@ public:
             return 2*(parent_solution.alpha)*y*std::exp(-(parent_solution.alpha)*y*y);
         }
     }
+    
+private:
+    Solution<dim> parent_solution;
 };
 
 template <int dim> double
@@ -183,38 +179,6 @@ l2_error(const Mapping<dim> &        mapping,
 }
 
 template <int dim> void
-print_to_vtu(const Mapping<dim> & mapping,
-             const DoFHandler<dim> & dof,
-             const Vector<double> & sol,
-             const double time,
-             const unsigned int regularity)
-{
-    DataOut<dim> data_out;
-    data_out.attach_dof_handler(dof);
-    DataOutBase::VtkFlags flags;
-    flags.write_higher_order_cells = true;
-    if(dim > 1)
-    data_out.set_flags(flags);
-    
-    std::stringstream solution_name, file_name;
-    solution_name << std::setprecision(0) << std::fixed;
-    solution_name << "Solution_at_t_" << time;
-    data_out.add_data_vector(sol, solution_name.str());
-    if(dim == 1)
-    data_out.build_patches(mapping, 29, DataOut<dim>::CurvedCellRegion::curved_inner_cells);
-    else
-    data_out.build_patches(mapping, dof.get_fe().degree, DataOut<dim>::CurvedCellRegion::curved_inner_cells);
-    
-    file_name << std::setprecision(2) << std::fixed;
-    file_name << "wave_hermite_" << regularity << "_" << dim << "d_t" << time << ".vtu";
-    std::ofstream output(file_name.str());
-    data_out.write_vtu(output);
-    output.close();
-    
-    return;
-}
-
-template <int dim> void
 test_wave_solver(const double initial_time, const unsigned int regularity)
 {
     Triangulation<dim> tr;
@@ -226,14 +190,9 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     double dx = (x_right - x_left) / divisions;
     double dt = dx * get_cfl_number<dim>(regularity);
     double final_time = 4.0;
-#define YES_HERMITE 1
-#if YES_HERMITE
+
     MappingHermite<dim> mapping_h;
     FE_Hermite<dim> fe_h(regularity);
-#else
-    MappingQ<dim> mapping_h(1);
-    FE_Q<dim> fe_h(2*regularity + 1);
-#endif
     dof.distribute_dofs(fe_h);
     
     AffineConstraints<double> constraints;
@@ -275,10 +234,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
     std::map<types::boundary_id, const Function<dim>*> boundary_functions;
     boundary_functions.emplace(std::make_pair(0U, &wave));
     if (dim == 1) boundary_functions.emplace(std::make_pair(1U, &wave));
-    /*
-    IterationNumberControl solver_control(3500, 1e-11);
-    SolverCG<> solver_wave(solver_control);
-    */
+
     SparseDirectUMFPACK mass_inv;
     
     std::vector<double> l2_errors;
@@ -302,33 +258,20 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
                                          boundary_values);
     
     mass_solve.copy_from(mass);
-    MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp);
-    //solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
+    MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp, true);
     mass_inv.initialize(mass_solve);
+    
     mass_inv.vmult(sol_next, temp);
     
     sol_prev = sol_curr;
     sol_curr = sol_next;
     sol_next = 0;
-    boundary_values.clear();
     
-            VectorTools::project_boundary_values(mapping_h,
-                                             dof,
-                                             boundary_functions,
-                                             face_quadrature,
-                                             VectorTools::HermiteBoundaryType::hermite_dirichlet,
-                                             boundary_values);
-        
-        mass_solve.copy_from(mass);
-        MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp, true);
-        //solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
-        mass_inv.initialize(mass_solve);
-
+    boundary_values.clear();
     
     l2_errors.emplace_back(l2_error<dim>(mapping_h, dof, quadrature, wave, sol_curr));
     max_error = std::max(max_error, *l2_errors.cend());
     
-    bool guilty = false;
     while (wave.get_time() < final_time)
     {
         mass.vmult(sol_next, sol_prev);
@@ -347,8 +290,6 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
         
         mass_solve.copy_from(mass);
         MatrixTools::apply_boundary_values(boundary_values, mass_solve, sol_next, temp, true);
-        //solver_wave.solve(mass_solve, sol_next, temp, PreconditionIdentity() );
-        //mass_inv.initialize(mass_solve);
         mass_inv.vmult(sol_next, temp);
         
         sol_prev = sol_curr;
@@ -358,12 +299,6 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
         
         l2_errors.emplace_back(l2_error<dim>(mapping_h, dof, quadrature, wave, sol_curr));
         max_error = std::max(max_error, *(--l2_errors.cend()));
-        
-        if (!guilty && (wave.get_time() > 1.0))
-        {
-            print_to_vtu<dim>(mapping_h, dof, sol_curr, wave.get_time(), regularity);
-            guilty = true;
-        }
     }
     
     deallog << std::endl;
@@ -395,7 +330,6 @@ int main()
     deallog << std::setprecision(8) << std::fixed;
     deallog.attach(logfile);
     
-    /*
     test_wave_solver<1>(-0.3, 1);
     
     test_wave_solver<1>(0.0, 1);
@@ -403,11 +337,10 @@ int main()
     test_wave_solver<1>(0.0, 3);
     
     test_wave_solver<2>(0.0, 1);
-    test_wave_solver<2>(0.0, 2);*/
+    test_wave_solver<2>(0.0, 2);
     test_wave_solver<2>(0.0, 3);
     
-    //test_wave_solver<3>(0.0, 1);
-   // test_wave_solver<3>(0.0, 2);
+    test_wave_solver<3>(0.0, 1);
     
     return 0;
 }
