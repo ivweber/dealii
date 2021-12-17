@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <iterator>
 
+#include <deal.II/base/config.h>
+
 DEAL_II_NAMESPACE_OPEN
 
 template <int dim>
@@ -36,7 +38,7 @@ public:
 	~DeepLoopCounter() = default;
 	
     //Check status of counter
-    unsigned int layer_index(const unsigned int l) {return layer_counts[l];}
+    unsigned int layer_index(const unsigned int l) {return layer_counts[l];}    //Equivalent to subscript operator
     unsigned int operator[](const unsigned int l) {return layer_counts[l];}
     
     bool is_active() {return layer_counts[dim] == 0;}
