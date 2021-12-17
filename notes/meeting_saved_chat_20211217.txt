@@ -1,0 +1,17 @@
+10:23:21 From Martin Kronbichler To Everyone:
+	https://github.com/dealii/dealii
+10:23:26 From Martin Kronbichler To Everyone:
+	dealii
+10:25:18 From Martin Kronbichler To Everyone:
+	git rebase dealii/master
+10:27:05 From Martin Kronbichler To Everyone:
+	<<<<
+10:39:19 From Martin Kronbichler To Everyone:
+	ssh-keygen -t rsa -b 4096
+10:54:22 From Martin Kronbichler To Everyone:
+	include/deal.II/numerics/vector_tools_boundary.h
+11:01:38 From Martin Kronbichler To Everyone:
+	if (dynamic_cast<const FE_Poly<dim, spacedim> *>(fe_ptr) != nullptr && 
+	              dynamic_cast<const FE_Hermite<dim, spacedim> *>(fe_ptr) == nullptr)
+11:07:29 From Martin Kronbichler To Everyone:
+	https://www.dealii.org/current/doxygen/deal.II/CodingConventions.html

@@ -1,0 +1,17 @@
+Note: add license details to all header files
+Consider removing custom Hermite option for initial pull request
+Remove commented out functions
+Take out project functions from initial pull requests
+	Modify include/deal.II/numerics/vector_tools_boundary.h with Hermite functions, add note
+Remove mapping_hermite_* labels from fe/mapping.h to avoid complications
+Check if reverting to MappingCartesian is possible to remove need for new mapping class
+Remove notes subdirectory from pull request 
+Add license header to source code files
+Put factorial function in polynomials_hermite into a separate namespace
+Put three lines of whitespace between all functions, not just grouping by class membership (see conventions in general)
+Break quotation lines into separate lines where needed, using automatic concatenation in C++
+Add explanation as a comment to dofs/dof_tools_sparsity.cc explaining changes
+Update instantiations to use automatic for loops (current implementation is large and unwieldy)
+Remove fe_values from pull request
+Tests also need license header
+Update tests with MappingCartesian where possible
