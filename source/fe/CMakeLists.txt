@@ -32,6 +32,7 @@ SET(_unity_include_src
   fe_enriched.cc
   fe_face.cc
   fe_hermite.cc
+  fe_hermite_customregularity.cc
   fe_nedelec.cc
   fe_nedelec_sz.cc
   fe_nothing.cc
@@ -105,6 +106,8 @@ SET(_inst
   fe_dg_vector.inst.in
   fe_face.inst.in
   fe.inst.in
+  fe_hermite.inst.in
+  fe_hermite_customregularity.inst.in
   fe_nedelec.inst.in
   fe_nedelec_sz.inst.in
   fe_nothing.inst.in
@@ -138,6 +141,7 @@ SET(_inst
   mapping.inst.in
   mapping_fe.inst.in
   mapping_fe_field.inst.in
+  mapping_hermite.inst.in
   mapping_q1_eulerian.inst.in
   mapping_q1.inst.in
   mapping_q_cache.inst.in
