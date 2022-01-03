@@ -63,7 +63,25 @@ namespace Differentiation
       , dependent_variables_output(0)
       , map_dep_expr_vec_entry(other.map_dep_expr_vec_entry)
       , ready_for_value_extraction(false)
+      , has_been_serialized(false)
     {}
+
+
+
+    template <typename ReturnType>
+    void
+    BatchOptimizer<ReturnType>::copy_from(
+      const BatchOptimizer<ReturnType> &other)
+    {
+      method                        = other.method;
+      flags                         = other.flags;
+      independent_variables_symbols = other.independent_variables_symbols;
+      dependent_variables_functions = other.dependent_variables_functions;
+      dependent_variables_output.clear();
+      map_dep_expr_vec_entry     = other.map_dep_expr_vec_entry;
+      ready_for_value_extraction = false;
+      has_been_serialized        = false;
+    }
 
 
 
@@ -215,7 +233,7 @@ namespace Differentiation
 
     template <typename ReturnType>
     SD::types::symbol_vector
-    BatchOptimizer<ReturnType>::get_independent_symbols(void) const
+    BatchOptimizer<ReturnType>::get_independent_symbols() const
     {
       return Utilities::extract_symbols(independent_variables_symbols);
     }
@@ -224,7 +242,7 @@ namespace Differentiation
 
     template <typename ReturnType>
     std::size_t
-    BatchOptimizer<ReturnType>::n_independent_variables(void) const
+    BatchOptimizer<ReturnType>::n_independent_variables() const
     {
       return independent_variables_symbols.size();
     }
@@ -271,7 +289,7 @@ namespace Differentiation
 
     template <typename ReturnType>
     const SD::types::symbol_vector &
-    BatchOptimizer<ReturnType>::get_dependent_functions(void) const
+    BatchOptimizer<ReturnType>::get_dependent_functions() const
     {
       return dependent_variables_functions;
     }
@@ -280,7 +298,7 @@ namespace Differentiation
 
     template <typename ReturnType>
     std::size_t
-    BatchOptimizer<ReturnType>::n_dependent_variables(void) const
+    BatchOptimizer<ReturnType>::n_dependent_variables() const
     {
       if (has_been_serialized == false)
         {
@@ -527,12 +545,6 @@ namespace Differentiation
       const Expression &             func,
       const std::vector<ReturnType> &cached_evaluation) const
     {
-      Assert(
-        values_substituted() == true,
-        ExcMessage(
-          "The optimizer is not configured to perform evaluation. "
-          "This action can only performed after substitute() has been called."));
-
       // TODO[JPP]: Find a way to fix this bug that crops up in serialization
       // cases, e.g. symengine/batch_optimizer_05. Even though the entry is
       // in the map, it can only be found by an exhaustive search and string
@@ -601,7 +613,7 @@ namespace Differentiation
                   new_map_expr.get_value().__str__())
                 {
                   map_dep_expr_vec_entry[func] = e.second;
-                  return evaluate(func);
+                  return extract(func, cached_evaluation);
                 }
             }
 
@@ -624,6 +636,12 @@ namespace Differentiation
     ReturnType
     BatchOptimizer<ReturnType>::evaluate(const Expression &func) const
     {
+      Assert(
+        values_substituted() == true,
+        ExcMessage(
+          "The optimizer is not configured to perform evaluation. "
+          "This action can only performed after substitute() has been called."));
+
       return extract(func, dependent_variables_output);
     }
 
@@ -651,6 +669,11 @@ namespace Differentiation
     BatchOptimizer<ReturnType>::evaluate(
       const std::vector<Expression> &funcs) const
     {
+      Assert(
+        values_substituted() == true,
+        ExcMessage(
+          "The optimizer is not configured to perform evaluation. "
+          "This action can only performed after substitute() has been called."));
       return extract(funcs, dependent_variables_output);
     }
 

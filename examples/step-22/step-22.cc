@@ -502,8 +502,8 @@ namespace Step22
     // velocity and pressure block via <code>block_component</code>.
     const std::vector<types::global_dof_index> dofs_per_block =
       DoFTools::count_dofs_per_fe_block(dof_handler, block_component);
-    const unsigned int n_u = dofs_per_block[0];
-    const unsigned int n_p = dofs_per_block[1];
+    const types::global_dof_index n_u = dofs_per_block[0];
+    const types::global_dof_index n_p = dofs_per_block[1];
 
     std::cout << "   Number of active cells: " << triangulation.n_active_cells()
               << std::endl
@@ -535,17 +535,9 @@ namespace Step22
     // <code>dsp</code> will be released once the information has been copied to
     // <code>sparsity_pattern</code>.
     {
-      BlockDynamicSparsityPattern dsp(2, 2);
-
-      dsp.block(0, 0).reinit(n_u, n_u);
-      dsp.block(1, 0).reinit(n_p, n_u);
-      dsp.block(0, 1).reinit(n_u, n_p);
-      dsp.block(1, 1).reinit(n_p, n_p);
-
-      dsp.collect_sizes();
+      BlockDynamicSparsityPattern dsp(dofs_per_block, dofs_per_block);
 
       Table<2, DoFTools::Coupling> coupling(dim + 1, dim + 1);
-
       for (unsigned int c = 0; c < dim + 1; ++c)
         for (unsigned int d = 0; d < dim + 1; ++d)
           if (!((c == dim) && (d == dim)))
@@ -560,17 +552,10 @@ namespace Step22
     }
 
     {
-      BlockDynamicSparsityPattern preconditioner_dsp(2, 2);
-
-      preconditioner_dsp.block(0, 0).reinit(n_u, n_u);
-      preconditioner_dsp.block(1, 0).reinit(n_p, n_u);
-      preconditioner_dsp.block(0, 1).reinit(n_u, n_p);
-      preconditioner_dsp.block(1, 1).reinit(n_p, n_p);
-
-      preconditioner_dsp.collect_sizes();
+      BlockDynamicSparsityPattern preconditioner_dsp(dofs_per_block,
+                                                     dofs_per_block);
 
       Table<2, DoFTools::Coupling> preconditioner_coupling(dim + 1, dim + 1);
-
       for (unsigned int c = 0; c < dim + 1; ++c)
         for (unsigned int d = 0; d < dim + 1; ++d)
           if (((c == dim) && (d == dim)))
@@ -593,15 +578,8 @@ namespace Step22
     system_matrix.reinit(sparsity_pattern);
     preconditioner_matrix.reinit(preconditioner_sparsity_pattern);
 
-    solution.reinit(2);
-    solution.block(0).reinit(n_u);
-    solution.block(1).reinit(n_p);
-    solution.collect_sizes();
-
-    system_rhs.reinit(2);
-    system_rhs.block(0).reinit(n_u);
-    system_rhs.block(1).reinit(n_p);
-    system_rhs.collect_sizes();
+    solution.reinit(dofs_per_block);
+    system_rhs.reinit(dofs_per_block);
   }
 
 
