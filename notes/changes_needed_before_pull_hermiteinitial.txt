@@ -1,18 +1,15 @@
 TO DO:
 Update comments to correctly use deal.II (and Doxygen where needed) in files:
-	fe_hermite.h
 	mapping_hermite.h (if needed)
 
-Add explanation as a comment to dofs/dof_tools_sparsity.cc explaining changes
 Break quotation-style strings into separate lines where needed, using automatic concatenation in C++
 Rewrite project functions with different name
-Check if reverting to MappingCartesian is possible to remove need for new mapping class
 Move project functions to include/deal.II/numerics/vector_tools.h, add note
 Move project boundary functions to include/deal.II/numerics/vector_tools_boundary.h, add note
+Check if reverting to MappingCartesian is possible to remove need for new mapping class
 
 Update tests for any changes made to code (different polynomial name, MappingCartesian instead of MappingHermite, etc) and check they work
 	shapes_hermite.cc
-	derivatives.h
 	derivatives_hermite.cc
 	uneven_1d_grid_hermite.cc
 	uneven_1d_grid_hermite_laplace.cc
@@ -73,6 +70,7 @@ Update comments to deal.II (also Doxygen when needed) format in files:
 	2d_grid_projection_hermite.cc
 	project_boundaries_hermite.cc
 	polynomials_hermite.h
+	fe_hermite.h
 	
 Update instantiations to use automatic for loops (current implementation is large and unwieldy):
 	fe_hermite.inst.in
@@ -87,3 +85,4 @@ Consider removing custom Hermite option for initial pull request
 Remove unused grid refinement functionality
 Remove mapping_hermite_* labels from fe/mapping.h to avoid complications
 Remove commented out functions
+Add explanation as a comment to dofs/dof_tools_sparsity.cc explaining changes
