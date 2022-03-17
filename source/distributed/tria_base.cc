@@ -22,6 +22,7 @@
 #include <deal.II/distributed/shared_tria.h>
 #include <deal.II/distributed/tria_base.h>
 
+#include <deal.II/grid/filtered_iterator.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.h>
@@ -178,11 +179,16 @@ namespace parallel
     }
 
     if (this->n_levels() > 0)
-      for (const auto &cell : this->active_cell_iterators())
-        if (cell->subdomain_id() == my_subdomain)
-          ++number_cache.n_locally_owned_active_cells;
+      number_cache.n_locally_owned_active_cells = std::count_if(
+        this->begin_active(),
+        typename Triangulation<dim, spacedim>::active_cell_iterator(
+          this->end()),
+        [](const auto &i) { return i.is_locally_owned(); });
+    else
+      number_cache.n_locally_owned_active_cells = 0;
 
-    // Potentially cast to a 64 bit type before accumulating to avoid overflow:
+    // Potentially cast to a 64 bit type before accumulating to avoid
+    // overflow:
     number_cache.n_global_active_cells =
       Utilities::MPI::sum(static_cast<types::global_cell_index>(
                             number_cache.n_locally_owned_active_cells),
@@ -191,7 +197,8 @@ namespace parallel
     number_cache.n_global_levels =
       Utilities::MPI::max(this->n_levels(), this->mpi_communicator);
 
-    // Store MPI ranks of level ghost owners of this processor on all levels.
+    // Store MPI ranks of level ghost owners of this processor on all
+    // levels.
     if (this->is_multilevel_hierarchy_constructed() == true)
       {
         number_cache.level_ghost_owners.clear();
@@ -201,18 +208,15 @@ namespace parallel
           return;
 
         // find level ghost owners
-        for (typename Triangulation<dim, spacedim>::cell_iterator cell =
-               this->begin();
-             cell != this->end();
-             ++cell)
+        for (const auto &cell : this->cell_iterators())
           if (cell->level_subdomain_id() != numbers::artificial_subdomain_id &&
               cell->level_subdomain_id() != this->locally_owned_subdomain())
             this->number_cache.level_ghost_owners.insert(
               cell->level_subdomain_id());
 
 #  ifdef DEBUG
-        // Check that level_ghost_owners is symmetric by sending a message to
-        // everyone
+        // Check that level_ghost_owners is symmetric by sending a message
+        // to everyone
         {
           int ierr = MPI_Barrier(this->mpi_communicator);
           AssertThrowMPI(ierr);
@@ -312,6 +316,7 @@ namespace parallel
       this->reference_cells.emplace_back(
         dealii::internal::ReferenceCell::make_reference_cell_from_int(i));
   }
+
 
 
   template <int dim, int spacedim>
@@ -419,13 +424,13 @@ namespace parallel
     // 2) determine the offset of each process
     types::global_cell_index cell_index = 0;
 
-    const int ierr =
-      MPI_Exscan(&n_locally_owned_cells,
-                 &cell_index,
-                 1,
-                 Utilities::MPI::internal::mpi_type_id(&n_locally_owned_cells),
-                 MPI_SUM,
-                 this->mpi_communicator);
+    const int ierr = MPI_Exscan(
+      &n_locally_owned_cells,
+      &cell_index,
+      1,
+      Utilities::MPI::mpi_type_id_for_type<decltype(n_locally_owned_cells)>,
+      MPI_SUM,
+      this->mpi_communicator);
     AssertThrowMPI(ierr);
 
     // 3) give global indices to locally-owned cells and mark all other cells as
@@ -492,8 +497,8 @@ namespace parallel
         int ierr = MPI_Exscan(n_locally_owned_cells.data(),
                               cell_index.data(),
                               this->n_global_levels(),
-                              Utilities::MPI::internal::mpi_type_id(
-                                n_locally_owned_cells.data()),
+                              Utilities::MPI::mpi_type_id_for_type<decltype(
+                                *n_locally_owned_cells.data())>,
                               MPI_SUM,
                               this->mpi_communicator);
         AssertThrowMPI(ierr);
@@ -505,12 +510,12 @@ namespace parallel
         for (unsigned int l = 0; l < this->n_global_levels(); ++l)
           n_cells_level[l] = n_locally_owned_cells[l] + cell_index[l];
 
-        ierr =
-          MPI_Bcast(n_cells_level.data(),
-                    this->n_global_levels(),
-                    Utilities::MPI::internal::mpi_type_id(n_cells_level.data()),
-                    this->n_subdomains - 1,
-                    this->mpi_communicator);
+        ierr = MPI_Bcast(
+          n_cells_level.data(),
+          this->n_global_levels(),
+          Utilities::MPI::mpi_type_id_for_type<decltype(*n_cells_level.data())>,
+          this->n_subdomains - 1,
+          this->mpi_communicator);
         AssertThrowMPI(ierr);
 
         // 4) give global indices to locally-owned cells on level and mark
@@ -635,6 +640,8 @@ namespace parallel
     return number_cache.active_cell_index_partitioner;
   }
 
+
+
   template <int dim, int spacedim>
   const std::weak_ptr<const Utilities::MPI::Partitioner>
   TriangulationBase<dim, spacedim>::global_level_cell_index_partitioner(
@@ -721,6 +728,34 @@ namespace parallel
   }
 
 
+
+  template <int dim, int spacedim>
+  bool
+  DistributedTriangulationBase<dim, spacedim>::has_hanging_nodes() const
+  {
+    if (this->n_global_levels() <= 1)
+      return false; // can not have hanging nodes without refined cells
+
+    // if there are any active cells with level less than n_global_levels()-1,
+    // then there is obviously also one with level n_global_levels()-1, and
+    // consequently there must be a hanging node somewhere.
+    //
+    // The problem is that we cannot just ask for the first active cell, but
+    // instead need to filter over locally owned cells.
+    const bool have_coarser_cell =
+      std::any_of(this->begin_active(this->n_global_levels() - 2),
+                  this->end_active(this->n_global_levels() - 2),
+                  [](const CellAccessor<dim, spacedim> &cell) {
+                    return cell.is_locally_owned();
+                  });
+
+    // return true if at least one process has a coarser cell
+    return Utilities::MPI::max(have_coarser_cell ? 1 : 0,
+                               this->mpi_communicator) != 0;
+  }
+
+
+
   template <int dim, int spacedim>
   void
   DistributedTriangulationBase<dim, spacedim>::load_attached_data(
@@ -756,6 +791,8 @@ namespace parallel
       }
   }
 
+
+
   template <int dim, int spacedim>
   unsigned int
   DistributedTriangulationBase<dim, spacedim>::register_data_attach(
@@ -783,6 +820,7 @@ namespace parallel
 
     return handle;
   }
+
 
 
   template <int dim, int spacedim>
@@ -1009,10 +1047,11 @@ namespace parallel
                                    cell_sizes_variable_cumulative.end(),
                                    cell_sizes_variable_cumulative.begin());
 
-                  // Serialize cumulative variable size vector value-by-value.
-                  // This way we can circumvent the overhead of storing the
-                  // container object as a whole, since we know its size by
-                  // the number of registered callback functions.
+                  // Serialize cumulative variable size vector
+                  // value-by-value. This way we can circumvent the overhead
+                  // of storing the container object as a whole, since we
+                  // know its size by the number of registered callback
+                  // functions.
                   data_fixed_it->resize(n_callbacks_variable *
                                         sizeof(unsigned int));
                   for (unsigned int i = 0; i < n_callbacks_variable; ++i)
@@ -1048,10 +1087,10 @@ namespace parallel
     // functions (i.e. a cell that was not flagged with CELL_INVALID)
     // and store the sizes of each buffer.
     //
-    // To deal with the case that at least one of the processors does not own
-    // any cell at all, we will exchange the information about the data sizes
-    // among them later. The code in between is still well-defined, since the
-    // following loops will be skipped.
+    // To deal with the case that at least one of the processors does not
+    // own any cell at all, we will exchange the information about the data
+    // sizes among them later. The code in between is still well-defined,
+    // since the following loops will be skipped.
     std::vector<unsigned int> local_sizes_fixed(
       1 + n_callbacks_fixed + (variable_size_data_stored ? 1 : 0));
     for (const auto &data_cell : packed_fixed_size_data)
@@ -1122,7 +1161,8 @@ namespace parallel
                       src_sizes_variable.end(),
                       std::vector<int>::size_type(0));
 
-    // Move every piece of packed fixed size data into the consecutive buffer.
+    // Move every piece of packed fixed size data into the consecutive
+    // buffer.
     src_data_fixed.reserve(expected_size_fixed);
     for (const auto &data_cell_fixed : packed_fixed_size_data)
       {
@@ -1222,8 +1262,8 @@ namespace parallel
   {
     // We decode the handle returned by register_data_attach() back into
     // a format we can use. All even handles belong to those callback
-    // functions which write/read variable size data, all odd handles interact
-    // with fixed size buffers.
+    // functions which write/read variable size data, all odd handles
+    // interact with fixed size buffers.
     const bool         callback_variable_transfer = (handle % 2 == 0);
     const unsigned int callback_index             = handle / 2;
 
@@ -1314,7 +1354,8 @@ namespace parallel
                                                        spacedim>::CELL_INVALID)
               {
                 // Extract the corresponding values for offset and size from
-                // the cumulative sizes array stored in the fixed size buffer.
+                // the cumulative sizes array stored in the fixed size
+                // buffer.
                 if (callback_index == 0)
                   offset = 0;
                 else
@@ -1410,7 +1451,7 @@ namespace parallel
 
       MPI_File fh;
       ierr = MPI_File_open(mpi_communicator,
-                           DEAL_II_MPI_CONST_CAST(fname_fixed.c_str()),
+                           fname_fixed.c_str(),
                            MPI_MODE_CREATE | MPI_MODE_WRONLY,
                            info,
                            &fh);
@@ -1427,14 +1468,14 @@ namespace parallel
       // ------------------
 
       // Write cumulative sizes to file.
-      // Since each processor owns the same information about the data sizes,
-      // it is sufficient to let only the first processor perform this task.
+      // Since each processor owns the same information about the data
+      // sizes, it is sufficient to let only the first processor perform
+      // this task.
       if (myrank == 0)
         {
           ierr = MPI_File_write_at(fh,
                                    0,
-                                   DEAL_II_MPI_CONST_CAST(
-                                     sizes_fixed_cumulative.data()),
+                                   sizes_fixed_cumulative.data(),
                                    sizes_fixed_cumulative.size(),
                                    MPI_UNSIGNED,
                                    MPI_STATUS_IGNORE);
@@ -1445,8 +1486,8 @@ namespace parallel
       const MPI_Offset size_header =
         sizes_fixed_cumulative.size() * sizeof(unsigned int);
 
-      // Make sure we do the following computation in 64bit integers to be able
-      // to handle 4GB+ files:
+      // Make sure we do the following computation in 64bit integers to be
+      // able to handle 4GB+ files:
       const MPI_Offset my_global_file_position =
         size_header +
         static_cast<MPI_Offset>(global_first_cell) * bytes_per_cell;
@@ -1454,35 +1495,33 @@ namespace parallel
       if (src_data_fixed.size() <=
           static_cast<std::size_t>(std::numeric_limits<int>::max()))
         {
-          ierr =
-            MPI_File_write_at(fh,
-                              my_global_file_position,
-                              DEAL_II_MPI_CONST_CAST(src_data_fixed.data()),
-                              src_data_fixed.size(),
-                              MPI_BYTE,
-                              MPI_STATUS_IGNORE);
+          ierr = MPI_File_write_at(fh,
+                                   my_global_file_position,
+                                   src_data_fixed.data(),
+                                   src_data_fixed.size(),
+                                   MPI_BYTE,
+                                   MPI_STATUS_IGNORE);
           AssertThrowMPI(ierr);
         }
       else
         {
           // Writes bigger than 2GB require some extra care:
-          MPI_Datatype bigtype =
-            Utilities::MPI::create_mpi_data_type_n_bytes(src_data_fixed.size());
           ierr =
             MPI_File_write_at(fh,
                               my_global_file_position,
-                              DEAL_II_MPI_CONST_CAST(src_data_fixed.data()),
+                              src_data_fixed.data(),
                               1,
-                              bigtype,
+                              *Utilities::MPI::create_mpi_data_type_n_bytes(
+                                src_data_fixed.size()),
                               MPI_STATUS_IGNORE);
-          AssertThrowMPI(ierr);
-          ierr = MPI_Type_free(&bigtype);
           AssertThrowMPI(ierr);
         }
 
       ierr = MPI_File_close(&fh);
       AssertThrowMPI(ierr);
     }
+
+
 
     //
     // ---------- Variable size data ----------
@@ -1498,7 +1537,7 @@ namespace parallel
 
         MPI_File fh;
         ierr = MPI_File_open(mpi_communicator,
-                             DEAL_II_MPI_CONST_CAST(fname_variable.c_str()),
+                             fname_variable.c_str(),
                              MPI_MODE_CREATE | MPI_MODE_WRONLY,
                              info,
                              &fh);
@@ -1518,20 +1557,19 @@ namespace parallel
           const MPI_Offset my_global_file_position =
             static_cast<MPI_Offset>(global_first_cell) * sizeof(unsigned int);
 
-          // It is very unlikely that a single process has more than 2 billion
-          // cells, but we might as well check.
+          // It is very unlikely that a single process has more than
+          // 2 billion cells, but we might as well check.
           AssertThrow(src_sizes_variable.size() <
                         static_cast<std::size_t>(
                           std::numeric_limits<int>::max()),
                       ExcNotImplemented());
 
-          ierr =
-            MPI_File_write_at(fh,
-                              my_global_file_position,
-                              DEAL_II_MPI_CONST_CAST(src_sizes_variable.data()),
-                              src_sizes_variable.size(),
-                              MPI_INT,
-                              MPI_STATUS_IGNORE);
+          ierr = MPI_File_write_at(fh,
+                                   my_global_file_position,
+                                   src_sizes_variable.data(),
+                                   src_sizes_variable.size(),
+                                   MPI_INT,
+                                   MPI_STATUS_IGNORE);
           AssertThrowMPI(ierr);
         }
 
@@ -1540,7 +1578,7 @@ namespace parallel
         // to avoid overflow for files larger than 4GB:
         const std::uint64_t size_on_proc = src_data_variable.size();
         std::uint64_t       prefix_sum   = 0;
-        ierr = MPI_Exscan(DEAL_II_MPI_CONST_CAST(&size_on_proc),
+        ierr                             = MPI_Exscan(&size_on_proc,
                           &prefix_sum,
                           1,
                           MPI_UINT64_T,
@@ -1558,8 +1596,7 @@ namespace parallel
           {
             ierr = MPI_File_write_at(fh,
                                      my_global_file_position,
-                                     DEAL_II_MPI_CONST_CAST(
-                                       src_data_variable.data()),
+                                     src_data_variable.data(),
                                      src_data_variable.size(),
                                      MPI_BYTE,
                                      MPI_STATUS_IGNORE);
@@ -1568,17 +1605,14 @@ namespace parallel
         else
           {
             // Writes bigger than 2GB require some extra care:
-            MPI_Datatype bigtype = Utilities::MPI::create_mpi_data_type_n_bytes(
-              src_data_variable.size());
-            ierr = MPI_File_write_at(fh,
-                                     my_global_file_position,
-                                     DEAL_II_MPI_CONST_CAST(
-                                       src_data_variable.data()),
-                                     1,
-                                     bigtype,
-                                     MPI_STATUS_IGNORE);
-            AssertThrowMPI(ierr);
-            ierr = MPI_Type_free(&bigtype);
+            ierr =
+              MPI_File_write_at(fh,
+                                my_global_file_position,
+                                src_data_variable.data(),
+                                1,
+                                *Utilities::MPI::create_mpi_data_type_n_bytes(
+                                  src_data_variable.size()),
+                                MPI_STATUS_IGNORE);
             AssertThrowMPI(ierr);
           }
 
@@ -1628,20 +1662,17 @@ namespace parallel
       AssertThrowMPI(ierr);
 
       MPI_File fh;
-      ierr = MPI_File_open(mpi_communicator,
-                           DEAL_II_MPI_CONST_CAST(fname_fixed.c_str()),
-                           MPI_MODE_RDONLY,
-                           info,
-                           &fh);
+      ierr = MPI_File_open(
+        mpi_communicator, fname_fixed.c_str(), MPI_MODE_RDONLY, info, &fh);
       AssertThrowMPI(ierr);
 
       ierr = MPI_Info_free(&info);
       AssertThrowMPI(ierr);
 
       // Read cumulative sizes from file.
-      // Since all processors need the same information about the data sizes,
-      // let each of them retrieve it by reading from the same location in
-      // the file.
+      // Since all processors need the same information about the data
+      // sizes, let each of them retrieve it by reading from the same
+      // location in the file.
       sizes_fixed_cumulative.resize(1 + n_attached_deserialize_fixed +
                                     (variable_size_data_stored ? 1 : 0));
       ierr = MPI_File_read_at(fh,
@@ -1661,8 +1692,8 @@ namespace parallel
       const MPI_Offset size_header =
         sizes_fixed_cumulative.size() * sizeof(unsigned int);
 
-      // Make sure we do the following computation in 64bit integers to be able
-      // to handle 4GB+ files:
+      // Make sure we do the following computation in 64bit integers to be
+      // able to handle 4GB+ files:
       const MPI_Offset my_global_file_position =
         size_header +
         static_cast<MPI_Offset>(global_first_cell) * bytes_per_cell;
@@ -1681,16 +1712,13 @@ namespace parallel
       else
         {
           // Reads bigger than 2GB require some extra care:
-          MPI_Datatype bigtype = Utilities::MPI::create_mpi_data_type_n_bytes(
-            dest_data_fixed.size());
           ierr = MPI_File_read_at(fh,
                                   my_global_file_position,
                                   dest_data_fixed.data(),
                                   1,
-                                  bigtype,
+                                  *Utilities::MPI::create_mpi_data_type_n_bytes(
+                                    dest_data_fixed.size()),
                                   MPI_STATUS_IGNORE);
-          AssertThrowMPI(ierr);
-          ierr = MPI_Type_free(&bigtype);
           AssertThrowMPI(ierr);
         }
 
@@ -1711,11 +1739,8 @@ namespace parallel
         AssertThrowMPI(ierr);
 
         MPI_File fh;
-        ierr = MPI_File_open(mpi_communicator,
-                             DEAL_II_MPI_CONST_CAST(fname_variable.c_str()),
-                             MPI_MODE_RDONLY,
-                             info,
-                             &fh);
+        ierr = MPI_File_open(
+          mpi_communicator, fname_variable.c_str(), MPI_MODE_RDONLY, info, &fh);
         AssertThrowMPI(ierr);
 
         ierr = MPI_Info_free(&info);
@@ -1736,15 +1761,15 @@ namespace parallel
         AssertThrowMPI(ierr);
 
 
-        // Compute my data size in bytes and compute prefix sum. We do this in
-        // 64 bit to avoid overflow for files larger than 4 GB:
+        // Compute my data size in bytes and compute prefix sum. We do this
+        // in 64 bit to avoid overflow for files larger than 4 GB:
         const std::uint64_t size_on_proc =
           std::accumulate(dest_sizes_variable.begin(),
                           dest_sizes_variable.end(),
                           0ULL);
 
         std::uint64_t prefix_sum = 0;
-        ierr = MPI_Exscan(DEAL_II_MPI_CONST_CAST(&size_on_proc),
+        ierr                     = MPI_Exscan(&size_on_proc,
                           &prefix_sum,
                           1,
                           MPI_UINT64_T,
@@ -1772,16 +1797,14 @@ namespace parallel
         else
           {
             // Reads bigger than 2GB require some extra care:
-            MPI_Datatype bigtype = Utilities::MPI::create_mpi_data_type_n_bytes(
-              src_data_fixed.size());
-            ierr = MPI_File_read_at(fh,
-                                    my_global_file_position,
-                                    dest_data_variable.data(),
-                                    1,
-                                    bigtype,
-                                    MPI_STATUS_IGNORE);
-            AssertThrowMPI(ierr);
-            ierr = MPI_Type_free(&bigtype);
+            ierr =
+              MPI_File_read_at(fh,
+                               my_global_file_position,
+                               dest_data_variable.data(),
+                               1,
+                               *Utilities::MPI::create_mpi_data_type_n_bytes(
+                                 src_data_fixed.size()),
+                               MPI_STATUS_IGNORE);
             AssertThrowMPI(ierr);
           }
 

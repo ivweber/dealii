@@ -1769,13 +1769,13 @@ FullMatrix<number>::print_formatted(std::ostream &     out,
   if (scientific)
     {
       out.setf(std::ios::scientific, std::ios::floatfield);
-      if (!width)
+      if (width == 0u)
         width = precision + 7;
     }
   else
     {
       out.setf(std::ios::fixed, std::ios::floatfield);
-      if (!width)
+      if (width == 0u)
         width = precision + 2;
     }
 
@@ -1793,7 +1793,7 @@ FullMatrix<number>::print_formatted(std::ostream &     out,
       out << std::endl;
     };
 
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
   // reset output format
   out.flags(old_flags);
   out.precision(old_precision);

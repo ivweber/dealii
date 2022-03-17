@@ -16,7 +16,7 @@
 
 // TODO: Do neighbors for dx and povray smooth triangles
 
-//////////////////////////////////////////////////////////////////////
+//--------------------------------------------------------------------
 // Remarks on the implementations
 //
 // Variable names: in most functions, variable names have been
@@ -29,7 +29,7 @@
 //
 // d1, d2, di Multiplicators for ii to find positions in the
 //    array of nodes.
-//////////////////////////////////////////////////////////////////////
+//--------------------------------------------------------------------
 
 #include <deal.II/base/data_out_base.h>
 #include <deal.II/base/memory_consumption.h>
@@ -860,7 +860,7 @@ namespace
 
     if (nbdy == 2) // Vertex DOF
       { // ijk is a corner node. Return the proper index (somewhere in [0,3]):
-        return (i ? (j ? 2 : 1) : (j ? 3 : 0));
+        return (i != 0u ? (j != 0u ? 2 : 1) : (j != 0u ? 3 : 0));
       }
 
     int offset = 4;
@@ -868,13 +868,15 @@ namespace
       {
         if (!ibdy)
           { // On i axis
-            return (i - 1) + (j ? order[0] - 1 + order[1] - 1 : 0) + offset;
+            return (i - 1) + (j != 0u ? order[0] - 1 + order[1] - 1 : 0) +
+                   offset;
           }
 
         if (!jbdy)
           { // On j axis
             return (j - 1) +
-                   (i ? order[0] - 1 : 2 * (order[0] - 1) + order[1] - 1) +
+                   (i != 0u ? order[0] - 1 :
+                              2 * (order[0] - 1) + order[1] - 1) +
                    offset;
           }
       }
@@ -907,7 +909,8 @@ namespace
 
     if (nbdy == 3) // Vertex DOF
       { // ijk is a corner node. Return the proper index (somewhere in [0,7]):
-        return (i ? (j ? 2 : 1) : (j ? 3 : 0)) + (k ? 4 : 0);
+        return (i != 0u ? (j != 0u ? 2 : 1) : (j != 0u ? 3 : 0)) +
+               (k != 0u ? 4 : 0);
       }
 
     int offset = 8;
@@ -915,18 +918,21 @@ namespace
       {
         if (!ibdy)
           { // On i axis
-            return (i - 1) + (j ? order[0] - 1 + order[1] - 1 : 0) +
-                   (k ? 2 * (order[0] - 1 + order[1] - 1) : 0) + offset;
+            return (i - 1) + (j != 0u ? order[0] - 1 + order[1] - 1 : 0) +
+                   (k != 0u ? 2 * (order[0] - 1 + order[1] - 1) : 0) + offset;
           }
         if (!jbdy)
           { // On j axis
             return (j - 1) +
-                   (i ? order[0] - 1 : 2 * (order[0] - 1) + order[1] - 1) +
-                   (k ? 2 * (order[0] - 1 + order[1] - 1) : 0) + offset;
+                   (i != 0u ? order[0] - 1 :
+                              2 * (order[0] - 1) + order[1] - 1) +
+                   (k != 0u ? 2 * (order[0] - 1 + order[1] - 1) : 0) + offset;
           }
         // !kbdy, On k axis
         offset += 4 * (order[0] - 1) + 4 * (order[1] - 1);
-        return (k - 1) + (order[2] - 1) * (i ? (j ? 3 : 1) : (j ? 2 : 0)) +
+        return (k - 1) +
+               (order[2] - 1) *
+                 (i != 0u ? (j != 0u ? 3 : 1) : (j != 0u ? 2 : 0)) +
                offset;
       }
 
@@ -936,18 +942,18 @@ namespace
         if (ibdy) // On i-normal face
           {
             return (j - 1) + ((order[1] - 1) * (k - 1)) +
-                   (i ? (order[1] - 1) * (order[2] - 1) : 0) + offset;
+                   (i != 0u ? (order[1] - 1) * (order[2] - 1) : 0) + offset;
           }
         offset += 2 * (order[1] - 1) * (order[2] - 1);
         if (jbdy) // On j-normal face
           {
             return (i - 1) + ((order[0] - 1) * (k - 1)) +
-                   (j ? (order[2] - 1) * (order[0] - 1) : 0) + offset;
+                   (j != 0u ? (order[2] - 1) * (order[0] - 1) : 0) + offset;
           }
         offset += 2 * (order[2] - 1) * (order[0] - 1);
         // kbdy, On k-normal face
         return (i - 1) + ((order[0] - 1) * (j - 1)) +
-               (k ? (order[0] - 1) * (order[1] - 1) : 0) + offset;
+               (k != 0u ? (order[0] - 1) * (order[1] - 1) : 0) + offset;
       }
 
     // nbdy == 0: Body DOF
@@ -3277,13 +3283,10 @@ namespace DataOutBase
                     b[1] * (v_inter[2] - v_min[2]) - c + v_min[2];
 
       // normalize the gradient
-      double gradient_norm =
-        std::sqrt(std::pow(gradient[0], 2.0) + std::pow(gradient[1], 2.0));
-      gradient[0] /= gradient_norm;
-      gradient[1] /= gradient_norm;
+      gradient /= gradient.norm();
 
-      double lambda = -gradient[0] * (v_min[0] - v_max[0]) -
-                      gradient[1] * (v_min[1] - v_max[1]);
+      const double lambda = -gradient[0] * (v_min[0] - v_max[0]) -
+                            gradient[1] * (v_min[1] - v_max[1]);
 
       Point<6> gradient_parameters;
 
@@ -3319,7 +3322,7 @@ namespace DataOutBase
     // tested, therefore currently not allowed.
     AssertThrow(dim > 0, ExcNotImplemented());
 
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
 #ifndef DEAL_II_WITH_MPI
     // verify that there are indeed patches to be written out. most of the
@@ -3342,14 +3345,14 @@ namespace DataOutBase
     unsigned int n_nodes;
     unsigned int n_cells;
     compute_sizes<dim, spacedim>(patches, n_nodes, n_cells);
-    ///////////////////////
+    //---------------------
     // preamble
     if (flags.write_preamble)
       {
         out
           << "# This file was generated by the deal.II library." << '\n'
-          << "# Date =  " << Utilities::System::get_date() << "\n"
-          << "# Time =  " << Utilities::System::get_time() << "\n"
+          << "# Date =  " << Utilities::System::get_date() << '\n'
+          << "# Time =  " << Utilities::System::get_time() << '\n'
           << "#" << '\n'
           << "# For a description of the UCD format see the AVS Developer's guide."
           << '\n'
@@ -3368,7 +3371,7 @@ namespace DataOutBase
     write_cells(patches, ucd_out);
     out << '\n';
 
-    /////////////////////////////
+    //---------------------------
     // now write data
     if (n_data_sets != 0)
       {
@@ -3389,7 +3392,7 @@ namespace DataOutBase
     out.flush();
 
     // assert the stream is still ok
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -3409,7 +3412,7 @@ namespace DataOutBase
     // Point output is currently not implemented.
     AssertThrow(dim > 0, ExcNotImplemented());
 
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
 #ifndef DEAL_II_WITH_MPI
     // verify that there are indeed patches to be written out. most of the
@@ -3450,10 +3453,10 @@ namespace DataOutBase
         write_nodes(patches, dx_out);
       }
 
-    ///////////////////////////////
+    //-----------------------------
     // first write the coordinates of all vertices
 
-    /////////////////////////////////////////
+    //---------------------------------------
     // write cells
     out << "object \"cells\" class array type int rank 1 shape "
         << GeometryInfo<dim>::vertices_per_cell << " items " << n_cells;
@@ -3481,7 +3484,7 @@ namespace DataOutBase
     out << "\"" << '\n' << "attribute \"ref\" string \"positions\"" << '\n';
 
     // TODO:[GK] Patches must be of same size!
-    /////////////////////////////
+    //---------------------------
     // write neighbor information
     if (flags.write_neighbors)
       {
@@ -3614,7 +3617,7 @@ namespace DataOutBase
             out << '\n';
           }
       }
-    /////////////////////////////
+    //---------------------------
     // now write data
     if (n_data_sets != 0)
       {
@@ -3671,7 +3674,7 @@ namespace DataOutBase
     out.flush();
 
     // assert the stream is still ok
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -3689,7 +3692,7 @@ namespace DataOutBase
     const GnuplotFlags &flags,
     std::ostream &      out)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
 #ifndef DEAL_II_WITH_MPI
     // verify that there are indeed patches to be written out. most
@@ -4064,7 +4067,7 @@ namespace DataOutBase
     // make sure everything now gets to disk
     out.flush();
 
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -4090,7 +4093,7 @@ namespace DataOutBase
                     const PovrayFlags &             flags,
                     std::ostream &                  out)
     {
-      AssertThrow(out, ExcIO());
+      AssertThrow(out.fail() == false, ExcIO());
 
 #ifndef DEAL_II_WITH_MPI
       // verify that there are indeed patches to be written out. most
@@ -4407,7 +4410,7 @@ namespace DataOutBase
       // make sure everything now gets to disk
       out.flush();
 
-      AssertThrow(out, ExcIO());
+      AssertThrow(out.fail() == false, ExcIO());
     }
   } // namespace
 
@@ -4462,7 +4465,7 @@ namespace DataOutBase
     const EpsFlags &flags,
     std::ostream &  out)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
 #ifndef DEAL_II_WITH_MPI
     // verify that there are indeed patches to be written out. most of the
@@ -4762,7 +4765,7 @@ namespace DataOutBase
 
     out.flush();
 
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -4787,7 +4790,7 @@ namespace DataOutBase
     AssertThrow(dim > 0, ExcNotImplemented());
 
     Assert(dim <= 3, ExcNotImplemented());
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
 #ifndef DEAL_II_WITH_MPI
     // verify that there are indeed patches to be written out. most of the
@@ -4815,7 +4818,7 @@ namespace DataOutBase
                                   n_data_sets,
                                 patches[0].data.n_rows()));
 
-    ///////////////////////
+    //---------------------
     // preamble
     out << "gmvinput ascii" << '\n' << '\n';
 
@@ -4843,7 +4846,7 @@ namespace DataOutBase
     Threads::Task<> reorder_task =
       Threads::new_task(fun_ptr, patches, data_vectors);
 
-    ///////////////////////////////
+    //-----------------------------
     // first make up a list of used vertices along with their coordinates
     //
     // note that we have to print 3 dimensions
@@ -4863,12 +4866,12 @@ namespace DataOutBase
         out << '\n';
       }
 
-    /////////////////////////////////
+    //-------------------------------
     // now for the cells. note that vertices are counted from 1 onwards
     out << "cells " << n_cells << '\n';
     write_cells(patches, gmv_out);
 
-    ///////////////////////////////////////
+    //-------------------------------------
     // data output.
     out << "variable" << '\n';
 
@@ -4899,7 +4902,7 @@ namespace DataOutBase
     out.flush();
 
     // assert the stream is still ok
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -4917,7 +4920,7 @@ namespace DataOutBase
     const TecplotFlags &flags,
     std::ostream &      out)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
     // The FEBLOCK or FEPOINT formats of tecplot only allows full elements (e.g.
     // triangles), not single points. Other tecplot format allow point output,
@@ -4956,7 +4959,7 @@ namespace DataOutBase
     unsigned int n_cells;
     compute_sizes<dim, spacedim>(patches, n_nodes, n_cells);
 
-    ///////////
+    //---------
     // preamble
     {
       out
@@ -5024,7 +5027,7 @@ namespace DataOutBase
     Threads::Task<> reorder_task =
       Threads::new_task(fun_ptr, patches, data_vectors);
 
-    ///////////////////////////////
+    //-----------------------------
     // first make up a list of used vertices along with their coordinates
 
 
@@ -5036,7 +5039,7 @@ namespace DataOutBase
       }
 
 
-    ///////////////////////////////////////
+    //-------------------------------------
     // data output.
     //
     // now write the data vectors to @p{out} first make sure that all data is in
@@ -5058,7 +5061,7 @@ namespace DataOutBase
     out.flush();
 
     // assert the stream is still ok
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -5186,7 +5189,7 @@ namespace DataOutBase
       }
 
 
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
 #  ifndef DEAL_II_WITH_MPI
     // verify that there are indeed patches to be written out. most of the
@@ -5263,7 +5266,7 @@ namespace DataOutBase
     Threads::Task<> reorder_task =
       Threads::new_task(fun_ptr, patches, data_vectors);
 
-    ///////////////////////////////
+    //-----------------------------
     // first make up a list of used vertices along with their coordinates
     for (unsigned int d = 1; d <= spacedim; ++d)
       {
@@ -5333,7 +5336,7 @@ namespace DataOutBase
       }
 
 
-    ///////////////////////////////////////
+    //-------------------------------------
     // data output.
     //
     reorder_task.join();
@@ -5347,7 +5350,7 @@ namespace DataOutBase
 
 
 
-    /////////////////////////////////
+    //-------------------------------
     // now for the cells. note that vertices are counted from 1 onwards
     unsigned int first_vertex_of_patch = 0;
     unsigned int elem                  = 0;
@@ -5474,7 +5477,7 @@ namespace DataOutBase
     const VtkFlags &flags,
     std::ostream &  out)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
 #ifndef DEAL_II_WITH_MPI
     // verify that there are indeed patches to be written out. most of the
@@ -5502,7 +5505,7 @@ namespace DataOutBase
         AssertDimension(n_data_sets, patches[0].data.n_rows())
       }
 
-    ///////////////////////
+    //---------------------
     // preamble
     {
       out << "# vtk DataFile Version 3.0" << '\n'
@@ -5513,7 +5516,7 @@ namespace DataOutBase
               << Utilities::System::get_time();
         }
       else
-        out << ".";
+        out << '.';
       out << '\n' << "ASCII" << '\n';
       // now output the data header
       out << "DATASET UNSTRUCTURED_GRID\n" << '\n';
@@ -5528,15 +5531,15 @@ namespace DataOutBase
          (flags.time != std::numeric_limits<double>::min() ? 1 : 0));
       if (n_metadata > 0)
         {
-          out << "FIELD FieldData " << n_metadata << "\n";
+          out << "FIELD FieldData " << n_metadata << '\n';
 
           if (flags.cycle != std::numeric_limits<unsigned int>::min())
             {
-              out << "CYCLE 1 1 int\n" << flags.cycle << "\n";
+              out << "CYCLE 1 1 int\n" << flags.cycle << '\n';
             }
           if (flags.time != std::numeric_limits<double>::min())
             {
-              out << "TIME 1 1 double\n" << flags.time << "\n";
+              out << "TIME 1 1 double\n" << flags.time << '\n';
             }
         }
     }
@@ -5569,14 +5572,14 @@ namespace DataOutBase
     Threads::Task<> reorder_task =
       Threads::new_task(fun_ptr, patches, data_vectors);
 
-    ///////////////////////////////
+    //-----------------------------
     // first make up a list of used vertices along with their coordinates
     //
     // note that we have to print d=1..3 dimensions
     out << "POINTS " << n_nodes << " double" << '\n';
     write_nodes(patches, vtk_out);
     out << '\n';
-    /////////////////////////////////
+    //-------------------------------
     // now for the cells
     out << "CELLS " << n_cells << ' ' << n_points_and_n_cells << '\n';
     if (flags.write_higher_order_cells)
@@ -5600,7 +5603,7 @@ namespace DataOutBase
       }
 
     out << '\n';
-    ///////////////////////////////////////
+    //-------------------------------------
     // data output.
 
     // now write the data vectors to @p{out} first make sure that all data is in
@@ -5709,14 +5712,14 @@ namespace DataOutBase
     out.flush();
 
     // assert the stream is still ok
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
   void
   write_vtu_header(std::ostream &out, const VtkFlags &flags)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
     out << "<?xml version=\"1.0\" ?> \n";
     out << "<!-- \n";
     out << "# vtk DataFile Version 3.0" << '\n'
@@ -5727,7 +5730,7 @@ namespace DataOutBase
             << Utilities::System::get_date();
       }
     else
-      out << ".";
+      out << '.';
     out << "\n-->\n";
     out << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\"";
 #ifdef DEAL_II_WITH_ZLIB
@@ -5749,7 +5752,7 @@ namespace DataOutBase
   void
   write_vtu_footer(std::ostream &out)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
     out << " </UnstructuredGrid>\n";
     out << "</VTKFile>\n";
   }
@@ -5792,7 +5795,7 @@ namespace DataOutBase
     const VtkFlags &flags,
     std::ostream &  out)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
     // If the user provided physical units, make sure that they don't contain
     // quote characters as this would make the VTU file invalid XML and
@@ -5950,7 +5953,7 @@ namespace DataOutBase
     Threads::Task<> reorder_task =
       Threads::new_task(fun_ptr, patches, data_vectors);
 
-    ///////////////////////////////
+    //-----------------------------
     // first make up a list of used vertices along with their coordinates
     //
     // note that according to the standard, we have to print d=1..3 dimensions,
@@ -5963,7 +5966,7 @@ namespace DataOutBase
     write_nodes(patches, vtu_out);
     out << "    </DataArray>\n";
     out << "  </Points>\n\n";
-    /////////////////////////////////
+    //-------------------------------
     // now for the cells
     out << "  <Cells>\n";
     out << "    <DataArray type=\"Int32\" Name=\"connectivity\" format=\""
@@ -6007,7 +6010,7 @@ namespace DataOutBase
       }
 
     vtu_out << offsets;
-    out << "\n";
+    out << '\n';
     out << "    </DataArray>\n";
 
     // next output the types of the cells. since all cells are the same, this is
@@ -6017,12 +6020,12 @@ namespace DataOutBase
 
     // this should compress well :-)
     vtu_out << cell_types;
-    out << "\n";
+    out << '\n';
     out << "    </DataArray>\n";
     out << "  </Cells>\n";
 
 
-    ///////////////////////////////////////
+    //-------------------------------------
     // data output.
 
     // now write the data vectors to @p{out} first make sure that all data is in
@@ -6183,6 +6186,7 @@ namespace DataOutBase
           } // loop over nodes
 
         vtu_out << data;
+        out << '\n';
         out << "    </DataArray>\n";
 
       } // loop over ranges
@@ -6205,6 +6209,7 @@ namespace DataOutBase
           std::vector<float> data(data_vectors[data_set].begin(),
                                   data_vectors[data_set].end());
           vtu_out << data;
+          out << '\n';
           out << "    </DataArray>\n";
         }
 
@@ -6217,7 +6222,7 @@ namespace DataOutBase
     out.flush();
 
     // assert the stream is still ok
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -6235,7 +6240,7 @@ namespace DataOutBase
       &             nonscalar_data_ranges,
     const VtkFlags &flags)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
     // If the user provided physical units, make sure that they don't contain
     // quote characters as this would make the VTU file invalid XML and
@@ -6370,7 +6375,7 @@ namespace DataOutBase
     out.flush();
 
     // assert the stream is still ok
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -6380,7 +6385,7 @@ namespace DataOutBase
     std::ostream &                                     out,
     const std::vector<std::pair<double, std::string>> &times_and_names)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
     out << "<?xml version=\"1.0\"?>\n";
 
@@ -6407,7 +6412,7 @@ namespace DataOutBase
     out.flush();
     out.precision(ss);
 
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -6429,7 +6434,7 @@ namespace DataOutBase
   write_visit_record(std::ostream &                               out,
                      const std::vector<std::vector<std::string>> &piece_names)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
     if (piece_names.size() == 0)
       return;
@@ -6459,7 +6464,7 @@ namespace DataOutBase
     const std::vector<std::pair<double, std::vector<std::string>>>
       &times_and_piece_names)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
     if (times_and_piece_names.size() == 0)
       return;
@@ -7484,7 +7489,7 @@ namespace DataOutBase
     const Deal_II_IntermediateFlags & /*flags*/,
     std::ostream &out)
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
     // first write tokens indicating the template parameters. we need this in
     // here because we may want to read in data again even if we don't know in
@@ -7522,7 +7527,7 @@ namespace DataOutBase
   std::pair<unsigned int, unsigned int>
   determine_intermediate_format_dimensions(std::istream &input)
   {
-    AssertThrow(input, ExcIO());
+    AssertThrow(input.fail() == false, ExcIO());
 
     unsigned int dim, spacedim;
     input >> dim >> spacedim;
@@ -7689,11 +7694,8 @@ DataOutInterface<dim, spacedim>::write_vtu_in_parallel(
   int ierr = MPI_Info_create(&info);
   AssertThrowMPI(ierr);
   MPI_File fh;
-  ierr = MPI_File_open(comm,
-                       DEAL_II_MPI_CONST_CAST(filename.c_str()),
-                       MPI_MODE_CREATE | MPI_MODE_WRONLY,
-                       info,
-                       &fh);
+  ierr = MPI_File_open(
+    comm, filename.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, info, &fh);
   AssertThrow(ierr == MPI_SUCCESS, ExcFileNotOpen(filename));
 
   ierr = MPI_File_set_size(fh, 0); // delete the file contents
@@ -7713,19 +7715,14 @@ DataOutInterface<dim, spacedim>::write_vtu_in_parallel(
       std::stringstream ss;
       DataOutBase::write_vtu_header(ss, vtk_flags);
       header_size = ss.str().size();
-      ierr = MPI_File_write(fh,
-                            DEAL_II_MPI_CONST_CAST(ss.str().c_str()),
-                            header_size,
-                            MPI_CHAR,
-                            MPI_STATUS_IGNORE);
+      // Write the header on rank 0 and automatically move the
+      // shared file pointer to the location after header;
+      ierr = MPI_File_write_shared(
+        fh, ss.str().c_str(), header_size, MPI_CHAR, MPI_STATUS_IGNORE);
       AssertThrowMPI(ierr);
     }
 
-  ierr = MPI_Bcast(&header_size, 1, MPI_UNSIGNED, 0, comm);
-  AssertThrowMPI(ierr);
 
-  ierr = MPI_File_seek_shared(fh, header_size, MPI_SEEK_SET);
-  AssertThrowMPI(ierr);
   {
     const auto &patches = get_patches();
     const types::global_dof_index my_n_patches = patches.size();
@@ -7744,11 +7741,8 @@ DataOutInterface<dim, spacedim>::write_vtu_in_parallel(
                                   vtk_flags,
                                   ss);
 
-    ierr = MPI_File_write_ordered(fh,
-                                  DEAL_II_MPI_CONST_CAST(ss.str().c_str()),
-                                  ss.str().size(),
-                                  MPI_CHAR,
-                                  MPI_STATUS_IGNORE);
+    ierr = MPI_File_write_ordered(
+      fh, ss.str().c_str(), ss.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
     AssertThrowMPI(ierr);
   }
 
@@ -7758,11 +7752,8 @@ DataOutInterface<dim, spacedim>::write_vtu_in_parallel(
       std::stringstream ss;
       DataOutBase::write_vtu_footer(ss);
       unsigned int footer_size = ss.str().size();
-      ierr = MPI_File_write_shared(fh,
-                                   DEAL_II_MPI_CONST_CAST(ss.str().c_str()),
-                                   footer_size,
-                                   MPI_CHAR,
-                                   MPI_STATUS_IGNORE);
+      ierr = MPI_File_write_shared(
+        fh, ss.str().c_str(), footer_size, MPI_CHAR, MPI_STATUS_IGNORE);
       AssertThrowMPI(ierr);
     }
   ierr = MPI_File_close(&fh);
@@ -7835,8 +7826,7 @@ DataOutInterface<dim, spacedim>::write_vtu_with_pvtu_record(
       int ierr = MPI_Comm_split(mpi_communicator, color, rank, &comm_group);
       AssertThrowMPI(ierr);
       this->write_vtu_in_parallel(filename.c_str(), comm_group);
-      ierr = MPI_Comm_free(&comm_group);
-      AssertThrowMPI(ierr);
+      Utilities::MPI::free_communicator(comm_group);
 #else
       AssertThrow(false, ExcMessage("Logical error. Should not arrive here."));
 #endif
@@ -8870,7 +8860,7 @@ template <int dim, int spacedim>
 void
 DataOutReader<dim, spacedim>::read(std::istream &in)
 {
-  AssertThrow(in, ExcIO());
+  AssertThrow(in.fail() == false, ExcIO());
 
   // first empty previous content
   {
@@ -8972,7 +8962,7 @@ DataOutReader<dim, spacedim>::read(std::istream &in)
       std::get<2>(nonscalar_data_ranges[i]) = name;
     }
 
-  AssertThrow(in, ExcIO());
+  AssertThrow(in.fail() == false, ExcIO());
 }
 
 
@@ -9279,7 +9269,7 @@ XDMFEntry::get_xdmf_content(const unsigned int   indent_level,
          << " " << (attribute_dim.second > 1 ? 3 : 1)
          << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
       ss << indent(indent_level + 3) << h5_sol_filename << ":/"
-         << attribute_dim.first << "\n";
+         << attribute_dim.first << '\n';
       ss << indent(indent_level + 2) << "</DataItem>\n";
       ss << indent(indent_level + 1) << "</Attribute>\n";
     }
@@ -9333,7 +9323,7 @@ namespace DataOutBase
   std::istream &
   operator>>(std::istream &in, Patch<dim, spacedim> &patch)
   {
-    AssertThrow(in, ExcIO());
+    AssertThrow(in.fail() == false, ExcIO());
 
     // read a header line and compare it to what we usually write. skip all
     // lines that contain only blanks at the start
@@ -9342,7 +9332,7 @@ namespace DataOutBase
       do
         {
           getline(in, header);
-          while ((header.size() != 0) && (header[header.size() - 1] == ' '))
+          while ((header.size() != 0) && (header.back() == ' '))
             header.erase(header.size() - 1);
         }
       while ((header.empty()) && in);
@@ -9398,7 +9388,7 @@ namespace DataOutBase
       for (unsigned int j = 0; j < patch.data.n_cols(); ++j)
         in >> patch.data[i][j];
 
-    AssertThrow(in, ExcIO());
+    AssertThrow(in.fail() == false, ExcIO());
 
     return in;
   }

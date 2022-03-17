@@ -186,6 +186,13 @@ public:
   JxW(const unsigned int q_point) const;
 
   /**
+   * Returns the q-th quadrature point on the face in real coordinates stored
+   * in MappingInfo.
+   */
+  Point<dim, Number>
+  quadrature_point(const unsigned int q) const;
+
+  /**
    * Return the inverse and transposed version $J^{-\mathrm T}$ of the
    * Jacobian of the mapping between the unit to the real cell defined as
    * $J_{ij} = d x_i / d\hat x_j$. The $(i,j)$ entry of the returned tensor
@@ -462,7 +469,7 @@ public:
    * internal use.
    */
   bool
-  get_is_interior_face() const;
+  is_interior_face() const;
 
   /**
    * Return the id of the cells this FEEvaluation or FEFaceEvaluation is
@@ -471,9 +478,25 @@ public:
   const std::array<unsigned int, n_lanes> &
   get_cell_ids() const
   {
-    // implemented inline to avoid compilation problems on Windows
-    Assert(cell != numbers::invalid_unsigned_int, ExcNotInitialized());
+// implemented inline to avoid compilation problems on Windows
+#ifdef DEBUG
+    Assert(is_reinitialized, ExcNotInitialized());
+#endif
     return cell_ids;
+  }
+
+  /**
+   * Return the id of the faces this FEFaceEvaluation is
+   * associated with.
+   */
+  const std::array<unsigned int, n_lanes> &
+  get_face_ids() const
+  {
+// implemented inline to avoid compilation problems on Windows
+#ifdef DEBUG
+    Assert(is_reinitialized && is_face, ExcNotInitialized());
+#endif
+    return face_ids;
   }
 
   /**
@@ -483,8 +506,11 @@ public:
   unsigned int
   get_cell_or_face_batch_id() const
   {
-    // implemented inline to avoid compilation problems on Windows
-    Assert(cell != numbers::invalid_unsigned_int, ExcNotInitialized());
+// implemented inline to avoid compilation problems on Windows
+#ifdef DEBUG
+    Assert(is_reinitialized, ExcNotInitialized());
+#endif
+
     return cell;
   }
 
@@ -495,14 +521,100 @@ public:
   const std::array<unsigned int, n_lanes> &
   get_cell_or_face_ids() const
   {
-    // implemented inline to avoid compilation problems on Windows
-    Assert(cell != numbers::invalid_unsigned_int, ExcNotInitialized());
+// implemented inline to avoid compilation problems on Windows
+#ifdef DEBUG
+    Assert(is_reinitialized, ExcNotInitialized());
+#endif
+
     if (!is_face || dof_access_index ==
                       internal::MatrixFreeFunctions::DoFInfo::dof_access_cell)
       return cell_ids;
     else
-      return cell_or_face_ids;
+      return face_ids;
   }
+
+  //@}
+
+  /**
+   * @name 3: Functions to access cell- and face-data vectors.
+   */
+  //@{
+
+  /**
+   * Provides a unified interface to access data in a vector of
+   * VectorizedArray fields of length MatrixFree::n_cell_batches() +
+   * MatrixFree::n_ghost_cell_batches() for cell data. It is implemented
+   * both for cells and faces (access data to the associated cell).
+   */
+  Number
+  read_cell_data(const AlignedVector<Number> &array) const;
+
+  /**
+   * Provides a unified interface to set data in a vector of
+   * VectorizedArray fields of length MatrixFree::n_cell_batches() +
+   * MatrixFree::n_ghost_cell_batches() for cell data. It is implemented
+   * both for cells and faces (access data to the associated cell).
+   */
+  void
+  set_cell_data(AlignedVector<Number> &array, const Number &value) const;
+
+  /**
+   * The same as above, just for std::array of length of Number for
+   * arbitrary data type.
+   */
+  template <typename T>
+  std::array<T, Number::size()>
+  read_cell_data(
+    const AlignedVector<std::array<T, Number::size()>> &array) const;
+
+  /**
+   * The same as above, just for std::array of length of Number for
+   * arbitrary data type.
+   */
+  template <typename T>
+  void
+  set_cell_data(AlignedVector<std::array<T, Number::size()>> &array,
+                const std::array<T, Number::size()> &         value) const;
+
+  /**
+   * Provides a unified interface to access data in a vector of
+   * VectorizedArray fields of length MatrixFree::n_inner_face_batches() +
+   * MatrixFree::n_boundary_face_batches() +
+   * MatrixFree::n_ghost_inner_face_batches() for face data.
+   *
+   * @note Only implemented for faces.
+   */
+  Number
+  read_face_data(const AlignedVector<Number> &array) const;
+
+  /**
+   * Provides a unified interface to set data in a vector of
+   * VectorizedArray fields of length MatrixFree::n_inner_face_batches() +
+   * MatrixFree::n_boundary_face_batches() +
+   * MatrixFree::n_ghost_inner_face_batches() for face data.
+   *
+   * @note Only implemented for faces.
+   */
+  void
+  set_face_data(AlignedVector<Number> &array, const Number &value) const;
+
+  /**
+   * The same as above, just for std::array of length of Number for
+   * arbitrary data type.
+   */
+  template <typename T>
+  std::array<T, Number::size()>
+  read_face_data(
+    const AlignedVector<std::array<T, Number::size()>> &array) const;
+
+  /**
+   * The same as above, just for std::array of length of Number for
+   * arbitrary data type.
+   */
+  template <typename T>
+  void
+  set_face_data(AlignedVector<std::array<T, Number::size()>> &array,
+                const std::array<T, Number::size()> &         value) const;
 
   //@}
 
@@ -609,10 +721,23 @@ protected:
   const unsigned int n_quadrature_points;
 
   /**
+   * A pointer to the quadrature-point information of the present cell.
+   * Only set to a useful value if on a non-Cartesian cell.
+   */
+  const Point<dim, Number> *quadrature_points;
+
+  /**
    * A pointer to the Jacobian information of the present cell. Only set to a
    * useful value if on a non-Cartesian cell.
    */
   const Tensor<2, dim, Number> *jacobian;
+
+  /**
+   * A pointer to the gradients of the inverse Jacobian transformation of the
+   * present cell.
+   */
+  const Tensor<1, dim *(dim + 1) / 2, Tensor<1, dim, Number>>
+    *jacobian_gradients;
 
   /**
    * A pointer to the Jacobian determinant of the present cell. If on a
@@ -706,6 +831,12 @@ protected:
   Number *hessians_quad;
 
   /**
+   * Debug information to track whether the reinit() function of derived classes
+   * was called.
+   */
+  bool is_reinitialized;
+
+  /**
    * Debug information to track whether dof values have been initialized
    * before accessed. Used to control exceptions when uninitialized data is
    * used.
@@ -766,7 +897,7 @@ protected:
    * the dof values should be read from the actual cell corresponding to the
    * interior face or the neighboring cell corresponding to the exterior face.
    */
-  bool is_interior_face;
+  bool interior_face;
 
   /**
    * Stores the index an FEFaceEvaluation object is currently pointing into
@@ -821,7 +952,7 @@ protected:
    * Stores the (non-vectorized) id of the cells or faces this object is
    * initialized to. Relevant for ECL.
    */
-  std::array<unsigned int, n_lanes> cell_or_face_ids;
+  std::array<unsigned int, n_lanes> face_ids;
 
   /**
    * Geometry data that can be generated FEValues on the fly with the
@@ -888,13 +1019,16 @@ inline FEEvaluationData<dim, Number, is_face>::FEEvaluationData(
   , n_quadrature_points(descriptor == nullptr ?
                           (is_face ? data->n_q_points_face : data->n_q_points) :
                           descriptor->n_q_points)
+  , quadrature_points(nullptr)
   , jacobian(nullptr)
+  , jacobian_gradients(nullptr)
   , J_value(nullptr)
   , normal_vectors(nullptr)
   , normal_x_jacobian(nullptr)
   , quadrature_weights(
       descriptor != nullptr ? descriptor->quadrature_weights.begin() : nullptr)
 #  ifdef DEBUG
+  , is_reinitialized(false)
   , dof_values_initialized(false)
   , values_quad_initialized(false)
   , gradients_quad_initialized(false)
@@ -903,7 +1037,7 @@ inline FEEvaluationData<dim, Number, is_face>::FEEvaluationData(
   , gradients_quad_submitted(false)
 #  endif
   , cell(numbers::invalid_unsigned_int)
-  , is_interior_face(is_interior_face)
+  , interior_face(is_interior_face)
   , dof_access_index(
       is_face ?
         (is_interior_face ?
@@ -934,20 +1068,27 @@ inline FEEvaluationData<dim, Number, is_face>::FEEvaluationData(
   , descriptor(nullptr)
   , n_quadrature_points(
       mapped_geometry->get_data_storage().descriptor[0].n_q_points)
+  , quadrature_points(nullptr)
   , jacobian(nullptr)
+  , jacobian_gradients(nullptr)
   , J_value(nullptr)
   , normal_vectors(nullptr)
   , normal_x_jacobian(nullptr)
   , quadrature_weights(nullptr)
   , cell(0)
   , cell_type(internal::MatrixFreeFunctions::general)
-  , is_interior_face(true)
+  , interior_face(true)
   , dof_access_index(internal::MatrixFreeFunctions::DoFInfo::dof_access_cell)
   , mapped_geometry(mapped_geometry)
+  , is_reinitialized(false)
 {
   mapping_data = &mapped_geometry->get_data_storage();
   jacobian     = mapped_geometry->get_data_storage().jacobians[0].begin();
   J_value      = mapped_geometry->get_data_storage().JxW_values.begin();
+  jacobian_gradients =
+    mapped_geometry->get_data_storage().jacobian_gradients[0].begin();
+  quadrature_points =
+    mapped_geometry->get_data_storage().quadrature_points.begin();
 }
 
 
@@ -971,9 +1112,12 @@ FEEvaluationData<dim, Number, is_face>::operator=(const FEEvaluationData &other)
   J_value            = nullptr;
   normal_vectors     = nullptr;
   normal_x_jacobian  = nullptr;
+  jacobian_gradients = nullptr;
+  quadrature_points  = nullptr;
   quadrature_weights = other.quadrature_weights;
 
 #  ifdef DEBUG
+  is_reinitialized           = false;
   dof_values_initialized     = false;
   values_quad_initialized    = false;
   gradients_quad_initialized = false;
@@ -982,11 +1126,11 @@ FEEvaluationData<dim, Number, is_face>::operator=(const FEEvaluationData &other)
   gradients_quad_submitted   = false;
 #  endif
 
-  cell             = numbers::invalid_unsigned_int;
-  is_interior_face = other.is_interior_face;
+  cell          = numbers::invalid_unsigned_int;
+  interior_face = other.is_interior_face();
   dof_access_index =
     is_face ?
-      (is_interior_face ?
+      (is_interior_face() ?
          internal::MatrixFreeFunctions::DoFInfo::dof_access_face_interior :
          internal::MatrixFreeFunctions::DoFInfo::dof_access_face_exterior) :
       internal::MatrixFreeFunctions::DoFInfo::dof_access_cell;
@@ -1050,8 +1194,8 @@ FEEvaluationData<dim, Number, is_face>::reinit_face(
          ExcMessage("Faces can only be set if the is_face template parameter "
                     "is true"));
   face_numbers[0] =
-    (is_interior_face ? face.interior_face_no : face.exterior_face_no);
-  subface_index = is_interior_face == true ?
+    (is_interior_face() ? face.interior_face_no : face.exterior_face_no);
+  subface_index = is_interior_face() == true ?
                     GeometryInfo<dim>::max_children_per_cell :
                     face.subface_index;
 
@@ -1060,11 +1204,11 @@ FEEvaluationData<dim, Number, is_face>::reinit_face(
   // standard-orientation else copy the first three bits
   // (which is equivalent to modulo 8). See also the documentation of
   // internal::MatrixFreeFunctions::FaceToCellTopology::face_orientation.
-  face_orientations[0] = (is_interior_face == (face.face_orientation >= 8)) ?
+  face_orientations[0] = (is_interior_face() == (face.face_orientation >= 8)) ?
                            (face.face_orientation % 8) :
                            0;
 
-  if (is_interior_face)
+  if (is_interior_face())
     cell_ids = face.cells_interior;
   else
     cell_ids = face.cells_exterior;
@@ -1104,6 +1248,43 @@ FEEvaluationData<dim, Number, is_face>::JxW(const unsigned int q_point) const
     }
   else
     return J_value[q_point];
+}
+
+
+
+template <int dim, typename Number, bool is_face>
+inline DEAL_II_ALWAYS_INLINE Point<dim, Number>
+FEEvaluationData<dim, Number, is_face>::quadrature_point(
+  const unsigned int q) const
+{
+  AssertIndexRange(q, this->n_quadrature_points);
+  Assert(this->quadrature_points != nullptr,
+         internal::ExcMatrixFreeAccessToUninitializedMappingField(
+           "update_quadrature_points"));
+
+  // Cartesian/affine mesh: only first vertex of cell is stored, we must
+  // compute it through the Jacobian (which is stored in non-inverted and
+  // non-transposed form as index '1' in the jacobian field)
+  if (is_face == false &&
+      this->cell_type <= internal::MatrixFreeFunctions::affine)
+    {
+      Assert(this->jacobian != nullptr, ExcNotInitialized());
+      Point<dim, Number> point = this->quadrature_points[0];
+
+      const Tensor<2, dim, Number> &jac = this->jacobian[1];
+      if (this->cell_type == internal::MatrixFreeFunctions::cartesian)
+        for (unsigned int d = 0; d < dim; ++d)
+          point[d] += jac[d][d] * static_cast<typename Number::value_type>(
+                                    this->descriptor->quadrature.point(q)[d]);
+      else
+        for (unsigned int d = 0; d < dim; ++d)
+          for (unsigned int e = 0; e < dim; ++e)
+            point[d] += jac[d][e] * static_cast<typename Number::value_type>(
+                                      this->descriptor->quadrature.point(q)[e]);
+      return point;
+    }
+  else
+    return this->quadrature_points[q];
 }
 
 
@@ -1242,7 +1423,9 @@ template <int dim, typename Number, bool is_face>
 inline internal::MatrixFreeFunctions::GeometryType
 FEEvaluationData<dim, Number, is_face>::get_cell_type() const
 {
-  Assert(cell != numbers::invalid_unsigned_int, ExcNotInitialized());
+#  ifdef DEBUG
+  Assert(is_reinitialized, ExcNotInitialized());
+#  endif
   return cell_type;
 }
 
@@ -1345,7 +1528,7 @@ FEEvaluationData<dim, Number, is_face>::get_face_no(const unsigned int v) const
   Assert(v == 0 || (cell != numbers::invalid_unsigned_int &&
                     dof_access_index ==
                       internal::MatrixFreeFunctions::DoFInfo::dof_access_cell &&
-                    is_interior_face == false),
+                    is_interior_face() == false),
          ExcMessage("All face numbers can only be queried for ECL at exterior "
                     "faces. Use get_face_no() in other cases."));
 
@@ -1372,7 +1555,7 @@ FEEvaluationData<dim, Number, is_face>::get_face_orientation(
   Assert(v == 0 || (cell != numbers::invalid_unsigned_int &&
                     dof_access_index ==
                       internal::MatrixFreeFunctions::DoFInfo::dof_access_cell &&
-                    is_interior_face == false),
+                    is_interior_face() == false),
          ExcMessage("All face numbers can only be queried for ECL at exterior "
                     "faces. Use get_face_no() in other cases."));
 
@@ -1392,9 +1575,168 @@ FEEvaluationData<dim, Number, is_face>::get_dof_access_index() const
 
 template <int dim, typename Number, bool is_face>
 inline bool
-FEEvaluationData<dim, Number, is_face>::get_is_interior_face() const
+FEEvaluationData<dim, Number, is_face>::is_interior_face() const
 {
-  return is_interior_face;
+  return interior_face;
+}
+
+
+
+namespace internal
+{
+  template <std::size_t N,
+            typename VectorizedArrayType2,
+            typename GlobalVectorType,
+            typename FU>
+  inline void
+  process_cell_or_face_data(const std::array<unsigned int, N> indices,
+                            GlobalVectorType &                array,
+                            VectorizedArrayType2 &            out,
+                            const FU &                        fu)
+  {
+    for (unsigned int i = 0; i < N; ++i)
+      if (indices[i] != numbers::invalid_unsigned_int)
+        {
+          AssertIndexRange(indices[i] / N, array.size());
+          fu(out[i], array[indices[i] / N][indices[i] % N]);
+        }
+  }
+} // namespace internal
+
+
+
+template <int dim, typename Number, bool is_face>
+inline Number
+FEEvaluationData<dim, Number, is_face>::read_cell_data(
+  const AlignedVector<Number> &array) const
+{
+  Number out = Number(1.);
+  internal::process_cell_or_face_data(this->get_cell_ids(),
+                                      array,
+                                      out,
+                                      [](auto &local, const auto &global) {
+                                        local = global;
+                                      });
+  return out;
+}
+
+
+
+template <int dim, typename Number, bool is_face>
+inline void
+FEEvaluationData<dim, Number, is_face>::set_cell_data(
+  AlignedVector<Number> &array,
+  const Number &         in) const
+{
+  internal::process_cell_or_face_data(this->get_cell_ids(),
+                                      array,
+                                      in,
+                                      [](const auto &local, auto &global) {
+                                        global = local;
+                                      });
+}
+
+
+
+template <int dim, typename Number, bool is_face>
+template <typename T>
+inline std::array<T, Number::size()>
+FEEvaluationData<dim, Number, is_face>::read_cell_data(
+  const AlignedVector<std::array<T, Number::size()>> &array) const
+{
+  std::array<T, Number::size()> out;
+  internal::process_cell_or_face_data(this->get_cell_ids(),
+                                      array,
+                                      out,
+                                      [](auto &local, const auto &global) {
+                                        local = global;
+                                      });
+  return out;
+}
+
+
+
+template <int dim, typename Number, bool is_face>
+template <typename T>
+inline void
+FEEvaluationData<dim, Number, is_face>::set_cell_data(
+  AlignedVector<std::array<T, Number::size()>> &array,
+  const std::array<T, Number::size()> &         in) const
+{
+  internal::process_cell_or_face_data(this->get_cell_ids(),
+                                      array,
+                                      in,
+                                      [](const auto &local, auto &global) {
+                                        global = local;
+                                      });
+}
+
+
+
+template <int dim, typename Number, bool is_face>
+inline Number
+FEEvaluationData<dim, Number, is_face>::read_face_data(
+  const AlignedVector<Number> &array) const
+{
+  Number out = Number(1.);
+  internal::process_cell_or_face_data(this->get_face_ids(),
+                                      array,
+                                      out,
+                                      [](auto &local, const auto &global) {
+                                        local = global;
+                                      });
+  return out;
+}
+
+
+
+template <int dim, typename Number, bool is_face>
+inline void
+FEEvaluationData<dim, Number, is_face>::set_face_data(
+  AlignedVector<Number> &array,
+  const Number &         in) const
+{
+  internal::process_cell_or_face_data(this->get_face_ids(),
+                                      array,
+                                      in,
+                                      [](const auto &local, auto &global) {
+                                        global = local;
+                                      });
+}
+
+
+
+template <int dim, typename Number, bool is_face>
+template <typename T>
+inline std::array<T, Number::size()>
+FEEvaluationData<dim, Number, is_face>::read_face_data(
+  const AlignedVector<std::array<T, Number::size()>> &array) const
+{
+  std::array<T, Number::size()> out;
+  internal::process_cell_or_face_data(this->get_face_ids(),
+                                      array,
+                                      out,
+                                      [](auto &local, const auto &global) {
+                                        local = global;
+                                      });
+  return out;
+}
+
+
+
+template <int dim, typename Number, bool is_face>
+template <typename T>
+inline void
+FEEvaluationData<dim, Number, is_face>::set_face_data(
+  AlignedVector<std::array<T, Number::size()>> &array,
+  const std::array<T, Number::size()> &         in) const
+{
+  internal::process_cell_or_face_data(this->get_face_ids(),
+                                      array,
+                                      in,
+                                      [](const auto &local, auto &global) {
+                                        global = local;
+                                      });
 }
 
 

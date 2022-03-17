@@ -720,7 +720,7 @@ namespace Step18
     deallog.depth_file(previous_depth);
 
     deallog << "norm: " << distributed_incremental_displacement.linfty_norm()
-            << " " << distributed_incremental_displacement.l1_norm() << " "
+            << ' ' << distributed_incremental_displacement.l1_norm() << ' '
             << distributed_incremental_displacement.l2_norm() << std::endl;
 
     incremental_displacement = distributed_incremental_displacement;
@@ -823,7 +823,7 @@ namespace Step18
           deallog << (p == 0 ? ' ' : '+')
                   << (GridTools::count_cells_with_subdomain_association(
                        triangulation, p));
-        deallog << ")" << std::endl;
+        deallog << ')' << std::endl;
 
         setup_system();
 
@@ -833,7 +833,7 @@ namespace Step18
           deallog << (p == 0 ? ' ' : '+')
                   << (DoFTools::count_dofs_with_subdomain_association(
                        dof_handler, p));
-        deallog << ")" << std::endl;
+        deallog << ')' << std::endl;
 
         solve_timestep();
       }
@@ -951,12 +951,12 @@ namespace Step18
                                     quadrature_formula.size());
 
     unsigned int history_index = 0;
-    for (auto &cell : triangulation.active_cell_iterators())
-      if (cell->is_locally_owned())
-        {
-          cell->set_user_pointer(&quadrature_point_history[history_index]);
-          history_index += quadrature_formula.size();
-        }
+    for (auto &cell : triangulation.active_cell_iterators() |
+                        IteratorFilters::LocallyOwnedCell())
+      {
+        cell->set_user_pointer(&quadrature_point_history[history_index]);
+        history_index += quadrature_formula.size();
+      }
 
     Assert(history_index == quadrature_point_history.size(),
            ExcInternalError());

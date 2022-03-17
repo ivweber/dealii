@@ -385,7 +385,6 @@ namespace MatrixFreeOperators
     const std::shared_ptr<DiagonalMatrix<VectorType>> &
     get_matrix_diagonal() const;
 
-
     /**
      * Apply the Jacobi preconditioner, which multiplies every element of the
      * <tt>src</tt> vector by the inverse of the respective diagonal element and
@@ -1960,7 +1959,7 @@ namespace MatrixFreeOperators
     // entries here.
     for (size_type i = 0; i < locally_owned_size; ++i)
       {
-        if (inverse_lumped_diagonal_vector.local_element(i) == Number(0.))
+        if (lumped_diagonal_vector.local_element(i) == Number(0.))
           inverse_lumped_diagonal_vector.local_element(i) = Number(1.);
         else
           inverse_lumped_diagonal_vector.local_element(i) =

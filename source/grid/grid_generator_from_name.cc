@@ -129,6 +129,9 @@ namespace GridGenerator
         parse_and_create<dim, dim, const Point<dim> &, double, bool>(hyper_ball,
                                                                      arguments,
                                                                      tria);
+      else if (name == "hyper_ball_balanced")
+        parse_and_create<dim, dim, const Point<dim> &, double>(
+          hyper_ball_balanced, arguments, tria);
 
       else if (name == "quarter_hyper_ball")
         parse_and_create<dim, dim, const Point<dim> &, double>(
@@ -150,6 +153,13 @@ namespace GridGenerator
         parse_and_create<dim, dim, double, double, double>(truncated_cone,
                                                            arguments,
                                                            tria);
+
+      else if (name == "pipe_junction")
+        parse_and_create<dim,
+                         dim,
+                         const std::vector<std::pair<Point<dim>, double>> &,
+                         const std::pair<Point<dim>, double> &,
+                         double>(pipe_junction, arguments, tria);
 
       else if (name == "hyper_L")
         parse_and_create<dim, dim, double, double, bool>(hyper_L,

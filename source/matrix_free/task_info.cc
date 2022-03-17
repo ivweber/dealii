@@ -28,11 +28,29 @@
 #  include <tbb/blocked_range.h>
 #  include <tbb/parallel_for.h>
 #  include <tbb/task.h>
-#  include <tbb/task_scheduler_init.h>
+#  ifndef DEAL_II_TBB_WITH_ONEAPI
+#    include <tbb/task_scheduler_init.h>
+#  endif
 #endif
 
 #include <iostream>
 #include <set>
+
+//
+// TBB with oneAPI API has deprecated and removed the
+// <code>tbb::tasks</code> backend. With this it is no longer possible to
+// compile the following code that builds a directed acyclic graph (DAG) of
+// (thread parallel) tasks without a major porting effort. It turned out
+// that such a dynamic handling of dependencies and structures is not as
+// competitive as initially assumed. Consequently, this part of the matrix
+// free infrastructure has seen less attention than the rest over the last
+// years and is (presumably) not used that often.
+//
+// In case of detected oneAPI backend we simply disable threading in the
+// matrix free backend for now.
+//
+// Matthias Maier, Martin Kronbichler, 2021
+//
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -43,7 +61,7 @@ namespace internal
 {
   namespace MatrixFreeFunctions
   {
-#ifdef DEAL_II_WITH_TBB
+#if defined(DEAL_II_WITH_TBB) && !defined(DEAL_II_TBB_WITH_ONEAPI)
 
     // This defines the TBB data structures that are needed to schedule the
     // partition-partition variant
@@ -341,7 +359,7 @@ namespace internal
 
       funct.vector_update_ghosts_start();
 
-#ifdef DEAL_II_WITH_TBB
+#if defined(DEAL_II_WITH_TBB) && !defined(DEAL_II_TBB_WITH_ONEAPI)
 
       if (scheme != none)
         {
@@ -807,7 +825,7 @@ namespace internal
       // power of two, which allows it to replace integer divisions by shifts
       unsigned int vectorization_length_bits = 0;
       unsigned int my_length                 = vectorization_length;
-      while (my_length >>= 1)
+      while ((my_length >>= 1) != 0u)
         ++vectorization_length_bits;
       const unsigned int n_lanes = 1 << vectorization_length_bits;
 
@@ -852,9 +870,9 @@ namespace internal
         for (unsigned int j = n_categories - 1; j > 0; --j)
           {
             unsigned int lower_index = j - 1;
-            while (renumbering_category[j].size() % n_lanes)
+            while ((renumbering_category[j].size() % n_lanes) != 0u)
               {
-                while (renumbering_category[j].size() % n_lanes &&
+                while (((renumbering_category[j].size() % n_lanes) != 0u) &&
                        !renumbering_category[lower_index].empty())
                   {
                     renumbering_category[j].push_back(
@@ -1044,7 +1062,7 @@ namespace internal
                             cell_vectorization_categories[n_active_cells]);
           renumbering[cell] = cell;
         }
-      if (n_ghost_cells % n_lanes)
+      if ((n_ghost_cells % n_lanes) != 0u)
         incompletely_filled_vectorization.back() = n_ghost_cells % n_lanes;
       cell_partition_data.push_back(n_cell_batches + n_ghost_batches);
       partition_row_index.back() = cell_partition_data.size() - 1;

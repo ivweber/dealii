@@ -87,6 +87,26 @@ namespace Utilities
 
   namespace MPI
   {
+#ifdef DEAL_II_WITH_MPI
+    // Provide definitions of template variables for all valid instantiations.
+    template const MPI_Datatype mpi_type_id_for_type<bool>;
+    template const MPI_Datatype mpi_type_id_for_type<char>;
+    template const MPI_Datatype mpi_type_id_for_type<signed char>;
+    template const MPI_Datatype mpi_type_id_for_type<short>;
+    template const MPI_Datatype mpi_type_id_for_type<int>;
+    template const MPI_Datatype mpi_type_id_for_type<long int>;
+    template const MPI_Datatype mpi_type_id_for_type<unsigned char>;
+    template const MPI_Datatype mpi_type_id_for_type<unsigned short>;
+    template const MPI_Datatype mpi_type_id_for_type<unsigned long int>;
+    template const MPI_Datatype mpi_type_id_for_type<unsigned long long int>;
+    template const MPI_Datatype mpi_type_id_for_type<float>;
+    template const MPI_Datatype mpi_type_id_for_type<double>;
+    template const MPI_Datatype mpi_type_id_for_type<long double>;
+    template const MPI_Datatype mpi_type_id_for_type<std::complex<float>>;
+    template const MPI_Datatype mpi_type_id_for_type<std::complex<double>>;
+#endif
+
+
     MinMaxAvg
     min_max_avg(const double my_value, const MPI_Comm &mpi_communicator)
     {
@@ -183,78 +203,9 @@ namespace Utilities
                  const int        tag,
                  MPI_Comm *       new_comm)
     {
-#  if DEAL_II_MPI_VERSION_GTE(3, 0)
-      return MPI_Comm_create_group(comm, group, tag, new_comm);
-#  else
-      int rank;
-      int ierr = MPI_Comm_rank(comm, &rank);
+      const int ierr = MPI_Comm_create_group(comm, group, tag, new_comm);
       AssertThrowMPI(ierr);
-
-      int grp_rank;
-      ierr = MPI_Group_rank(group, &grp_rank);
-      AssertThrowMPI(ierr);
-      if (grp_rank == MPI_UNDEFINED)
-        {
-          *new_comm = MPI_COMM_NULL;
-          return MPI_SUCCESS;
-        }
-
-      int grp_size;
-      ierr = MPI_Group_size(group, &grp_size);
-      AssertThrowMPI(ierr);
-
-      ierr = MPI_Comm_dup(MPI_COMM_SELF, new_comm);
-      AssertThrowMPI(ierr);
-
-      MPI_Group parent_grp;
-      ierr = MPI_Comm_group(comm, &parent_grp);
-      AssertThrowMPI(ierr);
-
-      std::vector<int> pids(grp_size);
-      std::vector<int> grp_pids(grp_size);
-      std::iota(grp_pids.begin(), grp_pids.end(), 0);
-      ierr = MPI_Group_translate_ranks(
-        group, grp_size, grp_pids.data(), parent_grp, pids.data());
-      AssertThrowMPI(ierr);
-      ierr = MPI_Group_free(&parent_grp);
-      AssertThrowMPI(ierr);
-
-      MPI_Comm comm_old = *new_comm;
-      MPI_Comm ic;
-      for (int merge_sz = 1; merge_sz < grp_size; merge_sz *= 2)
-        {
-          const int gid = grp_rank / merge_sz;
-          comm_old      = *new_comm;
-          if (gid % 2 == 0)
-            {
-              if ((gid + 1) * merge_sz < grp_size)
-                {
-                  ierr = (MPI_Intercomm_create(
-                    *new_comm, 0, comm, pids[(gid + 1) * merge_sz], tag, &ic));
-                  AssertThrowMPI(ierr);
-                  ierr = MPI_Intercomm_merge(ic, 0 /* LOW */, new_comm);
-                  AssertThrowMPI(ierr);
-                }
-            }
-          else
-            {
-              ierr = MPI_Intercomm_create(
-                *new_comm, 0, comm, pids[(gid - 1) * merge_sz], tag, &ic);
-              AssertThrowMPI(ierr);
-              ierr = MPI_Intercomm_merge(ic, 1 /* HIGH */, new_comm);
-              AssertThrowMPI(ierr);
-            }
-          if (*new_comm != comm_old)
-            {
-              ierr = MPI_Comm_free(&ic);
-              AssertThrowMPI(ierr);
-              ierr = MPI_Comm_free(&comm_old);
-              AssertThrowMPI(ierr);
-            }
-        }
-
-      return MPI_SUCCESS;
-#  endif
+      return ierr;
     }
 
 
@@ -297,7 +248,7 @@ namespace Utilities
 
 
 
-    MPI_Datatype
+    std::unique_ptr<MPI_Datatype, void (*)(MPI_Datatype *)>
     create_mpi_data_type_n_bytes(const std::size_t n_bytes)
     {
       // Simplified version from BigMPI repository, see
@@ -337,7 +288,7 @@ namespace Utilities
       AssertThrow(
         displacements[1] == n_chunks * max_signed_int,
         ExcMessage(
-          "ERROR in create_mpi_data_type_n_bytes(), size too big to support."));
+          "Error in create_mpi_data_type_n_bytes(): the size is too big to support."));
 
       MPI_Datatype result;
 
@@ -355,16 +306,35 @@ namespace Utilities
       AssertThrowMPI(ierr);
 
 #  ifdef DEBUG
-#    if DEAL_II_MPI_VERSION_GTE(3, 0)
       MPI_Count size64;
-      // this function is only available starting MPI 3.0:
       ierr = MPI_Type_size_x(result, &size64);
       AssertThrowMPI(ierr);
 
       Assert(size64 == static_cast<MPI_Count>(n_bytes), ExcInternalError());
-#    endif
 #  endif
-      return result;
+
+      // Now put the new data type into a std::unique_ptr with a custom
+      // deleter. We call the std::unique_ptr constructor that as first
+      // argument takes a pointer (here, a pointer to a copy of the `result`
+      // object, and as second argument a pointer-to-function, for which
+      // we here use a lambda function without captures that acts as the
+      // 'deleter' object: it calls `MPI_Type_free` and then deletes the
+      // pointer. To avoid a compiler warning about a null this pointer
+      // in the lambda (which don't make sense: the lambda doesn't store
+      // anything), we create the deleter first.
+      auto deleter = [](MPI_Datatype *p) {
+        if (p != nullptr)
+          {
+            const int ierr = MPI_Type_free(p);
+            (void)ierr;
+            AssertNothrow(ierr == MPI_SUCCESS, ExcMPI(ierr));
+
+            delete p;
+          }
+      };
+
+      return std::unique_ptr<MPI_Datatype, void (*)(MPI_Datatype *)>(
+        new MPI_Datatype(result), deleter);
     }
 
 
@@ -385,137 +355,101 @@ namespace Utilities
           AssertIndexRange(destination, n_procs);
         }
 
-#  if DEAL_II_MPI_VERSION_GTE(3, 0)
-      // check if destinations contain duplicates
-      auto destinations_unique = destinations;
-      std::sort(destinations_unique.begin(), destinations_unique.end());
-      destinations_unique.erase(std::unique(destinations_unique.begin(),
-                                            destinations_unique.end()),
-                                destinations_unique.end());
 
-      if (Utilities::MPI::min<unsigned int>(destinations.size() ==
-                                              destinations_unique.size(),
-                                            mpi_comm))
+      // Have a little function that checks if destinations provided
+      // to the current process are unique. The way it does this is
+      // to create a sorted list of destinations and then walk through
+      // the list and look at successive elements -- if we find the
+      // same number twice, we know that the destinations were not
+      // unique
+      const bool my_destinations_are_unique = [destinations]() {
+        if (destinations.size() == 0)
+          return true;
+        else
+          {
+            std::vector<unsigned int> my_destinations = destinations;
+            std::sort(my_destinations.begin(), my_destinations.end());
+            return (std::adjacent_find(my_destinations.begin(),
+                                       my_destinations.end()) ==
+                    my_destinations.end());
+          }
+      }();
+
+      // If all processes report that they have unique destinations,
+      // then we can short-cut the process using a consensus algorithm (which
+      // is implemented only for the case of unique destinations):
+      if (Utilities::MPI::min((my_destinations_are_unique ? 1 : 0), mpi_comm) ==
+          1)
         {
-          ConsensusAlgorithms::AnonymousProcess<char, char> process(
-            [&]() { return destinations; });
-          ConsensusAlgorithms::NBX<char, char> consensus_algorithm(process,
-                                                                   mpi_comm);
-          return consensus_algorithm.run();
+          return ConsensusAlgorithms::NBX<char, char>().run(
+            destinations, {}, {}, {}, mpi_comm);
         }
-#  endif
-      {
-#  if DEAL_II_MPI_VERSION_GTE(2, 2)
 
-        static CollectiveMutex      mutex;
-        CollectiveMutex::ScopedLock lock(mutex, mpi_comm);
+      // So we need to run a different algorithm, specifically one that
+      // requires more memory -- MPI_Reduce_scatter_block will require memory
+      // proportional to the number of processes involved; that function is
+      // available for MPI 2.2 or later:
+      static CollectiveMutex      mutex;
+      CollectiveMutex::ScopedLock lock(mutex, mpi_comm);
 
-        const int mpi_tag =
-          internal::Tags::compute_point_to_point_communication_pattern;
+      const int mpi_tag =
+        internal::Tags::compute_point_to_point_communication_pattern;
 
-        // Calculate the number of messages to send to each process
-        std::vector<unsigned int> dest_vector(n_procs);
-        for (const auto &el : destinations)
-          ++dest_vector[el];
+      // Calculate the number of messages to send to each process
+      std::vector<unsigned int> dest_vector(n_procs);
+      for (const auto &el : destinations)
+        ++dest_vector[el];
 
-        // Find how many processes will send to this one
-        // by reducing with sum and then scattering the
-        // results over all processes
-        unsigned int n_recv_from;
-        const int    ierr = MPI_Reduce_scatter_block(
-          dest_vector.data(), &n_recv_from, 1, MPI_UNSIGNED, MPI_SUM, mpi_comm);
+      // Find how many processes will send to this one
+      // by reducing with sum and then scattering the
+      // results over all processes
+      unsigned int n_recv_from;
+      const int    ierr = MPI_Reduce_scatter_block(
+        dest_vector.data(), &n_recv_from, 1, MPI_UNSIGNED, MPI_SUM, mpi_comm);
 
-        AssertThrowMPI(ierr);
+      AssertThrowMPI(ierr);
 
-        // Send myid to every process in `destinations` vector...
-        std::vector<MPI_Request> send_requests(destinations.size());
-        for (const auto &el : destinations)
-          {
-            const int ierr =
-              MPI_Isend(&myid,
-                        1,
-                        MPI_UNSIGNED,
-                        el,
-                        mpi_tag,
-                        mpi_comm,
-                        send_requests.data() + (&el - destinations.data()));
-            AssertThrowMPI(ierr);
-          }
+      // Send myid to every process in `destinations` vector...
+      std::vector<MPI_Request> send_requests(destinations.size());
+      for (const auto &el : destinations)
+        {
+          const int ierr =
+            MPI_Isend(&myid,
+                      1,
+                      MPI_UNSIGNED,
+                      el,
+                      mpi_tag,
+                      mpi_comm,
+                      send_requests.data() + (&el - destinations.data()));
+          AssertThrowMPI(ierr);
+        }
 
 
-        // Receive `n_recv_from` times from the processes
-        // who communicate with this one. Store the obtained id's
-        // in the resulting vector
-        std::vector<unsigned int> origins(n_recv_from);
-        for (auto &el : origins)
-          {
-            const int ierr = MPI_Recv(&el,
-                                      1,
-                                      MPI_UNSIGNED,
-                                      MPI_ANY_SOURCE,
-                                      mpi_tag,
-                                      mpi_comm,
-                                      MPI_STATUS_IGNORE);
-            AssertThrowMPI(ierr);
-          }
+      // Receive `n_recv_from` times from the processes
+      // who communicate with this one. Store the obtained id's
+      // in the resulting vector
+      std::vector<unsigned int> origins(n_recv_from);
+      for (auto &el : origins)
+        {
+          const int ierr = MPI_Recv(&el,
+                                    1,
+                                    MPI_UNSIGNED,
+                                    MPI_ANY_SOURCE,
+                                    mpi_tag,
+                                    mpi_comm,
+                                    MPI_STATUS_IGNORE);
+          AssertThrowMPI(ierr);
+        }
 
-        if (destinations.size() > 0)
-          {
-            const int ierr = MPI_Waitall(destinations.size(),
-                                         send_requests.data(),
-                                         MPI_STATUSES_IGNORE);
-            AssertThrowMPI(ierr);
-          }
+      if (destinations.size() > 0)
+        {
+          const int ierr = MPI_Waitall(destinations.size(),
+                                       send_requests.data(),
+                                       MPI_STATUSES_IGNORE);
+          AssertThrowMPI(ierr);
+        }
 
-        return origins;
-#  else
-        // let all processors communicate the maximal number of destinations
-        // they have
-        const unsigned int max_n_destinations =
-          Utilities::MPI::max(destinations.size(), mpi_comm);
-
-        if (max_n_destinations == 0)
-          // all processes have nothing to send/receive:
-          return std::vector<unsigned int>();
-
-        // now that we know the number of data packets every processor wants to
-        // send, set up a buffer with the maximal size and copy our destinations
-        // in there, padded with -1's
-        std::vector<unsigned int> my_destinations(
-          max_n_destinations, numbers::invalid_unsigned_int);
-        std::copy(destinations.begin(),
-                  destinations.end(),
-                  my_destinations.begin());
-
-        // now exchange these (we could communicate less data if we used
-        // MPI_Allgatherv, but we'd have to communicate my_n_destinations to all
-        // processors in this case, which is more expensive than the reduction
-        // operation above in MPI_Allreduce)
-        std::vector<unsigned int> all_destinations(max_n_destinations *
-                                                   n_procs);
-        const int                 ierr = MPI_Allgather(my_destinations.data(),
-                                       max_n_destinations,
-                                       MPI_UNSIGNED,
-                                       all_destinations.data(),
-                                       max_n_destinations,
-                                       MPI_UNSIGNED,
-                                       mpi_comm);
-        AssertThrowMPI(ierr);
-
-        // now we know who is going to communicate with whom. collect who is
-        // going to communicate with us!
-        std::vector<unsigned int> origins;
-        for (unsigned int i = 0; i < n_procs; ++i)
-          for (unsigned int j = 0; j < max_n_destinations; ++j)
-            if (all_destinations[i * max_n_destinations + j] == myid)
-              origins.push_back(i);
-            else if (all_destinations[i * max_n_destinations + j] ==
-                     numbers::invalid_unsigned_int)
-              break;
-
-        return origins;
-#  endif
-      }
+      return origins;
     }
 
 
@@ -525,19 +459,26 @@ namespace Utilities
       const MPI_Comm &                 mpi_comm,
       const std::vector<unsigned int> &destinations)
     {
-      // check if destinations contain duplicates
-      auto destinations_unique = destinations;
-      std::sort(destinations_unique.begin(), destinations_unique.end());
-      destinations_unique.erase(std::unique(destinations_unique.begin(),
-                                            destinations_unique.end()),
-                                destinations_unique.end());
+      // Have a little function that checks if destinations provided
+      // to the current process are unique:
+      const bool my_destinations_are_unique = [destinations]() {
+        std::vector<unsigned int> my_destinations = destinations;
+        const unsigned int        n_destinations  = my_destinations.size();
+        std::sort(my_destinations.begin(), my_destinations.end());
+        my_destinations.erase(std::unique(my_destinations.begin(),
+                                          my_destinations.end()),
+                              my_destinations.end());
+        return (my_destinations.size() == n_destinations);
+      }();
 
-      if (Utilities::MPI::min<unsigned int>(destinations.size() ==
-                                              destinations_unique.size(),
-                                            mpi_comm))
+      // If all processes report that they have unique destinations,
+      // then we can short-cut the process using a consensus algorithm:
+
+      if (Utilities::MPI::min((my_destinations_are_unique ? 1 : 0), mpi_comm) ==
+          1)
         {
-          return compute_point_to_point_communication_pattern(mpi_comm,
-                                                              destinations)
+          return ConsensusAlgorithms::NBX<char, char>()
+            .run(destinations, {}, {}, {}, mpi_comm)
             .size();
         }
       else
@@ -559,7 +500,6 @@ namespace Utilities
           for (const auto &el : destinations)
             ++dest_vector[el];
 
-#  if DEAL_II_MPI_VERSION_GTE(2, 2)
           // Find out how many processes will send to this one
           // MPI_Reduce_scatter(_block) does exactly this
           unsigned int n_recv_from = 0;
@@ -574,33 +514,6 @@ namespace Utilities
           AssertThrowMPI(ierr);
 
           return n_recv_from;
-#  else
-          // Find out how many processes will send to this one
-          // by reducing with sum and then scattering the
-          // results over all processes
-          std::vector<unsigned int> buffer(dest_vector.size());
-          unsigned int              n_recv_from = 0;
-
-          int ierr = MPI_Reduce(dest_vector.data(),
-                                buffer.data(),
-                                dest_vector.size(),
-                                MPI_UNSIGNED,
-                                MPI_SUM,
-                                0,
-                                mpi_comm);
-          AssertThrowMPI(ierr);
-          ierr = MPI_Scatter(buffer.data(),
-                             1,
-                             MPI_UNSIGNED,
-                             &n_recv_from,
-                             1,
-                             MPI_UNSIGNED,
-                             0,
-                             mpi_comm);
-          AssertThrowMPI(ierr);
-
-          return n_recv_from;
-#  endif
         }
     }
 
@@ -715,7 +628,7 @@ namespace Utilities
 
         int ierr =
           MPI_Op_create(reinterpret_cast<MPI_User_function *>(&max_reduce),
-                        true,
+                        static_cast<int>(true),
                         &op);
         AssertThrowMPI(ierr);
 
@@ -917,8 +830,7 @@ namespace Utilities
 
 #ifdef DEAL_II_WITH_P4EST
       // Initialize p4est and libsc components
-#  if DEAL_II_P4EST_VERSION_GTE(2, 0, 0, 0)
-#  else
+#  if DEAL_II_P4EST_VERSION_GTE(2, 5, 0, 0)
       // This feature is broken in version 2.0.0 for calls to
       // MPI_Comm_create_group (see cburstedde/p4est#30).
       // Disabling it leads to more verbose p4est error messages
@@ -1236,7 +1148,7 @@ namespace Utilities
       const int ierr = MPI_Barrier(comm);
       AssertThrowMPI(ierr);
 
-#  if 0 && DEAL_II_MPI_VERSION_GTE(3, 0)
+#  if 0
       // wait for non-blocking barrier to finish. This is a noop the
       // first time we lock().
       const int ierr = MPI_Wait(&request, MPI_STATUS_IGNORE);
@@ -1266,8 +1178,7 @@ namespace Utilities
       // TODO: For now, we implement this mutex with a blocking barrier
       // in the lock and unlock. It needs to be tested, if we can move
       // to a nonblocking barrier (code disabled below):
-
-#  if 0 && DEAL_II_MPI_VERSION_GTE(3, 0)
+#  if 0
       const int ierr = MPI_Ibarrier(comm, &request);
       AssertThrowMPI(ierr);
 #  else

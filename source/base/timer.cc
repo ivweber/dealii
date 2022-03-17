@@ -541,8 +541,7 @@ TimerOutput::print_summary() const
   // get the maximum width among all sections
   unsigned int max_width = 0;
   for (const auto &i : sections)
-    max_width =
-      std::max(max_width, static_cast<unsigned int>(i.first.length()));
+    max_width = std::max(max_width, static_cast<unsigned int>(i.first.size()));
 
   // 32 is the default width until | character
   max_width = std::max(max_width + 1, static_cast<unsigned int>(32));
@@ -733,8 +732,7 @@ TimerOutput::print_summary() const
       out_stream << "\n\n+---------------------------------------------"
                  << extra_dash << "+"
                  << "------------+------------+"
-                 << "------------+------------+"
-                 << "\n"
+                 << "------------+------------+" << '\n'
                  << "| Total CPU/wall time elapsed since start     "
                  << extra_space << "|" << std::setw(10) << std::setprecision(3)
                  << std::right << total_cpu_time << "s |            |"
@@ -856,8 +854,7 @@ TimerOutput::print_wall_time_statistics(const MPI_Comm &mpi_comm,
   // get the maximum width among all sections
   unsigned int max_width = 0;
   for (const auto &i : sections)
-    max_width =
-      std::max(max_width, static_cast<unsigned int>(i.first.length()));
+    max_width = std::max(max_width, static_cast<unsigned int>(i.first.size()));
 
   // 17 is the default width until | character
   max_width = std::max(max_width + 1, static_cast<unsigned int>(17));
@@ -960,13 +957,13 @@ TimerOutput::print_wall_time_statistics(const MPI_Comm &mpi_comm,
     const std::string time_rank_space  = "                  |";
 
     // now generate a nice table
-    out_stream << "\n"
+    out_stream << '\n'
                << "+------------------------------" << extra_dash << "+"
                << time_rank_column
                << (n_ranks > 1 && quantile > 0. ? time_rank_column : "")
                << "------------+"
                << (n_ranks > 1 && quantile > 0. ? time_rank_column : "")
-               << time_rank_column << "\n"
+               << time_rank_column << '\n'
                << "| Total wallclock time elapsed " << extra_space << "|";
 
     print_statistics(timer_all.wall_time());
@@ -976,7 +973,7 @@ TimerOutput::print_wall_time_statistics(const MPI_Comm &mpi_comm,
                << (n_ranks > 1 && quantile > 0. ? time_rank_space : "")
                << "             "
                << (n_ranks > 1 && quantile > 0. ? time_rank_space : "")
-               << time_rank_space << "\n";
+               << time_rank_space << '\n';
     out_stream << "| Section          " << extra_space << "| no. calls "
                << "|   min time  rank |";
     if (n_ranks > 1 && quantile > 0.)
@@ -992,7 +989,7 @@ TimerOutput::print_wall_time_statistics(const MPI_Comm &mpi_comm,
                << (n_ranks > 1 && quantile > 0. ? time_rank_column : "")
                << "------------+"
                << (n_ranks > 1 && quantile > 0. ? time_rank_column : "")
-               << time_rank_column << "\n";
+               << time_rank_column << '\n';
     for (const auto &i : sections)
       {
         std::string name_out = i.first;
@@ -1013,7 +1010,7 @@ TimerOutput::print_wall_time_statistics(const MPI_Comm &mpi_comm,
                << (n_ranks > 1 && quantile > 0. ? time_rank_column : "")
                << "------------+"
                << (n_ranks > 1 && quantile > 0. ? time_rank_column : "")
-               << time_rank_column << "\n";
+               << time_rank_column << '\n';
   }
 }
 

@@ -71,11 +71,7 @@ namespace LinearAlgebra
     Assert(dynamic_cast<const Vector<Number> *>(&V) != nullptr,
            ExcVectorTypeNotCompatible());
 
-    // Downcast V. If fails, throws an exception.
     const Vector<Number> &down_V = dynamic_cast<const Vector<Number> &>(V);
-    Assert(down_V.size() == this->size(),
-           ExcMessage(
-             "Cannot add two vectors with different numbers of elements"));
 
     ReadWriteVector<Number>::reinit(down_V, omit_zeroing_entries);
   }
@@ -555,7 +551,7 @@ namespace LinearAlgebra
   Vector<Number>::print_as_numpy_array(std::ostream &     out,
                                        const unsigned int precision) const
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
     boost::io::ios_flags_saver restore_flags(out);
 
     out.precision(precision);
@@ -565,7 +561,7 @@ namespace LinearAlgebra
       out << this->values[i] << ' ';
     out << '\n' << std::flush;
 
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -574,7 +570,7 @@ namespace LinearAlgebra
   void
   Vector<Number>::block_write(std::ostream &out) const
   {
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
 
     // Other version of the following
     //  out << size() << std::endl << '[';
@@ -597,7 +593,7 @@ namespace LinearAlgebra
     const char outro = ']';
     out.write(&outro, 1);
 
-    AssertThrow(out, ExcIO());
+    AssertThrow(out.fail() == false, ExcIO());
   }
 
 
@@ -606,7 +602,7 @@ namespace LinearAlgebra
   void
   Vector<Number>::block_read(std::istream &in)
   {
-    AssertThrow(in, ExcIO());
+    AssertThrow(in.fail() == false, ExcIO());
 
     size_type sz;
 

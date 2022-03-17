@@ -426,7 +426,7 @@ namespace Step43
 
   // The definition of the class that defines the top-level logic of solving
   // the time-dependent advection-dominated two-phase flow problem (or
-  // Buckley-Leverett problem [Buckley 1942]) is mainly based on tutorial
+  // Buckley-Leverett problem @cite Buckley1942) is mainly based on tutorial
   // programs step-21 and step-33, and in particular on step-31 where we have
   // used basically the same general structure as done here. As in step-31,
   // the key routines to look for in the implementation below are the
@@ -554,8 +554,9 @@ namespace Step43
     const double porosity;
     const double AOS_threshold;
 
-    std::shared_ptr<TrilinosWrappers::PreconditionIC> Amg_preconditioner;
-    std::shared_ptr<TrilinosWrappers::PreconditionIC> Mp_preconditioner;
+    std::shared_ptr<TrilinosWrappers::PreconditionIC> top_left_preconditioner;
+    std::shared_ptr<TrilinosWrappers::PreconditionIC>
+      bottom_right_preconditioner;
 
     bool rebuild_saturation_matrix;
 
@@ -724,8 +725,8 @@ namespace Step43
     }
 
     {
-      Amg_preconditioner.reset();
-      Mp_preconditioner.reset();
+      top_left_preconditioner.reset();
+      bottom_right_preconditioner.reset();
       darcy_preconditioner_matrix.clear();
 
       BlockDynamicSparsityPattern dsp(darcy_dofs_per_block,
@@ -930,11 +931,15 @@ namespace Step43
   {
     assemble_darcy_preconditioner();
 
-    Amg_preconditioner = std::make_shared<TrilinosWrappers::PreconditionIC>();
-    Amg_preconditioner->initialize(darcy_preconditioner_matrix.block(0, 0));
+    top_left_preconditioner =
+      std::make_shared<TrilinosWrappers::PreconditionIC>();
+    top_left_preconditioner->initialize(
+      darcy_preconditioner_matrix.block(0, 0));
 
-    Mp_preconditioner = std::make_shared<TrilinosWrappers::PreconditionIC>();
-    Mp_preconditioner->initialize(darcy_preconditioner_matrix.block(1, 1));
+    bottom_right_preconditioner =
+      std::make_shared<TrilinosWrappers::PreconditionIC>();
+    bottom_right_preconditioner->initialize(
+      darcy_preconditioner_matrix.block(1, 1));
   }
 
 
@@ -1473,12 +1478,12 @@ namespace Step43
           const LinearSolvers::InverseMatrix<TrilinosWrappers::SparseMatrix,
                                              TrilinosWrappers::PreconditionIC>
             mp_inverse(darcy_preconditioner_matrix.block(1, 1),
-                       *Mp_preconditioner);
+                       *bottom_right_preconditioner);
 
           const LinearSolvers::BlockSchurPreconditioner<
             TrilinosWrappers::PreconditionIC,
             TrilinosWrappers::PreconditionIC>
-            preconditioner(darcy_matrix, mp_inverse, *Amg_preconditioner);
+            preconditioner(darcy_matrix, mp_inverse, *top_left_preconditioner);
 
           SolverControl solver_control(darcy_matrix.m(),
                                        1e-16 * darcy_rhs.l2_norm());

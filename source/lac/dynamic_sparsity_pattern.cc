@@ -534,7 +534,7 @@ DynamicSparsityPattern::print(std::ostream &out) const
       out << ']' << std::endl;
     }
 
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 }
 
 
@@ -557,7 +557,7 @@ DynamicSparsityPattern::print_gnuplot(std::ostream &out) const
     }
 
 
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 }
 
 
@@ -662,7 +662,7 @@ DynamicSparsityPattern::column_index(
   Assert(rowset.size() == 0 || rowset.is_element(row), ExcInternalError());
 
   const DynamicSparsityPattern::size_type local_row =
-    rowset.size() ? rowset.index_within_set(row) : row;
+    rowset.size() != 0u ? rowset.index_within_set(row) : row;
 
   // now we need to do a binary search. Note that col indices are assumed to
   // be sorted.

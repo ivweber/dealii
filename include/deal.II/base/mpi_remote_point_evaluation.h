@@ -20,9 +20,6 @@
 
 #include <deal.II/dofs/dof_handler.h>
 
-#include <deal.II/grid/grid_tools.h>
-#include <deal.II/grid/grid_tools_cache.h>
-
 DEAL_II_NAMESPACE_OPEN
 
 
@@ -56,10 +53,14 @@ namespace Utilities
        * @param enforce_unique_mapping Enforce unique mapping, i.e.,
        *   (one-to-one) relation of points and cells.
        * @param rtree_level RTree level to be used during the construction of the bounding boxes.
+       * @param marked_vertices Function that marks relevant vertices to make search
+       *   of active cells around point more efficient.
        */
-      RemotePointEvaluation(const double       tolerance              = 1e-6,
-                            const bool         enforce_unique_mapping = false,
-                            const unsigned int rtree_level            = 0);
+      RemotePointEvaluation(
+        const double       tolerance                              = 1e-6,
+        const bool         enforce_unique_mapping                 = false,
+        const unsigned int rtree_level                            = 0,
+        const std::function<std::vector<bool>()> &marked_vertices = {});
 
       /**
        * Destructor.
@@ -192,6 +193,12 @@ namespace Utilities
        * RTree level to be used during the construction of the bounding boxes.
        */
       const unsigned int rtree_level;
+
+      /**
+       * Function that marks relevant vertices to make search of active cells
+       * around point more efficient.
+       */
+      const std::function<std::vector<bool>()> marked_vertices;
 
       /**
        * Storage for the status of the triangulation signal.

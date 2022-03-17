@@ -39,6 +39,39 @@ namespace Utilities
   {
     namespace ConsensusAlgorithms
     {
+      namespace
+      {
+        /**
+         * Return whether a vector of targets (MPI ranks) has only unique
+         * elements.
+         *
+         * This function is only used within assertions, which causes GCC
+         * to issue a warning in release mode that due to -Werror then causes an
+         * error. We suppress this by using the [[gnu::unused]] error (because
+         * the
+         * [[maybe_unused]] attribute is only supported from C++17 forward).
+         *
+         * Unfortunately, in contrast to what the standard says, the Microsoft
+         * compiler does not ignore the gnu::unused attribute as it should,
+         * and then produces an error of its own. So we disable the attribute
+         * for that compiler.
+         */
+#ifndef DEAL_II_MSVC
+        [[gnu::unused]]
+#endif
+        bool
+        has_unique_elements(const std::vector<unsigned int> &targets)
+        {
+          std::vector<unsigned int> my_destinations = targets;
+          std::sort(my_destinations.begin(), my_destinations.end());
+          return (std::adjacent_find(my_destinations.begin(),
+                                     my_destinations.end()) ==
+                  my_destinations.end());
+        }
+      } // namespace
+
+
+
       template <typename T1, typename T2>
       void
       Process<T1, T2>::answer_request(const unsigned int,
@@ -61,16 +94,6 @@ namespace Utilities
 
       template <typename T1, typename T2>
       void
-      Process<T1, T2>::prepare_buffer_for_answer(const unsigned int,
-                                                 std::vector<T2> &)
-      {
-        // nothing to do
-      }
-
-
-
-      template <typename T1, typename T2>
-      void
       Process<T1, T2>::read_answer(const unsigned int, const std::vector<T2> &)
       {
         // nothing to do
@@ -81,12 +104,61 @@ namespace Utilities
       template <typename T1, typename T2>
       Interface<T1, T2>::Interface(Process<T1, T2> &process,
                                    const MPI_Comm & comm)
-        : process(process)
+        : process(&process)
         , comm(comm)
-        , job_supports_mpi(Utilities::MPI::job_supports_mpi())
-        , my_rank(job_supports_mpi ? this_mpi_process(comm) : 0)
-        , n_procs(job_supports_mpi ? n_mpi_processes(comm) : 1)
       {}
+
+
+
+      template <typename T1, typename T2>
+      Interface<T1, T2>::Interface()
+        : process(nullptr)
+        , comm(MPI_COMM_NULL)
+      {}
+
+
+
+      template <typename T1, typename T2>
+      std::vector<unsigned int>
+      Interface<T1, T2>::run()
+      {
+        Assert(process != nullptr,
+               ExcMessage("This function can only be called if the "
+                          "deprecated non-default constructor of this class "
+                          "has previously been called to set the Process "
+                          "object and a communicator."));
+        return run(*process, comm);
+      }
+
+
+
+      template <typename T1, typename T2>
+      std::vector<unsigned int>
+      Interface<T1, T2>::run(Process<T1, T2> &process, const MPI_Comm &comm)
+      {
+        // Unpack the 'process' object and call the function that takes
+        // function objects for all operations.
+        return run(
+          process.compute_targets(),
+          /* create_request: */
+          [&process](const unsigned int target) {
+            std::vector<T1> request;
+            process.create_request(target, request);
+            return request;
+          },
+          /* answer_request: */
+          [&process](const unsigned int     source,
+                     const std::vector<T1> &request) {
+            std::vector<T2> answer;
+            process.answer_request(source, request, answer);
+            return answer;
+          },
+          /* process_answer: */
+          [&process](const unsigned int target, const std::vector<T2> &answer) {
+            process.read_answer(target, answer);
+          },
+          comm);
+      }
 
 
 
@@ -99,31 +171,59 @@ namespace Utilities
 
       template <typename T1, typename T2>
       std::vector<unsigned int>
-      NBX<T1, T2>::run()
+      NBX<T1, T2>::run(
+        const std::vector<unsigned int> &targets,
+        const std::function<std::vector<T1>(const unsigned int)>
+          &create_request,
+        const std::function<std::vector<T2>(const unsigned int,
+                                            const std::vector<T1> &)>
+          &answer_request,
+        const std::function<void(const unsigned int, const std::vector<T2> &)>
+          &             process_answer,
+        const MPI_Comm &comm)
       {
+        Assert(has_unique_elements(targets),
+               ExcMessage("The consensus algorithms expect that each process "
+                          "only sends a single message to another process, "
+                          "but the targets provided include duplicates."));
+
         static CollectiveMutex      mutex;
-        CollectiveMutex::ScopedLock lock(mutex, this->comm);
+        CollectiveMutex::ScopedLock lock(mutex, comm);
 
-        // 1) send requests and start receiving the answers
-        start_communication();
+        // 1) Send data to identified targets and start receiving
+        //    the answers from these very same processes.
+        start_communication(targets, create_request, comm);
 
-        // 2) answer requests and check if all requests of this process have
-        //    been answered
-        while (!check_own_state())
-          answer_requests();
+        // 2) Until all posted receive operations are known to have completed,
+        //    answer requests and keep checking whether all requests of
+        //    this process have been answered.
+        //
+        //    The requests that we catch in the answer_requests() function
+        //    originate elsewhere, that is, they are not in response
+        //    to our own messages
+        //
+        //    Note also that we may not catch all incoming requests in
+        //    the following two lines: our own requests may have been
+        //    satisfied before we've dealt with all incoming requests.
+        //    That's ok: We will get around to dealing with all remaining
+        //    message later. We just want to move on to the next step
+        //    as early as possible.
+        while (all_locally_originated_receives_are_completed(process_answer,
+                                                             comm) == false)
+          maybe_answer_one_request(answer_request, comm);
 
-        // 3) signal to all other processes that all requests of this process
+        // 3) Signal to all other processes that all requests of this process
         //    have been answered
-        signal_finish();
+        signal_finish(comm);
 
-        // 4) nevertheless, this process has to keep on answering (potential)
+        // 4) Nevertheless, this process has to keep on answering (potential)
         //    incoming requests until all processes have received the
         //    answer to all requests
-        while (!check_global_state())
-          answer_requests();
+        while (all_remotely_originated_receives_are_completed() == false)
+          maybe_answer_one_request(answer_request, comm);
 
         // 5) process the answer to all requests
-        clean_up_and_end_communication();
+        clean_up_and_end_communication(comm);
 
         return std::vector<unsigned int>(requesting_processes.begin(),
                                          requesting_processes.end());
@@ -132,19 +232,147 @@ namespace Utilities
 
 
       template <typename T1, typename T2>
-      bool
-      NBX<T1, T2>::check_own_state()
+      void
+      NBX<T1, T2>::start_communication(
+        const std::vector<unsigned int> &targets,
+        const std::function<std::vector<T1>(const unsigned int)>
+          &             create_request,
+        const MPI_Comm &comm)
       {
 #ifdef DEAL_II_WITH_MPI
-        int        all_receive_requests_are_done;
-        const auto ierr = MPI_Testall(recv_requests.size(),
-                                      recv_requests.data(),
-                                      &all_receive_requests_are_done,
-                                      MPI_STATUSES_IGNORE);
-        AssertThrowMPI(ierr);
+        // 1)
+        const auto n_targets = targets.size();
 
-        return all_receive_requests_are_done;
+        const int tag_request = Utilities::MPI::internal::Tags::
+          consensus_algorithm_nbx_answer_request;
+
+        // 2) allocate memory
+        send_requests.resize(n_targets);
+        send_buffers.resize(n_targets);
+
+        {
+          // 4) send and receive
+          for (unsigned int index = 0; index < n_targets; ++index)
+            {
+              const unsigned int rank = targets[index];
+              AssertIndexRange(rank, Utilities::MPI::n_mpi_processes(comm));
+
+              auto &send_buffer = send_buffers[index];
+              send_buffer =
+                (create_request ? create_request(rank) : std::vector<T1>());
+
+              // Post a request to send data
+              auto ierr = MPI_Isend(send_buffer.data(),
+                                    send_buffer.size() * sizeof(T1),
+                                    MPI_BYTE,
+                                    rank,
+                                    tag_request,
+                                    comm,
+                                    &send_requests[index]);
+              AssertThrowMPI(ierr);
+            }
+
+          // Also record that we expect an answer from each target we sent
+          // a request to:
+          n_outstanding_answers = n_targets;
+        }
 #else
+        (void)targets;
+        (void)create_request;
+        (void)comm;
+#endif
+      }
+
+
+
+      template <typename T1, typename T2>
+      bool
+      NBX<T1, T2>::all_locally_originated_receives_are_completed(
+        const std::function<void(const unsigned int, const std::vector<T2> &)>
+          &             process_answer,
+        const MPI_Comm &comm)
+      {
+#ifdef DEAL_II_WITH_MPI
+        // We know that all requests have come in when we have pending
+        // messages from all targets with the right tag (some of which we may
+        // have already taken care of below, after discovering their existence).
+        // We can check for pending messages with MPI_IProbe, which returns
+        // immediately with a return code that indicates whether
+        // it has found a message from any process with a given
+        // tag.
+        if (n_outstanding_answers == 0)
+          return true;
+        else
+          {
+            const int tag_deliver = Utilities::MPI::internal::Tags::
+              consensus_algorithm_nbx_process_deliver;
+
+            int        request_is_pending;
+            MPI_Status status;
+            const auto ierr = MPI_Iprobe(
+              MPI_ANY_SOURCE, tag_deliver, comm, &request_is_pending, &status);
+            AssertThrowMPI(ierr);
+
+            // If there is no pending message with this tag,
+            // then we are clearly not done receiving everything
+            // yet -- so return false.
+            if (request_is_pending == 0)
+              return false;
+            else
+              {
+                // OK, so we have gotten a reply to our answer from
+                // one rank. Let us process it, after double checking
+                // that it is indeed one we were still expecting:
+                const auto target = status.MPI_SOURCE;
+
+                // Then query the size of the message, allocate enough memory,
+                // receive the data, and process it.
+                int message_size;
+                {
+                  const int ierr =
+                    MPI_Get_count(&status, MPI_BYTE, &message_size);
+                  AssertThrowMPI(ierr);
+                }
+                Assert(message_size % sizeof(T2) == 0, ExcInternalError());
+                std::vector<T2> recv_buffer(message_size / sizeof(T2));
+
+                {
+                  const int tag_deliver = Utilities::MPI::internal::Tags::
+                    consensus_algorithm_nbx_process_deliver;
+
+                  const int ierr = MPI_Recv(recv_buffer.data(),
+                                            recv_buffer.size() * sizeof(T2),
+                                            MPI_BYTE,
+                                            target,
+                                            tag_deliver,
+                                            comm,
+                                            MPI_STATUS_IGNORE);
+                  AssertThrowMPI(ierr);
+                }
+
+                if (process_answer)
+                  process_answer(target, recv_buffer);
+
+                // Finally, remove this rank from the list of outstanding
+                // targets:
+                --n_outstanding_answers;
+
+                // We could do another go-around from the top of this
+                // else-branch to see whether there are actually other messages
+                // that are currently pending. But that would mean spending
+                // substantial time in receiving answers while we should also be
+                // sending answers to requests we have received from other
+                // places. So let it be enough for now. If there are outstanding
+                // answers, we will get back to this function before long and
+                // can take care of them then.
+                return (n_outstanding_answers == 0);
+              }
+          }
+
+#else
+        (void)process_answer;
+        (void)comm;
+
         return true;
 #endif
       }
@@ -153,44 +381,11 @@ namespace Utilities
 
       template <typename T1, typename T2>
       void
-      NBX<T1, T2>::signal_finish()
-      {
-#ifdef DEAL_II_WITH_MPI
-#  if DEAL_II_MPI_VERSION_GTE(3, 0)
-        const auto ierr = MPI_Ibarrier(this->comm, &barrier_request);
-        AssertThrowMPI(ierr);
-#  else
-        AssertThrow(
-          false,
-          ExcMessage(
-            "ConsensusAlgorithms::NBX uses MPI 3.0 features. You should compile with at least MPI 3.0."));
-#  endif
-#endif
-      }
-
-
-
-      template <typename T1, typename T2>
-      bool
-      NBX<T1, T2>::check_global_state()
-      {
-#ifdef DEAL_II_WITH_MPI
-        int        all_ranks_reached_barrier;
-        const auto ierr = MPI_Test(&barrier_request,
-                                   &all_ranks_reached_barrier,
-                                   MPI_STATUSES_IGNORE);
-        AssertThrowMPI(ierr);
-        return all_ranks_reached_barrier;
-#else
-        return true;
-#endif
-      }
-
-
-
-      template <typename T1, typename T2>
-      void
-      NBX<T1, T2>::answer_requests()
+      NBX<T1, T2>::maybe_answer_one_request(
+        const std::function<std::vector<T2>(const unsigned int,
+                                            const std::vector<T1> &)>
+          &             answer_request,
+        const MPI_Comm &comm)
       {
 #ifdef DEAL_II_WITH_MPI
 
@@ -199,19 +394,23 @@ namespace Utilities
         const int tag_deliver = Utilities::MPI::internal::Tags::
           consensus_algorithm_nbx_process_deliver;
 
-        // check if there is a request pending
+        // Check if there is a request pending. By selecting the
+        // tag_request tag, these are other processes asking for
+        // our own replies, not these other processes' replies
+        // to our own requests.
+        //
+        // There may be multiple such pending messages. We
+        // only answer one.
         MPI_Status status;
         int        request_is_pending;
-        const auto ierr = MPI_Iprobe(MPI_ANY_SOURCE,
-                                     tag_request,
-                                     this->comm,
-                                     &request_is_pending,
-                                     &status);
+        const auto ierr = MPI_Iprobe(
+          MPI_ANY_SOURCE, tag_request, comm, &request_is_pending, &status);
         AssertThrowMPI(ierr);
 
-        if (request_is_pending) // request is pending
+        if (request_is_pending != 0)
           {
-            // get rank of requesting process
+            // Get the rank of the requesting process and add it to the
+            // list of requesting processes (which may contain duplicates).
             const auto other_rank = status.MPI_SOURCE;
 
             Assert(requesting_processes.find(other_rank) ==
@@ -219,7 +418,6 @@ namespace Utilities
                    ExcMessage("Process is requesting a second time!"));
             requesting_processes.insert(other_rank);
 
-            std::vector<T1> buffer_recv;
             // get size of incoming message
             int  number_amount;
             auto ierr = MPI_Get_count(&status, MPI_BYTE, &number_amount);
@@ -227,36 +425,37 @@ namespace Utilities
 
             // allocate memory for incoming message
             Assert(number_amount % sizeof(T1) == 0, ExcInternalError());
-            buffer_recv.resize(number_amount / sizeof(T1));
+            std::vector<T1> buffer_recv(number_amount / sizeof(T1));
             ierr = MPI_Recv(buffer_recv.data(),
                             number_amount,
                             MPI_BYTE,
                             other_rank,
                             tag_request,
-                            this->comm,
-                            &status);
+                            comm,
+                            MPI_STATUS_IGNORE);
             AssertThrowMPI(ierr);
 
-            // allocate memory for answer message
+            // Allocate memory for an answer message to the current request,
+            // and ask the 'process' object to produce an answer:
             request_buffers.emplace_back(std::make_unique<std::vector<T2>>());
-            request_requests.emplace_back(std::make_unique<MPI_Request>());
-
-            // process request
             auto &request_buffer = *request_buffers.back();
-            this->process.answer_request(other_rank,
-                                         buffer_recv,
-                                         request_buffer);
+            if (answer_request)
+              request_buffer = answer_request(other_rank, buffer_recv);
 
-            // start to send answer back
+            // Then initiate sending the answer back to the requester.
+            request_requests.emplace_back(std::make_unique<MPI_Request>());
             ierr = MPI_Isend(request_buffer.data(),
                              request_buffer.size() * sizeof(T2),
                              MPI_BYTE,
                              other_rank,
                              tag_deliver,
-                             this->comm,
+                             comm,
                              request_requests.back().get());
             AssertThrowMPI(ierr);
           }
+#else
+        (void)answer_request;
+        (void)comm;
 #endif
       }
 
@@ -264,58 +463,31 @@ namespace Utilities
 
       template <typename T1, typename T2>
       void
-      NBX<T1, T2>::start_communication()
+      NBX<T1, T2>::signal_finish(const MPI_Comm &comm)
       {
 #ifdef DEAL_II_WITH_MPI
-        // 1)
-        targets              = this->process.compute_targets();
-        const auto n_targets = targets.size();
+        const auto ierr = MPI_Ibarrier(comm, &barrier_request);
+        AssertThrowMPI(ierr);
+#else
+        (void)comm;
+#endif
+      }
 
-        const int tag_request = Utilities::MPI::internal::Tags::
-          consensus_algorithm_nbx_answer_request;
-        const int tag_deliver = Utilities::MPI::internal::Tags::
-          consensus_algorithm_nbx_process_deliver;
 
-        // 2) allocate memory
-        recv_buffers.resize(n_targets);
-        recv_requests.resize(n_targets);
-        send_requests.resize(n_targets);
-        send_buffers.resize(n_targets);
 
-        {
-          // 4) send and receive
-          for (unsigned int i = 0; i < n_targets; ++i)
-            {
-              const unsigned int rank  = targets[i];
-              const unsigned int index = i;
-
-              // translate index set to a list of pairs
-              auto &send_buffer = send_buffers[index];
-              this->process.create_request(rank, send_buffer);
-
-              // start to send data
-              auto ierr = MPI_Isend(send_buffer.data(),
-                                    send_buffer.size() * sizeof(T1),
-                                    MPI_BYTE,
-                                    rank,
-                                    tag_request,
-                                    this->comm,
-                                    &send_requests[index]);
-              AssertThrowMPI(ierr);
-
-              // start to receive data
-              auto &recv_buffer = recv_buffers[index];
-              this->process.prepare_buffer_for_answer(rank, recv_buffer);
-              ierr = MPI_Irecv(recv_buffer.data(),
-                               recv_buffer.size() * sizeof(T2),
-                               MPI_BYTE,
-                               rank,
-                               tag_deliver,
-                               this->comm,
-                               &recv_requests[index]);
-              AssertThrowMPI(ierr);
-            }
-        }
+      template <typename T1, typename T2>
+      bool
+      NBX<T1, T2>::all_remotely_originated_receives_are_completed()
+      {
+#ifdef DEAL_II_WITH_MPI
+        int        all_ranks_reached_barrier;
+        const auto ierr = MPI_Test(&barrier_request,
+                                   &all_ranks_reached_barrier,
+                                   MPI_STATUSES_IGNORE);
+        AssertThrowMPI(ierr);
+        return all_ranks_reached_barrier != 0;
+#else
+        return true;
 #endif
       }
 
@@ -323,8 +495,9 @@ namespace Utilities
 
       template <typename T1, typename T2>
       void
-      NBX<T1, T2>::clean_up_and_end_communication()
+      NBX<T1, T2>::clean_up_and_end_communication(const MPI_Comm &comm)
       {
+        (void)comm;
 #ifdef DEAL_II_WITH_MPI
         // clean up
         {
@@ -335,15 +508,6 @@ namespace Utilities
                                            MPI_STATUSES_IGNORE);
               AssertThrowMPI(ierr);
             }
-
-          if (recv_requests.size() > 0)
-            {
-              const int ierr = MPI_Waitall(recv_requests.size(),
-                                           recv_requests.data(),
-                                           MPI_STATUSES_IGNORE);
-              AssertThrowMPI(ierr);
-            }
-
 
           int ierr = MPI_Wait(&barrier_request, MPI_STATUS_IGNORE);
           AssertThrowMPI(ierr);
@@ -357,15 +521,9 @@ namespace Utilities
 #  ifdef DEBUG
           // note: IBarrier seems to make problem during testing, this
           // additional Barrier seems to help
-          ierr = MPI_Barrier(this->comm);
+          ierr = MPI_Barrier(comm);
           AssertThrowMPI(ierr);
 #  endif
-        }
-
-        // unpack data
-        {
-          for (unsigned int i = 0; i < targets.size(); ++i)
-            this->process.read_answer(targets[i], recv_buffers[i]);
         }
 #endif
       }
@@ -381,20 +539,39 @@ namespace Utilities
 
       template <typename T1, typename T2>
       std::vector<unsigned int>
-      PEX<T1, T2>::run()
+      PEX<T1, T2>::run(
+        const std::vector<unsigned int> &targets,
+        const std::function<std::vector<T1>(const unsigned int)>
+          &create_request,
+        const std::function<std::vector<T2>(const unsigned int,
+                                            const std::vector<T1> &)>
+          &answer_request,
+        const std::function<void(const unsigned int, const std::vector<T2> &)>
+          &             process_answer,
+        const MPI_Comm &comm)
       {
+        Assert(has_unique_elements(targets),
+               ExcMessage("The consensus algorithms expect that each process "
+                          "only sends a single message to another process, "
+                          "but the targets provided include duplicates."));
+
         static CollectiveMutex      mutex;
-        CollectiveMutex::ScopedLock lock(mutex, this->comm);
+        CollectiveMutex::ScopedLock lock(mutex, comm);
 
-        // 1) send requests and start receiving the answers
-        //    especially determine how many requests are expected
-        const unsigned int n_requests = start_communication();
+        // 1) Send requests and start receiving the answers.
+        //    In particular, determine how many requests we should expect
+        //    on the current process.
+        const unsigned int n_requests =
+          start_communication(targets, create_request, comm);
 
-        // 2) answer requests
+        // 2) Answer requests:
         for (unsigned int request = 0; request < n_requests; ++request)
-          answer_requests(request);
+          answer_one_request(request, answer_request, comm);
 
-        // 3) process answers
+        // 3) Process answers:
+        process_incoming_answers(targets.size(), process_answer, comm);
+
+        // 4) Make sure all sends have successfully terminated:
         clean_up_and_end_communication();
 
         return std::vector<unsigned int>(requesting_processes.begin(),
@@ -404,102 +581,43 @@ namespace Utilities
 
 
       template <typename T1, typename T2>
-      void
-      PEX<T1, T2>::answer_requests(int index)
-      {
-#ifdef DEAL_II_WITH_MPI
-        const int tag_request = Utilities::MPI::internal::Tags::
-          consensus_algorithm_pex_answer_request;
-        const int tag_deliver = Utilities::MPI::internal::Tags::
-          consensus_algorithm_pex_process_deliver;
-
-        MPI_Status status;
-        auto ierr = MPI_Probe(MPI_ANY_SOURCE, tag_request, this->comm, &status);
-        AssertThrowMPI(ierr);
-
-        // get rank of incoming message
-        const auto other_rank = status.MPI_SOURCE;
-
-        Assert(requesting_processes.find(other_rank) ==
-                 requesting_processes.end(),
-               ExcMessage("Process is requesting a second time!"));
-        requesting_processes.insert(other_rank);
-
-        std::vector<T1> buffer_recv;
-
-        // get size of incoming message
-        int number_amount;
-        ierr = MPI_Get_count(&status, MPI_BYTE, &number_amount);
-        AssertThrowMPI(ierr);
-
-        // allocate memory for incoming message
-        Assert(number_amount % sizeof(T1) == 0, ExcInternalError());
-        buffer_recv.resize(number_amount / sizeof(T1));
-        ierr = MPI_Recv(buffer_recv.data(),
-                        number_amount,
-                        MPI_BYTE,
-                        other_rank,
-                        tag_request,
-                        this->comm,
-                        &status);
-        AssertThrowMPI(ierr);
-
-        // process request
-        auto &request_buffer = requests_buffers[index];
-        this->process.answer_request(other_rank, buffer_recv, request_buffer);
-
-        // start to send answer back
-        ierr = MPI_Isend(request_buffer.data(),
-                         request_buffer.size() * sizeof(T2),
-                         MPI_BYTE,
-                         other_rank,
-                         tag_deliver,
-                         this->comm,
-                         &requests_answers[index]);
-        AssertThrowMPI(ierr);
-#else
-        (void)index;
-#endif
-      }
-
-
-
-      template <typename T1, typename T2>
       unsigned int
-      PEX<T1, T2>::start_communication()
+      PEX<T1, T2>::start_communication(
+        const std::vector<unsigned int> &targets,
+        const std::function<std::vector<T1>(const unsigned int)>
+          &             create_request,
+        const MPI_Comm &comm)
       {
 #ifdef DEAL_II_WITH_MPI
-        // 1) determine with which processes this process wants to communicate
-        targets = this->process.compute_targets();
-
         const int tag_request = Utilities::MPI::internal::Tags::
           consensus_algorithm_pex_answer_request;
-        const int tag_deliver = Utilities::MPI::internal::Tags::
-          consensus_algorithm_pex_process_deliver;
+
+        // 1) determine with which processes this process wants to communicate
+        // with
+        const unsigned int n_targets = targets.size();
 
         // 2) determine who wants to communicate with this process
-        sources =
-          compute_point_to_point_communication_pattern(this->comm, targets);
-
-        const auto n_targets = targets.size();
-        const auto n_sources = sources.size();
+        const unsigned int n_sources =
+          compute_n_point_to_point_communications(comm, targets);
 
         // 2) allocate memory
         recv_buffers.resize(n_targets);
         send_buffers.resize(n_targets);
-        send_and_recv_buffers.resize(2 * n_targets);
+        send_request_requests.resize(n_targets);
 
-        requests_answers.resize(n_sources);
+        send_answer_requests.resize(n_sources);
         requests_buffers.resize(n_sources);
 
         // 4) send and receive
         for (unsigned int i = 0; i < n_targets; ++i)
           {
             const unsigned int rank = targets[i];
+            AssertIndexRange(rank, Utilities::MPI::n_mpi_processes(comm));
 
             // pack data which should be sent
             auto &send_buffer = send_buffers[i];
-            this->process.create_request(rank, send_buffer);
+            send_buffer =
+              (create_request ? create_request(rank) : std::vector<T1>());
 
             // start to send data
             auto ierr = MPI_Isend(send_buffer.data(),
@@ -507,26 +625,152 @@ namespace Utilities
                                   MPI_BYTE,
                                   rank,
                                   tag_request,
-                                  this->comm,
-                                  &send_and_recv_buffers[n_targets + i]);
-            AssertThrowMPI(ierr);
-
-            // start to receive data
-            auto &recv_buffer = recv_buffers[i];
-            this->process.prepare_buffer_for_answer(rank, recv_buffer);
-            ierr = MPI_Irecv(recv_buffer.data(),
-                             recv_buffer.size() * sizeof(T2),
-                             MPI_BYTE,
-                             rank,
-                             tag_deliver,
-                             this->comm,
-                             &send_and_recv_buffers[i]);
+                                  comm,
+                                  &send_request_requests[i]);
             AssertThrowMPI(ierr);
           }
 
-        return sources.size();
+        return n_sources;
 #else
+        (void)targets;
+        (void)create_request;
+        (void)comm;
         return 0;
+#endif
+      }
+
+
+
+      template <typename T1, typename T2>
+      void
+      PEX<T1, T2>::answer_one_request(
+        const unsigned int index,
+        const std::function<std::vector<T2>(const unsigned int,
+                                            const std::vector<T1> &)>
+          &             answer_request,
+        const MPI_Comm &comm)
+      {
+#ifdef DEAL_II_WITH_MPI
+        const int tag_request = Utilities::MPI::internal::Tags::
+          consensus_algorithm_pex_answer_request;
+        const int tag_deliver = Utilities::MPI::internal::Tags::
+          consensus_algorithm_pex_process_deliver;
+
+        // Wait until we have a message ready for retrieval, though we don't
+        // care which process it is from.
+        MPI_Status status;
+        int        ierr = MPI_Probe(MPI_ANY_SOURCE, tag_request, comm, &status);
+        AssertThrowMPI(ierr);
+
+        // Get rank of incoming message and verify that it makes sense
+        const unsigned int other_rank = status.MPI_SOURCE;
+
+        Assert(requesting_processes.find(other_rank) ==
+                 requesting_processes.end(),
+               ExcMessage(
+                 "A process is sending a request after a request from "
+                 "the same process has previously already been "
+                 "received. This algorithm does not expect this to happen."));
+        requesting_processes.insert(other_rank);
+
+        std::vector<T1> buffer_recv;
+
+        // Actually get the incoming message:
+        int number_amount;
+        ierr = MPI_Get_count(&status, MPI_BYTE, &number_amount);
+        AssertThrowMPI(ierr);
+        Assert(number_amount % sizeof(T1) == 0, ExcInternalError());
+
+        buffer_recv.resize(number_amount / sizeof(T1));
+        ierr = MPI_Recv(buffer_recv.data(),
+                        number_amount,
+                        MPI_BYTE,
+                        other_rank,
+                        tag_request,
+                        comm,
+                        &status);
+        AssertThrowMPI(ierr);
+
+        // Process request by asking the user-provided function for
+        // the answer and post a send for it.
+        auto &request_buffer = requests_buffers[index];
+        request_buffer =
+          (answer_request ? answer_request(other_rank, buffer_recv) :
+                            std::vector<T2>());
+
+        ierr = MPI_Isend(request_buffer.data(),
+                         request_buffer.size() * sizeof(T2),
+                         MPI_BYTE,
+                         other_rank,
+                         tag_deliver,
+                         comm,
+                         &send_answer_requests[index]);
+        AssertThrowMPI(ierr);
+#else
+        (void)answer_request;
+        (void)comm;
+        (void)index;
+#endif
+      }
+
+
+
+      template <typename T1, typename T2>
+      void
+      PEX<T1, T2>::process_incoming_answers(
+        const unsigned int n_targets,
+        const std::function<void(const unsigned int, const std::vector<T2> &)>
+          &             process_answer,
+        const MPI_Comm &comm)
+      {
+#ifdef DEAL_II_WITH_MPI
+        const int tag_deliver = Utilities::MPI::internal::Tags::
+          consensus_algorithm_pex_process_deliver;
+
+        // We know how many targets we have sent requests to. These
+        // targets will all eventually send us their responses, but
+        // we need not process them in order -- rather, just see what
+        // comes in and then look at message originators' ranks and
+        // message sizes
+        for (unsigned int i = 0; i < n_targets; ++i)
+          {
+            MPI_Status status;
+            {
+              const int ierr =
+                MPI_Probe(MPI_ANY_SOURCE, tag_deliver, comm, &status);
+              AssertThrowMPI(ierr);
+            }
+
+            const auto other_rank = status.MPI_SOURCE;
+            int        message_size;
+            {
+              const int ierr = MPI_Get_count(&status, MPI_BYTE, &message_size);
+              AssertThrowMPI(ierr);
+            }
+            Assert(message_size % sizeof(T2) == 0, ExcInternalError());
+            std::vector<T2> recv_buffer(message_size / sizeof(T2));
+
+            // Now actually receive the answer. Because the MPI_Probe
+            // above blocks until we have a message, we know that the
+            // following MPI_Recv call will immediately succeed.
+            {
+              const int ierr = MPI_Recv(recv_buffer.data(),
+                                        recv_buffer.size() * sizeof(T2),
+                                        MPI_BYTE,
+                                        other_rank,
+                                        tag_deliver,
+                                        comm,
+                                        MPI_STATUS_IGNORE);
+              AssertThrowMPI(ierr);
+            }
+
+            if (process_answer)
+              process_answer(other_rank, recv_buffer);
+          }
+#else
+        (void)n_targets;
+        (void)process_answer;
+        (void)comm;
 #endif
       }
 
@@ -537,26 +781,24 @@ namespace Utilities
       PEX<T1, T2>::clean_up_and_end_communication()
       {
 #ifdef DEAL_II_WITH_MPI
-        // finalize all MPI_Requests
-        if (send_and_recv_buffers.size() > 0)
+        // Finalize all MPI_Request objects for both the
+        // send-request and receive-answer operations.
+        if (send_request_requests.size() > 0)
           {
-            auto ierr = MPI_Waitall(send_and_recv_buffers.size(),
-                                    send_and_recv_buffers.data(),
-                                    MPI_STATUSES_IGNORE);
+            const int ierr = MPI_Waitall(send_request_requests.size(),
+                                         send_request_requests.data(),
+                                         MPI_STATUSES_IGNORE);
             AssertThrowMPI(ierr);
           }
 
-        if (requests_answers.size() > 0)
+        // Then also check the send-answer requests.
+        if (send_answer_requests.size() > 0)
           {
-            auto ierr = MPI_Waitall(requests_answers.size(),
-                                    requests_answers.data(),
-                                    MPI_STATUSES_IGNORE);
+            const int ierr = MPI_Waitall(send_answer_requests.size(),
+                                         send_answer_requests.data(),
+                                         MPI_STATUSES_IGNORE);
             AssertThrowMPI(ierr);
           }
-
-        // unpack received data
-        for (unsigned int i = 0; i < targets.size(); ++i)
-          this->process.read_answer(targets[i], recv_buffers[i]);
 #endif
       }
 
@@ -571,23 +813,44 @@ namespace Utilities
 
       template <typename T1, typename T2>
       std::vector<unsigned int>
-      Serial<T1, T2>::run()
+      Serial<T1, T2>::run(
+        const std::vector<unsigned int> &targets,
+        const std::function<std::vector<T1>(const unsigned int)>
+          &create_request,
+        const std::function<std::vector<T2>(const unsigned int,
+                                            const std::vector<T1> &)>
+          &answer_request,
+        const std::function<void(const unsigned int, const std::vector<T2> &)>
+          &             process_answer,
+        const MPI_Comm &comm)
       {
-        const auto targets = this->process.compute_targets();
+        (void)comm;
+        Assert((Utilities::MPI::job_supports_mpi() == false) ||
+                 (Utilities::MPI::n_mpi_processes(comm) == 1),
+               ExcMessage("You shouldn't use the 'Serial' class on "
+                          "communicators that have more than one process "
+                          "associated with it."));
 
+        // The only valid target for a serial program is itself.
         if (targets.size() != 0)
           {
+            Assert(targets.size() == 1,
+                   ExcMessage(
+                     "On a single process, the only valid target "
+                     "is process zero (the process itself), which can only be "
+                     "listed once."));
             AssertDimension(targets[0], 0);
 
-            std::vector<T1> send_buffer;
-            std::vector<T2> recv_buffer;
-            std::vector<T2> request_buffer;
+            // Since the caller indicates that there is a target, and since we
+            // know that it is the current process, let the process send
+            // something to itself.
+            const std::vector<T1> request =
+              (create_request ? create_request(0) : std::vector<T1>());
+            const std::vector<T2> answer =
+              (answer_request ? answer_request(0, request) : std::vector<T2>());
 
-            this->process.create_request(0, send_buffer);
-            this->process.prepare_buffer_for_answer(0, recv_buffer);
-            this->process.answer_request(0, send_buffer, request_buffer);
-            recv_buffer = request_buffer;
-            this->process.read_answer(0, recv_buffer);
+            if (process_answer)
+              process_answer(0, answer);
           }
 
         return targets; // nothing to do
@@ -598,36 +861,48 @@ namespace Utilities
       template <typename T1, typename T2>
       Selector<T1, T2>::Selector(Process<T1, T2> &process, const MPI_Comm &comm)
         : Interface<T1, T2>(process, comm)
+      {}
+
+
+
+      template <typename T1, typename T2>
+      std::vector<unsigned int>
+      Selector<T1, T2>::run(
+        const std::vector<unsigned int> &targets,
+        const std::function<std::vector<T1>(const unsigned int)>
+          &create_request,
+        const std::function<std::vector<T2>(const unsigned int,
+                                            const std::vector<T1> &)>
+          &answer_request,
+        const std::function<void(const unsigned int, const std::vector<T2> &)>
+          &             process_answer,
+        const MPI_Comm &comm)
       {
         // Depending on the number of processes we switch between
         // implementations. We reduce the threshold for debug mode to be
         // able to test also the non-blocking implementation. This feature
         // is tested by:
         // tests/multigrid/transfer_matrix_free_06.with_mpi=true.with_p4est=true.with_trilinos=true.mpirun=10.output
+
+        const unsigned int n_procs = (Utilities::MPI::job_supports_mpi() ?
+                                        Utilities::MPI::n_mpi_processes(comm) :
+                                        1);
 #ifdef DEAL_II_WITH_MPI
-#  if DEAL_II_MPI_VERSION_GTE(3, 0)
-#    ifdef DEBUG
-        if (this->n_procs > 10)
-#    else
-        if (this->n_procs > 99)
-#    endif
-          consensus_algo.reset(new NBX<T1, T2>(process, comm));
-        else
+#  ifdef DEBUG
+        if (n_procs > 10)
+#  else
+        if (n_procs > 99)
 #  endif
-#endif
-          if (this->n_procs > 1)
-          consensus_algo.reset(new PEX<T1, T2>(process, comm));
+          consensus_algo.reset(new NBX<T1, T2>());
         else
-          consensus_algo.reset(new Serial<T1, T2>(process, comm));
-      }
+#endif
+          if (n_procs > 1)
+          consensus_algo.reset(new PEX<T1, T2>());
+        else
+          consensus_algo.reset(new Serial<T1, T2>());
 
-
-
-      template <typename T1, typename T2>
-      std::vector<unsigned int>
-      Selector<T1, T2>::run()
-      {
-        return consensus_algo->run();
+        return consensus_algo->run(
+          targets, create_request, answer_request, process_answer, comm);
       }
 
 

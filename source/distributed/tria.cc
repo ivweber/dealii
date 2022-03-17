@@ -1342,7 +1342,7 @@ namespace
     // if there are no more cells in our list the current cell can't be
     // flagged for refinement
     if (this_object->current_refine_pointer == this_object->refine_list.end())
-      return false;
+      return 0;
 
     Assert(coarse_cell_index <=
              this_object->current_refine_pointer->p.which_tree,
@@ -1351,7 +1351,7 @@ namespace
     // if p4est hasn't yet reached the tree of the next flagged cell the
     // current cell can't be flagged for refinement
     if (coarse_cell_index < this_object->current_refine_pointer->p.which_tree)
-      return false;
+      return 0;
 
     // now we're in the right tree in the forest
     Assert(coarse_cell_index <=
@@ -1369,11 +1369,11 @@ namespace
           quadrant, &*this_object->current_refine_pointer))
       {
         ++this_object->current_refine_pointer;
-        return true;
+        return 1;
       }
 
     // p4est cell is not in list
-    return false;
+    return 0;
   }
 
 
@@ -1392,7 +1392,7 @@ namespace
     // if there are no more cells in our list the current cell can't be
     // flagged for coarsening
     if (this_object->current_coarsen_pointer == this_object->coarsen_list.end())
-      return false;
+      return 0;
 
     Assert(coarse_cell_index <=
              this_object->current_coarsen_pointer->p.which_tree,
@@ -1401,7 +1401,7 @@ namespace
     // if p4est hasn't yet reached the tree of the next flagged cell the
     // current cell can't be flagged for coarsening
     if (coarse_cell_index < this_object->current_coarsen_pointer->p.which_tree)
-      return false;
+      return 0;
 
     // now we're in the right tree in the forest
     Assert(coarse_cell_index <=
@@ -1433,11 +1433,11 @@ namespace
             ++this_object->current_coarsen_pointer;
           }
 
-        return true;
+        return 1;
       }
 
     // p4est cell is not in list
-    return false;
+    return 0;
   }
 
 
@@ -1508,8 +1508,17 @@ namespace
     Assert(this_object->current_pointer < this_object->cell_weights_list.end(),
            ExcInternalError());
 
-    // get the weight, increment the pointer, and return the weight
-    return *this_object->current_pointer++;
+    // Get the weight, increment the pointer, and return the weight. Also
+    // make sure that we don't exceed the 'int' data type that p4est uses
+    // to represent weights
+    const unsigned int weight = *this_object->current_pointer;
+    ++this_object->current_pointer;
+
+    Assert(weight < static_cast<unsigned int>(std::numeric_limits<int>::max()),
+           ExcMessage("p4est uses 'signed int' to represent the partition "
+                      "weights for cells. The weight provided here exceeds "
+                      "the maximum value represented as a 'signed int'."));
+    return static_cast<int>(weight);
   }
 
   template <int dim, int spacedim>
@@ -1952,32 +1961,6 @@ namespace parallel
     }
 
 
-    template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::has_hanging_nodes() const
-    {
-      if (this->n_global_levels() <= 1)
-        return false; // can not have hanging nodes without refined cells
-
-      // if there are any active cells with level less than n_global_levels()-1,
-      // then there is obviously also one with level n_global_levels()-1, and
-      // consequently there must be a hanging node somewhere.
-      //
-      // The problem is that we cannot just ask for the first active cell, but
-      // instead need to filter over locally owned cells.
-      const bool have_coarser_cell =
-        std::any_of(this->begin_active(this->n_global_levels() - 2),
-                    this->end_active(this->n_global_levels() - 2),
-                    [](const CellAccessor<dim, spacedim> &cell) {
-                      return cell.is_locally_owned();
-                    });
-
-      // return true if at least one process has a coarser cell
-      return 0 < Utilities::MPI::max(have_coarser_cell ? 1 : 0,
-                                     this->mpi_communicator);
-    }
-
-
 
     template <int dim, int spacedim>
     void
@@ -2106,7 +2089,7 @@ namespace parallel
       {
         std::string   fname = std::string(filename) + ".info";
         std::ifstream f(fname.c_str());
-        AssertThrow(f, ExcIO());
+        AssertThrow(f.fail() == false, ExcIO());
         std::string firstline;
         getline(f, firstline); // skip first line
         f >> version >> numcpus >> attached_count_fixed >>
@@ -3953,8 +3936,6 @@ namespace parallel
             other_distributed->coarse_cell_to_p4est_tree_permutation;
           p4est_tree_to_coarse_cell_permutation =
             other_distributed->p4est_tree_to_coarse_cell_permutation;
-          this->cell_attached_data = other_distributed->cell_attached_data;
-          this->data_transfer      = other_distributed->data_transfer;
 
           // create deep copy of connectivity graph
           typename dealii::internal::p4est::types<dim>::connectivity
@@ -4041,13 +4022,10 @@ namespace parallel
                static_cast<unsigned int>(parallel_forest->local_num_quadrants),
              ExcInternalError());
 
-      // Allocate the space for the weights. In fact we do not know yet, how
-      // many cells we own after the refinement (only p4est knows that
-      // at this point). We simply reserve n_active_cells space and if many
-      // more cells are refined than coarsened than additional reallocation
-      // will be done inside get_cell_weights_recursively.
+      // Allocate the space for the weights. We reserve an integer for each
+      // locally owned quadrant on the already refined p4est object.
       std::vector<unsigned int> weights;
-      weights.reserve(this->n_active_cells());
+      weights.reserve(this->local_cell_relations.size());
 
       // Iterate over p4est and Triangulation relations
       // to find refined/coarsened/kept

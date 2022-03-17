@@ -1455,14 +1455,14 @@ template <typename number>
 void
 ChunkSparseMatrix<number>::print(std::ostream &out) const
 {
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 
   Assert(cols != nullptr, ExcNeedsSparsityPattern());
   Assert(val != nullptr, ExcNotInitialized());
 
   Assert(false, ExcNotImplemented());
 
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 }
 
 
@@ -1475,7 +1475,7 @@ ChunkSparseMatrix<number>::print_formatted(std::ostream &     out,
                                            const char *       zero_string,
                                            const double       denominator) const
 {
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 
   Assert(cols != nullptr, ExcNeedsSparsityPattern());
   Assert(val != nullptr, ExcNotInitialized());
@@ -1490,13 +1490,13 @@ ChunkSparseMatrix<number>::print_formatted(std::ostream &     out,
   if (scientific)
     {
       out.setf(std::ios::scientific, std::ios::floatfield);
-      if (!width)
+      if (width == 0u)
         width = precision + 7;
     }
   else
     {
       out.setf(std::ios::fixed, std::ios::floatfield);
-      if (!width)
+      if (width == 0u)
         width = precision + 2;
     }
 
@@ -1510,7 +1510,7 @@ ChunkSparseMatrix<number>::print_formatted(std::ostream &     out,
           out << std::setw(width) << zero_string << ' ';
       out << std::endl;
     };
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 
   // reset output format
   out.precision(old_precision);
@@ -1524,7 +1524,7 @@ void
 ChunkSparseMatrix<number>::print_pattern(std::ostream &out,
                                          const double  threshold) const
 {
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 
   Assert(cols != nullptr, ExcNeedsSparsityPattern());
   Assert(val != nullptr, ExcNotInitialized());
@@ -1555,7 +1555,7 @@ ChunkSparseMatrix<number>::print_pattern(std::ostream &out,
       out << std::endl;
     }
 
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 }
 
 
@@ -1564,7 +1564,7 @@ template <typename number>
 void
 ChunkSparseMatrix<number>::block_write(std::ostream &out) const
 {
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 
   // first the simple objects, bracketed in [...]
   out << '[' << max_len << "][";
@@ -1574,7 +1574,7 @@ ChunkSparseMatrix<number>::block_write(std::ostream &out) const
               reinterpret_cast<const char *>(val.get()));
   out << ']';
 
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 }
 
 
@@ -1583,7 +1583,7 @@ template <typename number>
 void
 ChunkSparseMatrix<number>::block_read(std::istream &in)
 {
-  AssertThrow(in, ExcIO());
+  AssertThrow(in.fail() == false, ExcIO());
 
   char c;
 

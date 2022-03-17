@@ -859,13 +859,13 @@ namespace GridTools
 
 
   template <int dim, int spacedim>
-  void
-  invert_all_negative_measure_cells(
+  std::size_t
+  invert_cells_with_negative_measure(
     const std::vector<Point<spacedim>> &all_vertices,
     std::vector<CellData<dim>> &        cells)
   {
     if (dim == 1)
-      return;
+      return 0;
     if (dim == 2 && spacedim == 3)
       Assert(false, ExcNotImplemented());
 
@@ -902,6 +902,18 @@ namespace GridTools
                         ExcInternalError());
           }
       }
+    return n_negative_cells;
+  }
+
+
+  template <int dim, int spacedim>
+  void
+  invert_all_negative_measure_cells(
+    const std::vector<Point<spacedim>> &all_vertices,
+    std::vector<CellData<dim>> &        cells)
+  {
+    const std::size_t n_negative_cells =
+      invert_cells_with_negative_measure(all_vertices, cells);
 
     // We assume that all cells of a grid have
     // either positive or negative volumes but
@@ -3905,11 +3917,11 @@ namespace GridTools
         // In a first step, obtain the weights of the locally owned
         // cells. For all others, the weight remains at the zero the
         // vector was initialized with above.
-        for (const auto &cell : triangulation.active_cell_iterators())
-          if (cell->is_locally_owned())
-            cell_weights[cell->active_cell_index()] =
-              triangulation.signals.cell_weight(
-                cell, Triangulation<dim, spacedim>::CellStatus::CELL_PERSIST);
+        for (const auto &cell : triangulation.active_cell_iterators() |
+                                  IteratorFilters::LocallyOwnedCell())
+          cell_weights[cell->active_cell_index()] =
+            triangulation.signals.cell_weight(
+              cell, Triangulation<dim, spacedim>::CellStatus::CELL_PERSIST);
 
         // If this is a parallel triangulation, we then need to also
         // get the weights for all other cells. We have asserted above
@@ -4028,6 +4040,7 @@ namespace GridTools
                       "are already partitioned implicitly and can not be "
                       "partitioned again explicitly."));
     Assert(n_partitions > 0, ExcInvalidNumberOfPartitions(n_partitions));
+    Assert(triangulation.signals.cell_weight.empty(), ExcNotImplemented());
 
     // signal that partitioning is going to happen
     triangulation.signals.pre_partition();
@@ -4128,10 +4141,7 @@ namespace GridTools
     unsigned int n_levels = triangulation.n_levels();
     for (int lvl = n_levels - 1; lvl >= 0; --lvl)
       {
-        typename Triangulation<dim, spacedim>::cell_iterator
-          cell = triangulation.begin(lvl),
-          endc = triangulation.end(lvl);
-        for (; cell != endc; ++cell)
+        for (const auto &cell : triangulation.cell_iterators_on_level(lvl))
           {
             if (cell->is_active())
               cell->set_level_subdomain_id(cell->subdomain_id());
@@ -5695,7 +5705,7 @@ namespace GridTools
   {
     // run internal function ...
     const auto all = internal::distributed_compute_point_locations(
-                       cache, points, global_bboxes, tolerance, false, true)
+                       cache, points, global_bboxes, {}, tolerance, false, true)
                        .send_components;
 
     // ... and reshuffle the data
@@ -5881,6 +5891,7 @@ namespace GridTools
       const GridTools::Cache<dim, spacedim> &                cache,
       const std::vector<Point<spacedim>> &                   points,
       const std::vector<std::vector<BoundingBox<spacedim>>> &global_bboxes,
+      const std::vector<bool> &                              marked_vertices,
       const double                                           tolerance,
       const bool                                             perform_handshake,
       const bool enforce_unique_mapping)
@@ -5901,7 +5912,6 @@ namespace GridTools
       const auto &potential_owners_ptrs    = std::get<1>(potential_owners);
       const auto &potential_owners_indices = std::get<2>(potential_owners);
 
-      const std::vector<bool> marked_vertices;
       auto cell_hint = cache.get_triangulation().begin_active();
 
       const auto translate = [&](const unsigned int other_rank) {
@@ -5917,103 +5927,114 @@ namespace GridTools
         return other_rank_index;
       };
 
-      Utilities::MPI::ConsensusAlgorithms::AnonymousProcess<char, char> process(
-        [&]() { return potential_owners_ranks; },
-        [&](const unsigned int other_rank, std::vector<char> &send_buffer) {
-          const auto other_rank_index = translate(other_rank);
+      Assert(
+        (marked_vertices.size() == 0) ||
+          (marked_vertices.size() == cache.get_triangulation().n_vertices()),
+        ExcMessage(
+          "The marked_vertices vector has to be either empty or its size has "
+          "to equal the number of vertices of the triangulation."));
 
-          std::vector<std::pair<unsigned int, Point<spacedim>>> temp;
-          temp.reserve(potential_owners_ptrs[other_rank_index + 1] -
-                       potential_owners_ptrs[other_rank_index]);
+      // In the case that a marked_vertices vector has been given and none
+      // of its entries is true, we know that this process does not own
+      // any of the incoming points (and it will not send any data) so
+      // that we can take a short cut.
+      const bool has_relevant_vertices =
+        (marked_vertices.size() == 0) ||
+        (std::find(marked_vertices.begin(), marked_vertices.end(), true) !=
+         marked_vertices.end());
 
-          for (unsigned int i = potential_owners_ptrs[other_rank_index];
-               i < potential_owners_ptrs[other_rank_index + 1];
-               ++i)
-            temp.emplace_back(potential_owners_indices[i],
-                              points[potential_owners_indices[i]]);
+      const auto create_request = [&](const unsigned int other_rank) {
+        const auto other_rank_index = translate(other_rank);
 
-          send_buffer = Utilities::pack(temp, false);
-        },
+        std::vector<std::pair<unsigned int, Point<spacedim>>> temp;
+        temp.reserve(potential_owners_ptrs[other_rank_index + 1] -
+                     potential_owners_ptrs[other_rank_index]);
+
+        for (unsigned int i = potential_owners_ptrs[other_rank_index];
+             i < potential_owners_ptrs[other_rank_index + 1];
+             ++i)
+          temp.emplace_back(potential_owners_indices[i],
+                            points[potential_owners_indices[i]]);
+
+        return Utilities::pack(temp, false);
+      };
+
+      const auto answer_request =
         [&](const unsigned int &     other_rank,
-            const std::vector<char> &recv_buffer,
-            std::vector<char> &      request_buffer) {
-          const auto recv_buffer_unpacked = Utilities::unpack<
-            std::vector<std::pair<unsigned int, Point<spacedim>>>>(recv_buffer,
-                                                                   false);
+            const std::vector<char> &request) -> std::vector<char> {
+        const auto recv_buffer_unpacked = Utilities::unpack<
+          std::vector<std::pair<unsigned int, Point<spacedim>>>>(request,
+                                                                 false);
 
-          std::vector<unsigned int> request_buffer_temp(
-            recv_buffer_unpacked.size(), 0);
+        std::vector<unsigned int> request_buffer_temp(
+          recv_buffer_unpacked.size(), 0);
 
-          cell_hint = cache.get_triangulation().begin_active();
+        if (has_relevant_vertices)
+          {
+            cell_hint = cache.get_triangulation().begin_active();
 
-          for (unsigned int i = 0; i < recv_buffer_unpacked.size(); ++i)
-            {
-              const auto &index_and_point = recv_buffer_unpacked[i];
+            for (unsigned int i = 0; i < recv_buffer_unpacked.size(); ++i)
+              {
+                const auto &index_and_point = recv_buffer_unpacked[i];
 
-              const auto cells_and_reference_positions =
-                find_all_locally_owned_active_cells_around_point(
-                  cache,
-                  index_and_point.second,
-                  cell_hint,
-                  marked_vertices,
-                  tolerance,
-                  enforce_unique_mapping);
-
-              for (const auto &cell_and_reference_position :
-                   cells_and_reference_positions)
-                {
-                  send_components.emplace_back(
-                    std::pair<int, int>(
-                      cell_and_reference_position.first->level(),
-                      cell_and_reference_position.first->index()),
-                    other_rank,
-                    index_and_point.first,
-                    cell_and_reference_position.second,
+                const auto cells_and_reference_positions =
+                  find_all_locally_owned_active_cells_around_point(
+                    cache,
                     index_and_point.second,
-                    numbers::invalid_unsigned_int);
-                }
+                    cell_hint,
+                    marked_vertices,
+                    tolerance,
+                    enforce_unique_mapping);
 
-              request_buffer_temp[i] = cells_and_reference_positions.size();
-            }
+                for (const auto &cell_and_reference_position :
+                     cells_and_reference_positions)
+                  {
+                    send_components.emplace_back(
+                      std::pair<int, int>(
+                        cell_and_reference_position.first->level(),
+                        cell_and_reference_position.first->index()),
+                      other_rank,
+                      index_and_point.first,
+                      cell_and_reference_position.second,
+                      index_and_point.second,
+                      numbers::invalid_unsigned_int);
+                  }
 
-          if (perform_handshake)
-            request_buffer = Utilities::pack(request_buffer_temp, false);
-        },
-        [&](const unsigned int other_rank, std::vector<char> &recv_buffer) {
-          if (perform_handshake)
-            {
-              const auto other_rank_index = translate(other_rank);
+                request_buffer_temp[i] = cells_and_reference_positions.size();
+              }
+          }
 
-              recv_buffer =
-                Utilities::pack(std::vector<unsigned int>(
-                                  potential_owners_ptrs[other_rank_index + 1] -
-                                  potential_owners_ptrs[other_rank_index]),
-                                false);
-            }
-        },
-        [&](const unsigned int       other_rank,
-            const std::vector<char> &recv_buffer) {
-          if (perform_handshake)
-            {
-              const auto recv_buffer_unpacked =
-                Utilities::unpack<std::vector<unsigned int>>(recv_buffer,
-                                                             false);
+        if (perform_handshake)
+          return Utilities::pack(request_buffer_temp, false);
+        else
+          return {};
+      };
 
-              const auto other_rank_index = translate(other_rank);
+      const auto process_answer = [&](const unsigned int       other_rank,
+                                      const std::vector<char> &answer) {
+        if (perform_handshake)
+          {
+            const auto recv_buffer_unpacked =
+              Utilities::unpack<std::vector<unsigned int>>(answer, false);
 
-              for (unsigned int i = 0; i < recv_buffer_unpacked.size(); ++i)
-                for (unsigned int j = 0; j < recv_buffer_unpacked[i]; ++j)
-                  recv_components.emplace_back(
-                    other_rank,
-                    potential_owners_indices
-                      [i + potential_owners_ptrs[other_rank_index]],
-                    numbers::invalid_unsigned_int);
-            }
-        });
+            const auto other_rank_index = translate(other_rank);
 
-      Utilities::MPI::ConsensusAlgorithms::Selector<char, char>(
-        process, cache.get_triangulation().get_communicator())
-        .run();
+            for (unsigned int i = 0; i < recv_buffer_unpacked.size(); ++i)
+              for (unsigned int j = 0; j < recv_buffer_unpacked[i]; ++j)
+                recv_components.emplace_back(
+                  other_rank,
+                  potential_owners_indices
+                    [i + potential_owners_ptrs[other_rank_index]],
+                  numbers::invalid_unsigned_int);
+          }
+      };
+
+      Utilities::MPI::ConsensusAlgorithms::Selector<char, char>().run(
+        potential_owners_ranks,
+        create_request,
+        answer_request,
+        process_answer,
+        cache.get_triangulation().get_communicator());
 
       if (true)
         {

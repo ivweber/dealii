@@ -1055,7 +1055,7 @@ namespace SparsityTools
         const auto rlen = dsp.row_length(row);
 
         // skip empty lines
-        if (!rlen)
+        if (rlen == 0)
           continue;
 
         // save entries
@@ -1137,7 +1137,7 @@ namespace SparsityTools
         BlockDynamicSparsityPattern::size_type rlen = dsp.row_length(row);
 
         // skip empty lines
-        if (!rlen)
+        if (rlen == 0)
           continue;
 
         // save entries
@@ -1182,14 +1182,13 @@ namespace SparsityTools
       unsigned int idx = 0;
       for (const auto &sparsity_line : send_data)
         {
-          const int ierr =
-            MPI_Isend(DEAL_II_MPI_CONST_CAST(sparsity_line.second.data()),
-                      sparsity_line.second.size(),
-                      DEAL_II_DOF_INDEX_MPI_TYPE,
-                      sparsity_line.first,
-                      mpi_tag,
-                      mpi_comm,
-                      &requests[idx++]);
+          const int ierr = MPI_Isend(sparsity_line.second.data(),
+                                     sparsity_line.second.size(),
+                                     DEAL_II_DOF_INDEX_MPI_TYPE,
+                                     sparsity_line.first,
+                                     mpi_tag,
+                                     mpi_comm,
+                                     &requests[idx++]);
           AssertThrowMPI(ierr);
         }
     }
@@ -1238,7 +1237,7 @@ namespace SparsityTools
     }
 
     // complete all sends, so that we can safely destroy the buffers.
-    if (requests.size())
+    if (requests.size() > 0)
       {
         const int ierr =
           MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);

@@ -981,7 +981,7 @@ namespace internal
                    int,
                    << "Error while creating cell " << arg1
                    << ": the vertex index " << arg2 << " must be between 0 and "
-                   << arg3 << ".");
+                   << arg3 << '.');
     /**
      * Exception
      * @ingroup Exceptions
@@ -1177,7 +1177,7 @@ namespace internal
             tria_faces.quads_line_orientations.end(),
             new_size * GeometryInfo<2>::lines_per_cell -
               tria_faces.quads_line_orientations.size(),
-            true);
+            1u);
 
           tria_faces.quad_reference_cell.reserve(new_size);
           tria_faces.quad_reference_cell.insert(
@@ -1290,7 +1290,7 @@ namespace internal
                 tria_level.face_orientations.end(),
                 total_cells * max_faces_per_cell -
                   tria_level.face_orientations.size(),
-                true);
+                1u);
 
               tria_level.reference_cell.reserve(total_cells);
               tria_level.reference_cell.insert(
@@ -1838,7 +1838,7 @@ namespace internal
         // no cells at all?
         Assert(number_cache.n_levels > 0, ExcInternalError());
 
-        ///////////////////////////////////
+        //---------------------------------
         // update the number of lines on the different levels in the
         // cache
         number_cache.n_lines        = 0;
@@ -1930,7 +1930,7 @@ namespace internal
         using quad_iterator =
           typename Triangulation<dim, spacedim>::quad_iterator;
 
-        ///////////////////////////////////
+        //---------------------------------
         // update the number of quads on the different levels in the
         // cache
         number_cache.n_quads        = 0;
@@ -2037,7 +2037,7 @@ namespace internal
         using hex_iterator =
           typename Triangulation<dim, spacedim>::hex_iterator;
 
-        ///////////////////////////////////
+        //---------------------------------
         // update the number of hexes on the different levels in the
         // cache
         number_cache.n_hexes        = 0;
@@ -2678,7 +2678,7 @@ namespace internal
         level.subdomain_ids.assign(size, 0);
         level.level_subdomain_ids.assign(size, 0);
 
-        level.refine_flags.assign(size, false);
+        level.refine_flags.assign(size, 0u);
         level.coarsen_flags.assign(size, false);
 
         level.parents.assign((size + 1) / 2, -1);
@@ -3034,7 +3034,7 @@ namespace internal
               --quad_cell_count[child->quad_index(f)];
           }
 
-        ///////////////////////////////////////
+        //-------------------------------------
         // delete interior quads and lines and the
         // interior vertex, depending on the
         // refinement case of the cell
@@ -5108,36 +5108,52 @@ namespace internal
                  triangulation.active_cell_iterators_on_level(level))
               if (cell->refine_flag_set())
                 {
+                  // Only support isotropic refinement
                   Assert(cell->refine_flag_set() ==
                            RefinementCase<dim>::cut_xyz,
                          ExcInternalError());
+
+                  // Now count up how many new cells, faces, edges, and vertices
+                  // we will need to allocate to do this refinement.
+                  new_cells += cell->reference_cell().n_isotropic_children();
 
                   if (cell->reference_cell() == ReferenceCells::Hexahedron)
                     {
                       ++needed_vertices;
                       needed_lines_single += 6;
                       needed_quads_single += 12;
-                      new_cells += 8;
                     }
                   else if (cell->reference_cell() ==
                            ReferenceCells::Tetrahedron)
                     {
                       needed_lines_single += 1;
                       needed_quads_single += 8;
-                      new_cells += 8;
                     }
                   else
                     {
                       Assert(false, ExcInternalError());
                     }
 
+                  // Also check whether we have to refine any of the faces and
+                  // edges that bound this cell. They may of course already be
+                  // refined, so we only *mark* them for refinement by setting
+                  // the user flags
                   for (const auto face : cell->face_indices())
-                    if (cell->face(face)->number_of_children() < 4)
+                    if (cell->face(face)->n_children() == 0)
                       cell->face(face)->set_user_flag();
+                    else
+                      Assert(cell->face(face)->n_children() ==
+                               cell->reference_cell()
+                                 .face_reference_cell(face)
+                                 .n_isotropic_children(),
+                             ExcInternalError());
 
                   for (const auto line : cell->line_indices())
                     if (cell->line(line)->has_children() == false)
                       cell->line(line)->set_user_flag();
+                    else
+                      Assert(cell->line(line)->n_children() == 2,
+                             ExcInternalError());
                 }
 
             const unsigned int used_cells =
@@ -5214,7 +5230,7 @@ namespace internal
             triangulation.vertices_used.resize(needed_vertices, false);
           }
 
-          ///////////////////////////////////////////
+          //-----------------------------------------
           // Before we start with the actual refinement, we do some
           // sanity checks if in debug mode. especially, we try to catch
           // the notorious problem with lines being twice refined,
@@ -6586,7 +6602,7 @@ namespace internal
           }
 
 
-          ///////////////////////////////////////////
+          //-----------------------------------------
           // Before we start with the actual refinement, we do some
           // sanity checks if in debug mode. especially, we try to catch
           // the notorious problem with lines being twice refined,
@@ -6608,7 +6624,7 @@ namespace internal
                          ExcInternalError());
 #endif
 
-        ///////////////////////////////////////////
+        //-----------------------------------------
         // Do refinement on every level
         //
         // To make life a bit easier, we first refine those lines and
@@ -6695,9 +6711,9 @@ namespace internal
         }
 
 
-        ///////////////////////////////////////
+        //-------------------------------------
         // now refine marked quads
-        ///////////////////////////////////////
+        //-------------------------------------
 
         // here we encounter several cases:
 
@@ -7595,10 +7611,10 @@ namespace internal
               }     // for all quads
           }         // looped two times over all quads, all quads refined now
 
-        ///////////////////////////////////
+        //---------------------------------
         // Now, finally, set up the new
         // cells
-        ///////////////////////////////////
+        //---------------------------------
 
         typename Triangulation<3, spacedim>::DistortedCellList
           cells_with_distorted_children;
@@ -7819,7 +7835,7 @@ namespace internal
                      {1, 0}}}; // RefinementCase<dim>::cut_y, face_flip=true,
                                // face_rotation=false and true
 
-                  ///////////////////////////////////////
+                  //-------------------------------------
                   //
                   // in the following we will do the same thing for
                   // each refinement case: create a new vertex (if
@@ -7838,7 +7854,7 @@ namespace internal
                     {
                       case RefinementCase<dim>::cut_x:
                         {
-                          //////////////////////////////
+                          //----------------------------
                           //
                           //     RefinementCase<dim>::cut_x
                           //
@@ -8060,7 +8076,7 @@ namespace internal
 
                       case RefinementCase<dim>::cut_y:
                         {
-                          //////////////////////////////
+                          //----------------------------
                           //
                           //     RefinementCase<dim>::cut_y
                           //
@@ -8286,7 +8302,7 @@ namespace internal
 
                       case RefinementCase<dim>::cut_z:
                         {
-                          //////////////////////////////
+                          //----------------------------
                           //
                           //     RefinementCase<dim>::cut_z
                           //
@@ -8514,7 +8530,7 @@ namespace internal
 
                       case RefinementCase<dim>::cut_xy:
                         {
-                          //////////////////////////////
+                          //----------------------------
                           //
                           //     RefinementCase<dim>::cut_xy
                           //
@@ -8948,7 +8964,7 @@ namespace internal
 
                       case RefinementCase<dim>::cut_xz:
                         {
-                          //////////////////////////////
+                          //----------------------------
                           //
                           //     RefinementCase<dim>::cut_xz
                           //
@@ -9392,7 +9408,7 @@ namespace internal
 
                       case RefinementCase<dim>::cut_yz:
                         {
-                          //////////////////////////////
+                          //----------------------------
                           //
                           //     RefinementCase<dim>::cut_yz
                           //
@@ -9825,7 +9841,7 @@ namespace internal
 
                       case RefinementCase<dim>::cut_xyz:
                         {
-                          //////////////////////////////
+                          //----------------------------
                           //
                           //     RefinementCase<dim>::cut_xyz
                           //     isotropic refinement
@@ -10349,7 +10365,7 @@ namespace internal
                           new_quads[11]->set_line_orientation(
                             3, line_orientation[13]);
 
-                          /////////////////////////////////
+                          //-------------------------------
                           // create the eight new hexes
                           //
                           // again first collect some data.  here, we need
@@ -11164,7 +11180,7 @@ Triangulation<dim, spacedim>::Triangulation(
   , faces(std::move(tria.faces))
   , vertices(std::move(tria.vertices))
   , vertices_used(std::move(tria.vertices_used))
-  , manifold(std::move(tria.manifold))
+  , manifolds(std::move(tria.manifolds))
   , anisotropic_refinement(tria.anisotropic_refinement)
   , check_for_distorted_cells(tria.check_for_distorted_cells)
   , number_cache(std::move(tria.number_cache))
@@ -11193,7 +11209,7 @@ Triangulation<dim, spacedim>::operator=(
   faces                        = std::move(tria.faces);
   vertices                     = std::move(tria.vertices);
   vertices_used                = std::move(tria.vertices_used);
-  manifold                     = std::move(tria.manifold);
+  manifolds                    = std::move(tria.manifolds);
   anisotropic_refinement       = tria.anisotropic_refinement;
   number_cache                 = tria.number_cache;
   vertex_to_boundary_id_map_1d = std::move(tria.vertex_to_boundary_id_map_1d);
@@ -11290,7 +11306,7 @@ Triangulation<dim, spacedim>::set_manifold(
 {
   AssertIndexRange(m_number, numbers::flat_manifold_id);
 
-  manifold[m_number] = manifold_object.clone();
+  manifolds[m_number] = manifold_object.clone();
 }
 
 
@@ -11302,7 +11318,7 @@ Triangulation<dim, spacedim>::reset_manifold(const types::manifold_id m_number)
   AssertIndexRange(m_number, numbers::flat_manifold_id);
 
   // delete the entry located at number.
-  manifold.erase(m_number);
+  manifolds.erase(m_number);
 }
 
 
@@ -11310,7 +11326,7 @@ template <int dim, int spacedim>
 void
 Triangulation<dim, spacedim>::reset_all_manifolds()
 {
-  manifold.clear();
+  manifolds.clear();
 }
 
 
@@ -11394,9 +11410,9 @@ Triangulation<dim, spacedim>::get_manifold(
 {
   // look, if there is a manifold stored at
   // manifold_id number.
-  const auto it = manifold.find(m_number);
+  const auto it = manifolds.find(m_number);
 
-  if (it != manifold.end())
+  if (it != manifolds.end())
     {
       // if we have found an entry, return it
       return *(it->second);
@@ -11491,7 +11507,7 @@ Triangulation<dim, spacedim>::copy_triangulation(
     faces = std::make_unique<internal::TriangulationImplementation::TriaFaces>(
       *other_tria.faces);
 
-  for (const auto &p : other_tria.manifold)
+  for (const auto &p : other_tria.manifolds)
     set_manifold(p.first, *p.second);
 
 
@@ -14696,7 +14712,7 @@ Triangulation<dim, spacedim>::clear_despite_subscriptions()
   vertices.clear();
   vertices_used.clear();
 
-  manifold.clear();
+  manifolds.clear();
 
   number_cache = internal::TriangulationImplementation::NumberCache<dim>();
 }
@@ -15359,7 +15375,7 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
   // needs also take care that it won't tag cells for refinement for
   // which some neighbors are more refined or will be refined.
 
-  //////////////////////////////////////
+  //------------------------------------
   // STEP 0:
   //    Only if coarsest_level_1 or patch_level_1 is set: clear all
   //    coarsen flags on level 1 to avoid level 0 cells being created
@@ -15374,7 +15390,7 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
   bool mesh_changed_in_this_loop = false;
   do
     {
-      //////////////////////////////////////
+      //------------------------------------
       // STEP 1:
       //    do not coarsen a cell if 'most of the neighbors' will be
       //    refined after the step. This is to prevent the occurrence
@@ -15393,7 +15409,7 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
         }
 
 
-      //////////////////////////////////////
+      //------------------------------------
       // STEP 2:
       //    eliminate refined islands in the interior and at the
       //    boundary. since they don't do much harm besides increasing
@@ -15507,7 +15523,7 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
               }
         }
 
-      //////////////////////////////////////
+      //------------------------------------
       // STEP 3:
       //    limit the level difference of neighboring cells at each
       //    vertex.
@@ -15599,7 +15615,7 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
               }
         }
 
-      /////////////////////////////////////
+      //-----------------------------------
       // STEP 4:
       //    eliminate unrefined islands. this has higher priority
       //    since this diminishes the approximation properties not
@@ -15620,7 +15636,7 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                 cell, (smooth_grid & allow_anisotropic_smoothing) != 0);
         }
 
-      /////////////////////////////////
+      //-------------------------------
       // STEP 5:
       //    ensure patch level 1.
       //
@@ -15769,7 +15785,7 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
             }
         }
 
-      //////////////////////////////////
+      //--------------------------------
       //
       //  at the boundary we could end up with cells with negative
       //  volume or at least with a part, that is negative, if the
@@ -15777,7 +15793,7 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
       //  that can happen
       this->policy->prevent_distorted_boundary_cells(*this);
 
-      /////////////////////////////////
+      //-------------------------------
       // STEP 6:
       //    take care of the requirement that no
       //    double refinement is done at each face
@@ -16144,14 +16160,14 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                         nb->face_flip(nb_indices.first),
                                         nb->face_rotation(nb_indices.first));
                                     if ((nb_frc & RefinementCase<dim>::cut_x) &&
-                                        !(refined_along_x ||
-                                          to_be_refined_along_x))
+                                        !((refined_along_x != 0u) ||
+                                          (to_be_refined_along_x != 0u)))
                                       changed |= cell->flag_for_face_refinement(
                                         i,
                                         RefinementCase<dim - 1>::cut_axis(0));
                                     if ((nb_frc & RefinementCase<dim>::cut_y) &&
-                                        !(refined_along_y ||
-                                          to_be_refined_along_y))
+                                        !((refined_along_y != 0u) ||
+                                          (to_be_refined_along_y != 0u)))
                                       changed |= cell->flag_for_face_refinement(
                                         i,
                                         RefinementCase<dim - 1>::cut_axis(1));
@@ -16232,14 +16248,14 @@ Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
               }
         }
 
-      //////////////////////////////////////
+      //------------------------------------
       // STEP 7:
       //    take care that no double refinement
       //    is done at each line in 3d or higher
       //    dimensions.
       this->policy->prepare_refinement_dim_dependent(*this);
 
-      //////////////////////////////////////
+      //------------------------------------
       // STEP 8:
       //    make sure that all children of each
       //    cell are either flagged for coarsening
@@ -16290,7 +16306,7 @@ Triangulation<dim, spacedim>::write_bool_vector(
   for (unsigned int position = 0; position < N; ++position)
     flags[position / 8] |= (v[position] ? (1 << (position % 8)) : 0);
 
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 
   // format:
   // 0. magic number
@@ -16305,7 +16321,7 @@ Triangulation<dim, spacedim>::write_bool_vector(
 
   delete[] flags;
 
-  AssertThrow(out, ExcIO());
+  AssertThrow(out.fail() == false, ExcIO());
 }
 
 
@@ -16316,7 +16332,7 @@ Triangulation<dim, spacedim>::read_bool_vector(const unsigned int magic_number1,
                                                const unsigned int magic_number2,
                                                std::istream &     in)
 {
-  AssertThrow(in, ExcIO());
+  AssertThrow(in.fail() == false, ExcIO());
 
   unsigned int magic_number;
   in >> magic_number;
@@ -16335,14 +16351,14 @@ Triangulation<dim, spacedim>::read_bool_vector(const unsigned int magic_number1,
     }
 
   for (unsigned int position = 0; position != N; ++position)
-    v[position] = (flags[position / 8] & (1 << (position % 8)));
+    v[position] = ((flags[position / 8] & (1 << (position % 8))) != 0);
 
   in >> magic_number;
   AssertThrow(magic_number == magic_number2, ExcGridReadError());
 
   delete[] flags;
 
-  AssertThrow(in, ExcIO());
+  AssertThrow(in.fail() == false, ExcIO());
 }
 
 
@@ -16357,7 +16373,7 @@ Triangulation<dim, spacedim>::memory_consumption() const
     mem += MemoryConsumption::memory_consumption(*level);
   mem += MemoryConsumption::memory_consumption(vertices);
   mem += MemoryConsumption::memory_consumption(vertices_used);
-  mem += sizeof(manifold);
+  mem += sizeof(manifolds);
   mem += sizeof(smooth_grid);
   mem += MemoryConsumption::memory_consumption(number_cache);
   mem += sizeof(faces);
