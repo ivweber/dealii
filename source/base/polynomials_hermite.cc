@@ -27,24 +27,24 @@ namespace Polynomials
       AssertIndexRange(index, 2 * regularity + 2);
 
       const unsigned int curr_index = index % (regularity + 1);
-      const bool         side       = (index > regularity);
+      const unsigned int side       = (index > regularity) ? 1 : 0;
 
-        // Protection needed here against underflow errors
-      const int comparison_1 = static_cast<int>(regularity + 1 - curr_index);
-      const int comparison_2 = side ? static_cast<int>(curr_index + 1) :
+        // Signed ints are used here to protect against underflow errors
+      const int loop_control_1 = static_cast<int>(regularity + 1 - curr_index);
+      const int loop_control_2 = (side == 1) ? static_cast<int>(curr_index + 1) :
                                       static_cast<int>(regularity + 2);
 
       std::vector<double> poly_coeffs(2 * regularity + 2, 0.0);
 
-      if (side) // g polynomials
+      if (side == 1) // right side: g polynomials
         {
           int binomial_1 = (curr_index % 2) ? -1 : 1;
 
-          for (int i = 0; i < comparison_2; ++i)
+          for (int i = 0; i < loop_control_2; ++i)
             {
               int inv_binomial = 1;
 
-              for (int j = 0; j < comparison_1; ++j)
+              for (int j = 0; j < loop_control_1; ++j)
                 {
                   int binomial_2 = 1;
 
@@ -58,20 +58,20 @@ namespace Polynomials
                   inv_binomial *= regularity + j + 1;
                   inv_binomial /= j + 1;
                 }
-                 // Protection needed here against underflow errors
+                 // ints used here to protect against underflow errors
               binomial_1 *= -static_cast<int>(curr_index - i);
               binomial_1 /= i + 1;
             }
         }
-      else // f polynomials
+      else // left side: f polynomials
         {
           int binomial = 1;
 
-          for (int i = 0; i < comparison_2; ++i)
+          for (int i = 0; i < loop_control_2; ++i)
             {
               int inv_binomial = 1;
 
-              for (int j = 0; j < comparison_1; ++j)
+              for (int j = 0; j < loop_control_1; ++j)
                 {
                   poly_coeffs[curr_index + i + j] += binomial * inv_binomial;
                   inv_binomial *= regularity + j + 1;
@@ -95,25 +95,28 @@ namespace Polynomials
 
 
 
-  HermitePoly::HermitePoly(const unsigned int regularity,
+  PolynomialsHermite::PolynomialsHermite(const unsigned int regularity,
                            const unsigned int index)
     : Polynomial<double>(hermite_poly_coeffs(regularity, index))
     , degree(2 * regularity + 1)
     , regularity(regularity)
     , side_index(index % (regularity + 1))
-    , side((index > regularity) ? 1 : 0)
-  {}
+    , side((index >= regularity + 1) ? 1 : 0)
+  {
+    AssertIndexRange(index, 2 * (regularity + 1));
+  }
 
 
 
   std::vector<Polynomial<double>>
-  HermitePoly::generate_complete_basis(const unsigned int regularity)
+  PolynomialsHermite::generate_complete_basis(const unsigned int regularity)
   {
     std::vector<Polynomial<double>> polys;
     const unsigned int              sz = 2 * regularity + 2;
+    polys.reserve(sz);
 
     for (unsigned int i = 0; i < sz; ++i)
-      polys.push_back(HermitePoly(regularity, i));
+      polys.emplace_back(PolynomialsHermite(regularity, i));
 
     return polys;
   }
