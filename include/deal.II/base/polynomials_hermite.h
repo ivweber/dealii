@@ -25,11 +25,6 @@
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/subscriptor.h>
 
-#include <deal.II/lac/full_matrix.h>
-
-#include <algorithm>
-#include <exception>
-#include <memory>
 #include <vector>
 
 
@@ -48,59 +43,58 @@ namespace Polynomials
    * @cite CiarletRiavart1972interpolation) enforcing the maximum 
    * posible level of regularity $r$ in the FEM basis given a 
    * polynomial degree of $2r+1$. The polynomials all represent 
-   * either a non-zero shape value or derivative at $y=0$ and $y=1$ 
-   * on the reference interval $y \in [0,1]$.
+   * either a non-zero shape value or derivative at $x=0$ and $x=1$ 
+   * on the reference interval $x \in [0,1]$.
    *
    * Indices $j = 0, 1, \dots, r$ refer to polynomials corresponding
    * to a non-zero derivative (or shape value for $j=0$) of
    * order $j$ at $x=0$, and indices $j = r+1, r+2, \dots, 2r+1$
    * refer to polynomials with a non-zero derivative of order
-   * $j-(r+1)$ (or value for $j=r+1$) at $x=1$. The basis is rescaled
-   * so that a function corresponding to a non-zero $j^{th}$
+   * $j-(r+1)$ (or value for $j=r+1$) at $x=1$. In particular, the 
+   * $0^{th}$ function has a value of $1$ at $x=0$, and the 
+   * $(r+1)^{th}$ function has a value of $1$ at $x=1$.The basis is 
+   * rescaled such that a function corresponding to a non-zero $j^{th}$
    * derivative has derivative value $j! 4^{j}$ at the corresponding
-   * node.
+   * node. This is done to prevent the $L^{2}$-norm of the basis functions
+   * from reducing exponentially with the chosen regularity.
    */
-  class HermitePoly : public Polynomial<double>
+  class PolynomialsHermite : public Polynomial<double>
   {
   public:
     /**
-     * Constructor for an individual Hermite polynomial. We write f_{j}
-     * for a polynomial that has a non-zero $j^{th}$ derivative at $y=0$
+     * Constructor for an individual Hermite polynomial. We write $f_{j}$
+     * for a polynomial that has a non-zero $j^{th}$ derivative at $x=0$
      * and $g_{j}$ for a polynomial with a non-zero $j^{th}$ derivative
-     * at $y=1$, meaning $f_{j}$ will have @p index $=j$ and $g_{j}$ will
+     * at $x=1$, meaning $f_{j}$ will have @p index $=j$ and $g_{j}$ will
      * have @p index $= j + \mathtt{regularity} + 1$. The resulting
      * polynomials will be degree $2\times \mathtt{regularity} +1$
      * and obey the following conditions:
-     *
      * @f{align*}{
      * &\begin{matrix}
-     *   \left. \frac{d^{i}}{dy^{i}} f_{j}(y) \right\vert_{y=0}
+     *   \left. \frac{d^{i}}{dx^{i}} f_{j}(x) \right\vert_{x=0}
      *          = i! 4^{i} \delta_{i, j}, \hfill
      *          &\qquad \hfill 0 \leq i \leq \mathtt{regularity}, \\
-     *   \left. \frac{d^{i}}{dy^{i}} f_{j}(y) \right\vert_{y=1}
+     *   \left. \frac{d^{i}}{dx^{i}} f_{j}(x) \right\vert_{x=1}
      *          = 0, \hfill &\qquad \hfill 0 \leq i \leq \mathtt{regularity},
      * \end{matrix} \qquad 0 \leq j \leq \mathtt{regularity}, \\
      * &\begin{matrix}
-     *  \left. \frac{d^{i}}{dy^{i}} g_{j}(y) \right\vert_{y=0}
+     *  \left. \frac{d^{i}}{dx^{i}} g_{j}(x) \right\vert_{x=0}
      *          = 0, \hfill &\qquad \hfill 0 \leq i \leq \mathtt{regularity}, \\
-     * \left. \frac{d^{i}}{dy^{i}} g_{j}(y) \right\vert_{y=1}
+     * \left. \frac{d^{i}}{dx^{i}} g_{j}(x) \right\vert_{x=1}
      *          = i! 4^{i} \delta_{i, j}, \hfill
      *          &\qquad \hfill 0 \leq i \leq \mathtt{regularity},
      * \end{matrix} \qquad 0 \leq j \leq \mathtt{regularity},
      * @f}
-     *
      * where $\delta_{i,j}$ is equal to $1$ whenever $i=j$,
      * and equal to $0$ otherwise. These polynomials have explicit
      * formulas given by
-     *
      * @f{align*}{
-     *   f_{j}(y) &= 4^{j} y^{j} (1-y)^{\mathtt{regularity}+1}
+     *   f_{j}(x) &= 4^{j} x^{j} (1-x)^{\mathtt{regularity}+1}
      * \sum_{k=0}^{\mathtt{regularity} - j} \;^{\mathtt{regularity} + k} C_{k}
-     * y^{k}, \\ g_{j}(y) &= 4^{j} y^{\mathtt{regularity}+1} (y-1)^{j}
+     * x^{k}, \\ g_{j}(x) &= 4^{j} x^{\mathtt{regularity}+1} (x-1)^{j}
      * \sum_{k=0}^{\mathtt{regularity} - j} \;^{\mathtt{regularity} + k} C_{k}
-     * (1-y)^{k},
+     * (1-x)^{k},
      * @f}
-     *
      * where $^{n} C_{r} = \frac{n!}{r!(n-r)!}$ is the $r^{th}$ binomial
      * coefficient of degree $n, \; 0 \leq r \leq n$.
      *
@@ -109,7 +103,7 @@ namespace Polynomials
      * @param index The local index of the generated polynomial in the
      * Hermite basis.
      */
-    HermitePoly(const unsigned int regularity, const unsigned int index);
+    PolynomialsHermite(const unsigned int regularity, const unsigned int index);
 
     /**
      * This function generates a vector of Polynomial objects
