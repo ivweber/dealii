@@ -58,7 +58,7 @@ namespace Polynomials
    * node. This is done to prevent the $L^{2}$-norm of the basis functions
    * from reducing exponentially with the chosen regularity.
    */
-  class HermitePoly : public Polynomial<double>
+  class PolynomialsHermite : public Polynomial<double>
   {
   public:
     /**
@@ -69,36 +69,32 @@ namespace Polynomials
      * have @p index $= j + \mathtt{regularity} + 1$. The resulting
      * polynomials will be degree $2\times \mathtt{regularity} +1$
      * and obey the following conditions:
-     *
      * @f{align*}{
      * &\begin{matrix}
-     *   \left. \frac{d^{i}}{dy^{i}} f_{j}(y) \right\vert_{y=0}
+     *   \left. \frac{d^{i}}{dx^{i}} f_{j}(x) \right\vert_{x=0}
      *          = i! 4^{i} \delta_{i, j}, \hfill
      *          &\qquad \hfill 0 \leq i \leq \mathtt{regularity}, \\
-     *   \left. \frac{d^{i}}{dy^{i}} f_{j}(y) \right\vert_{y=1}
+     *   \left. \frac{d^{i}}{dx^{i}} f_{j}(x) \right\vert_{x=1}
      *          = 0, \hfill &\qquad \hfill 0 \leq i \leq \mathtt{regularity},
      * \end{matrix} \qquad 0 \leq j \leq \mathtt{regularity}, \\
      * &\begin{matrix}
-     *  \left. \frac{d^{i}}{dy^{i}} g_{j}(y) \right\vert_{y=0}
+     *  \left. \frac{d^{i}}{dx^{i}} g_{j}(x) \right\vert_{x=0}
      *          = 0, \hfill &\qquad \hfill 0 \leq i \leq \mathtt{regularity}, \\
-     * \left. \frac{d^{i}}{dy^{i}} g_{j}(y) \right\vert_{y=1}
+     * \left. \frac{d^{i}}{dx^{i}} g_{j}(x) \right\vert_{x=1}
      *          = i! 4^{i} \delta_{i, j}, \hfill
      *          &\qquad \hfill 0 \leq i \leq \mathtt{regularity},
      * \end{matrix} \qquad 0 \leq j \leq \mathtt{regularity},
      * @f}
-     *
      * where $\delta_{i,j}$ is equal to $1$ whenever $i=j$,
      * and equal to $0$ otherwise. These polynomials have explicit
      * formulas given by
-     *
      * @f{align*}{
-     *   f_{j}(y) &= 4^{j} y^{j} (1-y)^{\mathtt{regularity}+1}
+     *   f_{j}(x) &= 4^{j} x^{j} (1-x)^{\mathtt{regularity}+1}
      * \sum_{k=0}^{\mathtt{regularity} - j} \;^{\mathtt{regularity} + k} C_{k}
-     * y^{k}, \\ g_{j}(y) &= 4^{j} y^{\mathtt{regularity}+1} (y-1)^{j}
+     * x^{k}, \\ g_{j}(x) &= 4^{j} x^{\mathtt{regularity}+1} (x-1)^{j}
      * \sum_{k=0}^{\mathtt{regularity} - j} \;^{\mathtt{regularity} + k} C_{k}
-     * (1-y)^{k},
+     * (1-x)^{k},
      * @f}
-     *
      * where $^{n} C_{r} = \frac{n!}{r!(n-r)!}$ is the $r^{th}$ binomial
      * coefficient of degree $n, \; 0 \leq r \leq n$.
      *
@@ -107,7 +103,7 @@ namespace Polynomials
      * @param index The local index of the generated polynomial in the
      * Hermite basis.
      */
-    HermitePoly(const unsigned int regularity, const unsigned int index);
+    PolynomialsHermite(const unsigned int regularity, const unsigned int index);
 
     /**
      * This function generates a vector of Polynomial objects
