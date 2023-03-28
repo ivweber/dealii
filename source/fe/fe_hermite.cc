@@ -49,18 +49,6 @@ DEAL_II_NAMESPACE_OPEN
 
 
 
-/*
- * In the future it may be possible to relax the restrictions on mappings
- * that can be used with FE_Hermite and implement these in a mapping
- * class, so the name MappingHermite is used in some places. At the moment
- * this has not been investigated properly, so MappingHermite is defined
- * here as an alias for MappingCartesian.
- */
-template <int dim, int spacedim = dim>
-using MappingHermite = MappingCartesian<dim>;
-
-
-
 namespace internal
 {
   inline std::vector<unsigned int>
@@ -207,14 +195,14 @@ namespace internal
   TensorProductPolynomials<dim>
   get_hermite_polynomials(const unsigned int regularity)
   {
-    TensorProductPolynomials<dim> poly_space(
-      Polynomials::HermitePoly::generate_complete_basis(regularity));
+    TensorProductPolynomials<dim> polynomial_basis(
+      Polynomials::PolynomialsHermite::generate_complete_basis(regularity));
 
     std::vector<unsigned int> renumber =
       internal::hermite_hierarchic_to_lexicographic_numbering<dim>(regularity);
-    poly_space.set_numbering(renumber);
+    polynomial_basis.set_numbering(renumber);
 
-    return poly_space;
+    return polynomial_basis;
   }
 
 
@@ -265,17 +253,7 @@ namespace internal
       double       cell_extent = 1.0;
 
       // Check mapping_data is associated with a compatible mapping class
-      if (dynamic_cast<const typename MappingHermite<1, spacedim>::InternalData
-                         *>(&mapping_data) != nullptr)
-        {
-          const typename MappingHermite<1, spacedim>::InternalData *data =
-            dynamic_cast<
-              const typename MappingHermite<1, spacedim>::InternalData *>(
-              &mapping_data);
-          n_q_points  = data->quadrature_points.size();
-          cell_extent = data->cell_extents[0];
-        }
-      else if (dynamic_cast<const typename MappingCartesian<1>::InternalData *>(
+      if (dynamic_cast<const typename MappingCartesian<1>::InternalData *>(
                  &mapping_data) != nullptr)
         {
           const typename MappingCartesian<1>::InternalData *data =
@@ -290,12 +268,12 @@ namespace internal
       const unsigned int regularity      = fe_herm.get_regularity();
       const unsigned int n_dofs_per_cell = fe_herm.n_dofs_per_cell();
       const unsigned int n_q_points_out  = value_list.size(1);
-      (void)n_dofs_per_cell;
+      (void) n_dofs_per_cell;
 
       AssertDimension(value_list.size(0), n_dofs_per_cell);
       AssertDimension(n_dofs_per_cell, 2 * regularity + 2);
       AssertIndexRange(n_q_points_out, n_q_points + 1);
-      (void)n_q_points;
+      (void) n_q_points;
 
       std::vector<unsigned int> l2h =
         hermite_lexicographic_to_hierarchic_numbering<1>(regularity);
@@ -334,17 +312,7 @@ namespace internal
       Tensor<1, 2> cell_extents;
 
       // Check mapping_data is associated with a compatible mapping class
-      if (dynamic_cast<const typename MappingHermite<2, spacedim>::InternalData
-                         *>(&mapping_data) != nullptr)
-        {
-          const typename MappingHermite<2, spacedim>::InternalData *data =
-            dynamic_cast<
-              const typename MappingHermite<2, spacedim>::InternalData *>(
-              &mapping_data);
-          n_q_points   = data->quadrature_points.size();
-          cell_extents = data->cell_extents;
-        }
-      else if (dynamic_cast<const typename MappingCartesian<2>::InternalData *>(
+      if (dynamic_cast<const typename MappingCartesian<2>::InternalData *>(
                  &mapping_data) != nullptr)
         {
           const typename MappingCartesian<2>::InternalData *data =
@@ -360,12 +328,12 @@ namespace internal
       const unsigned int n_dofs_per_cell = fe_herm.n_dofs_per_cell();
       const unsigned int n_dofs_per_dim  = 2 * regularity + 2;
       const unsigned int n_q_points_out  = value_list.size(1);
-      (void)n_dofs_per_cell;
+      (void) n_dofs_per_cell;
 
       AssertDimension(value_list.size(0), n_dofs_per_cell);
       AssertDimension(n_dofs_per_dim * n_dofs_per_dim, n_dofs_per_cell);
       AssertIndexRange(n_q_points_out, n_q_points + 1);
-      (void)n_q_points;
+      (void) n_q_points;
 
       std::vector<unsigned int> l2h =
         hermite_lexicographic_to_hierarchic_numbering<2>(regularity);
@@ -418,17 +386,7 @@ namespace internal
       Tensor<1, 3> cell_extents;
 
       // Check mapping_data is associated with a compatible mapping class
-      if (dynamic_cast<const typename MappingHermite<3, spacedim>::InternalData
-                         *>(&mapping_data) != nullptr)
-        {
-          const typename MappingHermite<3, spacedim>::InternalData *data =
-            dynamic_cast<
-              const typename MappingHermite<3, spacedim>::InternalData *>(
-              &mapping_data);
-          n_q_points   = data->quadrature_points.size();
-          cell_extents = data->cell_extents;
-        }
-      else if (dynamic_cast<const typename MappingCartesian<3>::InternalData *>(
+      if (dynamic_cast<const typename MappingCartesian<3>::InternalData *>(
                  &mapping_data) != nullptr)
         {
           const typename MappingCartesian<3>::InternalData *data =
@@ -445,12 +403,12 @@ namespace internal
       const unsigned int n_dofs_per_dim  = 2 * regularity + 2;
       const unsigned int n_dofs_per_quad = n_dofs_per_dim * n_dofs_per_dim;
       const unsigned int n_q_points_out  = value_list.size(1);
-      (void)n_dofs_per_cell;
+      (void) n_dofs_per_cell;
 
       AssertDimension(value_list.size(0), n_dofs_per_cell);
       AssertDimension(Utilities::pow(n_dofs_per_dim, 3), n_dofs_per_cell);
       AssertIndexRange(n_q_points_out, n_q_points + 1);
-      (void)n_q_points;
+      (void) n_q_points;
 
       std::vector<unsigned int> l2h =
         hermite_lexicographic_to_hierarchic_numbering<3>(regularity);
@@ -590,22 +548,20 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
   // Fails with an exception if that is not possible.
   Assert(
     (dynamic_cast<const typename FE_Hermite<dim, spacedim>::InternalData *>(
-       &fe_internal) != nullptr),
+      &fe_internal) != nullptr),
     ExcInternalError());
   const typename FE_Hermite<dim, spacedim>::InternalData &fe_data =
     static_cast<const typename FE_Hermite<dim, spacedim>::InternalData &>(
       fe_internal);
 
   Assert(
-    (dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(
-       &mapping_internal) != nullptr) ||
-      (dynamic_cast<const typename MappingCartesian<dim>::InternalData *>(
-         &mapping_internal) != nullptr),
+    dynamic_cast<const typename MappingCartesian<dim>::InternalData *>(
+      &mapping_internal) != nullptr,
     ExcInternalError());
 
   const UpdateFlags flags(fe_data.update_each);
 
-  // Transform values gradients and higher derivatives. Values also need to
+  // Transform values, gradients and higher derivatives. Values also need to
   // be rescaled according the the nodal derivative they correspond to.
   if ((flags & update_values) &&
       (cell_similarity != CellSimilarity::translation))
@@ -702,10 +658,8 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
       fe_internal);
 
   Assert(
-    (dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(
-       &mapping_internal) != nullptr) ||
-      (dynamic_cast<const typename MappingCartesian<dim, spacedim>::InternalData
-                      *>(&mapping_internal) != nullptr),
+   (dynamic_cast<const typename MappingCartesian<dim, spacedim>::InternalData
+      *>(&mapping_internal) != nullptr),
     ExcInternalError());
 
   AssertDimension(quadrature.size(), 1U);
