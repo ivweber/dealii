@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2021 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,22 +40,6 @@ namespace VectorTools
    */
 
   /**
-   * @p Enumeration representing the type of boundary condition to be enforced.
-   * Since Hermite finite elements can strongly impose continuity in various
-   * derivatives as well as value at element boundaries, they can also be used
-   * to impose boundary conditions such as Neumann conditions directly to reduce
-   * the size of the computational system.
-   */
-  enum HermiteBoundaryType
-  {
-    hermite_dirichlet,
-    hermite_neumann,
-    hermite_2nd_derivative,
-  };
-
-
-
-  /**
    * Enforces boundary conditions by projecting onto the Hermite finite element
    * space at the boundary.
    *
@@ -77,7 +61,7 @@ namespace VectorTools
     const std::map<types::boundary_id, const Function<spacedim, Number> *>
       &                                        boundary_functions,
     const Quadrature<dim - 1> &                quadrature,
-    const HermiteBoundaryType                  projection_mode,
+    const unsigned int                         boundary_norm_deriv_order,
     std::map<types::global_dof_index, Number> &boundary_values,
     std::vector<unsigned int>                  component_mapping = {});
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -512,17 +512,17 @@ namespace DoFTools
 
             // make sparsity pattern for this cell
             /*
-             * This loop has been edited to check for flat boundary profile
-             * dof indices, which the implementation of Hermite elements uses 
-             * to denote degrees of freedom assigned on the boundary with a 
-             * zero shape value across the entire boundary.
+             * This loop has been edited to check for unconstrained boundary
+             * dof indices, which the implementation of Hermite elements uses
+             * to denote degrees of freedom assigned on the boundary that should
+             * be ignored by the implementation of a boundary constraint.
              */
             for (unsigned int i = 0; i < dofs_per_face; ++i)
               for (unsigned int j = 0; j < dofs_per_face; ++j)
                 if (dof_to_boundary_mapping[dofs_on_this_face[i]] !=
-                      numbers::flat_boundary_profile_dof_index &&
+                      numbers::unconstrained_boundary_dof_index &&
                     dof_to_boundary_mapping[dofs_on_this_face[j]] !=
-                      numbers::flat_boundary_profile_dof_index)
+                      numbers::unconstrained_boundary_dof_index)
                   sparsity.add(dof_to_boundary_mapping[dofs_on_this_face[i]],
                                dof_to_boundary_mapping[dofs_on_this_face[j]]);
           }

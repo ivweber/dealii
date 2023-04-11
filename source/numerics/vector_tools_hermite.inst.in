@@ -19,8 +19,8 @@ for (deal_II_dimension : DIMENSIONS)
     template void VectorTools::internal::do_hermite_direct_projection<
       deal_II_dimension,
       deal_II_dimension,
-      double>(const Mapping<deal_II_dimension> &   mapping_h,
-              const DoFHandler<deal_II_dimension> &dof_handler,
+      double>(const MappingCartesian<deal_II_dimension> &mapping_h,
+              const DoFHandler<deal_II_dimension> &      dof_handler,
               const std::map<types::boundary_id,
                              const Function<deal_II_dimension, double> *>
                 &                                        boundary_functions,
@@ -36,9 +36,9 @@ for (deal_II_dimension : DIMENSIONS)
               const DoFHandler<deal_II_dimension> &dof_handler,
               const std::map<types::boundary_id,
                              const Function<deal_II_dimension, double> *>
-                &                                        boundary_functions,
-              const Quadrature<deal_II_dimension - 1> &  quadrature,
-              const HermiteBoundaryType                  projection_mode,
+                &                                      boundary_functions,
+              const Quadrature<deal_II_dimension - 1> &quadrature,
+              const unsigned int boundary_norm_deriv_order,
               std::map<types::global_dof_index, double> &boundary_values,
               std::vector<unsigned int>                  component_mapping);
 

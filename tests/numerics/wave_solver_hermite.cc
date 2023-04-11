@@ -321,12 +321,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
 
   wave.update_time(dt);
   VectorTools::project_hermite_boundary_values(
-    mapping_h,
-    dof,
-    boundary_functions,
-    face_quadrature,
-    VectorTools::HermiteBoundaryType::hermite_dirichlet,
-    boundary_values);
+    mapping_h, dof, boundary_functions, face_quadrature, 0, boundary_values);
 
   mass_solve.copy_from(mass);
   MatrixTools::apply_boundary_values(
@@ -355,13 +350,12 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
       sol_next = 0;
 
       wave.update_time(dt);
-      VectorTools::project_hermite_boundary_values(
-        mapping_h,
-        dof,
-        boundary_functions,
-        face_quadrature,
-        VectorTools::HermiteBoundaryType::hermite_dirichlet,
-        boundary_values);
+      VectorTools::project_hermite_boundary_values(mapping_h,
+                                                   dof,
+                                                   boundary_functions,
+                                                   face_quadrature,
+                                                   0,
+                                                   boundary_values);
 
       mass_solve.copy_from(mass);
       MatrixTools::apply_boundary_values(

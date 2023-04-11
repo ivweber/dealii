@@ -182,12 +182,7 @@ test_fe_on_domain(const unsigned int regularity)
   bound_map.emplace(std::make_pair(1U, &sol_object));
 
   VectorTools::project_hermite_boundary_values(
-    mapping,
-    dof,
-    bound_map,
-    QGauss<0>(1),
-    VectorTools::HermiteBoundaryType::hermite_dirichlet,
-    bound_vals);
+    mapping, dof, bound_map, QGauss<0>(1), 0, bound_vals);
 
   MatrixTools::apply_boundary_values(bound_vals, stiffness_matrix, sol, rhs);
 

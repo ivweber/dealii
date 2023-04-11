@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -212,12 +212,11 @@ namespace numbers
     static_cast<types::global_dof_index>(-1);
 
   /**
-  * A degree of freedom index used by the implementation of Hermite finite 
-  * elements to denote functions that are assigned on the boundary but have
-  * a zero shape value across the boundary, such as functions related to
-  * the normal derivative to the boundary.
-  */
-  const types::global_dof_index flat_boundary_profile_dof_index =
+   * A degree of freedom index used by the implementation of Hermite finite
+   * elements to denote functions that are assigned on the boundary of the
+   * domain, but that should be treated as internal domain d.o.f.s.
+   */
+  const types::global_dof_index unconstrained_boundary_dof_index =
     static_cast<types::global_dof_index>(-1);
 
   /**

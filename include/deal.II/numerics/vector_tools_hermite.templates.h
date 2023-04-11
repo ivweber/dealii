@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2021 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,7 +34,7 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/solver_control.h>
-#include <deal.II/lac/sparse_direct.h>
+#include <deal.II/lac/sparse_direct.h> //?
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/sparsity_tools.h>
@@ -42,29 +42,28 @@
 
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools_boundary.h>
+#include <deal.II/numerics/vector_tools_hermite.h>
 #include <deal.II/numerics/vector_tools_project.h>
 #include <deal.II/numerics/vector_tools_rhs.h>
-#include <deal.II/numerics/vector_tools_hermite.h>
+
+#include <string>
 
 
 DEAL_II_NAMESPACE_OPEN
-
-
-
-/*
- * Define MappingHermite as an alias for MappingCartesian. In the future it
- * may be possible to relax the requirements for a mapping class used with
- * Hermite, which is why this name is reserved here.
- */
-
-template <int dim, int spacedim = dim>
-using MappingHermite = MappingCartesian<dim, spacedim>;
 
 namespace VectorTools
 {
   // Internal namespace for implement Hermite boundary projection methods
   namespace internal
   {
+    /*
+     * Hermite elements position degrees of freedom corresponding to several
+     * orders of derivatives as well as shape values along the boundary, which
+     * means generally not all boundary d.o.f.s should be constrained. This
+     * function determines which degrees of freedom on the boundary should be
+     * constrained given the current boundary conditions, and flags the other
+     * boundary d.o.f.s with a marker not to constrain.
+     */
     template <int dim, int spacedim = dim, typename Number = double>
     void
     get_constrained_hermite_boundary_dofs(
@@ -79,18 +78,18 @@ namespace VectorTools
 
       std::fill_n(dof_to_boundary.begin(),
                   dof_handler.n_dofs(),
-                  numbers::invalid_dof_index);
+                  numbers::unconstrained_boundary_dof_index);
 
       /*
        * Create a look-up table for finding constrained dofs on all
-       * 4 or six faces of reference cell
+       * 2*dim faces of reference cell
        */
       const unsigned int degree = dof_handler.get_fe().degree;
       const unsigned int regularity =
         dynamic_cast<const FE_Hermite<dim> &>(dof_handler.get_fe())
           .get_regularity();
       const unsigned int dofs_per_face = dof_handler.get_fe().n_dofs_per_face();
-      const unsigned int dofs_per_cell = Utilities::pow( degree + 1, dim);
+      const unsigned int dofs_per_cell = Utilities::pow(degree + 1, dim);
       const unsigned int constrained_dofs_per_face =
         dofs_per_face / (regularity + 1);
 
@@ -108,30 +107,46 @@ namespace VectorTools
       const std::vector<unsigned int> l2h =
         dynamic_cast<const FE_Hermite<dim> &>(dof_handler.get_fe())
           .get_lexicographic_to_hierarchic_numbering();
-  //    const auto test_cell = dof_handler.begin();
 
+      /*
+       * The following loop uses the variables batch_size, batch_index
+       * and local_index to simplify calculations. The idea is to find
+       * constrained d.o.f.s in batches, with each batch representing a
+       * set of constrained d.o.f.s on a given face that occur consecutively
+       * in the ordering of all d.o.f.s on the reference cell.
+       * To quickly summarise what the variables mean:
+       * constrained_index: index of a d.o.f in the list of constrained d.o.f.
+                            indices
+       * index: index of a d.o.f in the list of all d.o.f.s
+       * batch_size: Number of consecutive variables in the ordering that are
+       *             all being constrained,
+       * batch index: Index of the current batch in the list of batches
+       * local_index: Index of the current d.o.f within a batch
+       *
+       * The variable correction is used because the pattern of constrained
+       * d.o.f.s on opposite face pairs is always the same, just separated by
+       * a constant offset value in the indices, so it's easier to calculate
+       * the pattern once and find this offset value.
+       */
       for (unsigned int d = 0, batch_size = 1; d < dim;
            ++d, batch_size *= degree + 1)
-        for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
+        for (unsigned int constrained_index = 0;
+             constrained_index < constrained_dofs_per_face;
+             ++constrained_index)
           {
-            const unsigned int local_index = i % batch_size;
-            const unsigned int batch_index = i / batch_size;
+            const unsigned int local_index = constrained_index % batch_size;
+            const unsigned int batch_index = constrained_index / batch_size;
 
             unsigned int index =
               local_index +
               (batch_index * (degree + 1) + position) * batch_size;
-            unsigned int correction =
-              batch_size * (regularity + 1);
+            unsigned int correction = batch_size * (regularity + 1);
             Assert(index + correction < dofs_per_cell,
                    ExcDimensionMismatch(index + correction, dofs_per_cell));
 
-  //          test_cell->face(2 * d)->get_dof_indices(
-  //            dofs_on_face, test_cell->active_fe_index());
-            constrained_to_local_indices(2 * d, i) = l2h[index];
-
-  //          test_cell->face(2 * d + 1)->get_dof_indices(
-  //            dofs_on_face, test_cell->active_fe_index());
-            constrained_to_local_indices(2 * d + 1, i) = l2h[index + correction];
+            constrained_to_local_indices(2 * d, constrained_index) = l2h[index];
+            constrained_to_local_indices(2 * d + 1, constrained_index) =
+              l2h[index + correction];
           }
 
       std::set<types::boundary_id> selected_boundary_components;
@@ -145,20 +160,25 @@ namespace VectorTools
                selected_boundary_components.end(),
              DoFTools::ExcInvalidBoundaryIndicator());
 
-      no_constrained_dofs = 0;
+      /*
+       * Index variable showing the position of the current constrained d.o.f
+       * in the list of constrained d.o.f.s for the whole domain, and to keep
+       * track of the current number of constrained d.o.f.s that have been
+       * added to the list.
+       */
+      unsigned int global_constrained_dof_counter = 0;
 
       for (const auto &cell : dof_handler.active_cell_iterators())
         for (const unsigned int f : cell->face_indices())
           {
-            AssertDimension(cell->get_fe().n_dofs_per_face(f),
-                            dofs_per_face);
+            AssertDimension(cell->get_fe().n_dofs_per_face(f), dofs_per_face);
 
             // Check if face is on selected boundary section
             if (selected_boundary_components.find(
                   cell->face(f)->boundary_id()) !=
                 selected_boundary_components.end())
               {
-                cell->get_dof_indices(dofs_on_cell); //, cell->active_fe_index());
+                cell->get_dof_indices(dofs_on_cell);
 
                 for (unsigned int i = 0; i < constrained_dofs_per_face; ++i)
                   {
@@ -168,7 +188,7 @@ namespace VectorTools
                            ExcDimensionMismatch(index, dof_to_boundary.size()));
 
                     if (dof_to_boundary[index] == numbers::invalid_dof_index)
-                      dof_to_boundary[index] = no_constrained_dofs++;
+                      dof_to_boundary[index] = global_constrained_dof_counter++;
                   }
               }
           }
@@ -184,7 +204,7 @@ namespace VectorTools
     template <int dim, int spacedim = dim, typename Number = double>
     void
     do_hermite_direct_projection(
-      const Mapping<dim, spacedim> &   mapping_h,
+      const MappingCartesian<dim> &    mapping_h,
       const DoFHandler<dim, spacedim> &dof_handler,
       const std::map<types::boundary_id, const Function<spacedim, Number> *>
         &                                        boundary_functions,
@@ -196,13 +216,6 @@ namespace VectorTools
       // Return immediately if no constraint functions are provided
       if (boundary_functions.size() == 0)
         return;
-
-      // Check the mapping object is of a compatible mapping class
-      Assert((dynamic_cast<const MappingHermite<dim, spacedim> *>(&mapping_h) !=
-              nullptr) ||
-               (dynamic_cast<const MappingCartesian<dim> *>(&mapping_h) !=
-                nullptr),
-             ExcInternalError());
 
       // For dim=1, the problem simplifies to interpolation at the boundaries
       if (dim == 1)
@@ -270,103 +283,106 @@ namespace VectorTools
                                             position,
                                             dof_to_boundary_mapping,
                                             next_boundary_index);
-      
-      //Check to see if the boundaries are homogeneous
+
+      // Check to see if the boundaries are homogeneous
       bool zero_indicator = true;
-      for (const auto& func_pair : boundary_functions)
-      {
-          zero_indicator = zero_indicator & (dynamic_cast<const Functions::ZeroFunction<dim>*>(func_pair.second) != nullptr);
-          if (!zero_indicator) break;
-      }
-      
+      for (const auto &func_pair : boundary_functions)
+        {
+          zero_indicator = zero_indicator &
+                           (dynamic_cast<const Functions::ZeroFunction<dim> *>(
+                              func_pair.second) != nullptr);
+          if (!zero_indicator)
+            break;
+        }
+
       if (zero_indicator)
-      {
+        {
           for (unsigned int i = 0; i < dof_to_boundary_mapping.size(); ++i)
-              if (dof_to_boundary_mapping[i] != numbers::invalid_dof_index)
-                  boundary_values[i] = 0;
-              
-        return;
-      }
-      
+            if (dof_to_boundary_mapping[i] != numbers::invalid_dof_index)
+              boundary_values[i] = 0;
+
+          return;
+        }
+
       SparsityPattern sparsity;
 
-        {
-            DynamicSparsityPattern dsp(next_boundary_index, next_boundary_index);
-            DoFTools::make_boundary_sparsity_pattern(dof_handler,
-                                                     boundary_functions,
-                                                     dof_to_boundary_mapping,
-                                                     dsp);
+      {
+        DynamicSparsityPattern dsp(next_boundary_index, next_boundary_index);
+        DoFTools::make_boundary_sparsity_pattern(dof_handler,
+                                                 boundary_functions,
+                                                 dof_to_boundary_mapping,
+                                                 dsp);
 
-            sparsity.copy_from(dsp);
-        }
+        sparsity.copy_from(dsp);
+      }
 
-        // Assert mesh is not partially refined
-        // TODO: Add functionality on partially refined meshes
-        int level = -1;
+      // Assert mesh is not partially refined
+      // TODO: Add functionality on partially refined meshes
+      int level = -1;
 
-        for (const auto &cell : dof_handler.active_cell_iterators())
-            for (auto f : cell->face_indices())
-                if (cell->at_boundary(f))
-                {
-                    if (level == -1)
-                        level = cell->level();
-                    else
-                        Assert(level == cell->level(),
-                            ExcMessage("The mesh you use in projecting "
-                                       "boundary values has hanging nodes"
-                                       " at the boundary. This would require "
-                                       "dealing with hanging node constraints"
-                                       " when solving the linear system on "
-                                       "the boundary, but this is not "
-                                       "currently implemented."));
-                }
-
-        // make mass matrix and right hand side
-        SparseMatrix<Number> mass_matrix(sparsity);
-        Vector<Number>       rhs(sparsity.n_rows());
-        Vector<Number>       boundary_projection(rhs.size());
-
-        MatrixCreator::create_boundary_mass_matrix(
-            mapping_h,
-            dof_handler,
-            quadrature,
-            mass_matrix,
-            boundary_functions,
-            rhs,
-            dof_to_boundary_mapping,
-            static_cast<const Function<spacedim, Number> *>(nullptr),
-            component_mapping);
-
-        {
-            /*
-            * Current implementation uses a direct solver to better account for
-            * the mass matrix being potentially sufficiently ill-conditioned to
-            * prevent iterations from converging.
-            * TODO: Find a good preconditioner to allow more efficient iterative
-            * methods
-            */
-            SparseDirectUMFPACK mass_inv;
-            mass_inv.initialize(mass_matrix);
-            mass_inv.vmult(boundary_projection, rhs);
-        }
-
-        // fill in boundary values
-        for (unsigned int i = 0; i < dof_to_boundary_mapping.size(); ++i)
-            if (dof_to_boundary_mapping[i] != numbers::invalid_dof_index)
+      for (const auto &cell : dof_handler.active_cell_iterators())
+        for (auto f : cell->face_indices())
+          if (cell->at_boundary(f))
             {
-                AssertIsFinite(boundary_projection(dof_to_boundary_mapping[i]));
-
-                /*
-                * This is where the boundary solution, which only considers the
-                * DOFs that are actually constrained, is applied to the boundary
-                * DOFs in the global solution. Remember: i is the global dof
-                * number, dof_to_boundary_mapping[i] is the number on the boundary
-                * and thus in the solution vector.
-                */
-                boundary_values[i] =
-                    boundary_projection(dof_to_boundary_mapping[i]);
+              if (level == -1)
+                level = cell->level();
+              else
+                Assert(level == cell->level(),
+                       ExcMessage("The mesh you use in projecting "
+                                  "boundary values has hanging nodes"
+                                  " at the boundary. This would require "
+                                  "dealing with hanging node constraints"
+                                  " when solving the linear system on "
+                                  "the boundary, but this is not "
+                                  "currently implemented."));
             }
-        return;
+
+      // make mass matrix and right hand side
+      SparseMatrix<Number> mass_matrix(sparsity);
+      Vector<Number>       rhs(sparsity.n_rows());
+      Vector<Number>       boundary_projection(rhs.size());
+
+      MatrixCreator::create_boundary_mass_matrix(
+        mapping_h,
+        dof_handler,
+        quadrature,
+        mass_matrix,
+        boundary_functions,
+        rhs,
+        dof_to_boundary_mapping,
+        static_cast<const Function<spacedim, Number> *>(nullptr),
+        component_mapping);
+
+      {
+        /*
+         * Current implementation uses a direct solver to better account for
+         * the mass matrix being potentially sufficiently ill-conditioned to
+         * prevent iterations from converging.
+         * TODO: Find a good preconditioner to allow more efficient iterative
+         * methods
+         */
+        SparseDirectUMFPACK mass_inv;
+        mass_inv.initialize(mass_matrix);
+        mass_inv.vmult(boundary_projection, rhs);
+      }
+
+      // fill in boundary values
+      for (unsigned int i = 0; i < dof_to_boundary_mapping.size(); ++i)
+        if (dof_to_boundary_mapping[i] != numbers::invalid_dof_index)
+          {
+            AssertIsFinite(boundary_projection(dof_to_boundary_mapping[i]));
+
+            /*
+             * This is where the boundary solution, which only considers the
+             * DOFs that are actually constrained, is applied to the boundary
+             * DOFs in the global solution. Remember: i is the global dof
+             * number, dof_to_boundary_mapping[i] is the number on the boundary
+             * and thus in the solution vector.
+             */
+            boundary_values[i] =
+              boundary_projection(dof_to_boundary_mapping[i]);
+          }
+      return;
     }
   } // namespace internal
 
@@ -380,7 +396,7 @@ namespace VectorTools
     const std::map<types::boundary_id, const Function<spacedim, Number> *>
       &                                        boundary_functions,
     const Quadrature<dim - 1> &                quadrature,
-    const HermiteBoundaryType                  projection_mode,
+    const unsigned int                         boundary_norm_deriv_order,
     std::map<types::global_dof_index, Number> &boundary_values,
     std::vector<unsigned int>                  component_mapping)
   {
@@ -388,16 +404,12 @@ namespace VectorTools
      * This version implements projected values directly,
      * so it's necessary to check that this is possible
      */
-    const bool check_mode =
-      (projection_mode == HermiteBoundaryType::hermite_dirichlet) ||
-      (projection_mode == HermiteBoundaryType::hermite_neumann) ||
-      (projection_mode == HermiteBoundaryType::hermite_2nd_derivative);
 
-    Assert(check_mode, ExcNotImplemented());
-    Assert((dynamic_cast<const MappingHermite<dim, spacedim> *>(&mapping_h) !=
-            nullptr) ||
-             (dynamic_cast<const MappingCartesian<dim> *>(&mapping_h) !=
-              nullptr),
+    Assert((2 * boundary_norm_deriv_order < dof_handler.get_fe().degree),
+           ExcMessage("To constrain r order derivatives on the boundary "
+                      "requires a Hermite FE object of at least order "
+                      "2r+1."));
+    Assert((dynamic_cast<const MappingCartesian<dim> *>(&mapping_h) != nullptr),
            ExcMessage("project_hermite_boundary_values should only be"
                       " used with a mapping compatible with Hermite "
                       "finite element methods."));
@@ -407,38 +419,14 @@ namespace VectorTools
                       " be used with a DOF handler linked to a "
                       "FE_Hermite object."));
 
-    (void)check_mode;
-
-    unsigned int position = 0;
-
-    switch (projection_mode)
-      {
-        case HermiteBoundaryType::hermite_dirichlet:
-          position = 0;
-          break;
-        case HermiteBoundaryType::hermite_neumann:
-          Assert(dof_handler.get_fe().degree > 2,
-                 ExcDimensionMismatch(dof_handler.get_fe().degree, 3));
-
-          position = 1;
-          break;
-        case HermiteBoundaryType::hermite_2nd_derivative:
-          Assert(dof_handler.get_fe().degree > 4,
-                 ExcDimensionMismatch(dof_handler.get_fe().degree, 5));
-
-          position = 2;
-          break;
-        default:
-          Assert(false, ExcInternalError());
-      }
-
-    internal::do_hermite_direct_projection(mapping_h,
-                                           dof_handler,
-                                           boundary_functions,
-                                           quadrature,
-                                           position,
-                                           boundary_values,
-                                           component_mapping);
+    internal::do_hermite_direct_projection(
+      *static_cast<const MappingCartesian<dim> *>(&mapping_h),
+      dof_handler,
+      boundary_functions,
+      quadrature,
+      boundary_norm_deriv_order,
+      boundary_values,
+      component_mapping);
   }
 
 
@@ -454,21 +442,24 @@ namespace VectorTools
     std::map<types::global_dof_index, Number> &boundary_values,
     std::vector<unsigned int>                  component_mapping)
   {
-    Assert((dynamic_cast<const MappingHermite<dim, spacedim> *>(&mapping_h) !=
-            nullptr) ||
-             (dynamic_cast<const MappingCartesian<dim> *>(&mapping_h) !=
-              nullptr),
+    Assert((dynamic_cast<const MappingCartesian<dim> *>(&mapping_h) != nullptr),
            ExcMessage("project_hermite_boundary_values should only be"
                       " used with a mapping compatible with Hermite "
                       "finite element methods."));
+    Assert((dynamic_cast<const FE_Hermite<dim> *>(&dof_handler.get_fe()) !=
+            nullptr),
+           ExcMessage("project_hermite_boundary_values should only"
+                      " be used with a DOF handler linked to a "
+                      "FE_Hermite object."));
 
-    internal::do_hermite_direct_projection(mapping_h,
-                                           dof_handler,
-                                           boundary_functions,
-                                           quadrature,
-                                           0,
-                                           boundary_values,
-                                           component_mapping);
+    internal::do_hermite_direct_projection(
+      *static_cast<const MappingCartesian<dim> *>(&mapping_h),
+      dof_handler,
+      boundary_functions,
+      quadrature,
+      0,
+      boundary_values,
+      component_mapping);
   }
 
 
@@ -488,10 +479,7 @@ namespace VectorTools
   {
     using number = typename VectorType::value_type;
 
-    Assert((dynamic_cast<const MappingHermite<dim, spacedim> *>(&mapping_h) !=
-            nullptr) ||
-             (dynamic_cast<const MappingCartesian<dim> *>(&mapping_h) !=
-              nullptr),
+    Assert((dynamic_cast<const MappingCartesian<dim> *>(&mapping_h) != nullptr),
            ExcMessage(
              "The function project_hermite() can only be used with a mapping "
              "compatible with Hermite finite element methods."));
@@ -553,12 +541,18 @@ namespace VectorTools
                                        const Function<spacedim, number> *>>(
               boundary_function);
 
-        project_hermite_boundary_values<dim, spacedim, number>(
+        /* project_hermite_boundary_values<dim, spacedim, number>(
           mapping_h,
           dof,
           new_boundary_2,
           q_boundary,
-          HermiteBoundaryType::hermite_dirichlet,
+          boundary_values); */
+        internal::do_hermite_direct_projection(
+          *static_cast<const MappingCartesian<dim> *>(&mapping_h),
+          dof,
+          new_boundary_2,
+          q_boundary,
+          0,
           boundary_values);
       }
 
