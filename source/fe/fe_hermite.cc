@@ -566,6 +566,17 @@ FE_Hermite<dim, spacedim>::clone() const
 }
 
 
+template <int dim, int spacedim>
+UpdateFlags
+FE_Hermite<dim, spacedim>::requires_update_flags(const UpdateFlags flags) const
+{
+  UpdateFlags out = FE_Poly<dim, spacedim>::requires_update_flags(flags);
+  if (flags&(update_values|update_gradients|update_hessians|update_3rd_derivatives))
+    out |= update_rescale; // since we need to rescale values, gradients, ...
+  return out;
+}
+
+
 
 /**
  * A large part of the following function is copied from FE_Q_Base, the main 
@@ -844,13 +855,6 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
   const typename FE_Hermite<dim, spacedim>::InternalData &fe_data =
     static_cast<const typename FE_Hermite<dim, spacedim>::InternalData &>(
       fe_internal);
-
-  Assert(
-    ((dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(
-       &mapping_internal) != nullptr) ||
-      (dynamic_cast<const typename MappingCartesian<dim>::InternalData *>(
-         &mapping_internal) != nullptr)), 
-    ExcInternalError());
     
 
   const UpdateFlags flags(fe_data.update_each);
