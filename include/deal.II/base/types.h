@@ -212,15 +212,6 @@ namespace numbers
     static_cast<types::global_dof_index>(-1);
 
   /**
-  * A degree of freedom index used by the implementation of Hermite finite 
-  * elements to denote functions that are assigned on the boundary but have
-  * a zero shape value across the boundary, such as functions related to
-  * the normal derivative to the boundary.
-  */
-  const types::global_dof_index flat_boundary_profile_dof_index =
-    static_cast<types::global_dof_index>(-1);
-
-  /**
    * An invalid value for coarse cell ids. See the glossary
    * entry on
    * @ref GlossCoarseCellId "coarse cell IDs"
