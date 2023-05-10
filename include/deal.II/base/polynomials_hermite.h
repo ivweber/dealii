@@ -39,20 +39,20 @@ DEAL_II_NAMESPACE_OPEN
 namespace Polynomials
 {
   /**
-   * This class implements Hermite interpolation polynomials (see 
-   * @cite CiarletRiavart1972interpolation) enforcing the maximum 
-   * posible level of regularity $r$ in the FEM basis given a 
-   * polynomial degree of $2r+1$. The polynomials all represent 
-   * either a non-zero shape value or derivative at $x=0$ and $x=1$ 
+   * This class implements Hermite interpolation polynomials (see
+   * @cite CiarletRiavart1972interpolation) enforcing the maximum
+   * posible level of regularity $r$ in the FEM basis given a
+   * polynomial degree of $2r+1$. The polynomials all represent
+   * either a non-zero shape value or derivative at $x=0$ and $x=1$
    * on the reference interval $x \in [0,1]$.
    *
    * Indices $j = 0, 1, \dots, r$ refer to polynomials corresponding
    * to a non-zero derivative (or shape value for $j=0$) of
    * order $j$ at $x=0$, and indices $j = r+1, r+2, \dots, 2r+1$
    * refer to polynomials with a non-zero derivative of order
-   * $j-(r+1)$ (or value for $j=r+1$) at $x=1$. In particular, the 
-   * $0^{th}$ function has a value of $1$ at $x=0$, and the 
-   * $(r+1)^{th}$ function has a value of $1$ at $x=1$.The basis is 
+   * $j-(r+1)$ (or value for $j=r+1$) at $x=1$. In particular, the
+   * $0^{th}$ function has a value of $1$ at $x=0$, and the
+   * $(r+1)^{th}$ function has a value of $1$ at $x=1$.The basis is
    * rescaled such that a function corresponding to a non-zero $j^{th}$
    * derivative has derivative value $j! 4^{j}$ at the corresponding
    * node. This is done to prevent the $L^{2}$-norm of the basis functions

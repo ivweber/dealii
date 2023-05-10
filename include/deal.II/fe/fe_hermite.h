@@ -17,6 +17,7 @@
 #define dealii_fe_hermite
 
 #include <deal.II/base/config.h>
+
 #include <deal.II/base/polynomials_hermite.h>
 
 #include <deal.II/fe/fe_poly.h>
@@ -34,9 +35,10 @@ DEAL_II_NAMESPACE_OPEN
 
 
 /**
- * This class implements a Hermite interpolation basis of maximum regularity elements
- * (see @cite CiarletRiavart1972interpolation). These are always of odd polynomial 
- * degree, have regularity $r=\frac{p-1}{2}$ and are defined up to polynomial degree $p=13$.
+ * This class implements a Hermite interpolation basis of maximum regularity
+ *elements (see @cite CiarletRiavart1972interpolation). These are always of odd
+ *polynomial degree, have regularity $r=\frac{p-1}{2}$ and are defined up to
+ *polynomial degree $p=13$.
  *
  * Each node has $(r+1)^{d}$ degrees of freedom (DoFs) assigned to it,
  * corresponding to the different combinations of directional derivatives up to
@@ -135,11 +137,11 @@ public:
    * boundaries, it is necessary to account for any changes to derivatives
    * from those on the reference element due to the current cell mapping.
    *
-   * At present this is done by only allowing certain cell mappings 
-   * (currently only MappingCartesian) that guarantee rectangular cells 
-   * which ensures that the directions of derivatives does not change. 
-   * The derivative continuity can then be enforced by re-scaling shape 
-   * functions so that the magnitude of each derivative is equivalent 
+   * At present this is done by only allowing certain cell mappings
+   * (currently only MappingCartesian) that guarantee rectangular cells
+   * which ensures that the directions of derivatives does not change.
+   * The derivative continuity can then be enforced by re-scaling shape
+   * functions so that the magnitude of each derivative is equivalent
    * to the derivative on the reference interval.
    */
   virtual void
