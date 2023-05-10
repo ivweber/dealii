@@ -817,13 +817,6 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
     static_cast<const typename FE_Hermite<dim, spacedim>::InternalData &>(
       fe_internal);
 
-<<<<<<< HEAD
-=======
-  Assert(dynamic_cast<const typename MappingCartesian<dim>::InternalData *>(
-           &mapping_internal) != nullptr,
-         ExcInternalError());
-
->>>>>>> c8d07fe1ec (Ran indent script on current files)
   const UpdateFlags flags(fe_data.update_each);
 
   // Transform values, gradients and higher derivatives. Values also need to
