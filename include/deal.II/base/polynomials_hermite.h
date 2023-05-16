@@ -15,8 +15,8 @@
 
 
 
-#ifndef dealii_hermite_polynomials
-#define dealii_hermite_polynomials
+#ifndef dealii_polynomials_hermite_h
+#define dealii_polynomials_hermite_h
 
 #include <deal.II/base/config.h>
 

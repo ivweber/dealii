@@ -14,6 +14,7 @@
 // ---------------------------------------------------------------------
 
 #include <deal.II/base/polynomials_hermite.h>
+#include <deal.II/base/utilities.h>
 
 DEAL_II_NAMESPACE_OPEN
 
