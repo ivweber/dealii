@@ -617,10 +617,17 @@ namespace TrilinosWrappers
       /**
        * Initialize the vector given to the parallel partitioning described in
        * @p partitioner using the function above.
+       *
+       * You can decide whether your vector will contain ghost elements with
+       * @p make_ghosted.
+       *
+       * The parameter @p vector_writable only has effect on ghosted vectors
+       * and is ignored for non-ghosted vectors.
        */
       void
       reinit(
         const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
+        const bool make_ghosted    = true,
         const bool vector_writable = false);
 
       /**
@@ -718,8 +725,19 @@ namespace TrilinosWrappers
        * current elements.
        */
       void
+      import_elements(const LinearAlgebra::ReadWriteVector<double> &rwv,
+                      const VectorOperation::values                 operation);
+
+      /**
+       * @deprecated Use import_elements() instead.
+       */
+      DEAL_II_DEPRECATED_EARLY
+      void
       import(const LinearAlgebra::ReadWriteVector<double> &rwv,
-             const VectorOperation::values                 operation);
+             const VectorOperation::values                 operation)
+      {
+        import_elements(rwv, operation);
+      }
 
 
       /**

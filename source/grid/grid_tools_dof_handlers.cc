@@ -189,19 +189,22 @@ namespace GridTools
 
 
 
-  template <int dim, template <int, int> class MeshType, int spacedim>
-  DEAL_II_CXX20_REQUIRES(
-    (concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>))
+  template <class MeshType>
+  DEAL_II_CXX20_REQUIRES((concepts::is_triangulation_or_dof_handler<MeshType>))
 #ifndef _MSC_VER
-  std::vector<typename MeshType<dim, spacedim>::active_cell_iterator>
+  std::vector<typename MeshType::active_cell_iterator>
 #else
   std::vector<
-    typename dealii::internal::
-      ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type>
+    typename dealii::internal::ActiveCellIterator<MeshType::dimension,
+                                                  MeshType::space_dimension,
+                                                  MeshType>::type>
 #endif
-    find_cells_adjacent_to_vertex(const MeshType<dim, spacedim> &mesh,
-                                  const unsigned int             vertex)
+    find_cells_adjacent_to_vertex(const MeshType &   mesh,
+                                  const unsigned int vertex)
   {
+    const int dim      = MeshType::dimension;
+    const int spacedim = MeshType::space_dimension;
+
     // make sure that the given vertex is
     // an active vertex of the underlying
     // triangulation
@@ -213,13 +216,12 @@ namespace GridTools
     // to ensure that cells are inserted only
     // once
     std::set<typename dealii::internal::
-               ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type>
+               ActiveCellIterator<dim, spacedim, MeshType>::type>
       adjacent_cells;
 
-    typename dealii::internal::
-      ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type
-        cell = mesh.begin_active(),
-        endc = mesh.end();
+    typename dealii::internal::ActiveCellIterator<dim, spacedim, MeshType>::type
+      cell = mesh.begin_active(),
+      endc = mesh.end();
 
     // go through all active cells and look if the vertex is part of that cell
     //
@@ -322,9 +324,8 @@ namespace GridTools
     Assert(adjacent_cells.size() > 0, ExcInternalError());
 
     // return the result as a vector, rather than the set we built above
-    return std::vector<
-      typename dealii::internal::
-        ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type>(
+    return std::vector<typename dealii::internal::
+                         ActiveCellIterator<dim, spacedim, MeshType>::type>(
       adjacent_cells.begin(), adjacent_cells.end());
   }
 
@@ -495,6 +496,22 @@ namespace GridTools
           {
             if ((*cell)->is_artificial() == false)
               {
+                // marked_vertices are used to filter cell candidates
+                if (marked_vertices.size() > 0)
+                  {
+                    bool any_vertex_marked = false;
+                    for (const auto &v : (*cell)->vertex_indices())
+                      {
+                        if (marked_vertices[(*cell)->vertex_index(v)])
+                          {
+                            any_vertex_marked = true;
+                            break;
+                          }
+                      }
+                    if (!any_vertex_marked)
+                      continue;
+                  }
+
                 try
                   {
                     const Point<dim> p_cell =
@@ -539,12 +556,6 @@ namespace GridTools
 
         // update the number of cells searched
         cells_searched += adjacent_cells.size();
-
-        // if the user provided a custom mask for vertices,
-        // terminate the search without trying to expand the search
-        // to all cells of the triangulation, as done below.
-        if (marked_vertices.size() > 0)
-          cells_searched = n_active_cells;
 
         // if we have not found the cell in
         // question and have not yet searched every

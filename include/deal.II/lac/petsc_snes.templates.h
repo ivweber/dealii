@@ -38,24 +38,63 @@ DEAL_II_NAMESPACE_OPEN
       }                                              \
     while (0)
 
-// Shorthand notation for User error codes.
-#  define AssertUser(code, name)                                               \
-    do                                                                         \
-      {                                                                        \
-        int ierr = (code);                                                     \
-        AssertThrow(ierr == 0,                                                 \
-                    StandardExceptions::ExcFunctionNonzeroReturn(name, ierr)); \
-      }                                                                        \
-    while (0)
-
 namespace PETScWrappers
 {
+  namespace
+  {
+    /**
+     * A function that calls the function object given by its first argument
+     * with the set of arguments following at the end. If the call returns
+     * regularly, the current function returns zero to indicate success. If
+     * the call fails with an exception, then the current function returns with
+     * an error code of -1. In that case, the exception thrown by `f` is
+     * captured and `eptr` is set to the exception. In case of success,
+     * `eptr` is set to `nullptr`.
+     */
+    template <typename F, typename... Args>
+    int
+    call_and_possibly_capture_snes_exception(const F &           f,
+                                             std::exception_ptr &eptr,
+                                             Args &&...args)
+    {
+      // See whether there is already something in the exception pointer
+      // variable. There is no reason why this should be so, and
+      // we should probably bail out:
+      AssertThrow(eptr == nullptr, ExcInternalError());
+
+      // Call the function and if that succeeds, return zero:
+      try
+        {
+          f(std::forward<Args>(args)...);
+          eptr = nullptr;
+          return 0;
+        }
+      // In case of an exception, capture the exception and
+      // return -1:
+      catch (...)
+        {
+          eptr = std::current_exception();
+          return -1;
+        }
+    }
+  } // namespace
+
+
+
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   NonlinearSolver<VectorType, PMatrixType, AMatrixType>::NonlinearSolver(
     const NonlinearSolverData &data,
     const MPI_Comm             mpi_comm)
+    : pending_exception(nullptr)
   {
     AssertPETSc(SNESCreate(mpi_comm, &snes));
     AssertPETSc(SNESSetApplicationContext(snes, this));
@@ -65,8 +104,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   NonlinearSolver<VectorType, PMatrixType, AMatrixType>::operator SNES() const
   {
     return snes;
@@ -75,8 +121,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   SNES NonlinearSolver<VectorType, PMatrixType, AMatrixType>::petsc_snes()
   {
     return snes;
@@ -85,8 +138,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   MPI_Comm NonlinearSolver<VectorType, PMatrixType, AMatrixType>::
     get_mpi_communicator() const
   {
@@ -96,18 +156,34 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   NonlinearSolver<VectorType, PMatrixType, AMatrixType>::~NonlinearSolver()
   {
     AssertPETSc(SNESDestroy(&snes));
+
+    Assert(pending_exception == nullptr, ExcInternalError());
   }
 
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   void NonlinearSolver<VectorType, PMatrixType, AMatrixType>::reinit()
   {
     AssertPETSc(SNESReset(snes));
@@ -116,8 +192,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   void NonlinearSolver<VectorType, PMatrixType, AMatrixType>::reinit(
     const NonlinearSolverData &data)
   {
@@ -164,8 +247,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   void NonlinearSolver<VectorType, PMatrixType, AMatrixType>::set_matrix(
     PMatrixType &P)
   {
@@ -176,8 +266,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   void NonlinearSolver<VectorType, PMatrixType, AMatrixType>::set_matrices(
     AMatrixType &A,
     PMatrixType &P)
@@ -189,8 +286,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   unsigned int NonlinearSolver<VectorType, PMatrixType, AMatrixType>::solve(
     VectorType &x)
   {
@@ -201,9 +305,10 @@ namespace PETScWrappers
 
       VectorType xdealii(x);
       VectorType fdealii(f);
-      AssertUser(user->residual(xdealii, fdealii), "residual");
+      const int  err = call_and_possibly_capture_snes_exception(
+        user->residual, user->pending_exception, xdealii, fdealii);
       petsc_increment_state_counter(f);
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(err);
     };
 
     const auto snes_jacobian =
@@ -214,7 +319,9 @@ namespace PETScWrappers
       VectorType  xdealii(x);
       AMatrixType Adealii(A);
       PMatrixType Pdealii(P);
-      AssertUser(user->jacobian(xdealii, Adealii, Pdealii), "jacobian");
+
+      const int err = call_and_possibly_capture_snes_exception(
+        user->jacobian, user->pending_exception, xdealii, Adealii, Pdealii);
       petsc_increment_state_counter(P);
 
       // Handle the Jacobian-free case
@@ -229,7 +336,7 @@ namespace PETScWrappers
         }
       else
         petsc_increment_state_counter(A);
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(err);
     };
 
     const auto snes_jacobian_with_setup =
@@ -243,7 +350,10 @@ namespace PETScWrappers
 
       user->A = &Adealii;
       user->P = &Pdealii;
-      AssertUser(user->setup_jacobian(xdealii), "setup_jacobian");
+      const int err =
+        call_and_possibly_capture_snes_exception(user->setup_jacobian,
+                                                 user->pending_exception,
+                                                 xdealii);
       petsc_increment_state_counter(P);
 
       // Handle older versions of PETSc for which we cannot pass a MATSHELL
@@ -267,7 +377,8 @@ namespace PETScWrappers
         }
       else
         petsc_increment_state_counter(A);
-      PetscFunctionReturn(0);
+
+      PetscFunctionReturn(err);
     };
 
     const auto snes_monitor =
@@ -278,8 +389,9 @@ namespace PETScWrappers
       Vec x;
       AssertPETSc(SNESGetSolution(snes, &x));
       VectorType xdealii(x);
-      AssertUser(user->monitor(xdealii, it, f), "monitor");
-      PetscFunctionReturn(0);
+      const int  err = call_and_possibly_capture_snes_exception(
+        user->monitor, user->pending_exception, xdealii, it, f);
+      PetscFunctionReturn(err);
     };
 
     const auto snes_objective =
@@ -289,9 +401,10 @@ namespace PETScWrappers
 
       real_type  v;
       VectorType xdealii(x);
-      AssertUser(user->energy(xdealii, v), "energy");
+      const int  err = call_and_possibly_capture_snes_exception(
+        user->energy, user->pending_exception, xdealii, v);
       *f = v;
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(err);
     };
 
     AssertThrow(residual,
@@ -365,7 +478,10 @@ namespace PETScWrappers
         precond.vmult = [&](VectorBase &indst, const VectorBase &insrc) -> int {
           VectorType       dst(static_cast<const Vec &>(indst));
           const VectorType src(static_cast<const Vec &>(insrc));
-          return solve_with_jacobian(src, dst);
+          return call_and_possibly_capture_snes_exception(solve_with_jacobian,
+                                                          pending_exception,
+                                                          src,
+                                                          dst);
         };
 
         // Default Krylov solver (preconditioner only)
@@ -385,8 +501,32 @@ namespace PETScWrappers
     // Having set everything up, now do the actual work
     // and let PETSc solve the system.
     // Older versions of PETSc requires the solution vector specified even
-    // if we specified SNESSetSolution upfront
-    AssertPETSc(SNESSolve(snes, nullptr, x.petsc_vector()));
+    // if we specified SNESSetSolution upfront.
+    //
+    // If there is a pending exception, then one of the user callbacks
+    // threw an exception we didn't know how to deal with
+    // at the time. It is possible that PETSc managed to
+    // recover anyway and in that case would have returned
+    // a zero error code -- if so, just eat the exception and
+    // continue on; otherwise, just rethrow the exception
+    // and get outta here.
+    const int status = SNESSolve(snes, nullptr, x.petsc_vector());
+    if (pending_exception)
+      {
+        try
+          {
+            std::rethrow_exception(pending_exception);
+          }
+        catch (...)
+          {
+            pending_exception = nullptr;
+            if (status == 0)
+              /* just eat the exception */;
+            else
+              throw;
+          }
+      }
+    AssertPETSc(status);
 
     // Get the number of steps taken.
     PetscInt nt;
@@ -407,8 +547,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   unsigned int NonlinearSolver<VectorType, PMatrixType, AMatrixType>::solve(
     VectorType & x,
     PMatrixType &P)
@@ -420,8 +567,15 @@ namespace PETScWrappers
 
 
   template <typename VectorType, typename PMatrixType, typename AMatrixType>
-  DEAL_II_CXX20_REQUIRES((concepts::is_dealii_petsc_vector_type<VectorType> ||
-                          std::constructible_from<VectorType, Vec>))
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_dealii_petsc_vector_type<VectorType> ||
+     std::constructible_from<
+       VectorType,
+       Vec>)&&(concepts::is_dealii_petsc_matrix_type<PMatrixType> ||
+               std::constructible_from<
+                 PMatrixType,
+                 Mat>)&&(concepts::is_dealii_petsc_matrix_type<AMatrixType> ||
+                         std::constructible_from<AMatrixType, Mat>))
   unsigned int NonlinearSolver<VectorType, PMatrixType, AMatrixType>::solve(
     VectorType & x,
     AMatrixType &A,
@@ -434,7 +588,6 @@ namespace PETScWrappers
 } // namespace PETScWrappers
 
 #  undef AssertPETSc
-#  undef AssertUser
 
 DEAL_II_NAMESPACE_CLOSE
 

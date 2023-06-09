@@ -76,6 +76,17 @@ namespace LinearAlgebra
 
 
     template <typename Number>
+    BlockVector<Number>::BlockVector(
+      const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+        &             partitioners,
+      const MPI_Comm &comm_sm)
+    {
+      reinit(partitioners, comm_sm);
+    }
+
+
+
+    template <typename Number>
     BlockVector<Number>::BlockVector(const BlockVector<Number> &v)
       : BlockVectorBase<Vector<Number>>()
     {
@@ -181,6 +192,27 @@ namespace LinearAlgebra
       this->components.resize(this->n_blocks());
       for (unsigned int i = 0; i < this->n_blocks(); ++i)
         this->components[i].reinit(local_ranges[i], communicator);
+
+      // update block_indices content
+      this->collect_sizes();
+    }
+
+
+
+    template <typename Number>
+    void
+    BlockVector<Number>::reinit(
+      const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+        &             partitioners,
+      const MPI_Comm &comm_sm)
+    {
+      // update the number of blocks
+      this->block_indices.reinit(partitioners.size(), 0);
+
+      // initialize each block
+      this->components.resize(this->n_blocks());
+      for (unsigned int i = 0; i < this->n_blocks(); ++i)
+        this->components[i].reinit(partitioners[i], comm_sm);
 
       // update block_indices content
       this->collect_sizes();
@@ -355,8 +387,9 @@ namespace LinearAlgebra
           IndexSet    combined_set = partitioner->locally_owned_range();
           combined_set.add_indices(partitioner->ghost_indices());
           ReadWriteVector<Number> rw_vector(combined_set);
-          rw_vector.import(trilinos_vec.block(i), VectorOperation::insert);
-          this->block(i).import(rw_vector, VectorOperation::insert);
+          rw_vector.import_elements(trilinos_vec.block(i),
+                                    VectorOperation::insert);
+          this->block(i).import_elements(rw_vector, VectorOperation::insert);
 
           if (this->block(i).has_ghost_elements() ||
               trilinos_vec.block(i).has_ghost_elements())
@@ -895,7 +928,7 @@ namespace LinearAlgebra
 
     template <typename Number>
     inline void
-    BlockVector<Number>::import(
+    BlockVector<Number>::import_elements(
       const LinearAlgebra::ReadWriteVector<Number> &,
       VectorOperation::values,
       std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>)

@@ -411,12 +411,25 @@ namespace TrilinosWrappers
     void
     Vector::reinit(
       const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
+      const bool                                                make_ghosted,
       const bool                                                vector_writable)
     {
-      this->reinit(partitioner->locally_owned_range(),
-                   partitioner->ghost_indices(),
-                   partitioner->get_mpi_communicator(),
-                   vector_writable);
+      if (make_ghosted)
+        {
+          Assert(partitioner->ghost_indices_initialized(),
+                 ExcMessage("You asked to create a ghosted vector, but the "
+                            "partitioner does not provide ghost indices."));
+
+          this->reinit(partitioner->locally_owned_range(),
+                       partitioner->ghost_indices(),
+                       partitioner->get_mpi_communicator(),
+                       vector_writable);
+        }
+      else
+        {
+          this->reinit(partitioner->locally_owned_range(),
+                       partitioner->get_mpi_communicator());
+        }
     }
 
 
@@ -552,16 +565,16 @@ namespace TrilinosWrappers
 
 
     void
-    Vector::import(const LinearAlgebra::ReadWriteVector<double> &rwv,
-                   const VectorOperation::values                 operation)
+    Vector::import_elements(const LinearAlgebra::ReadWriteVector<double> &rwv,
+                            const VectorOperation::values operation)
     {
       Assert(
         this->size() == rwv.size(),
         ExcMessage(
-          "Both vectors need to have the same size for import() to work!"));
-      // TODO: a generic import() function should handle any kind of data layout
-      // in ReadWriteVector, but this function is of limited use as this class
-      // will (hopefully) be retired eventually.
+          "Both vectors need to have the same size for import_elements() to work!"));
+      // TODO: a generic import_elements() function should handle any kind of
+      // data layout in ReadWriteVector, but this function is of limited use as
+      // this class will (hopefully) be retired eventually.
       Assert(this->locally_owned_elements() == rwv.get_stored_elements(),
              ExcNotImplemented());
 

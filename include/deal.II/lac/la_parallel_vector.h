@@ -206,13 +206,13 @@ namespace LinearAlgebra
      *                   Kokkos::View<double,
      * MemorySpace::Default::kokkos_space>( vector_dev, n_local_elements));
      * @endcode
-     * <li> use import():
+     * <li> use import_elements():
      * @code
      * Vector<double, MemorySpace::Default> vector(local_range, comm);
      * ReadWriteVector<double> rw_vector(local_range);
      * for (auto & val : rw_vector)
      *   val = 1.;
-     * vector.import(rw_vector, VectorOperations::insert);
+     * vector.import_elements(rw_vector, VectorOperations::insert);
      * @endcode
      * </ul>
      * The import method is a lot safer and will perform an MPI communication if
@@ -389,8 +389,8 @@ namespace LinearAlgebra
       /**
        * Initialize the vector given to the parallel partitioning described in
        * @p partitioner. The input argument is a shared pointer, which stores
-       * the partitioner data only once and share it between several vectors
-       * with the same layout.
+       * the partitioner data only once and can be shared between several
+       * vectors with the same layout.
        *
        * The optional argument @p comm_sm, which consists of processes on
        * the same shared-memory domain, allows users have read-only access to
@@ -402,6 +402,18 @@ namespace LinearAlgebra
       reinit(
         const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
         const MPI_Comm comm_sm = MPI_COMM_SELF);
+
+      /**
+       * This function exists purely for reasons of compatibility with the
+       * PETScWrappers::MPI::Vector and TrilinosWrappers::MPI::Vector classes.
+       *
+       * It calls the function above, and ignores the parameter @p make_ghosted.
+       */
+      void
+      reinit(
+        const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
+        const bool                                                make_ghosted,
+        const MPI_Comm &comm_sm = MPI_COMM_SELF);
 
       /**
        * Initialize vector with @p local_size locally-owned and @p ghost_size
@@ -691,8 +703,19 @@ namespace LinearAlgebra
        */
       template <typename MemorySpace2>
       void
+      import_elements(const Vector<Number, MemorySpace2> &src,
+                      VectorOperation::values             operation);
+
+      /**
+       * @deprecated Use import_elements() instead.
+       */
+      template <typename MemorySpace2>
+      DEAL_II_DEPRECATED_EARLY void
       import(const Vector<Number, MemorySpace2> &src,
-             VectorOperation::values             operation);
+             VectorOperation::values             operation)
+      {
+        import_elements(src, operation);
+      }
 
       /** @} */
 
@@ -745,10 +768,23 @@ namespace LinearAlgebra
        * be moved to the @ref GlossDevice "device".
        */
       virtual void
+      import_elements(
+        const LinearAlgebra::ReadWriteVector<Number> &V,
+        VectorOperation::values                       operation,
+        std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
+          communication_pattern = {}) override;
+
+      /**
+       * @deprecated Use import_elements() instead.
+       */
+      DEAL_II_DEPRECATED_EARLY virtual void
       import(const LinearAlgebra::ReadWriteVector<Number> &V,
              VectorOperation::values                       operation,
              std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-               communication_pattern = {}) override;
+               communication_pattern = {}) override
+      {
+        import_elements(V, operation, communication_pattern);
+      }
 
       /**
        * Return the scalar product of two vectors.

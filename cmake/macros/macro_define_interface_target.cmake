@@ -90,9 +90,20 @@ function(define_interface_target _feature)
     set(_libraries)
     list(APPEND _libraries
       ${${_feature}_LIBRARIES} ${${_feature}_LIBRARIES_${_build}}
-      ${${_feature}_TARGETS} ${${_feature}_TARGETS_${_build}}
       )
     if(NOT "${_libraries}" STREQUAL "")
+      foreach(_lib ${_libraries})
+        #
+        # Complain loudly if we encounter an undefined target:
+        #
+        if("${_lib}" MATCHES "::")
+          message(FATAL_ERROR
+            "Undefined imported target name »${_lib}« present when defining "
+            "interface target »${_interface_target}«"
+            )
+        endif()
+      endforeach()
+
       message(STATUS "    LINK_LIBRARIES:      ${_libraries}")
       target_link_libraries(${_interface_target} INTERFACE ${_libraries})
     endif()
@@ -129,6 +140,12 @@ function(define_interface_target _feature)
       target_link_options(${_interface_target} INTERFACE ${_link_options})
     endif()
 
+    if(NOT "${${_feature}_TARGETS}${${_feature}_TARGETS_${_build}}" STREQUAL "")
+      set(_targets ${${_feature}_TARGETS}${${_feature}_TARGETS_${_build}})
+      message(STATUS "    IMPORTED TARGETS:    ${_targets}")
+      copy_target_properties(${_interface_target} ${${_feature}_TARGETS} ${${_feature}_TARGETS_${_build}})
+    endif()
+
     export(TARGETS ${_interface_target}
       NAMESPACE "${DEAL_II_TARGET_NAME}::"
       FILE ${CMAKE_BINARY_DIR}/${DEAL_II_PROJECT_CONFIG_RELDIR}/${DEAL_II_PROJECT_CONFIG_NAME}Targets.cmake
@@ -142,16 +159,12 @@ function(define_interface_target _feature)
 
     if(${_feature}_SPLIT_CONFIGURATION)
       # Future FIXME: change to block(PARENT_SCOPE)/endblock() (CMake 3.25)
-      list(APPEND DEAL_II_TARGETS_${_build} "${_interface_target}")
+      list(APPEND DEAL_II_TARGETS_${_build} ${_interface_target})
       set(DEAL_II_TARGETS_${_build} ${DEAL_II_TARGETS_${_build}} PARENT_SCOPE)
-      list(APPEND DEAL_II_LIBRARIES_${_build} "${_libraries}")
-      set(DEAL_II_LIBRARIES_${build} ${DEAL_II_LIBRARIES_${build}} PARENT_SCOPE)
     else()
       # Future FIXME: change to block(PARENT_SCOPE)/endblock() (CMake 3.25)
-      list(APPEND DEAL_II_TARGETS "${_interface_target}")
+      list(APPEND DEAL_II_TARGETS ${_interface_target})
       set(DEAL_II_TARGETS ${DEAL_II_TARGETS} PARENT_SCOPE)
-      list(APPEND DEAL_II_LIBRARIES "${_libraries}")
-      set(DEAL_II_LIBRARIES ${DEAL_II_LIBRARIES} PARENT_SCOPE)
     endif()
 
   endforeach()

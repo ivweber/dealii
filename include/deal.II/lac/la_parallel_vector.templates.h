@@ -387,7 +387,7 @@ namespace LinearAlgebra
             Kokkos::view_alloc(Kokkos::WithoutInitializing, "indices"),
             n_elements);
           Kokkos::parallel_for(
-            "import_elements: fill indices",
+            "dealii::import_elements: fill indices",
             Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(host_exec,
                                                                    0,
                                                                    n_elements),
@@ -410,7 +410,7 @@ namespace LinearAlgebra
 
           // Set the values in tmp_vector
           Kokkos::parallel_for(
-            "import_elements: set values tmp_vector",
+            "dealii::import_elements: set values tmp_vector",
             Kokkos::RangePolicy<
               ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
               exec, 0, n_elements),
@@ -426,7 +426,7 @@ namespace LinearAlgebra
           const size_type tmp_n_elements = tmp_index_set.n_elements();
           Kokkos::realloc(indices, tmp_n_elements);
           Kokkos::parallel_for(
-            "import_elements: copy local elements to val",
+            "dealii::import_elements: copy local elements to val",
             Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(host_exec,
                                                                    0,
                                                                    n_elements),
@@ -443,7 +443,7 @@ namespace LinearAlgebra
 
           if (operation == VectorOperation::add)
             Kokkos::parallel_for(
-              "import_elements: add values",
+              "dealii::import_elements: add values",
               Kokkos::RangePolicy<
                 ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
                 exec, 0, n_elements),
@@ -452,7 +452,7 @@ namespace LinearAlgebra
               });
           else
             Kokkos::parallel_for(
-              "import_elements: set values",
+              "dealii::import_elements: set values",
               Kokkos::RangePolicy<
                 ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
                 exec, 0, n_elements),
@@ -476,7 +476,7 @@ namespace LinearAlgebra
           typename ::dealii::MemorySpace::Default::kokkos_space::execution_space
             exec;
           Kokkos::parallel_reduce(
-            "linfty_norm_local",
+            "dealii::linfty_norm_local",
             Kokkos::RangePolicy<
               ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
               exec, 0, size),
@@ -696,6 +696,18 @@ namespace LinearAlgebra
 
 
     template <typename Number, typename MemorySpaceType>
+    void
+    Vector<Number, MemorySpaceType>::reinit(
+      const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner_in,
+      const bool /*make_ghosted*/,
+      const MPI_Comm &comm_sm)
+    {
+      this->reinit(partitioner_in, comm_sm);
+    }
+
+
+
+    template <typename Number, typename MemorySpaceType>
     Vector<Number, MemorySpaceType>::Vector()
       : partitioner(std::make_shared<Utilities::MPI::Partitioner>())
       , allocated_size(0)
@@ -898,7 +910,7 @@ namespace LinearAlgebra
     template <typename Number, typename MemorySpaceType>
     template <typename MemorySpaceType2>
     void
-    Vector<Number, MemorySpaceType>::import(
+    Vector<Number, MemorySpaceType>::import_elements(
       const Vector<Number, MemorySpaceType2> &src,
       VectorOperation::values                 operation)
     {
@@ -1240,7 +1252,7 @@ namespace LinearAlgebra
 
     template <typename Number, typename MemorySpaceType>
     void
-    Vector<Number, MemorySpaceType>::import(
+    Vector<Number, MemorySpaceType>::import_elements(
       const ReadWriteVector<Number> &V,
       VectorOperation::values        operation,
       std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>

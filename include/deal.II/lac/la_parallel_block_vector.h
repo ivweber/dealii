@@ -177,6 +177,22 @@ namespace LinearAlgebra
                   const MPI_Comm               communicator);
 
       /**
+       * Construct a block vector with a Utilities::MPI::Partitioner for each
+       * block.
+       *
+       * The optional argument @p comm_sm, which consists of processes on
+       * the same shared-memory domain, allows users have read-only access to
+       * both locally-owned and ghost values of processes combined in the
+       * shared-memory communicator. See the general documentation of the
+       * LinearAlgebra::distributed::Vector class for more information about
+       * this argument.
+       */
+      BlockVector(
+        const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+          &             partitioners,
+        const MPI_Comm &comm_sm = MPI_COMM_SELF);
+
+      /**
        * Destructor.
        *
        * @note We need to explicitly provide a destructor, otherwise the
@@ -327,6 +343,25 @@ namespace LinearAlgebra
       void
       reinit(const std::vector<IndexSet> &local_ranges,
              const MPI_Comm               communicator);
+
+      /**
+       * Initialize each block with the corresponding parallel partitioning
+       * in @p partitioners. The input arguments are shared pointers, which
+       * store the partitioner data only once and can be shared between several
+       * vectors with the same layout.
+       *
+       * The optional argument @p comm_sm, which consists of processes on
+       * the same shared-memory domain, allows users have read-only access to
+       * both locally-owned and ghost values of processes combined in the
+       * shared-memory communicator. See the general documentation of the
+       * LinearAlgebra::distributed::Vector class for more information about
+       * this argument.
+       */
+      void
+      reinit(
+        const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+          &             partitioners,
+        const MPI_Comm &comm_sm = MPI_COMM_SELF);
 
       /**
        * This function copies the data that has accumulated in the data buffer
@@ -524,10 +559,23 @@ namespace LinearAlgebra
        * improve performance.
        */
       virtual void
+      import_elements(
+        const LinearAlgebra::ReadWriteVector<Number> &V,
+        VectorOperation::values                       operation,
+        std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
+          communication_pattern = {}) override;
+
+      /**
+       * @deprecated Use import_elements() instead.
+       */
+      DEAL_II_DEPRECATED_EARLY virtual void
       import(const LinearAlgebra::ReadWriteVector<Number> &V,
              VectorOperation::values                       operation,
              std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-               communication_pattern = {}) override;
+               communication_pattern = {}) override
+      {
+        import_elements(V, operation, communication_pattern);
+      }
 
       /**
        * Return the scalar product of two vectors.

@@ -19,29 +19,26 @@
 
 #include <deal.II/base/config.h>
 
-#ifdef DEAL_II_WITH_CUDA
+#include <deal.II/base/cuda.h>
+#include <deal.II/base/cuda_size.h>
+#include <deal.II/base/graph_coloring.h>
+#include <deal.II/base/memory_space.h>
 
-#  include <deal.II/base/cuda.h>
-#  include <deal.II/base/cuda_size.h>
-#  include <deal.II/base/graph_coloring.h>
-#  include <deal.II/base/memory_space.h>
+#include <deal.II/dofs/dof_tools.h>
 
-#  include <deal.II/dofs/dof_tools.h>
+#include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
-#  include <deal.II/fe/fe_dgq.h>
-#  include <deal.II/fe/fe_values.h>
-#  include <deal.II/fe/mapping_q1.h>
+#include <deal.II/matrix_free/cuda_hanging_nodes_internal.h>
+#include <deal.II/matrix_free/cuda_matrix_free.h>
+#include <deal.II/matrix_free/shape_info.h>
 
-#  include <deal.II/matrix_free/cuda_hanging_nodes_internal.h>
-#  include <deal.II/matrix_free/cuda_matrix_free.h>
-#  include <deal.II/matrix_free/shape_info.h>
+#include <Kokkos_Core.hpp>
 
-#  include <Kokkos_Core.hpp>
-#  include <cuda_runtime_api.h>
-
-#  include <cmath>
-#  include <functional>
-#  include <string>
+#include <cmath>
+#include <functional>
+#include <string>
 
 
 DEAL_II_NAMESPACE_OPEN
@@ -68,34 +65,17 @@ namespace CUDAWrappers
         const UpdateFlags &    update_flags);
 
       void
-      setup_color_arrays(const unsigned int n_colors);
-
-      void
-      setup_cell_arrays(const unsigned int color);
+      resize(const unsigned int n_colors);
 
       template <typename CellFilter>
       void
-      get_cell_data(
-        const CellFilter &                                        cell,
-        const unsigned int                                        cell_id,
+      fill_data(
+        const unsigned int                                        color,
+        const std::vector<CellFilter> &                           graph,
         const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner);
-
-      void
-      alloc_and_copy_arrays(const unsigned int cell);
 
     private:
       MatrixFree<dim, Number> *data;
-      Kokkos::View<types::global_dof_index **,
-                   MemorySpace::Default::kokkos_space>
-        local_to_global;
-      Kokkos::View<Point<dim, Number> **, MemorySpace::Default::kokkos_space>
-                                                                  q_points;
-      Kokkos::View<Number **, MemorySpace::Default::kokkos_space> JxW;
-      Kokkos::View<Number **[dim][dim], MemorySpace::Default::kokkos_space>
-        inv_jacobian;
-      Kokkos::View<dealii::internal::MatrixFreeFunctions::ConstraintKinds *,
-                   MemorySpace::Default::kokkos_space>
-        constraint_mask;
       // Local buffer
       std::vector<types::global_dof_index> local_dof_indices;
       FEValues<dim>                        fe_values;
@@ -144,13 +124,11 @@ namespace CUDAWrappers
 
     template <int dim, typename Number>
     void
-    ReinitHelper<dim, Number>::setup_color_arrays(const unsigned int n_colors)
+    ReinitHelper<dim, Number>::resize(const unsigned int n_colors)
     {
       // We need at least three colors when we are using CUDA-aware MPI and
       // overlapping the communication
       data->n_cells.resize(std::max(n_colors, 3U), 0);
-      data->grid_dim.resize(n_colors);
-      data->block_dim.resize(n_colors);
       data->local_to_global.resize(n_colors);
       data->constraint_mask.resize(n_colors);
 
@@ -169,58 +147,43 @@ namespace CUDAWrappers
 
 
     template <int dim, typename Number>
+    template <typename CellFilter>
     void
-    ReinitHelper<dim, Number>::setup_cell_arrays(const unsigned int color)
+    ReinitHelper<dim, Number>::fill_data(
+      const unsigned int                                        color,
+      const std::vector<CellFilter> &                           graph,
+      const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner)
     {
-      const unsigned int n_cells         = data->n_cells[color];
-      const unsigned int cells_per_block = data->cells_per_block;
+      const unsigned int n_cells = data->n_cells[color];
 
-      // Setup kernel parameters
-      const double apply_n_blocks = std::ceil(
-        static_cast<double>(n_cells) / static_cast<double>(cells_per_block));
-      const auto apply_x_n_blocks =
-        static_cast<unsigned int>(std::round(std::sqrt(apply_n_blocks)));
-      const auto apply_y_n_blocks = static_cast<unsigned int>(
-        std::ceil(apply_n_blocks / static_cast<double>(apply_x_n_blocks)));
-
-      data->grid_dim[color] = dim3(apply_x_n_blocks, apply_y_n_blocks);
-
-      // TODO this should be a templated parameter.
-      const unsigned int n_dofs_1d = fe_degree + 1;
-
-      if (dim == 1)
-        data->block_dim[color] = dim3(n_dofs_1d * cells_per_block);
-      else if (dim == 2)
-        data->block_dim[color] = dim3(n_dofs_1d * cells_per_block, n_dofs_1d);
-      else
-        data->block_dim[color] =
-          dim3(n_dofs_1d * cells_per_block, n_dofs_1d, n_dofs_1d);
-
-
-      local_to_global = Kokkos::View<types::global_dof_index **,
-                                     MemorySpace::Default::kokkos_space>(
-        Kokkos::view_alloc("local_to_global_" + std::to_string(color),
-                           Kokkos::WithoutInitializing),
-        n_cells,
-        dofs_per_cell);
-
-      if (update_flags & update_quadrature_points)
-        q_points = Kokkos::View<Point<dim, Number> **,
-                                MemorySpace::Default::kokkos_space>(
-          Kokkos::view_alloc("q_points_" + std::to_string(color),
-                             Kokkos::WithoutInitializing),
-          n_cells,
-          q_points_per_cell);
-
-      if (update_flags & update_JxW_values)
-        JxW = Kokkos::View<Number **, MemorySpace::Default::kokkos_space>(
-          Kokkos::view_alloc("JxW_" + std::to_string(color),
+      // Create the Views
+      data->local_to_global[color] =
+        Kokkos::View<types::global_dof_index **,
+                     MemorySpace::Default::kokkos_space>(
+          Kokkos::view_alloc("local_to_global_" + std::to_string(color),
                              Kokkos::WithoutInitializing),
           n_cells,
           dofs_per_cell);
 
+      if (update_flags & update_quadrature_points)
+        data->q_points[color] =
+          Kokkos::View<Point<dim, Number> **,
+                       MemorySpace::Default::kokkos_space>(
+            Kokkos::view_alloc("q_points_" + std::to_string(color),
+                               Kokkos::WithoutInitializing),
+            n_cells,
+            q_points_per_cell);
+
+      if (update_flags & update_JxW_values)
+        data->JxW[color] =
+          Kokkos::View<Number **, MemorySpace::Default::kokkos_space>(
+            Kokkos::view_alloc("JxW_" + std::to_string(color),
+                               Kokkos::WithoutInitializing),
+            n_cells,
+            dofs_per_cell);
+
       if (update_flags & update_gradients)
-        inv_jacobian =
+        data->inv_jacobian[color] =
           Kokkos::View<Number **[dim][dim], MemorySpace::Default::kokkos_space>(
             Kokkos::view_alloc("inv_jacobian_" + std::to_string(color),
                                Kokkos::WithoutInitializing),
@@ -228,126 +191,95 @@ namespace CUDAWrappers
             dofs_per_cell);
 
       // Initialize to zero, i.e., unconstrained cell
-      constraint_mask =
+      data->constraint_mask[color] =
         Kokkos::View<dealii::internal::MatrixFreeFunctions::ConstraintKinds *,
                      MemorySpace::Default::kokkos_space>(
           "constraint_mask_" + std::to_string(color), n_cells);
-    }
 
-
-
-    template <int dim, typename Number>
-    template <typename CellFilter>
-    void
-    ReinitHelper<dim, Number>::get_cell_data(
-      const CellFilter &                                        cell,
-      const unsigned int                                        cell_id,
-      const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner)
-    {
-      cell->get_dof_indices(local_dof_indices);
-      // When using MPI, we need to transform the local_dof_indices, which
-      // contains global dof indices, to get local (to the current MPI process)
-      // dof indices.
-      if (partitioner)
-        for (auto &index : local_dof_indices)
-          index = partitioner->global_to_local(index);
-
-      for (unsigned int i = 0; i < dofs_per_cell; ++i)
-        lexicographic_dof_indices[i] = local_dof_indices[lexicographic_inv[i]];
-
-      // FIXME too many deep_copy
+      // Create the host mirrow Views and fill them
       auto constraint_mask_host =
-        Kokkos::create_mirror_view_and_copy(MemorySpace::Host::kokkos_space{},
-                                            constraint_mask);
-      const ArrayView<dealii::internal::MatrixFreeFunctions::ConstraintKinds>
-        cell_id_view(constraint_mask_host[cell_id]);
+        Kokkos::create_mirror_view(data->constraint_mask[color]);
 
-      hanging_nodes.setup_constraints(cell,
-                                      partitioner,
-                                      {lexicographic_inv},
-                                      lexicographic_dof_indices,
-                                      cell_id_view);
-      Kokkos::deep_copy(constraint_mask, constraint_mask_host);
-
-      // FIXME too many deep_copy
+#if KOKKOS_VERSION >= 30600
       auto local_to_global_host =
-        Kokkos::create_mirror_view_and_copy(MemorySpace::Host::kokkos_space{},
-                                            local_to_global);
-      for (unsigned int i = 0; i < dofs_per_cell; ++i)
-        local_to_global_host(cell_id, i) = lexicographic_dof_indices[i];
-      Kokkos::deep_copy(local_to_global, local_to_global_host);
+        Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
+                                   data->local_to_global[color]);
+      auto q_points_host =
+        Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
+                                   data->q_points[color]);
+      auto JxW_host = Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
+                                                 data->JxW[color]);
+      auto inv_jacobian_host =
+        Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
+                                   data->inv_jacobian[color]);
+#else
+      auto local_to_global_host =
+        Kokkos::create_mirror_view(data->local_to_global[color]);
+      auto q_points_host = Kokkos::create_mirror_view(data->q_points[color]);
+      auto JxW_host      = Kokkos::create_mirror_view(data->JxW[color]);
+      auto inv_jacobian_host =
+        Kokkos::create_mirror_view(data->inv_jacobian[color]);
+#endif
 
-      fe_values.reinit(cell);
-
-      // Quadrature points
-      if (update_flags & update_quadrature_points)
+      auto cell = graph.cbegin(), end_cell = graph.cend();
+      for (unsigned int cell_id = 0; cell != end_cell; ++cell, ++cell_id)
         {
-          // FIXME too many deep_copy
-          auto q_points_host = Kokkos::create_mirror_view_and_copy(
-            MemorySpace::Host::kokkos_space{}, q_points);
-          const std::vector<Point<dim>> &q_points_vec =
-            fe_values.get_quadrature_points();
-          for (unsigned int i = 0; i < q_points_per_cell; ++i)
-            q_points_host(cell_id, i) = q_points_vec[i];
-          Kokkos::deep_copy(q_points, q_points_host);
+          (*cell)->get_dof_indices(local_dof_indices);
+          // When using MPI, we need to transform the local_dof_indices, which
+          // contain global numbers of dof indices in the MPI universe, to get
+          // local (to the current MPI process) dof indices.
+          if (partitioner)
+            for (auto &index : local_dof_indices)
+              index = partitioner->global_to_local(index);
+
+          for (unsigned int i = 0; i < dofs_per_cell; ++i)
+            lexicographic_dof_indices[i] =
+              local_dof_indices[lexicographic_inv[i]];
+
+          const ArrayView<
+            dealii::internal::MatrixFreeFunctions::ConstraintKinds>
+            cell_id_view(constraint_mask_host[cell_id]);
+
+          hanging_nodes.setup_constraints(*cell,
+                                          partitioner,
+                                          {lexicographic_inv},
+                                          lexicographic_dof_indices,
+                                          cell_id_view);
+
+          for (unsigned int i = 0; i < dofs_per_cell; ++i)
+            local_to_global_host(cell_id, i) = lexicographic_dof_indices[i];
+
+          fe_values.reinit(*cell);
+
+          // Quadrature points
+          if (update_flags & update_quadrature_points)
+            {
+              for (unsigned int i = 0; i < q_points_per_cell; ++i)
+                q_points_host(cell_id, i) = fe_values.quadrature_point(i);
+            }
+
+          if (update_flags & update_JxW_values)
+            {
+              for (unsigned int i = 0; i < q_points_per_cell; ++i)
+                JxW_host(cell_id, i) = fe_values.JxW(i);
+            }
+
+          if (update_flags & update_gradients)
+            {
+              for (unsigned int i = 0; i < q_points_per_cell; ++i)
+                for (unsigned int d = 0; d < dim; ++d)
+                  for (unsigned int e = 0; e < dim; ++e)
+                    inv_jacobian_host(cell_id, i, d, e) =
+                      fe_values.inverse_jacobian(i)[d][e];
+            }
         }
 
-      if (update_flags & update_JxW_values)
-        {
-          // FIXME too many deep_copy
-          auto JxW_host = Kokkos::create_mirror_view_and_copy(
-            MemorySpace::Host::kokkos_space{}, JxW);
-          std::vector<double> JxW_values_double = fe_values.get_JxW_values();
-          for (unsigned int i = 0; i < q_points_per_cell; ++i)
-            JxW_host(cell_id, i) = static_cast<Number>(JxW_values_double[i]);
-          Kokkos::deep_copy(JxW, JxW_host);
-        }
-
-      if (update_flags & update_gradients)
-        {
-          // FIXME too many deep_copy
-          auto inv_jacobian_host = Kokkos::create_mirror_view_and_copy(
-            MemorySpace::Host::kokkos_space{}, inv_jacobian);
-          const std::vector<DerivativeForm<1, dim, dim>> &inv_jacobians =
-            fe_values.get_inverse_jacobians();
-          for (unsigned int i = 0; i < q_points_per_cell; ++i)
-            for (unsigned int j = 0; j < dim; ++j)
-              for (unsigned int k = 0; k < dim; ++k)
-                inv_jacobian_host(cell_id, i, j, k) = inv_jacobians[i][j][k];
-          Kokkos::deep_copy(inv_jacobian, inv_jacobian_host);
-        }
-    }
-
-
-
-    template <int dim, typename Number>
-    void
-    ReinitHelper<dim, Number>::alloc_and_copy_arrays(const unsigned int color)
-    {
-      const unsigned int n_cells = data->n_cells[color];
-
-      // Local-to-global mapping
-      data->local_to_global[color] = local_to_global;
-
-      // Quadrature points
-      if (update_flags & update_quadrature_points)
-        {
-          data->q_points[color] = q_points;
-        }
-
-      // Jacobian determinants/quadrature weights
-      if (update_flags & update_JxW_values)
-        {
-          data->JxW[color] = JxW;
-        }
-
-      // Inverse jacobians
-      if (update_flags & update_gradients)
-        {
-          data->inv_jacobian[color] = inv_jacobian;
-        }
-
-      data->constraint_mask[color] = constraint_mask;
+      // Copy the data to the device
+      Kokkos::deep_copy(data->constraint_mask[color], constraint_mask_host);
+      Kokkos::deep_copy(data->local_to_global[color], local_to_global_host);
+      Kokkos::deep_copy(data->q_points[color], q_points_host);
+      Kokkos::deep_copy(data->JxW[color], JxW_host);
+      Kokkos::deep_copy(data->inv_jacobian[color], inv_jacobian_host);
     }
 
 
@@ -369,60 +301,6 @@ namespace CUDAWrappers
 
 
 
-    template <int dim, typename Number, typename Functor>
-    __global__ void
-    apply_kernel_shmem(
-      Functor                                                         func,
-      const typename MatrixFree<dim, Number>::Data                    gpu_data,
-      Kokkos::View<Number *, MemorySpace::Default::kokkos_space>      values,
-      Kokkos::View<Number *[dim], MemorySpace::Default::kokkos_space> gradients,
-      Number *const                                                   src,
-      Number *                                                        dst)
-    {
-      constexpr unsigned int cells_per_block =
-        cells_per_block_shmem(dim, Functor::n_dofs_1d - 1);
-
-      const unsigned int local_cell = threadIdx.x / Functor::n_dofs_1d;
-      const unsigned int cell =
-        local_cell + cells_per_block * (blockIdx.x + gridDim.x * blockIdx.y);
-
-      if (cell < gpu_data.n_cells)
-        {
-          SharedData<dim, Number> shared_data(
-            {Kokkos::subview(
-               values,
-               Kokkos::pair<int, int>(cell * Functor::n_local_dofs,
-                                      (cell + 1) * Functor::n_local_dofs)),
-             Kokkos::subview(gradients,
-                             Kokkos::pair<int, int>(cell * Functor::n_q_points,
-                                                    (cell + 1) *
-                                                      Functor::n_q_points),
-                             Kokkos::pair<int, int>(0, dim))});
-
-          func(cell, &gpu_data, &shared_data, src, dst);
-        }
-    }
-
-
-
-    template <int dim, typename Number, typename Functor>
-    __global__ void
-    evaluate_coeff(Functor                                      func,
-                   const typename MatrixFree<dim, Number>::Data gpu_data)
-    {
-      constexpr unsigned int cells_per_block =
-        cells_per_block_shmem(dim, Functor::n_dofs_1d - 1);
-
-      const unsigned int local_cell = threadIdx.x / Functor::n_dofs_1d;
-      const unsigned int cell =
-        local_cell + cells_per_block * (blockIdx.x + gridDim.x * blockIdx.y);
-
-      if (cell < gpu_data.n_cells)
-        func(cell, &gpu_data);
-    }
-
-
-
     template <typename VectorType>
     struct VectorLocalSize
     {
@@ -433,6 +311,7 @@ namespace CUDAWrappers
       }
     };
 
+#ifdef DEAL_II_WITH_CUDA
     template <>
     struct VectorLocalSize<LinearAlgebra::CUDAWrappers::Vector<double>>
     {
@@ -450,6 +329,64 @@ namespace CUDAWrappers
       get(const LinearAlgebra::CUDAWrappers::Vector<float> &vec)
       {
         return vec.size();
+      }
+    };
+#endif
+
+
+
+    template <int dim, typename Number, typename Functor>
+    struct ApplyKernel
+    {
+      using TeamHandle = Kokkos::TeamPolicy<
+        MemorySpace::Default::kokkos_space::execution_space>::member_type;
+      using SharedView1D =
+        Kokkos::View<Number *,
+                     MemorySpace::Default::kokkos_space::execution_space::
+                       scratch_memory_space,
+                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+      using SharedView2D =
+        Kokkos::View<Number *[dim],
+                     MemorySpace::Default::kokkos_space::execution_space::
+                       scratch_memory_space,
+                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+      ApplyKernel(Functor                                      func,
+                  const typename MatrixFree<dim, Number>::Data gpu_data,
+                  Number *const                                src,
+                  Number *                                     dst)
+        : func(func)
+        , gpu_data(gpu_data)
+        , src(src)
+        , dst(dst)
+      {}
+
+      Functor                                      func;
+      const typename MatrixFree<dim, Number>::Data gpu_data;
+      Number *const                                src;
+      Number *                                     dst;
+
+
+      // Provide the shared memory capacity. This function takes the team_size
+      // as an argument, which allows team_size dependent allocations.
+      size_t
+      team_shmem_size(int /*team_size*/) const
+      {
+        return SharedView1D::shmem_size(Functor::n_local_dofs) +
+               SharedView2D::shmem_size(Functor::n_local_dofs);
+      }
+
+
+      DEAL_II_HOST_DEVICE
+      void
+      operator()(const TeamHandle &team_member) const
+      {
+        // Get the scratch memory
+        SharedView1D values(team_member.team_shmem(), Functor::n_local_dofs);
+        SharedView2D gradients(team_member.team_shmem(), Functor::n_local_dofs);
+
+        SharedData<dim, Number> shared_data(team_member, values, gradients);
+        func(team_member.league_rank(), &gpu_data, &shared_data, src, dst);
       }
     };
   } // namespace internal
@@ -580,7 +517,7 @@ namespace CUDAWrappers
     const Number *     src_ptr = src.get_values();
     Number *           dst_ptr = dst.get_values();
     Kokkos::parallel_for(
-      "copy_constrained_values",
+      "dealii::copy_constrained_values",
       Kokkos::RangePolicy<MemorySpace::Default::kokkos_space::execution_space>(
         0, n_constrained_dofs),
       KOKKOS_LAMBDA(int dof) {
@@ -614,7 +551,7 @@ namespace CUDAWrappers
     const unsigned int size =
       partitioner ? dst.locally_owned_size() : dst.size();
     Kokkos::parallel_for(
-      "set_constrained_values",
+      "dealii::set_constrained_values",
       Kokkos::RangePolicy<MemorySpace::Default::kokkos_space::execution_space>(
         0, n_constrained_dofs),
       KOKKOS_LAMBDA(int dof) {
@@ -624,7 +561,7 @@ namespace CUDAWrappers
   }
 
 
-
+#ifdef DEAL_II_WITH_CUDA
   template <int dim, typename Number>
   void
   MatrixFree<dim, Number>::initialize_dof_vector(
@@ -632,13 +569,14 @@ namespace CUDAWrappers
   {
     vec.reinit(n_dofs);
   }
+#endif
 
 
 
   template <int dim, typename Number>
   void
   MatrixFree<dim, Number>::initialize_dof_vector(
-    LinearAlgebra::distributed::Vector<Number, MemorySpace::CUDA> &vec) const
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &vec) const
   {
     if (partitioner)
       vec.reinit(partitioner);
@@ -680,9 +618,16 @@ namespace CUDAWrappers
     for (unsigned int i = 0; i < n_colors; ++i)
       if (n_cells[i] > 0)
         {
-          internal::evaluate_coeff<dim, Number, Functor>
-            <<<grid_dim[i], block_dim[i]>>>(func, get_data(i));
-          AssertCudaKernel();
+          MemorySpace::Default::kokkos_space::execution_space exec;
+          auto color_data = get_data(i);
+          Kokkos::parallel_for(
+            "dealii::MatrixFree::evaluate_coeff",
+            Kokkos::MDRangePolicy<
+              MemorySpace::Default::kokkos_space::execution_space,
+              Kokkos::Rank<2>>(exec, {0, 0}, {n_cells[i], Functor::n_q_points}),
+            KOKKOS_LAMBDA(const int cell, const int q) {
+              func(&color_data, cell, q);
+            });
         }
   }
 
@@ -695,7 +640,6 @@ namespace CUDAWrappers
     // First compute the size of n_cells, row_starts, kernel launch parameters,
     // and constrained_dofs
     std::size_t bytes = n_cells.size() * sizeof(unsigned int) * 2 +
-                        2 * n_colors * sizeof(dim3) +
                         n_constrained_dofs * sizeof(unsigned int);
 
     // For each color, add local_to_global, inv_jacobian, JxW, and q_points.
@@ -718,18 +662,15 @@ namespace CUDAWrappers
   template <typename IteratorFiltersType>
   void
   MatrixFree<dim, Number>::internal_reinit(
-    const Mapping<dim> &             mapping,
-    const DoFHandler<dim> &          dof_handler_,
-    const AffineConstraints<Number> &constraints,
-    const Quadrature<1> &            quad,
-    const IteratorFiltersType &      iterator_filter,
-    std::shared_ptr<const MPI_Comm>  comm,
-    const AdditionalData             additional_data)
+    const Mapping<dim> &                   mapping,
+    const DoFHandler<dim> &                dof_handler_,
+    const AffineConstraints<Number> &      constraints,
+    const Quadrature<1> &                  quad,
+    const IteratorFiltersType &            iterator_filter,
+    const std::shared_ptr<const MPI_Comm> &comm,
+    const AdditionalData                   additional_data)
   {
     dof_handler = &dof_handler_;
-
-    if (typeid(Number) == typeid(double))
-      cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 
     UpdateFlags update_flags = additional_data.mapping_update_flags;
     if (update_flags & update_gradients)
@@ -759,24 +700,18 @@ namespace CUDAWrappers
     dofs_per_cell     = fe.n_dofs_per_cell();
     q_points_per_cell = Utilities::fixed_power<dim>(n_q_points_1d);
 
-    const ::dealii::internal::MatrixFreeFunctions::ShapeInfo<Number> shape_info(
-      quad, fe);
+    ::dealii::internal::MatrixFreeFunctions::ShapeInfo<Number> shape_info(quad,
+                                                                          fe);
 
     unsigned int size_shape_values = n_dofs_1d * n_q_points_1d;
-
-    FE_DGQArbitraryNodes<1> fe_quad_co(quad);
-    const ::dealii::internal::MatrixFreeFunctions::ShapeInfo<Number>
-      shape_info_co(quad, fe_quad_co);
 
     shape_values = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
       Kokkos::view_alloc("shape_values", Kokkos::WithoutInitializing),
       size_shape_values);
-    auto shape_values_host = Kokkos::create_mirror_view(shape_values);
-    for (unsigned int i = 0; i < size_shape_values; ++i)
-      {
-        shape_values_host[i] = shape_info.data.front().shape_values[i];
-      }
-    Kokkos::deep_copy(shape_values, shape_values_host);
+    Kokkos::deep_copy(shape_values,
+                      Kokkos::View<Number *, Kokkos::HostSpace>(
+                        shape_info.data.front().shape_values.data(),
+                        size_shape_values));
 
     if (update_flags & update_gradients)
       {
@@ -784,32 +719,23 @@ namespace CUDAWrappers
           Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
             Kokkos::view_alloc("shape_gradients", Kokkos::WithoutInitializing),
             size_shape_values);
-        auto shape_gradients_host = Kokkos::create_mirror_view(shape_gradients);
-        for (unsigned int i = 0; i < size_shape_values; ++i)
-          {
-            shape_gradients_host[i] =
-              shape_info.data.front().shape_gradients[i];
-          }
-        Kokkos::deep_copy(shape_gradients, shape_gradients_host);
+        Kokkos::deep_copy(shape_gradients,
+                          Kokkos::View<Number *, Kokkos::HostSpace>(
+                            shape_info.data.front().shape_gradients.data(),
+                            size_shape_values));
 
 
         co_shape_gradients =
           Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
             Kokkos::view_alloc("co_shape_gradients",
                                Kokkos::WithoutInitializing),
-            size_shape_values);
-        auto co_shape_gradients_host =
-          Kokkos::create_mirror_view(co_shape_gradients);
-        for (unsigned int i = 0; i < size_shape_values; ++i)
-          {
-            co_shape_gradients_host[i] =
-              shape_info_co.data.front().shape_gradients[i];
-          }
-        Kokkos::deep_copy(co_shape_gradients, co_shape_gradients_host);
+            n_q_points_1d * n_q_points_1d);
+        Kokkos::deep_copy(
+          co_shape_gradients,
+          Kokkos::View<Number *, Kokkos::HostSpace>(
+            shape_info.data.front().shape_gradients_collocation.data(),
+            n_q_points_1d * n_q_points_1d));
       }
-
-    // Setup the number of cells per CUDA thread block
-    cells_per_block = cells_per_block_shmem(dim, fe_degree);
 
     internal::ReinitHelper<dim, Number> helper(
       this, mapping, fe, quad, shape_info, *dof_handler, update_flags);
@@ -904,7 +830,7 @@ namespace CUDAWrappers
       }
     n_colors = graph.size();
 
-    helper.setup_color_arrays(n_colors);
+    helper.resize(n_colors);
 
     IndexSet locally_relevant_dofs;
     if (comm)
@@ -917,13 +843,7 @@ namespace CUDAWrappers
     for (unsigned int i = 0; i < n_colors; ++i)
       {
         n_cells[i] = graph[i].size();
-        helper.setup_cell_arrays(i);
-        typename std::vector<CellFilter>::iterator cell     = graph[i].begin(),
-                                                   end_cell = graph[i].end();
-        for (unsigned int cell_id = 0; cell != end_cell; ++cell, ++cell_id)
-          helper.get_cell_data(*cell, cell_id, partitioner);
-
-        helper.alloc_and_copy_arrays(i);
+        helper.fill_data(i, graph[i], partitioner);
       }
 
     // Setup row starts
@@ -937,19 +857,6 @@ namespace CUDAWrappers
 
     if (n_constrained_dofs != 0)
       {
-        const auto constraint_n_blocks = static_cast<unsigned int>(
-          std::ceil(static_cast<double>(n_constrained_dofs) /
-                    static_cast<double>(block_size)));
-        const auto constraint_x_n_blocks =
-          static_cast<unsigned int>(std::round(std::sqrt(constraint_n_blocks)));
-        const auto constraint_y_n_blocks = static_cast<unsigned int>(
-          std::ceil(static_cast<double>(constraint_n_blocks) /
-                    static_cast<double>(constraint_x_n_blocks)));
-
-        constraint_grid_dim =
-          dim3(constraint_x_n_blocks, constraint_y_n_blocks);
-        constraint_block_dim = dim3(block_size);
-
         std::vector<dealii::types::global_dof_index> constrained_dofs_host(
           n_constrained_dofs);
 
@@ -1006,37 +913,23 @@ namespace CUDAWrappers
                                             const VectorType &src,
                                             VectorType &      dst) const
   {
-    std::vector<Kokkos::View<Number *, MemorySpace::Default::kokkos_space>>
-      values_colors(n_colors);
-    std::vector<Kokkos::View<Number *[dim], MemorySpace::Default::kokkos_space>>
-      gradients_colors(n_colors);
     // Execute the loop on the cells
-    for (unsigned int i = 0; i < n_colors; ++i)
-      if (n_cells[i] > 0)
+    for (unsigned int color = 0; color < n_colors; ++color)
+      if (n_cells[color] > 0)
         {
-          const unsigned int size =
-            (grid_dim[i].x * grid_dim[i].y * grid_dim[i].z) * cells_per_block *
-            Functor::n_local_dofs;
-          values_colors[i] =
-            Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
-              Kokkos::view_alloc("values_" + std::to_string(i),
-                                 Kokkos::WithoutInitializing),
-              size);
-          gradients_colors[i] =
-            Kokkos::View<Number *[dim], MemorySpace::Default::kokkos_space>(
-              Kokkos::view_alloc("gradients_" + std::to_string(i),
-                                 Kokkos::WithoutInitializing),
-              size);
-          internal::apply_kernel_shmem<dim, Number, Functor>
-            <<<grid_dim[i], block_dim[i]>>>(func,
-                                            get_data(i),
-                                            values_colors[i],
-                                            gradients_colors[i],
-                                            src.get_values(),
-                                            dst.get_values());
-          AssertCudaKernel();
+          MemorySpace::Default::kokkos_space::execution_space exec;
+          Kokkos::TeamPolicy<
+            MemorySpace::Default::kokkos_space::execution_space>
+            team_policy(exec, n_cells[color], Kokkos::AUTO);
+
+          internal::ApplyKernel<dim, Number, Functor> apply_kernel(
+            func, get_data(color), src.get_values(), dst.get_values());
+
+          Kokkos::parallel_for("dealii::MatrixFree::serial_cell_loop",
+                               team_policy,
+                               apply_kernel);
         }
-    cudaDeviceSynchronize();
+    Kokkos::fence();
   }
 
 
@@ -1045,10 +938,12 @@ namespace CUDAWrappers
   template <typename Functor>
   void
   MatrixFree<dim, Number>::distributed_cell_loop(
-    const Functor &                                                      func,
-    const LinearAlgebra::distributed::Vector<Number, MemorySpace::CUDA> &src,
-    LinearAlgebra::distributed::Vector<Number, MemorySpace::CUDA> &dst) const
+    const Functor &func,
+    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &dst) const
   {
+    MemorySpace::Default::kokkos_space::execution_space exec;
+
     // in case we have compatible partitioners, we can simply use the provided
     // vectors
     if (src.get_partitioner().get() == partitioner.get() &&
@@ -1059,32 +954,21 @@ namespace CUDAWrappers
           {
             src.update_ghost_values_start(0);
 
-            Kokkos::View<Number *, MemorySpace::Default::kokkos_space> values;
-            Kokkos::View<Number *[dim], MemorySpace::Default::kokkos_space>
-              gradients;
             // In parallel, it's possible that some processors do not own any
             // cells.
             if (n_cells[0] > 0)
               {
-                const unsigned int size =
-                  (grid_dim[0].x * grid_dim[0].y * grid_dim[0].z) *
-                  cells_per_block * Functor::n_local_dofs;
-                values =
-                  Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
-                    Kokkos::view_alloc("values", Kokkos::WithoutInitializing),
-                    size);
-                gradients = Kokkos::View<Number *[dim],
-                                         MemorySpace::Default::kokkos_space>(
-                  Kokkos::view_alloc("gradients", Kokkos::WithoutInitializing),
-                  size);
-                internal::apply_kernel_shmem<dim, Number, Functor>
-                  <<<grid_dim[0], block_dim[0]>>>(func,
-                                                  get_data(0),
-                                                  values,
-                                                  gradients,
-                                                  src.get_values(),
-                                                  dst.get_values());
-                AssertCudaKernel();
+                Kokkos::TeamPolicy<
+                  MemorySpace::Default::kokkos_space::execution_space>
+                  team_policy(exec, n_cells[0], Kokkos::AUTO);
+
+                internal::ApplyKernel<dim, Number, Functor> apply_kernel(
+                  func, get_data(0), src.get_values(), dst.get_values());
+
+                Kokkos::parallel_for(
+                  "dealii::MatrixFree::distributed_cell_loop_0",
+                  team_policy,
+                  apply_kernel);
               }
             src.update_ghost_values_finish();
 
@@ -1092,29 +976,22 @@ namespace CUDAWrappers
             // cells
             if (n_cells[1] > 0)
               {
-                const unsigned int size =
-                  (grid_dim[1].x * grid_dim[1].y * grid_dim[1].z) *
-                  cells_per_block * Functor::n_local_dofs;
-                values =
-                  Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
-                    Kokkos::view_alloc("values", Kokkos::WithoutInitializing),
-                    size);
-                gradients = Kokkos::View<Number *[dim],
-                                         MemorySpace::Default::kokkos_space>(
-                  Kokkos::view_alloc("gradients", Kokkos::WithoutInitializing),
-                  size);
-                internal::apply_kernel_shmem<dim, Number, Functor>
-                  <<<grid_dim[1], block_dim[1]>>>(func,
-                                                  get_data(1),
-                                                  values,
-                                                  gradients,
-                                                  src.get_values(),
-                                                  dst.get_values());
-                AssertCudaKernel();
+                Kokkos::TeamPolicy<
+                  MemorySpace::Default::kokkos_space::execution_space>
+                  team_policy(exec, n_cells[1], Kokkos::AUTO);
+
+                internal::ApplyKernel<dim, Number, Functor> apply_kernel(
+                  func, get_data(1), src.get_values(), dst.get_values());
+
+                Kokkos::parallel_for(
+                  "dealii::MatrixFree::distributed_cell_loop_1",
+                  team_policy,
+                  apply_kernel);
+
                 // We need a synchronization point because we don't want
                 // CUDA-aware MPI to start the MPI communication until the
                 // kernel is done.
-                cudaDeviceSynchronize();
+                Kokkos::fence();
               }
 
             dst.compress_start(0, VectorOperation::add);
@@ -1122,25 +999,17 @@ namespace CUDAWrappers
             // not own any cells
             if (n_cells[2] > 0)
               {
-                const unsigned int size =
-                  (grid_dim[2].x * grid_dim[2].y * grid_dim[2].z) *
-                  cells_per_block * Functor::n_local_dofs;
-                values =
-                  Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
-                    Kokkos::view_alloc("values", Kokkos::WithoutInitializing),
-                    size);
-                gradients = Kokkos::View<Number *[dim],
-                                         MemorySpace::Default::kokkos_space>(
-                  Kokkos::view_alloc("gradients", Kokkos::WithoutInitializing),
-                  size);
-                internal::apply_kernel_shmem<dim, Number, Functor>
-                  <<<grid_dim[2], block_dim[2]>>>(func,
-                                                  get_data(2),
-                                                  values,
-                                                  gradients,
-                                                  src.get_values(),
-                                                  dst.get_values());
-                AssertCudaKernel();
+                Kokkos::TeamPolicy<
+                  MemorySpace::Default::kokkos_space::execution_space>
+                  team_policy(exec, n_cells[2], Kokkos::AUTO);
+
+                internal::ApplyKernel<dim, Number, Functor> apply_kernel(
+                  func, get_data(2), src.get_values(), dst.get_values());
+
+                Kokkos::parallel_for(
+                  "dealii::MatrixFree::distributed_cell_loop_2",
+                  team_policy,
+                  apply_kernel);
               }
             dst.compress_finish(VectorOperation::add);
           }
@@ -1158,27 +1027,18 @@ namespace CUDAWrappers
             for (unsigned int i = 0; i < n_colors; ++i)
               if (n_cells[i] > 0)
                 {
-                  const unsigned int size =
-                    (grid_dim[i].x * grid_dim[i].y * grid_dim[i].z) *
-                    cells_per_block * Functor::n_local_dofs;
-                  values_colors[i] =
-                    Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
-                      Kokkos::view_alloc("values_" + std::to_string(i),
-                                         Kokkos::WithoutInitializing),
-                      size);
-                  gradients_colors[i] =
-                    Kokkos::View<Number *[dim],
-                                 MemorySpace::Default::kokkos_space>(
-                      Kokkos::view_alloc("gradients_" + std::to_string(i),
-                                         Kokkos::WithoutInitializing),
-                      size);
-                  internal::apply_kernel_shmem<dim, Number, Functor>
-                    <<<grid_dim[i], block_dim[i]>>>(func,
-                                                    get_data(i),
-                                                    values_colors[i],
-                                                    gradients_colors[i],
-                                                    src.get_values(),
-                                                    dst.get_values());
+                  Kokkos::TeamPolicy<
+                    MemorySpace::Default::kokkos_space::execution_space>
+                    team_policy(exec, n_cells[i], Kokkos::AUTO);
+
+                  internal::ApplyKernel<dim, Number, Functor> apply_kernel(
+                    func, get_data(i), src.get_values(), dst.get_values());
+
+                  Kokkos::parallel_for(
+                    "dealii::MatrixFree::distributed_cell_loop_" +
+                      std::to_string(i),
+                    team_policy,
+                    apply_kernel);
                 }
             dst.compress(VectorOperation::add);
           }
@@ -1187,43 +1047,33 @@ namespace CUDAWrappers
     else
       {
         // Create the ghosted source and the ghosted destination
-        LinearAlgebra::distributed::Vector<Number, MemorySpace::CUDA>
+        LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>
           ghosted_src(partitioner);
-        LinearAlgebra::distributed::Vector<Number, MemorySpace::CUDA>
+        LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>
           ghosted_dst(ghosted_src);
         ghosted_src = src;
         ghosted_dst = dst;
+        ghosted_dst.zero_out_ghost_values();
 
-        std::vector<Kokkos::View<Number *, MemorySpace::Default::kokkos_space>>
-          values_colors(n_colors);
-        std::vector<
-          Kokkos::View<Number *[dim], MemorySpace::Default::kokkos_space>>
-          gradients_colors(n_colors);
         // Execute the loop on the cells
         for (unsigned int i = 0; i < n_colors; ++i)
           if (n_cells[i] > 0)
             {
-              const unsigned int size =
-                (grid_dim[i].x * grid_dim[i].y * grid_dim[i].z) *
-                cells_per_block * Functor::n_local_dofs;
-              values_colors[i] =
-                Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
-                  Kokkos::view_alloc("values_" + std::to_string(i),
-                                     Kokkos::WithoutInitializing),
-                  size);
-              gradients_colors[i] =
-                Kokkos::View<Number *[dim], MemorySpace::Default::kokkos_space>(
-                  Kokkos::view_alloc("gradients_" + std::to_string(i),
-                                     Kokkos::WithoutInitializing),
-                  size);
-              internal::apply_kernel_shmem<dim, Number, Functor>
-                <<<grid_dim[i], block_dim[i]>>>(func,
-                                                get_data(i),
-                                                values_colors[i],
-                                                gradients_colors[i],
-                                                ghosted_src.get_values(),
-                                                ghosted_dst.get_values());
-              AssertCudaKernel();
+              Kokkos::TeamPolicy<
+                MemorySpace::Default::kokkos_space::execution_space>
+                team_policy(exec, n_cells[i], Kokkos::AUTO);
+
+              internal::ApplyKernel<dim, Number, Functor> apply_kernel(
+                func,
+                get_data(i),
+                ghosted_src.get_values(),
+                ghosted_dst.get_values());
+
+              Kokkos::parallel_for(
+                "dealii::MatrixFree::distributed_cell_loop_" +
+                  std::to_string(i),
+                team_policy,
+                apply_kernel);
             }
 
         // Add the ghosted values
@@ -1232,8 +1082,7 @@ namespace CUDAWrappers
       }
   }
 
-
-
+#ifdef DEAL_II_WITH_CUDA
   template <int dim, typename Number>
   template <typename Functor>
   void
@@ -1244,10 +1093,9 @@ namespace CUDAWrappers
   {
     Assert(false, ExcInternalError());
   }
+#endif
 } // namespace CUDAWrappers
 
 DEAL_II_NAMESPACE_CLOSE
-
-#endif
 
 #endif
