@@ -21,18 +21,19 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/exceptions.h>
-#include <deal.II/base/index_set.h>
 #include <deal.II/base/memory_consumption.h>
+#include <deal.II/base/mpi_stub.h>
 #include <deal.II/base/tensor.h>
-#include <deal.II/base/thread_management.h>
-#include <deal.II/base/utilities.h>
 #include <deal.II/base/vectorization.h>
-
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
 
 
 DEAL_II_NAMESPACE_OPEN
 
+
+// forward declaration
+#ifndef DOXYGEN
+class DynamicSparsityPattern;
+#endif
 
 
 namespace internal
@@ -222,7 +223,7 @@ namespace internal
        * This helper function determines a block size if the user decided not
        * to force a block size through MatrixFree::AdditionalData. This is
        * computed based on the number of hardware threads on the system and
-       * the number of macro cells that we should work on.
+       * the number of cell batches that we should work on.
        */
       void
       guess_block_size(const unsigned int dofs_per_cell);
@@ -577,13 +578,13 @@ namespace internal
 
       /**
        * Number of even partitions accumulated over the field @p
-       * partitions_even
+       * partition_evens
        */
       unsigned int evens;
 
       /**
        * Number of odd partitions accumulated over the field @p
-       * partitions_odd
+       * partition_odds
        */
       unsigned int odds;
 

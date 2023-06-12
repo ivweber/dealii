@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -86,7 +86,7 @@ namespace internal
 
       /**
        * A variable storing whether the element is continuous and there is a
-       * joint degree of freedom in the center of the 1D line.
+       * joint degree of freedom in the center of the 1d line.
        */
       bool element_is_continuous;
 

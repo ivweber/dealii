@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2021 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,8 +15,8 @@
 
 
 
-#ifndef dealii_hermite_polynomials
-#define dealii_hermite_polynomials
+#ifndef dealii_polynomials_hermite_h
+#define dealii_polynomials_hermite_h
 
 #include <deal.II/base/config.h>
 
@@ -25,11 +25,6 @@
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/subscriptor.h>
 
-#include <deal.II/lac/full_matrix.h>
-
-#include <algorithm>
-#include <exception>
-#include <memory>
 #include <vector>
 
 
@@ -37,76 +32,120 @@
 DEAL_II_NAMESPACE_OPEN
 
 /**
- * Header file for implementing higher regularity polynomials.
- * These always have an odd-numbered polynomial degree and
- * impose the maximum regularity possible (continuity up to the 
- * r-th derivative, for polynomial degree 2r+1).
+ * @addtogroup Polynomials
+ * @{
  */
 
 namespace Polynomials
 {
   /**
-   * Class for Hermite polynomials enforcing the maximum posible level of
-   * regularity in the FEM basis given the polynomial degree. This can only
-   * result in odd degree methods.
+   * This class implements Hermite interpolation polynomials (see
+   * @cite CiarletRiavart1972interpolation) enforcing the maximum
+   * possible level of regularity $r$ in the FEM basis given a
+   * polynomial degree of $2r+1$. The polynomials all represent
+   * either a non-zero shape value or derivative at $x=0$ and $x=1$
+   * on the reference interval $x \in [0,1]$.
    *
-   * Indices 0<=j<=q refer to polynomials corresponding to a non-zero derivative
-   * of order j at x=0, and indices q+1<=j<=2q+1 refer to polynomials with a
-   * non-zero derivative of order j-q-1 at x=1.
+   * Indices $j = 0, 1, \dots, r$ refer to polynomials corresponding
+   * to a non-zero derivative (or shape value for $j=0$) of
+   * order $j$ at $x=0$, and indices $j = r+1, r+2, \dots, 2r+1$
+   * refer to polynomials with a non-zero derivative of order
+   * $j-(r+1)$ (or value for $j=r+1$) at $x=1$. In particular, the
+   * $0^{th}$ function has a value of $1$ at $x=0$, and the
+   * $(r+1)^{th}$ function has a value of $1$ at $x=1$.The basis is
+   * rescaled such that a function corresponding to a non-zero $j^{th}$
+   * derivative has derivative value $j! 4^{j}$ at the corresponding
+   * node. This is done to prevent the $L^{2}$-norm of the basis functions
+   * from reducing exponentially with the chosen regularity.
    */
-  class HermitePoly : public Polynomial<double>
+  class PolynomialsHermite : public Polynomial<double>
   {
   public:
     /**
-     * Constructor that takes an order of regularity to enforce up to (q),
-     * and an index for which Hermite polynomial of the basis is to be
-     * returned.
+     * Constructor for an individual Hermite polynomial. We write $f_{j}$
+     * for a polynomial that has a non-zero $j^{th}$ derivative at $x=0$
+     * and $g_{j}$ for a polynomial with a non-zero $j^{th}$ derivative
+     * at $x=1$, meaning $f_{j}$ will have @p index $=j$ and $g_{j}$ will
+     * have @p index $= j + \mathtt{regularity} + 1$. The resulting
+     * polynomials will be degree $2\times \mathtt{regularity} +1$
+     * and obey the following conditions:
+     * @f{align*}{
+     * &\begin{matrix}
+     *   \left. \frac{d^{i}}{dx^{i}} f_{j}(x) \right\vert_{x=0}
+     *          = i! 4^{i} \delta_{i, j}, \hfill
+     *          &\qquad \hfill 0 \leq i \leq \mathtt{regularity}, \\
+     *   \left. \frac{d^{i}}{dx^{i}} f_{j}(x) \right\vert_{x=1}
+     *          = 0, \hfill &\qquad \hfill 0 \leq i \leq \mathtt{regularity},
+     * \end{matrix} \qquad 0 \leq j \leq \mathtt{regularity}, \\
+     * &\begin{matrix}
+     *  \left. \frac{d^{i}}{dx^{i}} g_{j}(x) \right\vert_{x=0}
+     *          = 0, \hfill &\qquad \hfill 0 \leq i \leq \mathtt{regularity}, \\
+     * \left. \frac{d^{i}}{dx^{i}} g_{j}(x) \right\vert_{x=1}
+     *          = i! 4^{i} \delta_{i, j}, \hfill
+     *          &\qquad \hfill 0 \leq i \leq \mathtt{regularity},
+     * \end{matrix} \qquad 0 \leq j \leq \mathtt{regularity},
+     * @f}
+     * where $\delta_{i,j}$ is equal to $1$ whenever $i=j$,
+     * and equal to $0$ otherwise. These polynomials have explicit
+     * formulas given by
+     * @f{align*}{
+     *   f_{j}(x) &= 4^{j} x^{j} (1-x)^{\mathtt{regularity}+1}
+     * \sum_{k=0}^{\mathtt{regularity} - j} \;^{\mathtt{regularity} + k} C_{k}
+     * x^{k}, \\ g_{j}(x) &= 4^{j} x^{\mathtt{regularity}+1} (x-1)^{j}
+     * \sum_{k=0}^{\mathtt{regularity} - j} \;^{\mathtt{regularity} + k} C_{k}
+     * (1-x)^{k},
+     * @f}
+     * where $^{n} C_{r} = \frac{n!}{r!(n-r)!}$ is the $r^{th}$ binomial
+     * coefficient of degree $n, \; 0 \leq r \leq n$.
+     *
+     * @param regularity The highest derivative for which the basis
+     * is used to enforce regularity.
+     * @param index The local index of the generated polynomial in the
+     * Hermite basis.
      */
-    HermitePoly(const unsigned int regularity, const unsigned int index)
-      : Polynomial<double>(hermite_poly_coeffs_maxreg(regularity, index))
-      , degree(2 * regularity + 1)
-      , regularity(regularity)
-      , side_index(index % (regularity + 1))
-      , side((index > regularity) ? 1 : 0){};
+    PolynomialsHermite(const unsigned int regularity, const unsigned int index);
 
     /**
-     * Function that returns a complete basis of maximum regularity Hermite
-     * polynomials of order 2q+1 as a vector.
+     * This function generates a vector of Polynomial objects
+     * representing a complete basis of degree $2\times\mathtt{regularity} +1$
+     * on the reference interval $[0,1]$.
+     *
+     * @param regularity The generated basis can be used to strongly
+     * enforce continuity in all derivatives up to and including this
+     * order.
      */
     static std::vector<Polynomial<double>>
     generate_complete_basis(const unsigned int regularity);
 
-    /**
-     * Function that returns a matrix B containing derivatives of Bernstein
-     * polynomials, where (j! B_jk) is the j-th derivative of polynomial
-     * x^k (1-x)^(q+1) at x=0. This is useful both for computing the basis
-     * and assigning weights to local degrees of freedom at hanging nodes. The
-     * rescaling is to improve performance of solution.
-     *
-     * All entries are known to be integers, so the matrix stores ints to
-     * reduce floating point errors. Care should be taken when solving as a
-     * result.
-     */
-    static FullMatrix<double>
-    hermite_to_bernstein_matrix(const unsigned int regularity);
-    
-    /**
-     * Function that returns the coefficients for a polynomial expansion of
-     * a given Hermite polynomial. This can be passed to the polynomial
-     * constructor to immediately obtain a Hermite polynomial of that object
-     * type.
-     */
-    static std::vector<double>
-    hermite_poly_coeffs(const unsigned int regularity,
-                        const unsigned int index);
-
   protected:
-    int degree;
-    int regularity;
-    int side_index; // side_index=0 for left side, =1 for right side
-    int side;
+    /**
+     * Degree of the polynomial basis being used.
+     */
+    unsigned int degree;
+
+    /**
+     * The order of the highest derivative in which the Hermite
+     * basis can be used to impose continuity across element
+     * boundaries. It's related to the degree $p$ by
+     * $p = 2 \times\mathtt{regularity} +1$.
+     */
+    unsigned int regularity;
+
+    /**
+     * This variable stores the derivative that the shape function
+     * corresponds to at the element boundary given by <code>side</code>.
+     */
+    unsigned int side_index;
+
+    /**
+     * This stores whether the shape function corresponds to a non-zero
+     * value or derivative at $x=0$ on the reference interval
+     * ($\mathtt{side} =0$) or at $x=1$ ($\mathtt{side} =1$).
+     */
+    unsigned int side;
   };
 } // namespace Polynomials
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

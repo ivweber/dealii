@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2021 by the deal.II authors
+ * Copyright (C) 2018 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -36,6 +36,7 @@
 
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_tools.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
@@ -409,7 +410,7 @@ namespace Step59
   // polynomial degree $k$ in $d$ space dimensions, out of the $(k+1)^d$
   // degrees of freedom of a cell. A similar reduction is also possible for
   // the interior penalty method that evaluates values and first derivatives
-  // on the faces. When using a Hermite-like basis in 1D, only up to two basis
+  // on the faces. When using a Hermite-like basis in 1d, only up to two basis
   // functions contribute to the value and derivative. The class FE_DGQHermite
   // implements a tensor product of this concept, as discussed in the
   // introduction. Thus, only $2(k+1)^{d-1}$ degrees of freedom must be
@@ -578,9 +579,9 @@ namespace Step59
         // take the absolute value of these factors as the normal could point
         // into either positive or negative direction.
         const VectorizedArray<number> inverse_length_normal_to_face =
-          0.5 * (std::abs((phi_inner.get_normal_vector(0) *
+          0.5 * (std::abs((phi_inner.normal_vector(0) *
                            phi_inner.inverse_jacobian(0))[dim - 1]) +
-                 std::abs((phi_outer.get_normal_vector(0) *
+                 std::abs((phi_outer.normal_vector(0) *
                            phi_outer.inverse_jacobian(0))[dim - 1]));
         const VectorizedArray<number> sigma =
           inverse_length_normal_to_face * get_penalty_factor();
@@ -679,9 +680,8 @@ namespace Step59
                                   EvaluationFlags::values |
                                     EvaluationFlags::gradients);
 
-        const VectorizedArray<number> inverse_length_normal_to_face =
-          std::abs((phi_inner.get_normal_vector(0) *
-                    phi_inner.inverse_jacobian(0))[dim - 1]);
+        const VectorizedArray<number> inverse_length_normal_to_face = std::abs((
+          phi_inner.normal_vector(0) * phi_inner.inverse_jacobian(0))[dim - 1]);
         const VectorizedArray<number> sigma =
           inverse_length_normal_to_face * get_penalty_factor();
 
@@ -714,11 +714,11 @@ namespace Step59
 
   // Next we turn to the preconditioner initialization. As explained in the
   // introduction, we want to construct an (approximate) inverse of the cell
-  // matrices from a product of 1D mass and Laplace matrices. Our first task
-  // is to compute the 1D matrices, which we do by first creating a 1D finite
+  // matrices from a product of 1d mass and Laplace matrices. Our first task
+  // is to compute the 1d matrices, which we do by first creating a 1d finite
   // element. Instead of anticipating FE_DGQHermite<1> here, we get the finite
   // element's name from DoFHandler, replace the @p dim argument (2 or 3) by 1
-  // to create a 1D name, and construct the 1D element by using FETools.
+  // to create a 1d name, and construct the 1d element by using FETools.
 
   template <int dim, int fe_degree, typename number>
   void PreconditionBlockJacobi<dim, fe_degree, number>::initialize(
@@ -730,7 +730,7 @@ namespace Step59
     name.replace(name.find('<') + 1, 1, "1");
     std::unique_ptr<FiniteElement<1>> fe_1d = FETools::get_fe_by_name<1>(name);
 
-    // As for computing the 1D matrices on the unit element, we simply write
+    // As for computing the 1d matrices on the unit element, we simply write
     // down what a typical assembly procedure over rows and columns of the
     // matrix as well as the quadrature points would do. We select the same
     // Laplace matrices once and for all using the coefficients 0.5 for
@@ -772,7 +772,7 @@ namespace Step59
           // The left and right boundary terms assembled by the next two
           // statements appear to have somewhat arbitrary signs, but those are
           // correct as can be verified by looking at step-39 and inserting
-          // the value -1 and 1 for the normal vector in the 1D case.
+          // the value -1 and 1 for the normal vector in the 1d case.
           sum_laplace +=
             (1. * fe_1d->shape_value(i, Point<1>()) *
                fe_1d->shape_value(j, Point<1>()) * op.get_penalty_factor() +
@@ -811,7 +811,7 @@ namespace Step59
     // we check that it is diagonal and then extract the determinant of the
     // original Jacobian, i.e., the inverse of the determinant of the inverse
     // Jacobian, and set the weight as $\text{det}(J) / h_d^2$ according to
-    // the 1D Laplacian times $d-1$ copies of the mass matrix.
+    // the 1d Laplacian times $d-1$ copies of the @ref GlossMassMatrix "mass matrix".
     cell_matrices.clear();
     FEEvaluation<dim, fe_degree, fe_degree + 1, 1, number> phi(*data);
     unsigned int old_mapping_data_index = numbers::invalid_unsigned_int;
@@ -1133,9 +1133,8 @@ namespace Step59
       {
         phi_face.reinit(face);
 
-        const VectorizedArray<double> inverse_length_normal_to_face =
-          std::abs((phi_face.get_normal_vector(0) *
-                    phi_face.inverse_jacobian(0))[dim - 1]);
+        const VectorizedArray<double> inverse_length_normal_to_face = std::abs(
+          (phi_face.normal_vector(0) * phi_face.inverse_jacobian(0))[dim - 1]);
         const VectorizedArray<double> sigma =
           inverse_length_normal_to_face * system_matrix.get_penalty_factor();
 
@@ -1168,7 +1167,7 @@ namespace Step59
                   {
                     Tensor<1, dim> normal;
                     for (unsigned int d = 0; d < dim; ++d)
-                      normal[d] = phi_face.get_normal_vector(q)[d][v];
+                      normal[d] = phi_face.normal_vector(q)[d][v];
                     test_normal_derivative[v] =
                       -normal * exact_solution.gradient(single_point);
                   }
@@ -1306,7 +1305,7 @@ namespace Step59
   // periodic boundary conditions in the $x$-direction, a Dirichlet condition
   // on the front face in $y$ direction (i.e., the face with index number 2,
   // with boundary id equal to 0), and Neumann conditions on the back face as
-  // well as the two faces in $z$ direction for the 3D case (with boundary id
+  // well as the two faces in $z$ direction for the 3d case (with boundary id
   // equal to 1). The extent of the domain is a bit different in the $x$
   // direction (where we want to achieve a periodic solution given the
   // definition of `Solution`) as compared to the $y$ and $z$ directions.

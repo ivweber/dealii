@@ -23,7 +23,6 @@
 #include <deal.II/base/numbers.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/signaling_nan.h>
-#include <deal.II/base/utilities.h>
 #include <deal.II/base/work_stream.h>
 
 #include <deal.II/dofs/dof_accessor.h>
@@ -40,12 +39,12 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/hp/dof_handler.h>
 #include <deal.II/hp/fe_collection.h>
 #include <deal.II/hp/fe_values.h>
 #include <deal.II/hp/q_collection.h>
 
 #include <deal.II/lac/block_vector_base.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/read_write_vector.h>
 #include <deal.II/lac/vector.h>
 
@@ -236,7 +235,7 @@ namespace internal
       // to test there if dim<3.
       static const auto has_fe_with_reference_cell =
         [](const dealii::hp::FECollection<dim, spacedim> &fe_collection,
-           const dealii::ReferenceCell &                  reference_cell) {
+           const ReferenceCell &                          reference_cell) {
           for (unsigned int i = 0; i < fe_collection.size(); ++i)
             if (fe_collection[i].reference_cell() == reference_cell)
               return true;
@@ -342,17 +341,16 @@ namespace internal
 
                   for (unsigned int j = 0; j < finite_elements[i]->size(); ++j)
                     {
-                      const dealii::ReferenceCell reference_cell =
+                      const ReferenceCell reference_cell =
                         (*finite_elements[i])[j].reference_cell();
 
                       if (reference_cell.is_hyper_cube())
                         quadrature.push_back(*quadrature_hypercube);
                       else if (reference_cell.is_simplex())
                         quadrature.push_back(*quadrature_simplex);
-                      else if (reference_cell == dealii::ReferenceCells::Wedge)
+                      else if (reference_cell == ReferenceCells::Wedge)
                         quadrature.push_back(*quadrature_wedge);
-                      else if (reference_cell ==
-                               dealii::ReferenceCells::Pyramid)
+                      else if (reference_cell == ReferenceCells::Pyramid)
                         quadrature.push_back(*quadrature_pyramid);
                       else
                         Assert(false, ExcNotImplemented());
@@ -428,23 +426,23 @@ namespace internal
 
                   for (unsigned int j = 0; j < finite_elements[i]->size(); ++j)
                     {
-                      const dealii::ReferenceCell reference_cell =
+                      const ReferenceCell reference_cell =
                         (*finite_elements[i])[j].reference_cell();
 
                       // In 1d/2d and for hypercube/wedge/pyramid elements, we
                       // need hypercube quadratures.
                       if ((dim < 3) ||
                           (reference_cell.is_hyper_cube() ||
-                           (reference_cell == dealii::ReferenceCells::Wedge) ||
-                           (reference_cell == dealii::ReferenceCells::Pyramid)))
+                           (reference_cell == ReferenceCells::Wedge) ||
+                           (reference_cell == ReferenceCells::Pyramid)))
                         quadrature.push_back(*quadrature_hypercube);
 
                       // In 3d, if the element is for simplex/wedge/pyramid
                       // cells, then we also need simplex quadratures
                       if ((dim == 3) &&
                           (reference_cell.is_simplex() ||
-                           (reference_cell == dealii::ReferenceCells::Wedge) ||
-                           (reference_cell == dealii::ReferenceCells::Pyramid)))
+                           (reference_cell == ReferenceCells::Wedge) ||
+                           (reference_cell == ReferenceCells::Pyramid)))
                         quadrature.push_back(*quadrature_simplex);
                     }
 
@@ -883,13 +881,13 @@ namespace internal
       {
         LinearAlgebra::ReadWriteVector<typename VectorType::value_type> temp;
         temp.reinit(src.locally_owned_elements());
-        temp.import(src, VectorOperation::insert);
+        temp.import_elements(src, VectorOperation::insert);
 
         LinearAlgebra::ReadWriteVector<Number> temp2;
         temp2.reinit(temp, true);
         temp2 = temp;
 
-        dst.import(temp2, VectorOperation::insert);
+        dst.import_elements(temp2, VectorOperation::insert);
       }
 
 #ifdef DEAL_II_WITH_TRILINOS
@@ -914,8 +912,8 @@ namespace internal
                 int spacedim,
                 typename VectorType,
                 typename Number,
-                typename std::enable_if<IsBlockVector<VectorType>::value,
-                                        VectorType>::type * = nullptr>
+                std::enable_if_t<IsBlockVector<VectorType>::value, VectorType>
+                  * = nullptr>
       void
       create_dof_vector(const DoFHandler<dim, spacedim> &dof_handler,
                         const VectorType &               src,
@@ -976,8 +974,8 @@ namespace internal
                 int spacedim,
                 typename VectorType,
                 typename Number,
-                typename std::enable_if<!IsBlockVector<VectorType>::value,
-                                        VectorType>::type * = nullptr>
+                std::enable_if_t<!IsBlockVector<VectorType>::value, VectorType>
+                  * = nullptr>
       void
       create_dof_vector(const DoFHandler<dim, spacedim> &dof_handler,
                         const VectorType &               src,
@@ -1010,8 +1008,8 @@ namespace internal
        */
       template <typename VectorType,
                 typename Number,
-                typename std::enable_if<IsBlockVector<VectorType>::value,
-                                        VectorType>::type * = nullptr>
+                std::enable_if_t<IsBlockVector<VectorType>::value, VectorType>
+                  * = nullptr>
       void
       create_cell_vector(const VectorType &                               src,
                          LinearAlgebra::distributed::BlockVector<Number> &dst)
@@ -1033,8 +1031,8 @@ namespace internal
        */
       template <typename VectorType,
                 typename Number,
-                typename std::enable_if<!IsBlockVector<VectorType>::value,
-                                        VectorType>::type * = nullptr>
+                std::enable_if_t<!IsBlockVector<VectorType>::value, VectorType>
+                  * = nullptr>
       void
       create_cell_vector(const VectorType &                               src,
                          LinearAlgebra::distributed::BlockVector<Number> &dst)
@@ -1936,7 +1934,7 @@ DataOut_DoFData<dim, patch_dim, spacedim, patch_spacedim>::
              ExcMessage("The DoF handler attached to the current output vector "
                         "does not have any degrees of freedom, so it is not "
                         "possible to output DoF data in this context."));
-      const std::string  name         = names[0];
+      const std::string &name         = names[0];
       const unsigned int n_components = dof_handler->get_fe(0).n_components();
       deduced_names.resize(n_components);
       if (n_components > 1)
@@ -2498,11 +2496,11 @@ DataOut_DoFData<dim, patch_dim, spacedim, patch_spacedim>::get_fes() const
             finite_elements.emplace_back(
               std::make_shared<dealii::hp::FECollection<dim, spacedim>>(
                 FE_SimplexDGP<dim, spacedim>(1)));
-          else if (reference_cell == dealii::ReferenceCells::Wedge)
+          else if (reference_cell == ReferenceCells::Wedge)
             finite_elements.emplace_back(
               std::make_shared<dealii::hp::FECollection<dim, spacedim>>(
                 FE_WedgeDGP<dim, spacedim>(1)));
-          else if (reference_cell == dealii::ReferenceCells::Pyramid)
+          else if (reference_cell == ReferenceCells::Pyramid)
             finite_elements.emplace_back(
               std::make_shared<dealii::hp::FECollection<dim, spacedim>>(
                 FE_PyramidDGP<dim, spacedim>(1)));

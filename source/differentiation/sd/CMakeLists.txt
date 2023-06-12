@@ -13,9 +13,7 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
   symengine_math.cc
   symengine_number_types.cc
   symengine_number_visitor_internal.cc
@@ -26,15 +24,15 @@ SET(_src
   symengine_utilities.cc
   )
 
-SET(_inst
+set(_inst
   symengine_number_visitor_internal.inst.in
   symengine_optimizer.inst.in
   symengine_tensor_operations.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/differentiation/sd/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_differentiation_sd OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_differentiation_sd "${_inst}")
+define_object_library(object_differentiation_sd OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_differentiation_sd "${_inst}")

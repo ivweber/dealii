@@ -1,29 +1,31 @@
-//-----------------------------------------------------------
+// ---------------------------------------------------------------------
 //
-//    Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
-//    This file is part of the deal.II library.
+// This file is part of the deal.II library.
 //
-//    The deal.II library is free software; you can use it, redistribute
-//    it, and/or modify it under the terms of the GNU Lesser General
-//    Public License as published by the Free Software Foundation; either
-//    version 2.1 of the License, or (at your option) any later version.
-//    The full text of the license can be found in the file LICENSE.md at
-//    the top level directory of deal.II.
+// The deal.II library is free software; you can use it, redistribute
+// it, and/or modify it under the terms of the GNU Lesser General
+// Public License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+// The full text of the license can be found in the file LICENSE.md at
+// the top level directory of deal.II.
 //
-//---------------------------------------------------------------
+// ---------------------------------------------------------------------
+
 
 #ifndef dealii_sundials_ida_h
 #define dealii_sundials_ida_h
 
 #include <deal.II/base/config.h>
 
-#include <deal.II/base/mpi.h>
 #ifdef DEAL_II_WITH_SUNDIALS
 #  include <deal.II/base/conditional_ostream.h>
 #  include <deal.II/base/exceptions.h>
 #  include <deal.II/base/logstream.h>
+#  include <deal.II/base/mpi_stub.h>
 #  include <deal.II/base/parameter_handler.h>
+
 #  ifdef DEAL_II_WITH_PETSC
 #    include <deal.II/lac/petsc_block_vector.h>
 #    include <deal.II/lac/petsc_vector.h>
@@ -37,17 +39,12 @@
 #    include <ida/ida.h>
 #  endif
 
-#  include <sundials/sundials_config.h>
-#  if DEAL_II_SUNDIALS_VERSION_LT(3, 0, 0)
-#    include <ida/ida_spbcgs.h>
-#    include <ida/ida_spgmr.h>
-#    include <ida/ida_sptfqmr.h>
-#  endif
 #  include <deal.II/sundials/sunlinsol_wrapper.h>
 
 #  include <boost/signals2.hpp>
 
 #  include <nvector/nvector_serial.h>
+#  include <sundials/sundials_config.h>
 #  include <sundials/sundials_math.h>
 #  include <sundials/sundials_types.h>
 
@@ -74,10 +71,8 @@ namespace SUNDIALS
    *  - setup_jacobian;
    *  - solve_jacobian_system/solve_with_jacobian;
    *
-   * The function `solve_jacobian_system` should be implemented for SUNDIALS
-   * < 4.0.0. For later versions, you should use
-   * `solve_with_jacobian` to leverage better non-linear
-   * algorithms.
+   * The function solve_jacobian_system() is deprecated. You should use
+   * solve_with_jacobian() to leverage better non-linear algorithms.
    *
    * Optionally, also the following functions could be provided. By default
    * they do nothing, or are not required. If you call the constructor in a way
@@ -203,17 +198,16 @@ namespace SUNDIALS
    * time_stepper.residual = [&](const double t,
    *                             const VectorType &y,
    *                             const VectorType &y_dot,
-   *                             VectorType &res) ->int
+   *                             VectorType &res)
    * {
    *   res = y_dot;
    *   A.vmult_add(res, y);
-   *   return 0;
    * };
    *
    * time_stepper.setup_jacobian = [&](const double ,
    *                                   const VectorType &,
    *                                   const VectorType &,
-   *                                   const double alpha) ->int
+   *                                   const double alpha)
    * {
    *   J = A;
    *
@@ -221,14 +215,12 @@ namespace SUNDIALS
    *   J(1,1) = alpha;
    *
    *   Jinv.invert(J);
-   *   return 0;
    * };
    *
    * time_stepper.solve_jacobian_system = [&](const VectorType &src,
-   *                                          VectorType &dst) ->int
+   *                                          VectorType &dst)
    * {
    *   Jinv.vmult(dst,src);
-   *   return 0;
    * };
    *
    * y[1] = kappa;
@@ -595,13 +587,22 @@ namespace SUNDIALS
      * choose how these are made consistent, using the same three options that
      * you used for the initial conditions in `reset_type`.
      *
-     * The MPI communicator is simply ignored in the serial case.
-     *
      * @param data IDA configuration data
-     * @param mpi_comm MPI communicator
+     *
+     * @note With SUNDIALS 6 and later this constructor sets up logging
+     * objects to only work on the present processor (i.e., results are only
+     * communicated over MPI_COMM_SELF).
      */
-    IDA(const AdditionalData &data     = AdditionalData(),
-        const MPI_Comm &      mpi_comm = MPI_COMM_WORLD);
+    IDA(const AdditionalData &data = AdditionalData());
+
+    /**
+     * Constructor.
+     *
+     * @param data IDA configuration data. Same as the other constructor.
+     * @param mpi_comm MPI Communicator over which logging operations are
+     * computed. Only used in SUNDIALS 6 and newer.
+     */
+    IDA(const AdditionalData &data, const MPI_Comm mpi_comm);
 
     /**
      * Destructor.
@@ -647,26 +648,25 @@ namespace SUNDIALS
     /**
      * Compute residual. Return $F(t, y, \dot y)$.
      *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (IDAReinit will be called if this happens, and
-     *       then last function will be attempted again
-     * - <0: Unrecoverable error the computation will be aborted and an
-     * assertion will be thrown.
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, IDA can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
-    std::function<int(const double      t,
-                      const VectorType &y,
-                      const VectorType &y_dot,
-                      VectorType &      res)>
+    std::function<void(const double      t,
+                       const VectorType &y,
+                       const VectorType &y_dot,
+                       VectorType &      res)>
       residual;
 
     /**
      * Compute Jacobian. This function is called by IDA any time a Jacobian
      * update is required. The user should compute the Jacobian (or update all
      * the variables that allow the application of the Jacobian). This function
-     * is called by IDA once, before any call to solve_jacobian_system() (for
-     * SUNDIALS < 4.0.0) or solve_with_jacobian() (for
-     * SUNDIALS >= 4.0.0).
+     * is called by IDA once, before any call to solve_jacobian_system() or
+     * solve_with_jacobian().
      *
      * The Jacobian $J$ should be a (possibly inexact) computation of
      * \f[
@@ -674,7 +674,7 @@ namespace SUNDIALS
      *  \alpha \dfrac{\partial F}{\partial \dot y}.
      * \f]
      *
-     * If the user uses a matrix based computation of the Jacobian, than this
+     * If the user uses a matrix based computation of the Jacobian, then this
      * is the right place where an assembly routine should be called to
      * assemble both a matrix and a preconditioner for the Jacobian system.
      * Subsequent calls (possibly more than one) to solve_jacobian_system() or
@@ -687,17 +687,17 @@ namespace SUNDIALS
      * solve_with_jacobian() to obtain a solution $x$ to the
      * system $J x = b$.
      *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (IDAReinit will be called if this happens, and
-     *       then last function will be attempted again
-     * - <0: Unrecoverable error the computation will be aborted and an
-     * assertion will be thrown.
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, IDA can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
-    std::function<int(const double      t,
-                      const VectorType &y,
-                      const VectorType &y_dot,
-                      const double      alpha)>
+    std::function<void(const double      t,
+                       const VectorType &y,
+                       const VectorType &y_dot,
+                       const double      alpha)>
       setup_jacobian;
 
     /**
@@ -721,19 +721,18 @@ namespace SUNDIALS
      * applied to `src`, i.e., `J*dst = src`. It is the users responsibility
      * to set up proper solvers and preconditioners inside this function.
      *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (IDAReinit will be called if this happens, and
-     *       then last function will be attempted again
-     * - <0: Unrecoverable error the computation will be aborted and an
-     * assertion will be thrown.
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, IDA can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      *
-     * @warning Starting with SUNDIALS 4.1, SUNDIALS provides the possibility of
-     * specifying the tolerance for the resolution. A part from the tolerance
-     * only `rhs` is provided and `dst` needs to be returned.
+     * @deprecated Use solve_with_jacobian() instead which also uses a numerical
+     * tolerance.
      */
     DEAL_II_DEPRECATED
-    std::function<int(const VectorType &rhs, VectorType &dst)>
+    std::function<void(const VectorType &rhs, VectorType &dst)>
       solve_jacobian_system;
 
     /**
@@ -770,15 +769,15 @@ namespace SUNDIALS
      * `setup_jacobian()`, given that that function is called far less often
      * than the current one.)
      *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (IDAReinit will be called if this happens, and
-     *       then the last function will be attempted again).
-     * - <0: Unrecoverable error the computation will be aborted and an
-     * assertion will be thrown.
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, IDA can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
     std::function<
-      int(const VectorType &rhs, VectorType &dst, const double tolerance)>
+      void(const VectorType &rhs, VectorType &dst, const double tolerance)>
       solve_with_jacobian;
 
     /**
@@ -816,6 +815,13 @@ namespace SUNDIALS
      *
      * The default implementation simply returns `false`, i.e., no restart is
      * performed during the evolution.
+     *
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, IDA can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
     std::function<bool(const double t, VectorType &sol, VectorType &sol_dot)>
       solver_should_restart;
@@ -882,7 +888,7 @@ namespace SUNDIALS
      */
     void *ida_mem;
 
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
     /**
      * A context object associated with the IDA solver.
      */
@@ -890,9 +896,8 @@ namespace SUNDIALS
 #  endif
 
     /**
-     * MPI communicator. SUNDIALS solver runs happily in
-     * parallel. Note that if the library is compiled without MPI
-     * support, MPI_Comm is aliased as int.
+     * MPI communicator. Only used for SUNDIALS' logging routines - the actual
+     * solve routines will use the communicator provided by the vector class.
      */
     MPI_Comm mpi_communicator;
 
@@ -900,6 +905,13 @@ namespace SUNDIALS
      * Memory pool of vectors.
      */
     GrowingVectorMemory<VectorType> mem;
+
+    /**
+     * A pointer to any exception that may have been thrown in user-defined
+     * call-backs and that we have to deal after the KINSOL function we call
+     * has returned.
+     */
+    mutable std::exception_ptr pending_exception;
 
 #  ifdef DEAL_II_WITH_PETSC
 #    ifdef PETSC_USE_COMPLEX

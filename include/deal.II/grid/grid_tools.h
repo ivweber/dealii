@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2021 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,14 +32,11 @@
 
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping.h>
-#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/manifold.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
-
-#include <deal.II/hp/dof_handler.h>
 
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/la_vector.h>
@@ -49,7 +46,6 @@
 
 #include <deal.II/numerics/rtree.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/random/mersenne_twister.hpp>
@@ -62,11 +58,15 @@ DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #  include <boost/iostreams/filtering_stream.hpp>
 #  include <boost/iostreams/stream.hpp>
 #endif
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #include <bitset>
 #include <list>
 #include <set>
+
+#ifdef DEAL_II_HAVE_CXX20
+#  include <concepts>
+#endif
+
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -76,7 +76,8 @@ namespace parallel
 {
   namespace distributed
   {
-    template <int, int>
+    template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     class Triangulation;
   }
 } // namespace parallel
@@ -99,6 +100,7 @@ namespace GridTools
 namespace internal
 {
   template <int dim, int spacedim, class MeshType>
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
   class ActiveCellIterator
   {
   public:
@@ -111,7 +113,7 @@ namespace internal
 
 #ifdef _MSC_VER
   template <int dim, int spacedim>
-  class ActiveCellIterator<dim, spacedim, dealii::DoFHandler<dim, spacedim>>
+  class ActiveCellIterator<dim, spacedim, DoFHandler<dim, spacedim>>
   {
   public:
     using type =
@@ -133,7 +135,7 @@ namespace GridTools
   /**
    * @name Information about meshes and cells
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Return the diameter of a triangulation. The diameter is computed using
@@ -149,7 +151,34 @@ namespace GridTools
    * Compute the volume (i.e. the dim-dimensional measure) of the
    * triangulation. We compute the measure using the integral $\sum_K \int_K 1
    * \; dx$ where $K$ are the cells of the given triangulation. The integral
-   * is approximated via quadrature for which we need the mapping argument.
+   * is approximated via quadrature. This version of the function uses a
+   * linear mapping to compute the JxW values on each cell.
+   *
+   * If the triangulation is a dim-dimensional one embedded in a higher
+   * dimensional space of dimension spacedim, then the value returned is the
+   * dim-dimensional measure. For example, for a two-dimensional triangulation
+   * in three-dimensional space, the value returned is the area of the surface
+   * so described. (This obviously makes sense since the spacedim-dimensional
+   * measure of a dim-dimensional triangulation would always be zero if dim @<
+   * spacedim).
+   *
+   * This function also works for objects of type
+   * parallel::distributed::Triangulation, in which case the function is a
+   * collective operation.
+   *
+   * @param tria The triangulation.
+   * @return The dim-dimensional measure of the domain described by the
+   * triangulation, as discussed above.
+   */
+  template <int dim, int spacedim>
+  double
+  volume(const Triangulation<dim, spacedim> &tria);
+
+  /**
+   * Compute the volume (i.e. the dim-dimensional measure) of the
+   * triangulation. We compute the measure using the integral $\sum_K \int_K 1
+   * \; dx$ where $K$ are the cells of the given triangulation. The integral
+   * is approximated via quadrature for which we use the mapping argument.
    *
    * If the triangulation is a dim-dimensional one embedded in a higher
    * dimensional space of dimension spacedim, then the value returned is the
@@ -164,19 +193,18 @@ namespace GridTools
    * collective operation.
    *
    * @param tria The triangulation.
-   * @param mapping An optional argument used to denote the mapping that
-   * should be used when describing whether cells are bounded by straight or
-   * curved faces. The default is to use a $Q_1$ mapping, which corresponds to
-   * straight lines bounding the cells.
+   * @param mapping The Mapping which computes the Jacobians used to
+   * approximate the volume via quadrature. Explicitly using a higher-order
+   * Mapping (i.e., instead of using the other version of this function) will
+   * result in a more accurate approximation of the volume on Triangulations
+   * with curvature described by Manifold objects.
    * @return The dim-dimensional measure of the domain described by the
    * triangulation, as discussed above.
    */
   template <int dim, int spacedim>
   double
   volume(const Triangulation<dim, spacedim> &tria,
-         const Mapping<dim, spacedim> &      mapping =
-           (ReferenceCells::get_hypercube<dim>()
-              .template get_default_linear_mapping<dim, spacedim>()));
+         const Mapping<dim, spacedim> &      mapping);
 
   /**
    * Return an approximation of the diameter of the smallest active cell of a
@@ -194,7 +222,12 @@ namespace GridTools
     const Triangulation<dim, spacedim> &triangulation,
     const Mapping<dim, spacedim> &      mapping =
       (ReferenceCells::get_hypercube<dim>()
-         .template get_default_linear_mapping<dim, spacedim>()));
+#ifndef _MSC_VER
+         .template get_default_linear_mapping<dim, spacedim>()
+#else
+         .ReferenceCell::get_default_linear_mapping<dim, spacedim>()
+#endif
+         ));
 
   /**
    * Return an approximation of the diameter of the largest active cell of a
@@ -212,7 +245,12 @@ namespace GridTools
     const Triangulation<dim, spacedim> &triangulation,
     const Mapping<dim, spacedim> &      mapping =
       (ReferenceCells::get_hypercube<dim>()
-         .template get_default_linear_mapping<dim, spacedim>()));
+#ifndef _MSC_VER
+         .template get_default_linear_mapping<dim, spacedim>()
+#else
+         .ReferenceCell::get_default_linear_mapping<dim, spacedim>()
+#endif
+         ));
 
   /**
    * Given a list of vertices (typically obtained using
@@ -240,10 +278,13 @@ namespace GridTools
    * function also works for cells that do not exist except that you make it
    * up by naming its vertices from the list.
    *
-   * The parameter @p vertex_indices is expected to have
-   * GeometryInfo<dim>::vertices_per_cell entries. A std::vector is implicitly
-   * convertible to an ArrayView, so it can be passed directly. See the
-   * ArrayView class for more information.
+   * The size of @p vertex_indices, combined with `dim`, implicitly encodes
+   * the ReferenceCell type of the provided cell. For example, if `dim == 2` and
+   * `vertex_indices.size() == 3` then the cell is a triangle, but if
+   * `dim == 2` and `vertex_indices.size() == 4` then the cell is a
+   * quadrilateral. A std::vector is implicitly convertible to an ArrayView, so
+   * it can be passed directly to this function. See the ArrayView class for
+   * more information.
    *
    * @note This function is only implemented for codimension zero objects.
    */
@@ -266,7 +307,7 @@ namespace GridTools
    * transformation by a bi-/trilinear or higher order mapping might be
    * singular. The result is exact in case the transformation from the unit to
    * the real cell is indeed affine, such as in one dimension or for Cartesian
-   * and affine (parallelogram) meshes in 2D/3D.
+   * and affine (parallelogram) meshes in 2d/3d.
    *
    * This approximation is underlying the function
    * TriaAccessor::real_to_unit_cell_affine_approximation() function.
@@ -303,6 +344,9 @@ namespace GridTools
    * n_active_cells but the aspect ratio is only computed for the cells that
    * are locally owned and placed at index CellAccessor::active_cell_index(),
    * respectively. All other values are set to 0.
+   *
+   * @note This function can only be used if deal.II was configured with
+   * support for LAPACK.
    */
   template <int dim>
   Vector<double>
@@ -380,11 +424,11 @@ namespace GridTools
     tuple<std::vector<Point<spacedim>>, std::vector<CellData<dim>>, SubCellData>
     get_coarse_mesh_description(const Triangulation<dim, spacedim> &tria);
 
-  /*@}*/
+  /** @} */
   /**
    * @name Functions supporting the creation of meshes
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Remove vertices that are not referenced by any of the cells. This
@@ -417,13 +461,14 @@ namespace GridTools
    * This function is called by some <tt>GridIn::read_*</tt> functions. Only
    * the vertices with indices in @p considered_vertices are tested for
    * equality. This speeds up the algorithm, which is, for worst-case hyper
-   * cube geometries $O(N^{3/2})$ in 2D and $O(N^{5/3})$ in 3D: quite slow.
+   * cube geometries $O(N^{3/2})$ in 2d and $O(N^{5/3})$ in 3d: quite slow.
    * However, if you wish to consider all vertices, simply pass an empty
    * vector. In that case, the function fills @p considered_vertices with all
    * vertices.
    *
    * Two vertices are considered equal if their difference in each coordinate
-   * direction is less than @p tol.
+   * direction is less than @p tol. This implies that nothing happens if
+   * the tolerance is set to zero.
    */
   template <int dim, int spacedim>
   void
@@ -432,6 +477,18 @@ namespace GridTools
                              SubCellData &                 subcelldata,
                              std::vector<unsigned int> &   considered_vertices,
                              const double                  tol = 1e-12);
+
+  /**
+   * Remove vertices that are duplicated.
+   *
+   * Two vertices are considered equal if their difference in each coordinate
+   * direction is less than @p tol. This implies that nothing happens if
+   * the tolerance is set to zero.
+   */
+  template <int dim>
+  void
+  delete_duplicated_vertices(std::vector<Point<dim>> &vertices,
+                             const double             tol = 1e-12);
 
   /**
    * Grids generated by grid generators may have an orientation of cells which
@@ -477,7 +534,8 @@ namespace GridTools
    * vertices so that all lines are consistently oriented.
    *
    * The expectations on orientation and a discussion of this function are
-   * available in the @ref reordering "reordering module".
+   * available in the
+   * @ref reordering "reordering module".
    *
    * @param cells The array of CellData objects that describe the mesh's topology.
    */
@@ -485,11 +543,11 @@ namespace GridTools
   void
   consistently_order_cells(std::vector<CellData<dim>> &cells);
 
-  /*@}*/
+  /** @} */
   /**
    * @name Rotating, stretching and otherwise transforming meshes
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Transform the vertices of the given triangulation by applying the
@@ -500,7 +558,22 @@ namespace GridTools
    * predicate is either an object of a type that has an <tt>operator()</tt>,
    * or it is a pointer to a non-member function, or it is a lambda function
    * object. In either case, argument and return
-   * value have to be of type `Point@<spacedim@>`.
+   * value have to be of type Point<spacedim>. An example -- a simple
+   * transformation that moves the object two units to the
+   * right in the $x_1$ direction -- could look like as follows:
+   * @code
+   *   Triangulation<dim> triangulation;
+   *   ... // fill triangulation with something
+   *   GridTools::transform ([](const Point<dim> &p) -> Point<dim>
+   *                         {
+   *                           Point<dim> q = p;
+   *                           q[0] += 2;
+   *                           return q;
+   *                         },
+   *                         triangulation);
+   * @endcode
+   * Here, the transformation is provided by a lambda function that
+   * takes a `Point<dim>` as input and returns a `Point<dim>` as output.
    *
    * @note The transformations that make sense to use with this function
    *   should have a Jacobian with a positive determinant. For example,
@@ -552,11 +625,19 @@ namespace GridTools
    *
    * This function is used in the "Possibilities for extensions" section of
    * step-38. It is also used in step-49 and step-53.
+   *
+   * @dealiiConceptRequires{(std::invocable<Transformation, Point<spacedim>> &&
+   *    std::assignable_from<Point<spacedim> &,
+   *    std::invoke_result_t<Transformation, Point<spacedim>>>)}
    */
   template <int dim, typename Transformation, int spacedim>
-  void
-  transform(const Transformation &        transformation,
-            Triangulation<dim, spacedim> &triangulation);
+  DEAL_II_CXX20_REQUIRES(
+    (std::invocable<Transformation, Point<spacedim>> &&
+     std::assignable_from<
+       Point<spacedim> &,
+       std::invoke_result_t<Transformation, Point<spacedim>>>))
+  void transform(const Transformation &        transformation,
+                 Triangulation<dim, spacedim> &triangulation);
 
   /**
    * Shift each vertex of the triangulation by the given shift vector. This
@@ -578,11 +659,11 @@ namespace GridTools
    * stated there hold for this function as well; in particular,
    * this is true about the discussion about manifolds.
    *
-   * @note This function is only supported for dim=2.
+   * @note This function is only supported for spacedim=2.
    */
-  template <int dim>
+  template <int dim, int spacedim>
   void
-  rotate(const double angle, Triangulation<dim> &triangulation);
+  rotate(const double angle, Triangulation<dim, spacedim> &triangulation);
 
   /**
    * Rotate all vertices of the given @p triangulation in counter-clockwise
@@ -618,7 +699,7 @@ namespace GridTools
    * @deprecated Use the alternative with the unit vector instead.
    */
   template <int dim>
-  DEAL_II_DEPRECATED_EARLY void
+  DEAL_II_DEPRECATED void
   rotate(const double           angle,
          const unsigned int     axis,
          Triangulation<dim, 3> &triangulation);
@@ -893,11 +974,11 @@ namespace GridTools
   regularize_corner_cells(Triangulation<dim, spacedim> &tria,
                           const double limit_angle_fraction = .75);
 
-  /*@}*/
+  /** @} */
   /**
    * @name Finding cells and vertices of a triangulation
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Given a Triangulation's @p cache and a list of @p points, call
@@ -906,7 +987,7 @@ namespace GridTools
    * to global indices into @p points .
    *
    * @param[in] cache The triangulation's GridTools::Cache .
-   * @param[in] points The point's vector.
+   * @param[in] points A vector of points.
    * @param[in] cell_hint (optional) A cell iterator for a cell which likely
    * contains the first point of @p points.
    *
@@ -916,7 +997,10 @@ namespace GridTools
    *  - @p qpoints : A vector of vectors of points. @p qpoints[i] contains
    *   the reference positions of all points that fall within the cell @p cells[i] .
    *  - @p indices : A vector of vectors of integers, containing the mapping between
-   *   local numbering in @p qpoints , and global index in @p points .
+   *   local numbering the @p cells array (the first component of the returned
+   *   tuple), and global index in the input array @p points . In other words,
+   *   the indices stored in the array `indices[c]` correspond to those points
+   *   of the input argument `points` that are located on `cells[c]`.
    *
    * If @p points[a] and @p points[b] are the only two points that fall in @p cells[c],
    * then @p qpoints[c][0] and @p qpoints[c][1] are the reference positions of
@@ -1047,6 +1131,16 @@ namespace GridTools
    *   of the cells adjacent to a vertex or an edge/face this function returns.
    *   Consequently, algorithms that call this function need to take into
    *   account that the returned cell will only contain the point approximately.
+   * @param[in] enforce_unique_mapping Enforce a one to one mapping between
+   points
+   *   in real and reference space.
+   * @param[in] marked_vertices An array of bools indicating which
+   * vertices of @p mesh will be considered within the search
+   * as the potentially closest vertex. On receiving a non-empty
+   * @p marked_vertices, the function will
+   * only search among @p marked_vertices for the closest vertex,
+   * otherwise on all vertices in the mesh.
+
    * @return A tuple containing the quadrature information
    *
    * The elements of the output tuple are:
@@ -1103,7 +1197,9 @@ namespace GridTools
     const GridTools::Cache<dim, spacedim> &                cache,
     const std::vector<Point<spacedim>> &                   local_points,
     const std::vector<std::vector<BoundingBox<spacedim>>> &global_bboxes,
-    const double                                           tolerance = 1e-10);
+    const double                                           tolerance = 1e-10,
+    const std::vector<bool> &                              marked_vertices = {},
+    const bool enforce_unique_mapping = true);
 
   namespace internal
   {
@@ -1124,6 +1220,22 @@ namespace GridTools
     template <int dim, int spacedim>
     struct DistributedComputePointLocationsInternal
     {
+      DistributedComputePointLocationsInternal();
+
+      /**
+       * Function which sets up @p send_ranks, @p send_ptrs, @p recv_ranks,
+       * and @p recv_ptrs from @p send_components, @p recv_components,
+       * and @p n_searched_points. Internally @p send_components and @p recv_components
+       * are sorted and enumerated.
+       */
+      void
+      finalize_setup();
+
+      /**
+       * Number of searched point locations.
+       */
+      unsigned int n_searched_points;
+
       /**
        * Information of each point on sending/evaluation side. The elements of
        * the tuple are as follows: 0) cell level and index, 1) rank of the
@@ -1196,6 +1308,107 @@ namespace GridTools
       const bool                                             perform_handshake,
       const bool enforce_unique_mapping = false);
 
+
+    /**
+     * Data structure returned by
+     * GridTools::internal::distributed_compute_intersection_locations(). It can
+     * be converted to
+     * GridTools::internal::DistributedComputePointLocationsInternal, which can
+     * be used to reinit Utilities::MPI::RemotePointEvaluation.
+     */
+    template <int structdim, int spacedim>
+    struct DistributedComputeIntersectionLocationsInternal
+    {
+      /**
+       * Intersections are assumed to be simplices (as, e.g., provided by CGAL)
+       */
+      using IntersectionType =
+        std::array<dealii::Point<spacedim>, structdim + 1>;
+
+      /**
+       * Information of each intersection on sending/evaluation side. The
+       * elements of the tuple are as follows: 0) cell level and index, 1) rank
+       * of the owning process, 2) local index of the owning process, 3)
+       * found intersection.
+       *
+       * @note The vector is sorted according to 1), 2).
+       */
+      std::vector<std::tuple<std::pair<int, int>,
+                             unsigned int,
+                             unsigned int,
+                             IntersectionType>>
+        send_components;
+
+      /**
+       * Information of each received data value. The elements of the tuple are
+       * as follows: 0) rank of sender, 1) local index, 2) found intersections.
+       *
+       * @note The vector is sorted according to 1), 0), 2).
+       *
+       * @note Multiple intersections between cells can be found
+       */
+      std::vector<std::tuple<unsigned int, unsigned int, IntersectionType>>
+        recv_components;
+
+      /**
+       * Pointers of ranges to found intersections for requested intersection.
+       */
+      std::vector<unsigned int> recv_ptrs;
+
+      /**
+       * Distribute quadrature points on found intersections and construct
+       * GridTools::internal::DistributedComputePointLocationsInternal from
+       * class members. This can be done without searching for points again
+       * since all information is locally known.
+       *
+       * The parameter @p consistent_numbering_of_sender_and_receiver can be used to ensure
+       * points on sender and receiver side are numbered consistently.
+       * This parameter is optional if DistributedComputePointLocationsInternal
+       * is used to setup RemotePointEvaluation, but might be helpful for
+       * debugging or other usage of DistributedComputePointLocationsInternal.
+       * Note that setting this parameter true requires an additional
+       * communication step during the setup phase.
+       */
+      template <int dim>
+      GridTools::internal::DistributedComputePointLocationsInternal<dim,
+                                                                    spacedim>
+      convert_to_distributed_compute_point_locations_internal(
+        const unsigned int                  n_quadrature_points,
+        const Triangulation<dim, spacedim> &tria,
+        const Mapping<dim, spacedim> &      mapping,
+        const bool consistent_numbering_of_sender_and_receiver = false) const;
+
+    private:
+      /**
+       * Helper function for
+       * convert_to_distributed_compute_point_locations_internal(). It sends the
+       * indices associated to quadrature points at the receiver side to the
+       * sender side, where the information is needed to build
+       * GridTools::internal::DistributedComputePointLocationsInternal::send_components
+       */
+      std::map<unsigned int, std::vector<unsigned int>>
+      communicate_indices(
+        const std::vector<std::tuple<unsigned int, unsigned int, unsigned int>>
+          &            point_recv_components,
+        const MPI_Comm comm) const;
+    };
+
+    /**
+     * A function that fills DistributedComputeIntersectionLocationsInternal.
+     * @p intersection_requests are vertices of cells which describe the
+     * entities we want to search intersections for.
+     * The template parameter @p structdim provides the dimension of the
+     * resulting intersection.
+     */
+    template <int structdim, int dim, int spacedim>
+    DistributedComputeIntersectionLocationsInternal<structdim, spacedim>
+    distributed_compute_intersection_locations(
+      const Cache<dim, spacedim> &                     cache,
+      const std::vector<std::vector<Point<spacedim>>> &intersection_requests,
+      const std::vector<std::vector<BoundingBox<spacedim>>> &global_bboxes,
+      const std::vector<bool> &                              marked_vertices,
+      const double                                           tolerance);
+
   } // namespace internal
 
   /**
@@ -1240,7 +1453,12 @@ namespace GridTools
     const Triangulation<dim, spacedim> &container,
     const Mapping<dim, spacedim> &      mapping =
       (ReferenceCells::get_hypercube<dim>()
-         .template get_default_linear_mapping<dim, spacedim>()));
+#ifndef _MSC_VER
+         .template get_default_linear_mapping<dim, spacedim>()
+#else
+         .ReferenceCell::get_default_linear_mapping<dim, spacedim>()
+#endif
+         ));
 
   /**
    * Find and return the index of the closest vertex to a given point in the
@@ -1278,12 +1496,17 @@ namespace GridTools
    * Triangulation::n_vertices() for the triangulation underlying the given mesh
    * (as opposed to the value returned by Triangulation::n_used_vertices()).
    * @return The index of the closest vertex found.
+   *
+   * @dealiiConceptRequires{
+   *   concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>}
    */
   template <int dim, template <int, int> class MeshType, int spacedim>
-  unsigned int
-  find_closest_vertex(const MeshType<dim, spacedim> &mesh,
-                      const Point<spacedim> &        p,
-                      const std::vector<bool> &      marked_vertices = {});
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>))
+  unsigned int find_closest_vertex(
+    const MeshType<dim, spacedim> &mesh,
+    const Point<spacedim> &        p,
+    const std::vector<bool> &      marked_vertices = {});
 
   /**
    * Find and return the index of the used vertex (or marked vertex) in a
@@ -1307,13 +1530,18 @@ namespace GridTools
    * Triangulation::n_vertices() for the triangulation underlying the given mesh
    * (as opposed to the value returned by Triangulation::n_used_vertices()).
    * @return The index of the closest vertex found.
+   *
+   * @dealiiConceptRequires{
+   *   concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>}
    */
   template <int dim, template <int, int> class MeshType, int spacedim>
-  unsigned int
-  find_closest_vertex(const Mapping<dim, spacedim> & mapping,
-                      const MeshType<dim, spacedim> &mesh,
-                      const Point<spacedim> &        p,
-                      const std::vector<bool> &      marked_vertices = {});
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>))
+  unsigned int find_closest_vertex(
+    const Mapping<dim, spacedim> & mapping,
+    const MeshType<dim, spacedim> &mesh,
+    const Point<spacedim> &        p,
+    const std::vector<bool> &      marked_vertices = {});
 
 
   /**
@@ -1334,17 +1562,22 @@ namespace GridTools
    * @note It isn't entirely clear at this time whether the function does the
    * right thing with anisotropically refined meshes. It needs to be checked
    * for this case.
+   *
+   * @dealiiConceptRequires{
+   *   concepts::is_triangulation_or_dof_handler<MeshType>}
    */
-  template <int dim, template <int, int> class MeshType, int spacedim>
+  template <class MeshType>
+  DEAL_II_CXX20_REQUIRES((concepts::is_triangulation_or_dof_handler<MeshType>))
 #ifndef _MSC_VER
-  std::vector<typename MeshType<dim, spacedim>::active_cell_iterator>
+  std::vector<typename MeshType::active_cell_iterator>
 #else
   std::vector<
-    typename dealii::internal::
-      ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type>
+    typename dealii::internal::ActiveCellIterator<MeshType::dimension,
+                                                  MeshType::space_dimension,
+                                                  MeshType>::type>
 #endif
-  find_cells_adjacent_to_vertex(const MeshType<dim, spacedim> &container,
-                                const unsigned int             vertex_index);
+    find_cells_adjacent_to_vertex(const MeshType &   container,
+                                  const unsigned int vertex_index);
 
   /**
    * Find an active non-artificial cell that surrounds a given point @p p. The return type
@@ -1407,8 +1640,13 @@ namespace GridTools
    * cell contains a point. For example, if two processors come together
    * at one vertex and the function is called with this vertex, then one
    * processor will return a locally owned cell and the other one a ghost cell.
+   *
+   * @dealiiConceptRequires{
+   *   concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>}
    */
   template <int dim, template <int, int> class MeshType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>))
 #ifndef _MSC_VER
   std::pair<typename MeshType<dim, spacedim>::active_cell_iterator, Point<dim>>
 #else
@@ -1416,11 +1654,11 @@ namespace GridTools
               ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type,
             Point<dim>>
 #endif
-  find_active_cell_around_point(const Mapping<dim, spacedim> & mapping,
-                                const MeshType<dim, spacedim> &mesh,
-                                const Point<spacedim> &        p,
-                                const std::vector<bool> &marked_vertices = {},
-                                const double             tolerance = 1.e-10);
+    find_active_cell_around_point(const Mapping<dim, spacedim> & mapping,
+                                  const MeshType<dim, spacedim> &mesh,
+                                  const Point<spacedim> &        p,
+                                  const std::vector<bool> &marked_vertices = {},
+                                  const double             tolerance = 1.e-10);
 
   /**
    * A version of the above function that assumes straight boundaries and
@@ -1428,18 +1666,23 @@ namespace GridTools
    * the mapping argument.
    *
    * @return An iterator into the mesh that points to the surrounding cell.
+   *
+   * @dealiiConceptRequires{
+   *   concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>}
    */
   template <int dim, template <int, int> class MeshType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>))
 #ifndef _MSC_VER
   typename MeshType<dim, spacedim>::active_cell_iterator
 #else
   typename dealii::internal::
     ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type
 #endif
-  find_active_cell_around_point(const MeshType<dim, spacedim> &mesh,
-                                const Point<spacedim> &        p,
-                                const std::vector<bool> &marked_vertices = {},
-                                const double             tolerance = 1.e-10);
+    find_active_cell_around_point(const MeshType<dim, spacedim> &mesh,
+                                  const Point<spacedim> &        p,
+                                  const std::vector<bool> &marked_vertices = {},
+                                  const double             tolerance = 1.e-10);
 
   /**
    * Another version where we use that mapping on a given
@@ -1530,8 +1773,13 @@ namespace GridTools
    * GridTools::Cache object. Note, however, that in this case MeshType
    * has to be Triangulation, so that it might be more appropriate to directly
    * call the function above with argument `cache` in this case.
+   *
+   * @dealiiConceptRequires{
+   *   concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>}
    */
   template <int dim, template <int, int> class MeshType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>))
 #ifndef _MSC_VER
   std::pair<typename MeshType<dim, spacedim>::active_cell_iterator, Point<dim>>
 #else
@@ -1539,24 +1787,25 @@ namespace GridTools
               ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type,
             Point<dim>>
 #endif
-  find_active_cell_around_point(
-    const Mapping<dim, spacedim> & mapping,
-    const MeshType<dim, spacedim> &mesh,
-    const Point<spacedim> &        p,
-    const std::vector<
-      std::set<typename MeshType<dim, spacedim>::active_cell_iterator>>
-      &                                                  vertex_to_cell_map,
-    const std::vector<std::vector<Tensor<1, spacedim>>> &vertex_to_cell_centers,
-    const typename MeshType<dim, spacedim>::active_cell_iterator &cell_hint =
-      typename MeshType<dim, spacedim>::active_cell_iterator(),
-    const std::vector<bool> &                              marked_vertices = {},
-    const RTree<std::pair<Point<spacedim>, unsigned int>> &used_vertices_rtree =
-      RTree<std::pair<Point<spacedim>, unsigned int>>{},
-    const double tolerance = 1.e-10,
-    const RTree<
-      std::pair<BoundingBox<spacedim>,
-                typename Triangulation<dim, spacedim>::active_cell_iterator>>
-      *relevant_cell_bounding_boxes_rtree = nullptr);
+    find_active_cell_around_point(
+      const Mapping<dim, spacedim> & mapping,
+      const MeshType<dim, spacedim> &mesh,
+      const Point<spacedim> &        p,
+      const std::vector<
+        std::set<typename MeshType<dim, spacedim>::active_cell_iterator>>
+        &vertex_to_cell_map,
+      const std::vector<std::vector<Tensor<1, spacedim>>>
+        &vertex_to_cell_centers,
+      const typename MeshType<dim, spacedim>::active_cell_iterator &cell_hint =
+        typename MeshType<dim, spacedim>::active_cell_iterator(),
+      const std::vector<bool> &marked_vertices = {},
+      const RTree<std::pair<Point<spacedim>, unsigned int>> &
+        used_vertices_rtree = RTree<std::pair<Point<spacedim>, unsigned int>>{},
+      const double tolerance = 1.e-10,
+      const RTree<
+        std::pair<BoundingBox<spacedim>,
+                  typename Triangulation<dim, spacedim>::active_cell_iterator>>
+        *relevant_cell_bounding_boxes_rtree = nullptr);
 
   /**
    * As compared to the functions above, this function identifies all active
@@ -1578,8 +1827,13 @@ namespace GridTools
    *   auto all_cells  = GridTools::find_all_active_cells_around_point(
    *   			   mapping, mesh, p, tolerance, first_pair);
    * @endcode
+   *
+   * @dealiiConceptRequires{
+   *   concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>}
    */
   template <int dim, template <int, int> class MeshType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>))
 #ifndef _MSC_VER
   std::vector<std::pair<typename MeshType<dim, spacedim>::active_cell_iterator,
                         Point<dim>>>
@@ -1589,21 +1843,26 @@ namespace GridTools
       ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type,
     Point<dim>>>
 #endif
-  find_all_active_cells_around_point(
-    const Mapping<dim, spacedim> & mapping,
-    const MeshType<dim, spacedim> &mesh,
-    const Point<spacedim> &        p,
-    const double                   tolerance,
-    const std::pair<typename MeshType<dim, spacedim>::active_cell_iterator,
-                    Point<dim>> &  first_cell);
+    find_all_active_cells_around_point(
+      const Mapping<dim, spacedim> & mapping,
+      const MeshType<dim, spacedim> &mesh,
+      const Point<spacedim> &        p,
+      const double                   tolerance,
+      const std::pair<typename MeshType<dim, spacedim>::active_cell_iterator,
+                      Point<dim>> &  first_cell);
 
   /**
    * A variant of the previous function that internally calls one of the
    * functions find_active_cell_around_point() to obtain a first cell, and
    * subsequently adds all other active non-artificial cells by calling the
    * function find_all_active_cells_around_point() above.
+   *
+   * @dealiiConceptRequires{
+   *   concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>}
    */
   template <int dim, template <int, int> class MeshType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(
+    (concepts::is_triangulation_or_dof_handler<MeshType<dim, spacedim>>))
 #ifndef _MSC_VER
   std::vector<std::pair<typename MeshType<dim, spacedim>::active_cell_iterator,
                         Point<dim>>>
@@ -1613,12 +1872,12 @@ namespace GridTools
       ActiveCellIterator<dim, spacedim, MeshType<dim, spacedim>>::type,
     Point<dim>>>
 #endif
-  find_all_active_cells_around_point(
-    const Mapping<dim, spacedim> & mapping,
-    const MeshType<dim, spacedim> &mesh,
-    const Point<spacedim> &        p,
-    const double                   tolerance       = 1e-10,
-    const std::vector<bool> &      marked_vertices = {});
+    find_all_active_cells_around_point(
+      const Mapping<dim, spacedim> & mapping,
+      const MeshType<dim, spacedim> &mesh,
+      const Point<spacedim> &        p,
+      const double                   tolerance       = 1e-10,
+      const std::vector<bool> &      marked_vertices = {});
 
   /**
    * Return a list of all descendants of the given cell that are active. For
@@ -1640,10 +1899,13 @@ namespace GridTools
    * @code
    *   GridTools::get_active_child_cells<DoFHandler<dim> > (cell)
    * @endcode
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::vector<typename MeshType::active_cell_iterator>
-  get_active_child_cells(const typename MeshType::cell_iterator &cell);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::vector<typename MeshType::active_cell_iterator> get_active_child_cells(
+    const typename MeshType::cell_iterator &cell);
 
   /**
    * Extract the active cells around a given cell @p cell and return them in
@@ -1668,10 +1930,12 @@ namespace GridTools
    * @code
    *   GridTools::get_active_neighbors<DoFHandler<dim>>(cell, active_neighbors)
    * @endcode
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  void
-  get_active_neighbors(
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  void get_active_neighbors(
     const typename MeshType::active_cell_iterator &       cell,
     std::vector<typename MeshType::active_cell_iterator> &active_neighbors);
 
@@ -1723,13 +1987,16 @@ namespace GridTools
    * is a function that takes in an active cell and returns a boolean.
    * @return A list of active cells sharing at least one common vertex with
    * the predicated subdomain.
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::vector<typename MeshType::active_cell_iterator>
-  compute_active_cell_halo_layer(
-    const MeshType &mesh,
-    const std::function<bool(const typename MeshType::active_cell_iterator &)>
-      &predicate);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::
+    vector<typename MeshType::active_cell_iterator> compute_active_cell_halo_layer(
+      const MeshType &mesh,
+      const std::function<bool(const typename MeshType::active_cell_iterator &)>
+        &predicate);
 
 
   /**
@@ -1738,14 +2005,17 @@ namespace GridTools
    * that level that share a common set of vertices with the subdomain
    * but are not a part of it). Here, the "subdomain" consists of exactly
    * all of those cells for which the @p predicate returns @p true.
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::vector<typename MeshType::cell_iterator>
-  compute_cell_halo_layer_on_level(
-    const MeshType &mesh,
-    const std::function<bool(const typename MeshType::cell_iterator &)>
-      &                predicate,
-    const unsigned int level);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::
+    vector<typename MeshType::cell_iterator> compute_cell_halo_layer_on_level(
+      const MeshType &mesh,
+      const std::function<bool(const typename MeshType::cell_iterator &)>
+        &                predicate,
+      const unsigned int level);
 
 
   /**
@@ -1759,10 +2029,14 @@ namespace GridTools
    * @ref ConceptMeshType "MeshType concept".
    * @param[in] mesh A mesh (i.e. objects of type Triangulation or DoFHandler).
    * @return A list of ghost cells
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::vector<typename MeshType::active_cell_iterator>
-  compute_ghost_cell_halo_layer(const MeshType &mesh);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::vector<
+    typename MeshType::
+      active_cell_iterator> compute_ghost_cell_halo_layer(const MeshType &mesh);
 
   /**
    * Extract and return the set of active cells within a geometric distance of
@@ -1811,14 +2085,17 @@ namespace GridTools
    * returns @p true.
    *
    * See compute_active_cell_halo_layer().
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::vector<typename MeshType::active_cell_iterator>
-  compute_active_cell_layer_within_distance(
-    const MeshType &mesh,
-    const std::function<bool(const typename MeshType::active_cell_iterator &)>
-      &          predicate,
-    const double layer_thickness);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::
+    vector<typename MeshType::active_cell_iterator> compute_active_cell_layer_within_distance(
+      const MeshType &mesh,
+      const std::function<bool(const typename MeshType::active_cell_iterator &)>
+        &          predicate,
+      const double layer_thickness);
 
   /**
    * Extract and return a set of ghost cells which are within a
@@ -1841,11 +2118,15 @@ namespace GridTools
    *
    * Also see compute_ghost_cell_halo_layer() and
    * compute_active_cell_layer_within_distance().
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::vector<typename MeshType::active_cell_iterator>
-  compute_ghost_cell_layer_within_distance(const MeshType &mesh,
-                                           const double    layer_thickness);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::
+    vector<typename MeshType::active_cell_iterator> compute_ghost_cell_layer_within_distance(
+      const MeshType &mesh,
+      const double    layer_thickness);
 
   /**
    * Compute and return a bounding box, defined through a pair of points
@@ -1861,20 +2142,32 @@ namespace GridTools
    * object as one may expect. However, BoundingBox has a conversion constructor
    * from pairs of points, so the result of this function can still be assigned
    * to a BoundingBox object.
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::pair<Point<MeshType::space_dimension>, Point<MeshType::space_dimension>>
-  compute_bounding_box(
-    const MeshType &mesh,
-    const std::function<bool(const typename MeshType::active_cell_iterator &)>
-      &predicate);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::pair<
+    Point<MeshType::space_dimension>,
+    Point<MeshType::
+            space_dimension>> compute_bounding_box(const MeshType &mesh,
+                                                   const std::function<bool(
+                                                     const typename MeshType::
+                                                       active_cell_iterator &)>
+                                                     &predicate);
 
   /**
    * Compute a collection of bounding boxes so that all active cells for which
    * the given predicate is true, are completely enclosed in at least one of the
    * bounding boxes. Notice the cover is only guaranteed to contain all these
    * active cells but it's not necessarily exact i.e. it can include a bigger
-   * area than their union.
+   * area than their union. (This is of course unavoidable in any case if cells
+   * are not rectangular or brick-shaped, but it is also true if cells are
+   * since it is inefficient to create as many bounding boxes as there are
+   * cells; rather, the algorithm here tries to combine the bounding boxes
+   * of multiple cells into a cheaper representation, at the cost of a set
+   * of bounding boxes that may be larger than the union of the cells -- see
+   * the description of the relevant function arguments below.)
    *
    * For each cell at a given refinement level containing active cells for which @p predicate is true,
    * the function creates a bounding box of its children for which @p predicate is true.
@@ -1883,30 +2176,42 @@ namespace GridTools
    * @p allow_merge and @p max_boxes are used to reduce the number of cells at a computational cost and
    * covering a bigger n-dimensional volume.
    *
-   * The parameters to control the algorithm are:
-   * - @p predicate : the property of the cells to enclose e.g. IteratorFilters::LocallyOwnedCell .
-   *  The predicate is tested only on active cells.
-   * - @p refinement_level : it defines the level at which the initial bounding box are created. The refinement
-   *  should be set to a coarse refinement level. A bounding box is created for
-   * each active cell at coarser
-   *  level than @p refinement_level; if @p refinement_level is higher than the number of levels of the
+   * @param[in] mesh The mesh object this function is to work on. This
+   *   is generally either a triangulation of some kind, or a DoFHandler
+   *   object.
+   * @param[in] predicate A function-like object that returns true or
+   *   false depending on whether the property of the cells to enclose
+   *   is satisfied. An example is IteratorFilters::LocallyOwnedCell,
+   *   but it can also be a lambda function or anything else that can be
+   *   called with a cell as argument.
+   *   This predicate is tested only on active cells.
+   * @param[in] refinement_level Defines the level at which the
+   *  initial bounding boxes are created. The refinement should be set
+   *  to a coarse refinement level. A bounding box is created for each
+   *  active cell at a coarser level than @p refinement_level; if @p
+   *  refinement_level is higher than the number of levels of the
    *  triangulation an exception is thrown.
-   * - @p allow_merge : This flag allows for box merging and, by default, is false. The algorithm has a cost of
-   *  O(N^2) where N is the number of the bounding boxes created from the
-   * refinement level; for this reason, if
-   *  the flag is set to true, make sure to choose wisely a coarse enough @p refinement_level.
-   * - @p max_boxes : the maximum number of bounding boxes to compute. If more are created the smaller ones are
-   *  merged with neighbors. By default after merging the boxes which can be
-   * expressed as a single one no more boxes are merged. See the
-   * BoundingBox::get_neighbor_type () function for details.
-   *  Notice only neighboring cells are merged (see the @p get_neighbor_type  function in bounding box class): if
-   *  the target number of bounding boxes max_boxes can't be reached by merging
-   * neighbors an exception is thrown
+   * @param[in] allow_merge This flag allows for box merging and, by
+   *  default, is false. The algorithm has a cost of O(N^2) where N is
+   *  the number of the bounding boxes created from the refinement
+   *  level; for this reason, if the flag is set to true, make sure to
+   *  choose wisely a coarse enough @p refinement_level.
+   * @param[in] max_boxes The maximum number of bounding boxes to
+   *  compute. If more are created the smaller ones are merged with
+   *  neighbors. By default after merging the boxes which can be
+   *  expressed as a single one no more boxes are merged. See the
+   *  BoundingBox::get_neighbor_type () function for details.  Notice
+   *  only neighboring cells are merged (see the @p get_neighbor_type
+   *  function in bounding box class): if the target number of
+   *  bounding boxes max_boxes can't be reached by merging neighbors
+   *  an exception is thrown.
    *
-   * The following image describes an example of the algorithm with @p refinement_level = 2, @p allow_merge = true
-   * and @p max_boxes = 1. The cells with the property predicate are in red, the area of a bounding box is
-   * slightly orange.
+   * The following image describes an example of the algorithm with @p
+   * refinement_level = 2, @p allow_merge = true and @p max_boxes =
+   * 1. The cells with the property predicate are in red, the area of
+   * a bounding box is slightly orange.
    * @image html bounding_box_predicate.png
+   *
    * - 1. In black we can see the cells of the current level.
    * - 2. For each cell containing the red area a bounding box is created: by
    * default these are returned.
@@ -1920,16 +2225,19 @@ namespace GridTools
    * This function does not take into account the curvature of cells and thus it
    * is not suited for handling curved geometry: the mapping is assumed to be
    * linear.
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::vector<BoundingBox<MeshType::space_dimension>>
-  compute_mesh_predicate_bounding_box(
-    const MeshType &mesh,
-    const std::function<bool(const typename MeshType::active_cell_iterator &)>
-      &                predicate,
-    const unsigned int refinement_level = 0,
-    const bool         allow_merge      = false,
-    const unsigned int max_boxes        = numbers::invalid_unsigned_int);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::
+    vector<BoundingBox<MeshType::space_dimension>> compute_mesh_predicate_bounding_box(
+      const MeshType &mesh,
+      const std::function<bool(const typename MeshType::active_cell_iterator &)>
+        &                predicate,
+      const unsigned int refinement_level = 0,
+      const bool         allow_merge      = false,
+      const unsigned int max_boxes        = numbers::invalid_unsigned_int);
 
   /**
    * Given an array of points, use the global bounding box description obtained
@@ -2066,7 +2374,12 @@ namespace GridTools
     const Point<spacedim> &                                            position,
     const Mapping<dim, spacedim> &                                     mapping =
       (ReferenceCells::get_hypercube<dim>()
-         .template get_default_linear_mapping<dim, spacedim>()));
+#ifndef _MSC_VER
+         .template get_default_linear_mapping<dim, spacedim>()
+#else
+         .ReferenceCell::get_default_linear_mapping<dim, spacedim>()
+#endif
+         ));
 
   /**
    * Compute a globally unique index for each vertex and hanging node
@@ -2100,11 +2413,11 @@ namespace GridTools
   get_longest_direction(
     typename Triangulation<dim, spacedim>::active_cell_iterator cell);
 
-  /*@}*/
+  /** @} */
   /**
    * @name Partitions and subdomains of triangulations
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Produce a sparsity pattern in which nonzero entries indicate that two
@@ -2161,12 +2474,12 @@ namespace GridTools
    *
    * If deal.II was not installed with ZOLTAN or METIS, this function will
    * generate an error
-   * when corresponding partition method is chosen, unless @p n_partitions is one.
+   * when the respective partition method is chosen, unless @p n_partitions is one.
    * I.e., you can write a program so that it runs in the single-processor
    * single-partition case without packages installed, and only requires them
    * installed when multiple partitions are required.
    *
-   * @note If the @p cell_weight signal has been attached to the @p triangulation,
+   * @note If the `weight` signal has been attached to the @p triangulation,
    * then this will be used and passed to the partitioner.
    */
   template <int dim, int spacedim>
@@ -2236,7 +2549,7 @@ namespace GridTools
    * case like this, partitioning algorithm may sometimes make bad decisions and
    * you may want to build your own connectivity graph.
    *
-   * @note If the @p cell_weight signal has been attached to the @p triangulation,
+   * @note If the `weight` signal has been attached to the @p triangulation,
    * then this will be used and passed to the partitioner.
    */
   template <int dim, int spacedim>
@@ -2381,11 +2694,11 @@ namespace GridTools
   std::vector<bool>
   get_locally_owned_vertices(const Triangulation<dim, spacedim> &triangulation);
 
-  /*@}*/
+  /** @} */
   /**
    * @name Comparing different meshes
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Given two meshes (i.e. objects of type Triangulation or DoFHandler) that
@@ -2419,11 +2732,17 @@ namespace GridTools
    * parallel::distributed::Triangulation when both meshes use the same
    * Triangulation since, with a distributed Triangulation, not all cells are
    * stored locally, so the resulting list may not cover the entire domain.
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <typename MeshType>
-  std::list<std::pair<typename MeshType::cell_iterator,
-                      typename MeshType::cell_iterator>>
-  get_finest_common_cells(const MeshType &mesh_1, const MeshType &mesh_2);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::list<std::pair<
+    typename MeshType::cell_iterator,
+    typename MeshType::cell_iterator>> get_finest_common_cells(const MeshType
+                                                                 &mesh_1,
+                                                               const MeshType
+                                                                 &mesh_2);
 
   /**
    * Return true if the two triangulations are based on the same coarse mesh.
@@ -2447,16 +2766,18 @@ namespace GridTools
    *
    * @tparam MeshType A type that satisfies the requirements of the
    * @ref ConceptMeshType "MeshType concept".
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <typename MeshType>
-  bool
-  have_same_coarse_mesh(const MeshType &mesh_1, const MeshType &mesh_2);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  bool have_same_coarse_mesh(const MeshType &mesh_1, const MeshType &mesh_2);
 
-  /*@}*/
+  /** @} */
   /**
    * @name Dealing with distorted cells
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Given a triangulation and a list of cells whose children have become
@@ -2482,14 +2803,14 @@ namespace GridTools
 
 
 
-  /*@}*/
+  /** @} */
   /**
    * @name Extracting and creating patches of cells
    *
    * These functions extract and create patches of cells surrounding a single
    * cell, and creating triangulation out of them.
    */
-  /*@{*/
+  /** @{ */
 
 
   /**
@@ -2528,10 +2849,13 @@ namespace GridTools
    * ghost cells. For both, we know that these are in fact the real cells of
    * the complete, parallel triangulation. We can also query the degrees of
    * freedom on these.
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <class MeshType>
-  std::vector<typename MeshType::active_cell_iterator>
-  get_patch_around_cell(const typename MeshType::active_cell_iterator &cell);
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::vector<typename MeshType::active_cell_iterator> get_patch_around_cell(
+    const typename MeshType::active_cell_iterator &cell);
 
 
   /**
@@ -2675,12 +2999,12 @@ namespace GridTools
   get_dof_to_support_patch_map(DoFHandler<dim, spacedim> &dof_handler);
 
 
-  /*@}*/
+  /** @} */
 
   /**
    * @name Dealing with periodic domains
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Data type that provides all information necessary to create periodicity
@@ -2721,6 +3045,12 @@ namespace GridTools
      * @ref GlossPeriodicConstraints "glossary entry on periodic conditions".
      */
     FullMatrix<double> matrix;
+
+    /**
+     * Return an estimate, in bytes, for the memory consumption of the object.
+     */
+    std::size_t
+    memory_consumption() const;
   };
 
 
@@ -2744,7 +3074,7 @@ namespace GridTools
    * orientation[2] -> face_rotation
    * @endcode
    *
-   * In 2D <tt>face_orientation</tt> is always <tt>true</tt>,
+   * In 2d <tt>face_orientation</tt> is always <tt>true</tt>,
    * <tt>face_rotation</tt> is always <tt>false</tt>, and face_flip has the
    * meaning of <tt>line_flip</tt>. More precisely in 3d:
    *
@@ -2868,10 +3198,12 @@ namespace GridTools
    * boundary indicators set. In general, this means that one must first set
    * all boundary indicators on the coarse grid before performing any global
    * or local grid refinement.
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <typename MeshType>
-  void
-  collect_periodic_faces(
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  void collect_periodic_faces(
     const MeshType &         mesh,
     const types::boundary_id b_id1,
     const types::boundary_id b_id2,
@@ -2904,10 +3236,12 @@ namespace GridTools
    * @note This version of collect_periodic_faces() will not work on
    * meshes with cells not in
    * @ref GlossFaceOrientation "standard orientation".
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <typename MeshType>
-  void
-  collect_periodic_faces(
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  void collect_periodic_faces(
     const MeshType &         mesh,
     const types::boundary_id b_id,
     const unsigned int       direction,
@@ -2917,11 +3251,11 @@ namespace GridTools
       dealii::Tensor<1, MeshType::space_dimension>(),
     const FullMatrix<double> &matrix = FullMatrix<double>());
 
-  /*@}*/
+  /** @} */
   /**
    * @name Dealing with boundary and manifold ids
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Copy boundary ids to manifold ids on faces and edges at the boundary. The
@@ -3048,7 +3382,7 @@ namespace GridTools
           return numbers::flat_manifold_id;
       },
     bool overwrite_only_flat_manifold_ids = true);
-  /*@}*/
+  /** @} */
 
   /**
    * Exchange arbitrary data of type @p DataType provided by the function
@@ -3103,7 +3437,7 @@ namespace GridTools
    * those processors:
    * @code
    * using active_cell_iterator =
-   *   typename dealii::DoFHandler<dim,spacedim>::active_cell_iterator;
+   *   typename DoFHandler<dim,spacedim>::active_cell_iterator;
    * auto pack = [] (const active_cell_iterator &cell) -> unsigned int
    *             {
    *               return cell->active_fe_index();
@@ -3116,7 +3450,7 @@ namespace GridTools
    *               };
    *
    * GridTools::exchange_cell_data_to_ghosts<
-   *   unsigned int, dealii::DoFHandler<dim,spacedim>> (dof_handler,
+   *   unsigned int, DoFHandler<dim,spacedim>> (dof_handler,
    *                                                    pack,
    *                                                    unpack);
    * @endcode
@@ -3133,10 +3467,12 @@ namespace GridTools
    * you get the idea -- the code could, just as well, have exchanged
    * material ids, user indices, boundary indicators, or any kind of other
    * data with similar calls as the ones above.)
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <typename DataType, typename MeshType>
-  void
-  exchange_cell_data_to_ghosts(
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  void exchange_cell_data_to_ghosts(
     const MeshType &                                     mesh,
     const std::function<std_cxx17::optional<DataType>(
       const typename MeshType::active_cell_iterator &)> &pack,
@@ -3155,10 +3491,12 @@ namespace GridTools
    * function allows to provide a @p cell_filter function, which can be used to only
    * communicate marked cells. In the default case, all relevant cells are
    * communicated.
+   *
+   * @dealiiConceptRequires{concepts::is_triangulation_or_dof_handler<MeshType>}
    */
   template <typename DataType, typename MeshType>
-  void
-  exchange_cell_data_to_level_ghosts(
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  void exchange_cell_data_to_level_ghosts(
     const MeshType &                                    mesh,
     const std::function<std_cxx17::optional<DataType>(
       const typename MeshType::level_cell_iterator &)> &pack,
@@ -3183,13 +3521,13 @@ namespace GridTools
   std::vector<std::vector<BoundingBox<spacedim>>>
   exchange_local_bounding_boxes(
     const std::vector<BoundingBox<spacedim>> &local_bboxes,
-    const MPI_Comm &                          mpi_communicator);
+    const MPI_Comm                            mpi_communicator);
 
   /**
    * In this collective operation each process provides a vector
    * of bounding boxes and a communicator.
    * All these vectors are gathered on each of the processes,
-   * organized in a search tree which, and then returned.
+   * organized in a search tree, and then returned.
    *
    * The idea is that the vector of bounding boxes describes a
    * relevant property of the computations on each process
@@ -3202,8 +3540,8 @@ namespace GridTools
    * parallel::distributed::Triangulation object. While these may
    * overlap the bounding boxes of other processes, finding which
    * process owns the cell that encloses a given point is vastly
-   * easier if the process trying to figure this out has a list of
-   * bounding boxes for each of the other processes at hand.
+   * easier if the process trying to figure this out has a (relatively
+   * small) list of processes whose bounding boxes contain that point.
    *
    * The returned search tree object is an r-tree with packing
    * algorithm, which is provided by boost library. See
@@ -3212,8 +3550,8 @@ namespace GridTools
    *
    * In the returned tree, each node contains a pair of elements:
    * the first being a bounding box,
-   * the second being the rank of the process whose local description
-   * contains the bounding box.
+   * the second being the rank of the process for which at least some
+   * of the locally owned cells overlap with the bounding box.
    *
    * @note This function is a collective operation.
    */
@@ -3221,7 +3559,7 @@ namespace GridTools
   RTree<std::pair<BoundingBox<spacedim>, unsigned int>>
   build_global_description_tree(
     const std::vector<BoundingBox<spacedim>> &local_description,
-    const MPI_Comm &                          mpi_communicator);
+    const MPI_Comm                            mpi_communicator);
 
   /**
    * Collect for a given triangulation all locally relevant vertices that
@@ -3248,8 +3586,21 @@ namespace GridTools
     std::map<unsigned int, unsigned int> &vertex_to_coinciding_vertex_group);
 
   /**
-   * Return a map that, for each vertex, lists all the processes whose
-   * subdomains are adjacent to that vertex.
+   * Return a map that, for each vertex of the given triangulation,
+   * provides a set of all the process subdomain ids whose subdomains
+   * are adjacent to that vertex. The set excludes the subdomain id
+   * of the current process. As a consequence, for a given vertex,
+   * the returned set consists of exactly those subdomain ids that
+   * correspond to the
+   * @ref GlossGhostCell "ghost cells"
+   * adjacent to that vertex, assuming there are any such ghost cells.
+   *
+   * For vertices that are not adjacent to a ghost cell, the map contains
+   * no entries, and this should be interpreted in the same way as if
+   * the map contained an entry for a given vertex index, but that the
+   * `std::set` associated with that map entry is simply empty.
+   * For non-parallel triangulations, the map is consequently empty
+   * since no vertex has adjacent ghost cells.
    *
    * @param[in] tria Triangulation.
    */
@@ -3269,9 +3620,12 @@ namespace GridTools
    *
    * Type @p T is assumed to be serializable by <code>boost::serialization</code> (for
    * example <code>unsigned int</code> or <code>std::vector@<double@></code>).
+   *
+   * @deprecated The implementation in deal.II has been rewritten, making this class
+   * obsolete for use within deal.II. Use your own data structures instead.
    */
   template <int dim, typename T>
-  struct CellDataTransferBuffer
+  struct DEAL_II_DEPRECATED CellDataTransferBuffer
   {
     /**
      * A vector to store IDs of cells to be transferred.
@@ -3293,7 +3647,23 @@ namespace GridTools
      */
     template <class Archive>
     void
-    save(Archive &ar, const unsigned int version) const;
+    save(Archive &ar, const unsigned int) const
+    {
+      // Implement the code inline as some compilers do otherwise complain
+      // about the use of a deprecated interface.
+      Assert(cell_ids.size() == data.size(),
+             ExcDimensionMismatch(cell_ids.size(), data.size()));
+      // archive the cellids in an efficient binary format
+      const std::size_t n_cells = cell_ids.size();
+      ar &              n_cells;
+      for (const auto &id : cell_ids)
+        {
+          CellId::binary_type binary_cell_id = id.template to_binary<dim>();
+          ar &                binary_cell_id;
+        }
+
+      ar &data;
+    }
 
     /**
      * Read the data of this object from a stream for the purpose of
@@ -3303,7 +3673,23 @@ namespace GridTools
      */
     template <class Archive>
     void
-    load(Archive &ar, const unsigned int version);
+    load(Archive &ar, const unsigned int)
+    {
+      // Implement the code inline as some compilers do otherwise complain
+      // about the use of a deprecated interface.
+      std::size_t n_cells;
+      ar &        n_cells;
+      cell_ids.clear();
+      cell_ids.reserve(n_cells);
+      for (unsigned int c = 0; c < n_cells; ++c)
+        {
+          CellId::binary_type value;
+          ar &                value;
+          cell_ids.emplace_back(value);
+        }
+      ar &data;
+    }
+
 
 #ifdef DOXYGEN
     /**
@@ -3324,7 +3710,7 @@ namespace GridTools
 
 
   /**
-   * An implementation of the marching-square (2D) and marching-cube algorithm
+   * An implementation of the marching-square (2d) and marching-cube algorithm
    * for creating data structures (vectors of Point and CellData) to
    * create a linear/bilinear surface mesh on the iso line/contour of a
    * scalar field.
@@ -3334,11 +3720,14 @@ namespace GridTools
    * algorithm is not run on a cell but on subcells with vertex values having
    * been interpolated from the cell values.
    *
-   * @note The resulting mesh will contain lines in 2D and triangles in 3D.
+   * @note The resulting mesh will contain lines in 2d and triangles in 3d.
    *
    * @note The resulting mesh will not be of high quality, since it might
    *   contain cells with very small diameters if the mesh is cut close to a
    *   vertex.
+   *
+   * @note Iso lines/contours as a saddle point within a subcell is not
+   *       detected by the implemented algorithm.
    */
   template <int dim, typename VectorType>
   class MarchingCubeAlgorithm
@@ -3360,26 +3749,55 @@ namespace GridTools
     /**
      * Process all locally-owned cells and fill @p vertices and @p cells for all
      * cells that are cut.
+     *
+     * @note This function is only implemented for dim>1. Use
+     * process(background_dof_handler, ls_vector, iso_level, vertices) for
+     * dim==1.
+     *
+     * @note Duplicate vertices are not deleted.
      */
     void
-    process(const DoFHandler<dim> &         background_dof_handler,
-            const VectorType &              ls_vector,
-            const double                    iso_level,
-            std::vector<Point<dim>> &       vertices,
-            std::vector<CellData<dim - 1>> &cells) const;
+    process(const DoFHandler<dim> &  background_dof_handler,
+            const VectorType &       ls_vector,
+            const double             iso_level,
+            std::vector<Point<dim>> &vertices,
+            std::vector<CellData<dim == 1 ? 1 : dim - 1>> &cells) const;
+
+    /**
+     * Process all locally-owned cells and fill @p vertices for all cells that
+     * are cut.
+     */
+    void
+    process(const DoFHandler<dim> &  background_dof_handler,
+            const VectorType &       ls_vector,
+            const double             iso_level,
+            std::vector<Point<dim>> &vertices) const;
 
     /**
      * Process the provided cell and fill @p vertices and @p cells for all cells
      * that are cut.
      *
      * @note The resulting vectors are empty if the cell is not cut.
+     *
+     * @note This function is only implemented for dim>1. Use
+     * process_cell(cell, ls_vector, iso_level, vertices) for dim==1.
      */
     void
     process_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
-                 const VectorType &              ls_vector,
-                 const double                    iso_level,
-                 std::vector<Point<dim>> &       vertices,
-                 std::vector<CellData<dim - 1>> &cells) const;
+                 const VectorType &                             ls_vector,
+                 const double                                   iso_level,
+                 std::vector<Point<dim>> &                      vertices,
+                 std::vector<CellData<dim == 1 ? 1 : dim - 1>> &cells) const;
+    /**
+     * Process the provided cell and fill @p vertices for all cells that are cut.
+     *
+     * @note The resulting vector is empty if the cell is not cut.
+     */
+    void
+    process_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+                 const VectorType &       ls_vector,
+                 const double             iso_level,
+                 std::vector<Point<dim>> &vertices) const;
 
   private:
     /**
@@ -3393,36 +3811,54 @@ namespace GridTools
      * Process a cell.
      */
     void
-    process_cell(std::vector<value_type> &       ls_values,
-                 const std::vector<Point<dim>> & points,
-                 const double                    iso_level,
-                 std::vector<Point<dim>> &       vertices,
-                 std::vector<CellData<dim - 1>> &cells) const;
+    process_cell(std::vector<value_type> &                      ls_values,
+                 const std::vector<Point<dim>> &                points,
+                 const double                                   iso_level,
+                 std::vector<Point<dim>> &                      vertices,
+                 std::vector<CellData<dim == 1 ? 1 : dim - 1>> &cells,
+                 const bool write_back_cell_data = true) const;
 
     /**
-     * Process a sub-cell (2D).
+     * Dummy function for 1d processing a sub-cell.
+     */
+    void
+    process_sub_cell(const std::vector<value_type> &,
+                     const std::vector<Point<1>> &,
+                     const std::vector<unsigned int> &,
+                     const double,
+                     std::vector<Point<1>> &,
+                     std::vector<CellData<1>> &,
+                     const bool) const
+    {
+      AssertThrow(false, ExcNotImplemented());
+    }
+
+    /**
+     * Process a sub-cell (2d).
      *
      * @note Subcells with saddle points are ignored. Please increase the number
      *   of subdivisions in this case.
      */
     void
-    process_sub_cell(const std::vector<value_type> & ls_values,
-                     const std::vector<Point<2>> &   points,
-                     const std::vector<unsigned int> mask,
-                     const double                    iso_level,
-                     std::vector<Point<2>> &         vertices,
-                     std::vector<CellData<1>> &      cells) const;
+    process_sub_cell(const std::vector<value_type> &  ls_values,
+                     const std::vector<Point<2>> &    points,
+                     const std::vector<unsigned int> &mask,
+                     const double                     iso_level,
+                     std::vector<Point<2>> &          vertices,
+                     std::vector<CellData<1>> &       cells,
+                     const bool write_back_cell_data) const;
 
     /**
-     * Process a sub-cell (3D).
+     * Process a sub-cell (3d).
      */
     void
-    process_sub_cell(const std::vector<value_type> & ls_values,
-                     const std::vector<Point<3>> &   points,
-                     const std::vector<unsigned int> mask,
-                     const double                    iso_level,
-                     std::vector<Point<3>> &         vertices,
-                     std::vector<CellData<2>> &      cells) const;
+    process_sub_cell(const std::vector<value_type> &  ls_values,
+                     const std::vector<Point<3>> &    points,
+                     const std::vector<unsigned int> &mask,
+                     const double                     iso_level,
+                     std::vector<Point<3>> &          vertices,
+                     std::vector<CellData<2>> &       cells,
+                     const bool write_back_cell_data) const;
 
     /**
      * Number of subdivisions each cell is subdivided into in each direction to
@@ -3448,7 +3884,7 @@ namespace GridTools
   /**
    * @name Exceptions
    */
-  /*@{*/
+  /** @{ */
 
   /**
    * Exception
@@ -3485,7 +3921,7 @@ namespace GridTools
                  << "The given vertex with index " << arg1
                  << " is not used in the given triangulation.");
 
-  /*@}*/
+  /** @} */
 
 } /*namespace GridTools*/
 
@@ -3525,7 +3961,7 @@ namespace GridTools
 
 
   // This specialization is defined here so that the general template in the
-  // source file doesn't need to have further 1D overloads for the internal
+  // source file doesn't need to have further 1d overloads for the internal
   // functions it calls.
   template <>
   inline Triangulation<1, 1>::DistortedCellList
@@ -3537,10 +3973,14 @@ namespace GridTools
 
 
 
-  template <int dim, typename Predicate, int spacedim>
-  void
-  transform(const Predicate &             predicate,
-            Triangulation<dim, spacedim> &triangulation)
+  template <int dim, typename Transformation, int spacedim>
+  DEAL_II_CXX20_REQUIRES(
+    (std::invocable<Transformation, Point<spacedim>> &&
+     std::assignable_from<
+       Point<spacedim> &,
+       std::invoke_result_t<Transformation, Point<spacedim>>>))
+  void transform(const Transformation &        transformation,
+                 Triangulation<dim, spacedim> &triangulation)
   {
     std::vector<bool> treated_vertices(triangulation.n_vertices(), false);
 
@@ -3558,7 +3998,7 @@ namespace GridTools
         if (treated_vertices[cell->vertex_index(v)] == false)
           {
             // transform this vertex
-            cell->vertex(v) = predicate(cell->vertex(v));
+            cell->vertex(v) = transformation(cell->vertex(v));
             // and mark it as treated
             treated_vertices[cell->vertex_index(v)] = true;
           };
@@ -3628,8 +4068,9 @@ namespace GridTools
 
 
   template <class MeshType>
-  std::vector<typename MeshType::active_cell_iterator>
-  get_active_child_cells(const typename MeshType::cell_iterator &cell)
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  std::vector<typename MeshType::active_cell_iterator> get_active_child_cells(
+    const typename MeshType::cell_iterator &cell)
   {
     std::vector<typename MeshType::active_cell_iterator> child_cells;
 
@@ -3654,8 +4095,8 @@ namespace GridTools
 
 
   template <class MeshType>
-  void
-  get_active_neighbors(
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  void get_active_neighbors(
     const typename MeshType::active_cell_iterator &       cell,
     std::vector<typename MeshType::active_cell_iterator> &active_neighbors)
   {
@@ -3706,6 +4147,15 @@ namespace GridTools
 
 
 
+  template <typename CellIterator>
+  std::size_t
+  PeriodicFacePair<CellIterator>::memory_consumption() const
+  {
+    return sizeof(*this) + matrix.memory_consumption();
+  }
+
+
+
   namespace internal
   {
     namespace ProjectToObject
@@ -3740,7 +4190,7 @@ namespace GridTools
 
       /**
        * Standard second-order approximation to the first derivative with a
-       * two-point centered scheme. This is used below in a 1D Newton method.
+       * two-point centered scheme. This is used below in a 1d Newton method.
        */
       template <typename F>
       inline auto
@@ -3755,7 +4205,7 @@ namespace GridTools
 
       /**
        * Standard second-order approximation to the second derivative with a
-       * three-point centered scheme. This is used below in a 1D Newton method.
+       * three-point centered scheme. This is used below in a 1d Newton method.
        */
       template <typename F>
       inline auto
@@ -3976,7 +4426,7 @@ namespace GridTools
       {
         using namespace internal::ProjectToObject;
         // Try to use the special flat algorithm for quads (this is better
-        // than the general algorithm in 3D). This does not take into account
+        // than the general algorithm in 3d). This does not take into account
         // whether projected_point is outside the quad, but we optimize along
         // lines below anyway:
         const int                      dim = Iterator::AccessorType::dimension;
@@ -4028,7 +4478,7 @@ namespace GridTools
             // function we can use gradient descent to minimize it.
             //
             // Of course, this is much simpler in the structdim = 1 case (we
-            // could rewrite the projection as a 1D optimization problem), but
+            // could rewrite the projection as a 1d optimization problem), but
             // to reduce the potential for bugs we use the same code in both
             // cases.
             const double step_size = object->diameter() / 64.0;
@@ -4248,55 +4698,13 @@ namespace GridTools
 
 
 
-  template <int dim, typename T>
-  template <class Archive>
-  void
-  CellDataTransferBuffer<dim, T>::save(Archive &ar,
-                                       const unsigned int /*version*/) const
-  {
-    Assert(cell_ids.size() == data.size(),
-           ExcDimensionMismatch(cell_ids.size(), data.size()));
-    // archive the cellids in an efficient binary format
-    const std::size_t n_cells = cell_ids.size();
-    ar &              n_cells;
-    for (const auto &id : cell_ids)
-      {
-        CellId::binary_type binary_cell_id = id.template to_binary<dim>();
-        ar &                binary_cell_id;
-      }
-
-    ar &data;
-  }
-
-
-
-  template <int dim, typename T>
-  template <class Archive>
-  void
-  CellDataTransferBuffer<dim, T>::load(Archive &ar,
-                                       const unsigned int /*version*/)
-  {
-    std::size_t n_cells;
-    ar &        n_cells;
-    cell_ids.clear();
-    cell_ids.reserve(n_cells);
-    for (unsigned int c = 0; c < n_cells; ++c)
-      {
-        CellId::binary_type value;
-        ar &                value;
-        cell_ids.emplace_back(value);
-      }
-    ar &data;
-  }
-
-
   namespace internal
   {
     template <typename DataType,
               typename MeshType,
               typename MeshCellIteratorType>
-    inline void
-    exchange_cell_data(
+    DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+    inline void exchange_cell_data(
       const MeshType &mesh,
       const std::function<
         std_cxx17::optional<DataType>(const MeshCellIteratorType &)> &pack,
@@ -4339,7 +4747,7 @@ namespace GridTools
             ExcMessage(
               "The functions GridTools::exchange_cell_data_to_ghosts() and "
               "GridTools::exchange_cell_data_to_level_ghosts() can only "
-              "operate on a single layer ghost cells. However, you have "
+              "operate on a single layer of ghost cells. However, you have "
               "given a Triangulation object of type "
               "parallel::shared::Triangulation without artificial cells "
               "resulting in arbitrary numbers of ghost layers."));
@@ -4355,10 +4763,13 @@ namespace GridTools
       for (const auto ghost_owner : ghost_owners)
         neighbor_cell_list[ghost_owner] = {};
 
-      process_cells([&](const auto &cell, const auto key) {
+      process_cells([&](const auto &cell, const auto key) -> void {
         if (cell_filter(cell))
-          neighbor_cell_list[key].emplace_back(
-            cell->id().template to_binary<spacedim>());
+          {
+            constexpr int spacedim = MeshType::space_dimension;
+            neighbor_cell_list[key].emplace_back(
+              cell->id().template to_binary<spacedim>());
+          }
       });
 
       Assert(ghost_owners.size() == neighbor_cell_list.size(),
@@ -4376,7 +4787,7 @@ namespace GridTools
       const int mpi_tag_reply =
         Utilities::MPI::internal::Tags::exchange_cell_data_reply;
 
-      // send our requests:
+      // send our requests
       std::vector<MPI_Request> requests(ghost_owners.size());
       {
         unsigned int idx = 0;
@@ -4395,16 +4806,7 @@ namespace GridTools
           }
       }
 
-      using DestinationToBufferMap =
-        std::map<dealii::types::subdomain_id,
-                 GridTools::CellDataTransferBuffer<dim, DataType>>;
-      DestinationToBufferMap destination_to_data_buffer_map;
-
-      // receive requests and reply with the ghost indices
-      std::vector<std::vector<typename CellId::binary_type>> cell_data_to_send(
-        ghost_owners.size());
-      std::vector<std::vector<types::global_dof_index>>
-        send_dof_numbers_and_indices(ghost_owners.size());
+      // receive requests and reply with the results
       std::vector<MPI_Request>       reply_requests(ghost_owners.size());
       std::vector<std::vector<char>> sendbuffers(ghost_owners.size());
 
@@ -4420,14 +4822,18 @@ namespace GridTools
           int len;
           ierr = MPI_Get_count(&status, MPI_BYTE, &len);
           AssertThrowMPI(ierr);
-          Assert(len % sizeof(cell_data_to_send[idx][0]) == 0,
+          Assert(len % sizeof(typename CellId::binary_type) == 0,
                  ExcInternalError());
 
           const unsigned int n_cells =
             len / sizeof(typename CellId::binary_type);
-          cell_data_to_send[idx].resize(n_cells);
+          std::vector<typename CellId::binary_type> cells_with_requests(
+            n_cells);
+          std::vector<DataType> data_to_send;
+          data_to_send.reserve(n_cells);
+          std::vector<bool> cell_carries_data(n_cells, false);
 
-          ierr = MPI_Recv(cell_data_to_send[idx].data(),
+          ierr = MPI_Recv(cells_with_requests.data(),
                           len,
                           MPI_BYTE,
                           status.MPI_SOURCE,
@@ -4440,34 +4846,46 @@ namespace GridTools
           for (unsigned int c = 0; c < static_cast<unsigned int>(n_cells); ++c)
             {
               const auto cell =
-                tria->create_cell_iterator(CellId(cell_data_to_send[idx][c]));
+                tria->create_cell_iterator(CellId(cells_with_requests[c]));
 
-              MeshCellIteratorType                mesh_it(tria,
+              MeshCellIteratorType mesh_it(tria,
                                            cell->level(),
                                            cell->index(),
                                            &mesh);
-              const std_cxx17::optional<DataType> data = pack(mesh_it);
 
+              const std_cxx17::optional<DataType> data = pack(mesh_it);
               if (data)
                 {
-                  typename DestinationToBufferMap::iterator p =
-                    destination_to_data_buffer_map
-                      .insert(std::make_pair(
-                        idx,
-                        GridTools::CellDataTransferBuffer<dim, DataType>()))
-                      .first;
-
-                  p->second.cell_ids.emplace_back(cell->id());
-                  p->second.data.emplace_back(*data);
+                  data_to_send.emplace_back(*data);
+                  cell_carries_data[c] = true;
                 }
             }
 
-          // send reply
-          GridTools::CellDataTransferBuffer<dim, DataType> &data =
-            destination_to_data_buffer_map[idx];
+          // collect data for sending the reply in a buffer
 
-          sendbuffers[idx] =
-            Utilities::pack(data, /*enable_compression*/ false);
+          // (a) make room for storing the local offsets in case we receive
+          // other data
+          sendbuffers[idx].resize(sizeof(std::size_t));
+
+          // (b) append the actual data and store how much memory it
+          // corresponds to, which we then insert into the leading position of
+          // the sendbuffer
+          std::size_t size_of_send =
+            Utilities::pack(data_to_send,
+                            sendbuffers[idx],
+                            /*enable_compression*/ false);
+          std::memcpy(sendbuffers[idx].data(),
+                      &size_of_send,
+                      sizeof(std::size_t));
+
+          // (c) append information of certain cells that got left out in case
+          // we need it
+          if (data_to_send.size() < n_cells)
+            Utilities::pack(cell_carries_data,
+                            sendbuffers[idx],
+                            /*enable_compression*/ false);
+
+          // send data
           ierr = MPI_Isend(sendbuffers[idx].data(),
                            sendbuffers[idx].size(),
                            MPI_BYTE,
@@ -4480,7 +4898,7 @@ namespace GridTools
 
       // finally receive the replies
       std::vector<char> receive;
-      for (unsigned int idx = 0; idx < ghost_owners.size(); ++idx)
+      for (unsigned int id = 0; id < neighbor_cell_list.size(); ++id)
         {
           MPI_Status status;
           int        ierr = MPI_Probe(MPI_ANY_SOURCE,
@@ -4495,8 +4913,7 @@ namespace GridTools
 
           receive.resize(len);
 
-          char *ptr = receive.data();
-          ierr      = MPI_Recv(ptr,
+          ierr = MPI_Recv(receive.data(),
                           len,
                           MPI_BYTE,
                           status.MPI_SOURCE,
@@ -4505,23 +4922,52 @@ namespace GridTools
                           &status);
           AssertThrowMPI(ierr);
 
-          auto cellinfo =
-            Utilities::unpack<CellDataTransferBuffer<dim, DataType>>(
-              receive, /*enable_compression*/ false);
+          // (a) first determine the length of the data section in the
+          // received buffer
+          auto        data_iterator = receive.begin();
+          std::size_t size_of_received_data =
+            Utilities::unpack<std::size_t>(data_iterator,
+                                           data_iterator + sizeof(std::size_t));
+          data_iterator += sizeof(std::size_t);
 
-          DataType *data = cellinfo.data.data();
-          for (unsigned int c = 0; c < cellinfo.cell_ids.size(); ++c, ++data)
+          // (b) unpack the data section in the indicated region
+          auto received_data = Utilities::unpack<std::vector<DataType>>(
+            data_iterator,
+            data_iterator + size_of_received_data,
+            /*enable_compression*/ false);
+          data_iterator += size_of_received_data;
+
+          // (c) check if the received data contained fewer entries than the
+          // number of cells we identified in the beginning, in which case we
+          // need to extract the boolean vector with the relevant information
+          const std::vector<typename CellId::binary_type> &this_cell_list =
+            neighbor_cell_list[status.MPI_SOURCE];
+          AssertIndexRange(received_data.size(), this_cell_list.size() + 1);
+          std::vector<bool> cells_with_data;
+          if (received_data.size() < this_cell_list.size())
             {
-              const typename Triangulation<dim, spacedim>::cell_iterator
-                tria_cell = tria->create_cell_iterator(cellinfo.cell_ids[c]);
-
-              MeshCellIteratorType cell(tria,
-                                        tria_cell->level(),
-                                        tria_cell->index(),
-                                        &mesh);
-
-              unpack(cell, *data);
+              cells_with_data = Utilities::unpack<std::vector<bool>>(
+                data_iterator, receive.end(), /*enable_compression*/ false);
+              AssertDimension(cells_with_data.size(), this_cell_list.size());
             }
+
+          // (d) go through the received data and call the user-provided
+          // unpack function
+          auto received_data_iterator = received_data.begin();
+          for (unsigned int c = 0; c < this_cell_list.size(); ++c)
+            if (cells_with_data.empty() || cells_with_data[c])
+              {
+                const typename Triangulation<dim, spacedim>::cell_iterator
+                  tria_cell = tria->create_cell_iterator(this_cell_list[c]);
+
+                MeshCellIteratorType cell(tria,
+                                          tria_cell->level(),
+                                          tria_cell->index(),
+                                          &mesh);
+
+                unpack(cell, *received_data_iterator);
+                ++received_data_iterator;
+              }
         }
 
       // make sure that all communication is finished
@@ -4547,8 +4993,8 @@ namespace GridTools
   } // namespace internal
 
   template <typename DataType, typename MeshType>
-  inline void
-  exchange_cell_data_to_ghosts(
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  inline void exchange_cell_data_to_ghosts(
     const MeshType &                                     mesh,
     const std::function<std_cxx17::optional<DataType>(
       const typename MeshType::active_cell_iterator &)> &pack,
@@ -4583,8 +5029,8 @@ namespace GridTools
 
 
   template <typename DataType, typename MeshType>
-  inline void
-  exchange_cell_data_to_level_ghosts(
+  DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
+  inline void exchange_cell_data_to_level_ghosts(
     const MeshType &                                    mesh,
     const std::function<std_cxx17::optional<DataType>(
       const typename MeshType::level_cell_iterator &)> &pack,
@@ -4609,9 +5055,7 @@ namespace GridTools
       cell_filter,
       [&](const auto &process) {
         for (const auto &cell : mesh.cell_iterators())
-          if (cell->level_subdomain_id() !=
-                dealii::numbers::artificial_subdomain_id &&
-              !cell->is_locally_owned_on_level())
+          if (cell->is_ghost_on_level())
             process(cell, cell->level_subdomain_id());
       },
       [](const auto &tria) { return tria.level_ghost_owners(); });

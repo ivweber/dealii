@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,7 @@
 
 #include <deal.II/dofs/dof_accessor.h>
 
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -26,8 +27,8 @@ namespace parallel
 {
   template <int dim, int spacedim>
   CellWeights<dim, spacedim>::CellWeights(
-    const dealii::DoFHandler<dim, spacedim> &dof_handler,
-    const WeightingFunction &                weighting_function)
+    const DoFHandler<dim, spacedim> &dof_handler,
+    const WeightingFunction &        weighting_function)
   {
     reinit(dof_handler, weighting_function);
   }
@@ -50,7 +51,7 @@ namespace parallel
       &weighting_function)
   {
     connection.disconnect();
-    connection = dof_handler.get_triangulation().signals.cell_weight.connect(
+    connection = dof_handler.get_triangulation().signals.weight.connect(
       make_weighting_callback(dof_handler, weighting_function));
   }
 

@@ -16,6 +16,9 @@
 #include <deal.II/base/bounding_box.h>
 #include <deal.II/base/geometry_info.h>
 
+#include <limits>
+#include <numeric>
+
 DEAL_II_NAMESPACE_OPEN
 
 template <int spacedim, typename Number>
@@ -28,12 +31,9 @@ BoundingBox<spacedim, Number>::point_inside(const Point<spacedim, Number> &p,
       // Bottom left-top right convention: the point is outside if it's smaller
       // than the first or bigger than the second boundary point The bounding
       // box is defined as a closed set
-      if ((p[i] < this->boundary_points.first[i] -
-                    tolerance * std::abs(this->boundary_points.second[i] -
-                                         this->boundary_points.first[i])) ||
-          (p[i] > this->boundary_points.second[i] +
-                    tolerance * std::abs(this->boundary_points.second[i] -
-                                         this->boundary_points.first[i])))
+      if ((p[i] <
+           this->boundary_points.first[i] - tolerance * side_length(i)) ||
+          (p[i] > this->boundary_points.second[i] + tolerance * side_length(i)))
         return false;
     }
   return true;
@@ -57,21 +57,38 @@ BoundingBox<spacedim, Number>::merge_with(
     }
 }
 
-
+template <int spacedim, typename Number>
+bool
+BoundingBox<spacedim, Number>::has_overlap_with(
+  const BoundingBox<spacedim, Number> &other_bbox,
+  const double                         tolerance) const
+{
+  for (unsigned int i = 0; i < spacedim; ++i)
+    {
+      // testing if the boxes are close enough to intersect
+      if ((other_bbox.boundary_points.second[i] <
+           this->boundary_points.first[i] - tolerance * side_length(i)) ||
+          (other_bbox.boundary_points.first[i] >
+           this->boundary_points.second[i] + tolerance * side_length(i)))
+        return false;
+    }
+  return true;
+}
 
 template <int spacedim, typename Number>
 NeighborType
 BoundingBox<spacedim, Number>::get_neighbor_type(
-  const BoundingBox<spacedim, Number> &other_bbox) const
+  const BoundingBox<spacedim, Number> &other_bbox,
+  const double                         tolerance) const
 {
+  if (!has_overlap_with(other_bbox, tolerance))
+    return NeighborType::not_neighbors;
+
   if (spacedim == 1)
     {
       // In dimension 1 if the two bounding box are neighbors
       // we can merge them
-      if (this->point_inside(other_bbox.boundary_points.first) ||
-          this->point_inside(other_bbox.boundary_points.second))
-        return NeighborType::mergeable_neighbors;
-      return NeighborType::not_neighbors;
+      return NeighborType::mergeable_neighbors;
     }
   else
     {
@@ -81,14 +98,6 @@ BoundingBox<spacedim, Number>::get_neighbor_type(
       const std::array<Point<spacedim, Number>, 2> bbox2 = {
         {other_bbox.get_boundary_points().first,
          other_bbox.get_boundary_points().second}};
-
-      // Step 1: testing if the boxes are close enough to intersect
-      for (unsigned int d = 0; d < spacedim; ++d)
-        if (bbox1[0][d] * (1 - std::numeric_limits<Number>::epsilon()) >
-              bbox2[1][d] ||
-            bbox2[0][d] * (1 - std::numeric_limits<Number>::epsilon()) >
-              bbox1[1][d])
-          return NeighborType::not_neighbors;
 
       // The boxes intersect: we need to understand now how they intersect.
       // We begin by computing the intersection:
@@ -104,9 +113,8 @@ BoundingBox<spacedim, Number>::get_neighbor_type(
       int intersect_dim = spacedim;
       for (unsigned int d = 0; d < spacedim; ++d)
         if (std::abs(intersect_bbox_min[d] - intersect_bbox_max[d]) <=
-            std::numeric_limits<Number>::epsilon() *
-              (std::abs(intersect_bbox_min[d]) +
-               std::abs(intersect_bbox_max[d])))
+            tolerance * (std::abs(intersect_bbox_min[d]) +
+                         std::abs(intersect_bbox_max[d])))
           --intersect_dim;
 
       if (intersect_dim == 0 || intersect_dim == spacedim - 2)
@@ -119,12 +127,10 @@ BoundingBox<spacedim, Number>::get_neighbor_type(
       for (unsigned int d = 0; d < spacedim; ++d)
         {
           if (std::abs(bbox2[0][d] - bbox1[0][d]) >
-              std::numeric_limits<double>::epsilon() *
-                (std::abs(bbox2[0][d]) + std::abs(bbox1[0][d])))
+              tolerance * (std::abs(bbox2[0][d]) + std::abs(bbox1[0][d])))
             ++not_align_1;
           if (std::abs(bbox1[1][d] - bbox2[1][d]) >
-              std::numeric_limits<double>::epsilon() *
-                (std::abs(bbox1[1][d]) + std::abs(bbox2[1][d])))
+              tolerance * (std::abs(bbox1[1][d]) + std::abs(bbox2[1][d])))
             ++not_align_2;
           if (not_align_1 != not_align_2)
             {
@@ -138,8 +144,8 @@ BoundingBox<spacedim, Number>::get_neighbor_type(
 
       // Second: one box is contained/equal to the other
       if ((this->point_inside(bbox2[0]) && this->point_inside(bbox2[1])) ||
-          (other_bbox.point_inside(bbox1[0]) &&
-           other_bbox.point_inside(bbox1[1])))
+          (other_bbox.point_inside(bbox1[0], tolerance) &&
+           other_bbox.point_inside(bbox1[1], tolerance)))
         return NeighborType::mergeable_neighbors;
 
       // Degenerate and mergeable cases have been found, it remains:
@@ -326,6 +332,61 @@ BoundingBox<spacedim, Number>::unit_to_real(
   for (unsigned int d = 0; d < spacedim; ++d)
     real[d] += diag[d] * point[d];
   return real;
+}
+
+
+
+template <int spacedim, typename Number>
+Number
+BoundingBox<spacedim, Number>::signed_distance(
+  const Point<spacedim, Number> &point,
+  const unsigned int             direction) const
+{
+  const Number p1 = lower_bound(direction);
+  const Number p2 = upper_bound(direction);
+
+  if (point[direction] > p2)
+    return point[direction] - p2;
+  else if (point[direction] < p1)
+    return p1 - point[direction];
+  else
+    return -std::min(point[direction] - p1, p2 - point[direction]);
+}
+
+
+
+template <int spacedim, typename Number>
+Number
+BoundingBox<spacedim, Number>::signed_distance(
+  const Point<spacedim, Number> &point) const
+{
+  // calculate vector of orthogonal signed distances
+  std::array<Number, spacedim> distances;
+  for (unsigned int d = 0; d < spacedim; ++d)
+    distances[d] = signed_distance(point, d);
+
+  // determine the number of positive signed distances
+  const unsigned int n_positive_signed_distances =
+    std::count_if(distances.begin(), distances.end(), [](const auto &a) {
+      return a > 0.0;
+    });
+
+  if (n_positive_signed_distances <= 1)
+    // point is inside of bounding box (0: all signed distances are
+    // negative; find the index with the smallest absolute value)
+    // or next to a face (1: all signed distances are negative
+    // but one; find this index)
+    return *std::max_element(distances.begin(), distances.end());
+  else
+    // point is next to a corner (2D/3D: all signed distances are
+    // positive) or a line (3D: all signed distances are positive
+    // but one) -> take the l2-norm of all positive signed distances
+    return std::sqrt(std::accumulate(distances.begin(),
+                                     distances.end(),
+                                     0.0,
+                                     [](const auto &a, const auto &b) {
+                                       return a + (b > 0 ? b * b : 0.0);
+                                     }));
 }
 
 

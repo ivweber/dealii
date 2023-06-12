@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -50,7 +50,7 @@ namespace internal
         post_unpack_action(std::vector<VectorType *> &all_out)
         {
           for (auto &out : all_out)
-            out->compress(::dealii::VectorOperation::insert);
+            out->compress(VectorOperation::insert);
         }
 
         template <typename value_type>
@@ -103,6 +103,10 @@ namespace parallel
         const_cast<parallel::distributed::Triangulation<dim, spacedim> *>(
           &(*triangulation));
       Assert(tria != nullptr, ExcInternalError());
+
+      Assert(handle == numbers::invalid_unsigned_int,
+             ExcMessage("You can only add one data container per "
+                        "CellDataTransfer object."));
 
       handle = tria->register_data_attach(
         [this](const typename parallel::distributed::
@@ -193,6 +197,7 @@ namespace parallel
         post_unpack_action(all_out);
 
       input_vectors.clear();
+      handle = numbers::invalid_unsigned_int;
     }
 
 

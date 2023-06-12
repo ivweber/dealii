@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2019 by the deal.II authors
+// Copyright (C) 2004 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,7 +27,7 @@ namespace LACExceptions
   /**
    * @addtogroup Exceptions
    */
-  //@{
+  /** @{ */
 
   /**
    * This function only works for quadratic matrices.
@@ -83,7 +83,7 @@ namespace LACExceptions
                  << "An error with error number " << arg1
                  << " occurred while calling a Trilinos function");
 
-  //@}
+  /** @} */
 } // namespace LACExceptions
 
 

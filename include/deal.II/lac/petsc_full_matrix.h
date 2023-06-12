@@ -14,15 +14,15 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_petsc_full_matrix_h
-#  define dealii_petsc_full_matrix_h
+#define dealii_petsc_full_matrix_h
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  ifdef DEAL_II_WITH_PETSC
+#ifdef DEAL_II_WITH_PETSC
 
-#    include <deal.II/lac/exceptions.h>
-#    include <deal.II/lac/petsc_matrix_base.h>
+#  include <deal.II/lac/exceptions.h>
+#  include <deal.II/lac/petsc_matrix_base.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -30,8 +30,9 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace PETScWrappers
 {
-  /*! @addtogroup PETScWrappers
-   *@{
+  /**
+   * @addtogroup PETScWrappers
+   * @{
    */
 
   /**
@@ -75,14 +76,6 @@ namespace PETScWrappers
     reinit(const size_type m, const size_type n);
 
 
-    /**
-     * Return a reference to the MPI communicator object in use with this
-     * matrix. Since this is a sequential matrix, it returns the MPI_COMM_SELF
-     * communicator.
-     */
-    virtual const MPI_Comm &
-    get_mpi_communicator() const override;
-
   private:
     /**
      * Do the actual work for the respective reinit() function and the
@@ -93,13 +86,12 @@ namespace PETScWrappers
     do_reinit(const size_type m, const size_type n);
   };
 
-  /*@}*/
+  /** @} */
 } // namespace PETScWrappers
 
 
 DEAL_II_NAMESPACE_CLOSE
 
-#  endif // DEAL_II_WITH_PETSC
+#endif // DEAL_II_WITH_PETSC
 
 #endif
-/*---------------------------- petsc_full_matrix.h --------------------------*/

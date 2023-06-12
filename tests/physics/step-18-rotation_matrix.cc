@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2017 - 2020 by the deal.II authors
+ * Copyright (C) 2017 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -482,7 +482,7 @@ namespace Step18
                                  1e-16 * system_rhs.l2_norm(),
                                  false,
                                  false);
-    PETScWrappers::SolverCG                cg(solver_control, mpi_communicator);
+    PETScWrappers::SolverCG                cg(solver_control);
     PETScWrappers::PreconditionBlockJacobi preconditioner(system_matrix);
     cg.solve(system_matrix,
              distributed_incremental_displacement,

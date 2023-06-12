@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -871,7 +871,7 @@ TimeStepBase_Tria<dim>::refine_grid(const RefinementData refinement_data)
         // steps for the previous grid
         //
         // use a double value since for each
-        // four cells (in 2D) that we flagged
+        // four cells (in 2d) that we flagged
         // for coarsening we result in one
         // new. but since we loop over flagged
         // cells, we have to subtract 3/4 of
@@ -928,11 +928,11 @@ TimeStepBase_Tria<dim>::refine_grid(const RefinementData refinement_data)
           (sweep_no >= refinement_flags.correction_relaxations.size() ?
              refinement_flags.correction_relaxations.back() :
              refinement_flags.correction_relaxations[sweep_no]);
-        for (unsigned int r = 0; r != relaxations.size(); ++r)
-          if (n_active_cells < relaxations[r].first)
+        for (const auto &relaxation : relaxations)
+          if (n_active_cells < relaxation.first)
             {
-              delta_up *= relaxations[r].second;
-              delta_down *= relaxations[r].second;
+              delta_up *= relaxation.second;
+              delta_down *= relaxation.second;
               break;
             }
 

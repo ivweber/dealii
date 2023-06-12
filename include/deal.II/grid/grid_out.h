@@ -32,6 +32,7 @@ DEAL_II_NAMESPACE_OPEN
 #ifndef DOXYGEN
 class ParameterHandler;
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class Triangulation;
 template <int dim, int spacedim>
 class Mapping;
@@ -655,19 +656,19 @@ namespace GridOutFlags
   struct Svg
   {
     /**
-     *  Height of the plot in SVG units, computed from width if zero. Defaults
-     *  to 1000.
+     * Height of the plot in SVG units, computed from width if zero. Defaults
+     * to 1000.
      */
     unsigned int height;
 
     /**
-     *  The width of the plot. Computed automatically from height if zero
-     *  (default).
+     * The width of the plot. Computed automatically from height if zero
+     * (default).
      */
     unsigned int width;
 
     /**
-     *  Thickness of the lines between cells.
+     * Thickness of the lines between cells.
      */
     unsigned int line_thickness;
     /**
@@ -676,7 +677,7 @@ namespace GridOutFlags
     unsigned int boundary_line_thickness;
 
     /**
-     *  Margin around the plotted area.
+     * Margin around the plotted area.
      */
     bool margin;
 
@@ -930,7 +931,7 @@ namespace GridOutFlags
  * if you know which format you want to have, or if you want the format to be
  * a runtime parameter, you can write
  * @code
- *   GridOut::OutputFormat grid_format =
+ *   GridOut::OutputFormat output_format =
  *     GridOut::parse_output_format(get_format_name_from_somewhere());
  *   std::ofstream output_file("some_filename"
  *                             + GridOut::default_suffix(output_format));

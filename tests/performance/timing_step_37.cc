@@ -27,17 +27,16 @@
 #include <deal.II/base/function.h>
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/quadrature_lib.h>
-#include <deal.II/base/tensor_function.h>
 #include <deal.II/base/timer.h>
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/distributed/tria.h>
 
 #include <deal.II/dofs/dof_handler.h>
+#include <deal.II/dofs/dof_renumbering.h>
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_q.h>
-#include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/grid/grid_generator.h>
@@ -59,7 +58,6 @@
 #include <deal.II/multigrid/mg_transfer_matrix_free.h>
 #include <deal.II/multigrid/multigrid.h>
 
-#include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/vector_tools.h>
 
 #include <fstream>
@@ -172,7 +170,7 @@ LaplaceOperator<dim, fe_degree, number>::vmult(
   const LinearAlgebra::distributed::Vector<number> &src) const
 {
   this->data->cell_loop(&LaplaceOperator::local_apply, this, dst, src, true);
-  for (unsigned int i : this->data->get_constrained_dofs())
+  for (const unsigned int i : this->data->get_constrained_dofs())
     dst.local_element(i) = src.local_element(i);
 }
 
@@ -194,7 +192,7 @@ LaplaceOperator<dim, fe_degree, number>::vmult(
                         src,
                         operation_before_loop,
                         operation_after_loop);
-  for (unsigned int i : this->data->get_constrained_dofs())
+  for (const unsigned int i : this->data->get_constrained_dofs())
     dst.local_element(i) = src.local_element(i);
 }
 
@@ -412,6 +410,34 @@ LaplaceProblem<dim>::setup_dofs()
   VectorTools::interpolate_boundary_values(
     mapping, dof_handler, 0, Functions::ZeroFunction<dim>(), constraints);
   constraints.close();
+
+  // Renumber DoFs
+  typename MatrixFree<dim, float>::AdditionalData additional_data;
+  additional_data.tasks_parallel_scheme =
+    MatrixFree<dim, float>::AdditionalData::none;
+
+  const std::set<types::boundary_id> dirichlet_boundary = {0};
+  mg_constrained_dofs.initialize(dof_handler);
+  mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
+                                                     dirichlet_boundary);
+
+  for (unsigned int level = 0; level < triangulation.n_global_levels(); ++level)
+    {
+      IndexSet relevant_dofs;
+      DoFTools::extract_locally_relevant_level_dofs(dof_handler,
+                                                    level,
+                                                    relevant_dofs);
+      AffineConstraints<double> level_constraints;
+      level_constraints.reinit(relevant_dofs);
+      level_constraints.add_lines(
+        mg_constrained_dofs.get_boundary_indices(level));
+      level_constraints.close();
+      additional_data.mg_level = level;
+
+      DoFRenumbering::matrix_free_data_locality(dof_handler,
+                                                level_constraints,
+                                                additional_data);
+    }
 }
 
 
@@ -441,8 +467,7 @@ LaplaceProblem<dim>::setup_matrix_free()
   const unsigned int nlevels = triangulation.n_global_levels();
   mg_matrices.resize(0, nlevels - 1);
 
-  std::set<types::boundary_id> dirichlet_boundary;
-  dirichlet_boundary.insert(0);
+  const std::set<types::boundary_id> dirichlet_boundary = {0};
   mg_constrained_dofs.initialize(dof_handler);
   mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
                                                      dirichlet_boundary);

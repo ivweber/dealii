@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,15 +21,12 @@
 #include <deal.II/base/convergence_table.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/function_parser.h>
-#include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/quadrature_lib.h>
-#include <deal.II/base/utilities.h>
 
 #include <deal.II/dofs/dof_handler.h>
 
-#include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping.h>
 
-#include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 
 #include <deal.II/lac/vector.h>
@@ -37,6 +34,10 @@
 #include <deal.II/numerics/vector_tools_integrate_difference.h>
 
 DEAL_II_NAMESPACE_OPEN
+
+#ifndef DOXYGEN
+class ParameterHandler;
+#endif
 
 /**
  * @brief The ParsedConvergenceTable class
@@ -608,9 +609,9 @@ ParsedConvergenceTable::error_from_exact(const Mapping<dim, spacedim> &mapping,
             continue;
 
           auto components_expr = zero_components;
-          for (unsigned int i = 0; i < n_components; ++i)
-            if (mask[i] == true)
-              components_expr[i] = weight_components[i];
+          for (unsigned int j = 0; j < n_components; ++j)
+            if (mask[j] == true)
+              components_expr[j] = weight_components[j];
 
           FunctionFromFunctionObjects<spacedim> select_component(
             components_expr);

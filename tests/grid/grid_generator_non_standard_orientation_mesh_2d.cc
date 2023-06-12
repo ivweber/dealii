@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,8 +29,6 @@
 
 // STL
 #include <map>
-
-std::ofstream logfile("output");
 
 using namespace dealii;
 
@@ -69,9 +67,9 @@ plot_all_info(const Triangulation<dim> &tria)
 int
 main(int /*argc*/, char ** /*argv*/)
 {
+  initlog();
   deallog << std::setprecision(PRECISION);
   deallog << std::fixed;
-  deallog.attach(logfile);
 
   /*
    * 2D test only

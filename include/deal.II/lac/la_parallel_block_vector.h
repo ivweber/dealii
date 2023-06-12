@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -60,8 +60,9 @@ namespace LinearAlgebra
 {
   namespace distributed
   {
-    /*! @addtogroup Vectors
-     *@{
+    /**
+     * @addtogroup Vectors
+     * @{
      */
 
 
@@ -125,7 +126,7 @@ namespace LinearAlgebra
       /**
        * @name 1: Basic operations
        */
-      //@{
+      /** @{ */
 
       /**
        * Constructor. There are three ways to use this constructor. First,
@@ -167,13 +168,29 @@ namespace LinearAlgebra
        */
       BlockVector(const std::vector<IndexSet> &local_ranges,
                   const std::vector<IndexSet> &ghost_indices,
-                  const MPI_Comm &             communicator);
+                  const MPI_Comm               communicator);
 
       /**
        * Same as above but the ghost indices are assumed to be empty.
        */
       BlockVector(const std::vector<IndexSet> &local_ranges,
-                  const MPI_Comm &             communicator);
+                  const MPI_Comm               communicator);
+
+      /**
+       * Construct a block vector with a Utilities::MPI::Partitioner for each
+       * block.
+       *
+       * The optional argument @p comm_sm, which consists of processes on
+       * the same shared-memory domain, allows users have read-only access to
+       * both locally-owned and ghost values of processes combined in the
+       * shared-memory communicator. See the general documentation of the
+       * LinearAlgebra::distributed::Vector class for more information about
+       * this argument.
+       */
+      BlockVector(
+        const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+          &             partitioners,
+        const MPI_Comm &comm_sm = MPI_COMM_SELF);
 
       /**
        * Destructor.
@@ -276,7 +293,7 @@ namespace LinearAlgebra
        * be routed to the wrong block.
        */
       void
-      reinit(const std::vector<size_type> &N,
+      reinit(const std::vector<size_type> &block_sizes,
              const bool                    omit_zeroing_entries = false);
 
       /**
@@ -297,6 +314,54 @@ namespace LinearAlgebra
       void
       reinit(const BlockVector<Number2> &V,
              const bool                  omit_zeroing_entries = false);
+
+      /**
+       * Initialize the block vector. For each block, the local range is
+       * specified by the corresponding entry in @p local_ranges (note that this
+       * must be a contiguous interval, multiple intervals are not possible).
+       * The parameter @p ghost_indices specifies ghost indices for each block,
+       * i.e., indices which one might need to read data from or accumulate data
+       * from. It is allowed that the set of ghost indices also contains the
+       * local range, but it does not need to.
+       *
+       * This function involves global communication, so it should only be
+       * called once for a given layout. Use the @p reinit function with
+       * BlockVector<Number> argument to create additional vectors with the same
+       * parallel layout.
+       *
+       * @see
+       * @ref GlossGhostedVector "vectors with ghost elements"
+       */
+      void
+      reinit(const std::vector<IndexSet> &local_ranges,
+             const std::vector<IndexSet> &ghost_indices,
+             const MPI_Comm               communicator);
+
+      /**
+       * Same as above, but without ghost entries.
+       */
+      void
+      reinit(const std::vector<IndexSet> &local_ranges,
+             const MPI_Comm               communicator);
+
+      /**
+       * Initialize each block with the corresponding parallel partitioning
+       * in @p partitioners. The input arguments are shared pointers, which
+       * store the partitioner data only once and can be shared between several
+       * vectors with the same layout.
+       *
+       * The optional argument @p comm_sm, which consists of processes on
+       * the same shared-memory domain, allows users have read-only access to
+       * both locally-owned and ghost values of processes combined in the
+       * shared-memory communicator. See the general documentation of the
+       * LinearAlgebra::distributed::Vector class for more information about
+       * this argument.
+       */
+      void
+      reinit(
+        const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+          &             partitioners,
+        const MPI_Comm &comm_sm = MPI_COMM_SELF);
 
       /**
        * This function copies the data that has accumulated in the data buffer
@@ -322,7 +387,7 @@ namespace LinearAlgebra
        * elements do not agree.
        */
       virtual void
-      compress(::dealii::VectorOperation::values operation) override;
+      compress(VectorOperation::values operation) override;
 
       /**
        * Fills the data field for ghost indices with the values stored in the
@@ -361,10 +426,16 @@ namespace LinearAlgebra
       zero_out_ghost_values() const;
 
       /**
-       * Return if this Vector contains ghost elements.
+       * Return if any of the blocks in this vector contains ghost elements.
        */
       bool
       has_ghost_elements() const;
+
+      /**
+       * Change the ghost state of all blocks in this vector to @p ghosted.
+       */
+      void
+      set_ghost_state(const bool ghosted) const;
 
       /**
        * This method copies the data in the locally owned range from another
@@ -440,12 +511,12 @@ namespace LinearAlgebra
        */
       void
       swap(BlockVector<Number> &v);
-      //@}
+      /** @} */
 
       /**
        * @name 2: Implementation of VectorSpaceVector
        */
-      //@{
+      /** @{ */
 
       /**
        * Change the dimension to that of the vector V. The elements of V are not
@@ -488,10 +559,23 @@ namespace LinearAlgebra
        * improve performance.
        */
       virtual void
+      import_elements(
+        const LinearAlgebra::ReadWriteVector<Number> &V,
+        VectorOperation::values                       operation,
+        std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
+          communication_pattern = {}) override;
+
+      /**
+       * @deprecated Use import_elements() instead.
+       */
+      DEAL_II_DEPRECATED_EARLY virtual void
       import(const LinearAlgebra::ReadWriteVector<Number> &V,
              VectorOperation::values                       operation,
              std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-               communication_pattern = {}) override;
+               communication_pattern = {}) override
+      {
+        import_elements(V, operation, communication_pattern);
+      }
 
       /**
        * Return the scalar product of two vectors.
@@ -698,7 +782,7 @@ namespace LinearAlgebra
        */
       virtual std::size_t
       memory_consumption() const override;
-      //@}
+      /** @} */
 
       /**
        * @addtogroup Exceptions
@@ -716,10 +800,10 @@ namespace LinearAlgebra
        * Exception
        */
       DeclException0(ExcIteratorRangeDoesNotMatchVectorSize);
-      //@}
+      /** @} */
     };
 
-    /*@}*/
+    /** @} */
 
   } // end of namespace distributed
 

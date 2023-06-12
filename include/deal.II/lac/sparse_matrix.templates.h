@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -168,14 +168,14 @@ namespace internal
     using size_type = types::global_dof_index;
 
     template <typename T>
-    typename std::enable_if<std::is_trivial<T>::value>::type
+    std::enable_if_t<std::is_trivial<T>::value>
     zero_subrange(const size_type begin, const size_type end, T *dst)
     {
       std::memset(dst + begin, 0, (end - begin) * sizeof(T));
     }
 
     template <typename T>
-    typename std::enable_if<!std::is_trivial<T>::value>::type
+    std::enable_if_t<!std::is_trivial<T>::value>
     zero_subrange(const size_type begin, const size_type end, T *dst)
     {
       std::fill(dst + begin, dst + end, 0);
@@ -219,11 +219,7 @@ SparseMatrix<number>::operator=(const double d)
       grain_size);
   else if (matrix_size > 0)
     {
-#ifdef DEAL_II_HAVE_CXX17
-      if constexpr (std::is_trivial<number>::value)
-#else
-      if (std::is_trivial<number>::value)
-#endif
+      if DEAL_II_CONSTEXPR_IN_CONDITIONAL (std::is_trivial<number>::value)
         std::memset(val.get(), 0, matrix_size * sizeof(number));
       else
         std::fill(val.get(), val.get() + matrix_size, 0);
@@ -578,7 +574,12 @@ SparseMatrix<number>::add(const size_type  row,
               ++post_diag;
             }
 
-          // add indices before diagonal
+          // Add indices before diagonal. Because the input array
+          // is sorted, and because the entries in this matrix row
+          // are sorted, we can just linearly walk the colnums array
+          // and the input array in parallel, stopping whenever the
+          // former matches the column index of the next index in
+          // the input array:
           size_type counter = 1;
           for (size_type i = 0; i < diag; ++i)
             {
@@ -593,7 +594,7 @@ SparseMatrix<number>::add(const size_type  row,
               val_ptr[counter] += values[i];
             }
 
-          // add indices after diagonal
+          // Then do the same to add indices after the diagonal:
           for (size_type i = post_diag; i < n_cols; ++i)
             {
               while (this_cols[counter] < col_indices[i] &&
@@ -613,6 +614,9 @@ SparseMatrix<number>::add(const size_type  row,
         }
       else
         {
+          // Use the same algorithm as above, but because the matrix is
+          // not square, we can now do without the split for diagonal/
+          // entries before the diagional/entries are the diagonal.
           size_type counter = 0;
           for (size_type i = 0; i < n_cols; ++i)
             {
@@ -2073,7 +2077,7 @@ SparseMatrix<number>::block_read(std::istream &in)
 
 
 template <typename number>
-void SparseMatrix<number>::compress(::dealii::VectorOperation::values)
+void SparseMatrix<number>::compress(VectorOperation::values)
 {}
 
 

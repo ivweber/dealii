@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,7 +51,7 @@ namespace TrilinosWrappers
   /**
    * @name Creation of a LinearOperator
    */
-  //@{
+  /** @{ */
 
 
   /**
@@ -149,11 +149,11 @@ namespace TrilinosWrappers
   }
 
 
-  //@}
+  /** @} */
   /**
    * @name Creation of a BlockLinearOperator
    */
-  //@{
+  /** @{ */
 
 
   /**
@@ -302,7 +302,7 @@ namespace TrilinosWrappers
     return dealii::block_diagonal_operator<m, Range, Domain, BlockPayload>(ops);
   }
 
-  //@}
+  /** @} */
 
 } // namespace TrilinosWrappers
 

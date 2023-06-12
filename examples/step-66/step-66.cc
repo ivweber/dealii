@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2021 by the deal.II authors
+ * Copyright (C) 2021 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -399,7 +399,7 @@ namespace Step66
 
     // For the parallel computation we define a
     // parallel::distributed::Triangulation. As the computational domain is a
-    // circle in 2D and a ball in 3D, we assign in addition to the
+    // circle in 2d and a ball in 3d, we assign in addition to the
     // SphericalManifold for boundary cells a TransfiniteInterpolationManifold
     // object for the mapping of the inner cells, which takes care of the inner
     // cells. In this example we use an isoparametric finite element approach
@@ -582,11 +582,10 @@ namespace Step66
     mg_matrices.resize(0, nlevels - 1);
     mg_solution.resize(0, nlevels - 1);
 
-    std::set<types::boundary_id> dirichlet_boundary;
-    dirichlet_boundary.insert(0);
+    const std::set<types::boundary_id> dirichlet_boundary_ids = {0};
     mg_constrained_dofs.initialize(dof_handler);
     mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
-                                                       dirichlet_boundary);
+                                                       dirichlet_boundary_ids);
 
     mg_transfer.initialize_constraints(mg_constrained_dofs);
     mg_transfer.build(dof_handler);
@@ -1037,7 +1036,7 @@ namespace Step66
                            DataOut<dim>::curved_inner_cells);
 
     DataOutBase::VtkFlags flags;
-    flags.compression_level = DataOutBase::VtkFlags::best_speed;
+    flags.compression_level = DataOutBase::CompressionLevel::best_speed;
     data_out.set_flags(flags);
     data_out.write_vtu_with_pvtu_record(
       "./", "solution_" + std::to_string(dim) + "d", cycle, MPI_COMM_WORLD, 3);
@@ -1155,7 +1154,7 @@ namespace Step66
 // framework and disable shared-memory parallelization by limiting the number of
 // threads to one. Finally to run the solver for the <i>Gelfand problem</i> we
 // create an object of the <code>GelfandProblem</code> class and call the run
-// function. Exemplarily we solve the problem once in 2D and once in 3D each
+// function. Exemplarily we solve the problem once in 2d and once in 3d each
 // with fourth-order Lagrangian finite elements.
 int main(int argc, char *argv[])
 {

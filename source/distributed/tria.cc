@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2021 by the deal.II authors
+// Copyright (C) 2008 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,12 +27,10 @@
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
-#include <deal.II/lac/sparsity_tools.h>
-
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <numeric>
 
 
@@ -585,7 +583,7 @@ namespace
 
   public:
     /**
-     * Callback exectuted before point function. Last argument is always
+     * Callback executed before point function. Last argument is always
      * nullptr.
      *
      * @return `int` interpreted as a C "bool". Zero means "stop the recursion".
@@ -623,7 +621,7 @@ namespace
 
   private:
     /**
-     * Simple struct to keep relavant data. Can be accessed though p4est's user
+     * Simple struct to keep relevant data. Can be accessed though p4est's user
      * pointer.
      */
     class QuadrantData
@@ -1453,7 +1451,7 @@ namespace
   {
   public:
     /**
-     * This constructor assumes the cell_weights are already sorted in the
+     * This constructor assumes the @p cell_weights are already sorted in the
      * order that p4est will encounter the cells, and they do not contain
      * ghost cells or artificial cells.
      */
@@ -1696,10 +1694,11 @@ namespace parallel
 {
   namespace distributed
   {
-    /*----------------- class Triangulation<dim,spacedim> ---------------\*/
+    /*----------------- class Triangulation<dim,spacedim> ---------------*/
     template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     Triangulation<dim, spacedim>::Triangulation(
-      const MPI_Comm &mpi_communicator,
+      const MPI_Comm mpi_communicator,
       const typename dealii::Triangulation<dim, spacedim>::MeshSmoothing
                      smooth_grid,
       const Settings settings)
@@ -1726,6 +1725,7 @@ namespace parallel
 
 
     template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     Triangulation<dim, spacedim>::~Triangulation()
     {
       // virtual functions called in constructors and destructors never use the
@@ -1746,8 +1746,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::create_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::create_triangulation(
       const std::vector<Point<spacedim>> &vertices,
       const std::vector<CellData<dim>> &  cells,
       const SubCellData &                 subcelldata)
@@ -1799,8 +1799,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::create_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::create_triangulation(
       const TriangulationDescription::Description<dim, spacedim>
         &construction_data)
     {
@@ -1812,8 +1812,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::clear()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::clear()
     {
       triangulation_has_content = false;
 
@@ -1848,8 +1848,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::is_multilevel_hierarchy_constructed() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::is_multilevel_hierarchy_constructed()
+      const
     {
       return settings &
              Triangulation<dim, spacedim>::construct_multigrid_hierarchy;
@@ -1858,8 +1859,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::are_vertices_communicated_to_p4est() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::are_vertices_communicated_to_p4est()
+      const
     {
       return settings &
              Triangulation<dim, spacedim>::communicate_vertices_to_p4est;
@@ -1868,8 +1870,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::execute_transfer(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::execute_transfer(
       const typename dealii::internal::p4est::types<dim>::forest
         *parallel_forest,
       const typename dealii::internal::p4est::types<dim>::gloidx
@@ -1963,8 +1965,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::setup_coarse_cell_to_p4est_tree_permutation()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim,
+                       spacedim>::setup_coarse_cell_to_p4est_tree_permutation()
     {
       DynamicSparsityPattern cell_connectivity;
       dealii::GridTools::get_vertex_connectivity_of_cells(*this,
@@ -1980,8 +1983,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::write_mesh_vtk(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::write_mesh_vtk(
       const std::string &file_basename) const
     {
       Assert(parallel_forest != nullptr,
@@ -1999,8 +2002,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::save(const std::string &filename) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::save(const std::string &filename) const
     {
       Assert(
         this->cell_attached_data.n_attached_deserialize == 0,
@@ -2021,7 +2024,7 @@ namespace parallel
           std::ofstream f(fname.c_str());
           f << "version nproc n_attached_fixed_size_objs n_attached_variable_size_objs n_coarse_cells"
             << std::endl
-            << 4 << " "
+            << 5 << " "
             << Utilities::MPI::n_mpi_processes(this->mpi_communicator) << " "
             << this->cell_attached_data.pack_callbacks_fixed.size() << " "
             << this->cell_attached_data.pack_callbacks_variable.size() << " "
@@ -2054,8 +2057,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::load(const std::string &filename)
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::load(const std::string &filename)
     {
       Assert(
         this->n_cells() > 0,
@@ -2096,7 +2099,7 @@ namespace parallel
           attached_count_variable >> n_coarse_cells;
       }
 
-      AssertThrow(version == 4,
+      AssertThrow(version == 5,
                   ExcMessage("Incompatible version found in .info file."));
       Assert(this->n_cells(0) == n_coarse_cells,
              ExcMessage("Number of coarse cells differ!"));
@@ -2154,9 +2157,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::load(const std::string &filename,
-                                       const bool         autopartition)
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::load(const std::string &filename,
+                                            const bool         autopartition)
     {
       (void)autopartition;
       load(filename);
@@ -2165,8 +2168,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::load(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::load(
       const typename dealii::internal::p4est::types<dim>::forest *forest)
     {
       Assert(this->n_cells() > 0,
@@ -2218,8 +2221,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    unsigned int
-    Triangulation<dim, spacedim>::get_checksum() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    unsigned int Triangulation<dim, spacedim>::get_checksum() const
     {
       Assert(parallel_forest != nullptr,
              ExcMessage(
@@ -2230,8 +2233,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    const typename dealii::internal::p4est::types<dim>::forest *
-    Triangulation<dim, spacedim>::get_p4est() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    const typename dealii::internal::p4est::types<dim>::forest
+      *Triangulation<dim, spacedim>::get_p4est() const
     {
       Assert(parallel_forest != nullptr,
              ExcMessage("The forest has not been allocated yet."));
@@ -2241,9 +2245,10 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    typename dealii::internal::p4est::types<dim>::tree *
-    Triangulation<dim, spacedim>::init_tree(
-      const int dealii_coarse_cell_index) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    typename dealii::internal::p4est::types<dim>::tree
+      *Triangulation<dim, spacedim>::init_tree(
+        const int dealii_coarse_cell_index) const
     {
       const unsigned int tree_index =
         coarse_cell_to_p4est_tree_permutation[dealii_coarse_cell_index];
@@ -2542,7 +2547,7 @@ namespace parallel
         // periodicity, e.g. when finding the maximum cell level around a
         // vertex.
         //
-        // Example: On a 3D cell with vertices numbered from 0 to 7 and
+        // Example: On a 3d cell with vertices numbered from 0 to 7 and
         // periodic boundary conditions in x direction, the vector
         // topological_vertex_numbering will contain the numbers
         // {0,0,2,2,4,4,6,6} (because the vertex pairs {0,1}, {2,3}, {4,5},
@@ -2735,22 +2740,20 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
     {
-      std::vector<bool> flags_before[2];
-      this->save_coarsen_flags(flags_before[0]);
-      this->save_refine_flags(flags_before[1]);
-
       bool         mesh_changed = false;
       unsigned int loop_counter = 0;
+      unsigned int n_changes    = 0;
       do
         {
-          this->dealii::Triangulation<dim, spacedim>::
-            prepare_coarsening_and_refinement();
+          n_changes += this->dealii::Triangulation<dim, spacedim>::
+                         prepare_coarsening_and_refinement();
           this->update_periodic_face_map();
           // enforce 2:1 mesh balance over periodic boundaries
           mesh_changed = enforce_mesh_balance_over_periodic_boundaries(*this);
+          n_changes += mesh_changed;
 
           // We can't be sure that we won't run into a situation where we can
           // not reconcile mesh smoothing and balancing of periodic faces. As
@@ -2766,20 +2769,15 @@ namespace parallel
         }
       while (mesh_changed);
 
-      // check if any of the refinement flags were changed during this
-      // function and return that value
-      std::vector<bool> flags_after[2];
-      this->save_coarsen_flags(flags_after[0]);
-      this->save_refine_flags(flags_after[1]);
-      return ((flags_before[0] != flags_after[0]) ||
-              (flags_before[1] != flags_after[1]));
+      // report if we observed changes in any of the sub-functions
+      return n_changes > 0;
     }
 
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::copy_local_forest_to_triangulation()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::copy_local_forest_to_triangulation()
     {
       // Disable mesh smoothing for recreating the deal.II triangulation,
       // otherwise we might not be able to reproduce the p4est mesh
@@ -3092,6 +3090,7 @@ namespace parallel
                    ExcInternalError());
           }
 
+#  ifdef DEBUG
         // count the number of owned, active cells and compare with p4est.
         unsigned int n_owned = 0;
         for (const auto &cell : this->active_cell_iterators())
@@ -3103,6 +3102,7 @@ namespace parallel
         Assert(static_cast<unsigned int>(
                  parallel_forest->local_num_quadrants) == n_owned,
                ExcInternalError());
+#  endif
       }
 
       this->smooth_grid = save_smooth;
@@ -3117,8 +3117,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     types::subdomain_id
-    Triangulation<dim, spacedim>::find_point_owner_rank(const Point<dim> &p)
+      Triangulation<dim, spacedim>::find_point_owner_rank(const Point<dim> &p)
     {
       // Call the other function
       std::vector<Point<dim>>          point{p};
@@ -3130,9 +3131,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    std::vector<types::subdomain_id>
-    Triangulation<dim, spacedim>::find_point_owner_rank(
-      const std::vector<Point<dim>> &points)
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    std::vector<types::subdomain_id> Triangulation<dim, spacedim>::
+      find_point_owner_rank(const std::vector<Point<dim>> &points)
     {
 #  ifndef P4EST_SEARCH_LOCAL
       (void)points;
@@ -3230,8 +3231,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::execute_coarsening_and_refinement()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::execute_coarsening_and_refinement()
     {
       // do not allow anisotropic refinement
 #  ifdef DEBUG
@@ -3351,7 +3352,7 @@ namespace parallel
         {
           // partition the new mesh between all processors. If cell weights
           // have not been given balance the number of cells.
-          if (this->signals.cell_weight.num_slots() == 0)
+          if (this->signals.weight.empty())
             dealii::internal::p4est::functions<dim>::partition(
               parallel_forest,
               /* prepare coarsening */ 1,
@@ -3360,6 +3361,15 @@ namespace parallel
             {
               // get cell weights for a weighted repartitioning.
               const std::vector<unsigned int> cell_weights = get_cell_weights();
+
+              // verify that the global sum of weights is larger than 0
+              Assert(Utilities::MPI::sum(std::accumulate(cell_weights.begin(),
+                                                         cell_weights.end(),
+                                                         std::uint64_t(0)),
+                                         this->mpi_communicator) > 0,
+                     ExcMessage(
+                       "The global sum of weights over all active cells "
+                       "is zero. Please verify how you generate weights."));
 
               PartitionWeights<dim, spacedim> partition_weights(cell_weights);
 
@@ -3485,8 +3495,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::repartition()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::repartition()
     {
 #  ifdef DEBUG
       for (const auto &cell : this->active_cell_iterators())
@@ -3515,7 +3525,7 @@ namespace parallel
                         (parallel_forest->mpisize + 1));
         }
 
-      if (this->signals.cell_weight.num_slots() == 0)
+      if (this->signals.weight.empty())
         {
           // no cell weights given -- call p4est's 'partition' without a
           // callback for cell weights
@@ -3528,6 +3538,15 @@ namespace parallel
         {
           // get cell weights for a weighted repartitioning.
           const std::vector<unsigned int> cell_weights = get_cell_weights();
+
+          // verify that the global sum of weights is larger than 0
+          Assert(Utilities::MPI::sum(std::accumulate(cell_weights.begin(),
+                                                     cell_weights.end(),
+                                                     std::uint64_t(0)),
+                                     this->mpi_communicator) > 0,
+                 ExcMessage(
+                   "The global sum of weights over all active cells "
+                   "is zero. Please verify how you generate weights."));
 
           PartitionWeights<dim, spacedim> partition_weights(cell_weights);
 
@@ -3585,9 +3604,10 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    const std::vector<types::global_dof_index> &
-    Triangulation<dim, spacedim>::get_p4est_tree_to_coarse_cell_permutation()
-      const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    const std::vector<types::global_dof_index>
+      &Triangulation<dim, spacedim>::get_p4est_tree_to_coarse_cell_permutation()
+        const
     {
       return p4est_tree_to_coarse_cell_permutation;
     }
@@ -3595,9 +3615,10 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    const std::vector<types::global_dof_index> &
-    Triangulation<dim, spacedim>::get_coarse_cell_to_p4est_tree_permutation()
-      const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    const std::vector<types::global_dof_index>
+      &Triangulation<dim, spacedim>::get_coarse_cell_to_p4est_tree_permutation()
+        const
     {
       return coarse_cell_to_p4est_tree_permutation;
     }
@@ -3605,9 +3626,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    std::vector<bool>
-    Triangulation<dim, spacedim>::mark_locally_active_vertices_on_level(
-      const int level) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    std::vector<bool> Triangulation<dim, spacedim>::
+      mark_locally_active_vertices_on_level(const int level) const
     {
       Assert(dim > 1, ExcNotImplemented());
 
@@ -3673,9 +3694,10 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    unsigned int
-    Triangulation<dim, spacedim>::coarse_cell_id_to_coarse_cell_index(
-      const types::coarse_cell_id coarse_cell_id) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    unsigned int Triangulation<dim, spacedim>::
+      coarse_cell_id_to_coarse_cell_index(
+        const types::coarse_cell_id coarse_cell_id) const
     {
       return p4est_tree_to_coarse_cell_permutation[coarse_cell_id];
     }
@@ -3683,9 +3705,10 @@ namespace parallel
 
 
     template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     types::coarse_cell_id
-    Triangulation<dim, spacedim>::coarse_cell_index_to_coarse_cell_id(
-      const unsigned int coarse_cell_index) const
+      Triangulation<dim, spacedim>::coarse_cell_index_to_coarse_cell_id(
+        const unsigned int coarse_cell_index) const
     {
       return coarse_cell_to_p4est_tree_permutation[coarse_cell_index];
     }
@@ -3693,8 +3716,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::add_periodicity(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::add_periodicity(
       const std::vector<dealii::GridTools::PeriodicFacePair<cell_iterator>>
         &periodicity_vector)
     {
@@ -3856,8 +3879,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    std::size_t
-    Triangulation<dim, spacedim>::memory_consumption() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    std::size_t Triangulation<dim, spacedim>::memory_consumption() const
     {
       std::size_t mem =
         this->dealii::parallel::TriangulationBase<dim, spacedim>::
@@ -3884,8 +3907,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    std::size_t
-    Triangulation<dim, spacedim>::memory_consumption_p4est() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    std::size_t Triangulation<dim, spacedim>::memory_consumption_p4est() const
     {
       return dealii::internal::p4est::functions<dim>::forest_memory_used(
                parallel_forest) +
@@ -3896,8 +3919,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::copy_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::copy_triangulation(
       const dealii::Triangulation<dim, spacedim> &other_tria)
     {
       Assert(
@@ -3980,8 +4003,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::update_cell_relations()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::update_cell_relations()
     {
       // reorganize memory for local_cell_relations
       this->local_cell_relations.resize(parallel_forest->local_num_quadrants);
@@ -4013,8 +4036,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    std::vector<unsigned int>
-    Triangulation<dim, spacedim>::get_cell_weights() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    std::vector<unsigned int> Triangulation<dim, spacedim>::get_cell_weights()
+      const
     {
       // check if local_cell_relations have been previously gathered
       // correctly
@@ -4029,56 +4053,16 @@ namespace parallel
 
       // Iterate over p4est and Triangulation relations
       // to find refined/coarsened/kept
-      // cells. Then append cell_weight.
+      // cells. Then append weight.
       // Note that we need to follow the p4est ordering
-      // instead of the deal.II ordering to get the cell_weights
+      // instead of the deal.II ordering to get the weights
       // in the same order p4est will encounter them during repartitioning.
       for (const auto &cell_rel : this->local_cell_relations)
         {
           const auto &cell_it     = cell_rel.first;
           const auto &cell_status = cell_rel.second;
 
-          switch (cell_status)
-            {
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_PERSIST:
-                weights.push_back(1000);
-                weights.back() += this->signals.cell_weight(
-                  cell_it,
-                  parallel::distributed::Triangulation<dim,
-                                                       spacedim>::CELL_PERSIST);
-                break;
-
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_REFINE:
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_INVALID:
-                {
-                  // calculate weight of parent cell
-                  unsigned int parent_weight = 1000;
-                  parent_weight += this->signals.cell_weight(
-                    cell_it,
-                    parallel::distributed::Triangulation<dim, spacedim>::
-                      CELL_REFINE);
-                  // assign the weight of the parent cell equally to all
-                  // children
-                  weights.push_back(parent_weight);
-                  break;
-                }
-
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_COARSEN:
-                weights.push_back(1000);
-                weights.back() += this->signals.cell_weight(
-                  cell_it,
-                  parallel::distributed::Triangulation<dim,
-                                                       spacedim>::CELL_COARSEN);
-                break;
-
-              default:
-                Assert(false, ExcInternalError());
-                break;
-            }
+          weights.push_back(this->signals.weight(cell_it, cell_status));
         }
 
       return weights;
@@ -4087,8 +4071,9 @@ namespace parallel
 
 
     template <int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
     Triangulation<1, spacedim>::Triangulation(
-      const MPI_Comm &mpi_communicator,
+      const MPI_Comm mpi_communicator,
       const typename dealii::Triangulation<1, spacedim>::MeshSmoothing
         smooth_grid,
       const Settings /*settings*/)
@@ -4102,6 +4087,7 @@ namespace parallel
 
 
     template <int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
     Triangulation<1, spacedim>::~Triangulation()
     {
       AssertNothrow(false, ExcNotImplemented());
@@ -4110,9 +4096,10 @@ namespace parallel
 
 
     template <int spacedim>
-    const std::vector<types::global_dof_index> &
-    Triangulation<1, spacedim>::get_p4est_tree_to_coarse_cell_permutation()
-      const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    const std::vector<types::global_dof_index>
+      &Triangulation<1, spacedim>::get_p4est_tree_to_coarse_cell_permutation()
+        const
     {
       static std::vector<types::global_dof_index> a;
       return a;
@@ -4121,9 +4108,11 @@ namespace parallel
 
 
     template <int spacedim>
-    std::map<unsigned int, std::set<dealii::types::subdomain_id>>
-    Triangulation<1, spacedim>::compute_level_vertices_with_ghost_neighbors(
-      const unsigned int /*level*/) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    std::map<unsigned int,
+             std::set<dealii::types::subdomain_id>> Triangulation<1, spacedim>::
+      compute_level_vertices_with_ghost_neighbors(
+        const unsigned int /*level*/) const
     {
       Assert(false, ExcNotImplemented());
 
@@ -4133,9 +4122,9 @@ namespace parallel
 
 
     template <int spacedim>
-    std::vector<bool>
-    Triangulation<1, spacedim>::mark_locally_active_vertices_on_level(
-      const unsigned int) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    std::vector<bool> Triangulation<1, spacedim>::
+      mark_locally_active_vertices_on_level(const unsigned int) const
     {
       Assert(false, ExcNotImplemented());
       return std::vector<bool>();
@@ -4144,9 +4133,9 @@ namespace parallel
 
 
     template <int spacedim>
-    unsigned int
-    Triangulation<1, spacedim>::coarse_cell_id_to_coarse_cell_index(
-      const types::coarse_cell_id) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    unsigned int Triangulation<1, spacedim>::
+      coarse_cell_id_to_coarse_cell_index(const types::coarse_cell_id) const
     {
       Assert(false, ExcNotImplemented());
       return 0;
@@ -4155,9 +4144,10 @@ namespace parallel
 
 
     template <int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
     types::coarse_cell_id
-    Triangulation<1, spacedim>::coarse_cell_index_to_coarse_cell_id(
-      const unsigned int) const
+      Triangulation<1, spacedim>::coarse_cell_index_to_coarse_cell_id(
+        const unsigned int) const
     {
       Assert(false, ExcNotImplemented());
       return 0;
@@ -4166,8 +4156,8 @@ namespace parallel
 
 
     template <int spacedim>
-    void
-    Triangulation<1, spacedim>::load(const std::string &)
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    void Triangulation<1, spacedim>::load(const std::string &)
     {
       Assert(false, ExcNotImplemented());
     }
@@ -4175,8 +4165,8 @@ namespace parallel
 
 
     template <int spacedim>
-    void
-    Triangulation<1, spacedim>::load(const std::string &, const bool)
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    void Triangulation<1, spacedim>::load(const std::string &, const bool)
     {
       Assert(false, ExcNotImplemented());
     }
@@ -4184,8 +4174,8 @@ namespace parallel
 
 
     template <int spacedim>
-    void
-    Triangulation<1, spacedim>::save(const std::string &) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    void Triangulation<1, spacedim>::save(const std::string &) const
     {
       Assert(false, ExcNotImplemented());
     }
@@ -4193,18 +4183,8 @@ namespace parallel
 
 
     template <int spacedim>
-    bool
-    Triangulation<1, spacedim>::is_multilevel_hierarchy_constructed() const
-    {
-      Assert(false, ExcNotImplemented());
-      return false;
-    }
-
-
-
-    template <int spacedim>
-    bool
-    Triangulation<1, spacedim>::are_vertices_communicated_to_p4est() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    bool Triangulation<1, spacedim>::is_multilevel_hierarchy_constructed() const
     {
       Assert(false, ExcNotImplemented());
       return false;
@@ -4213,8 +4193,18 @@ namespace parallel
 
 
     template <int spacedim>
-    void
-    Triangulation<1, spacedim>::update_cell_relations()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    bool Triangulation<1, spacedim>::are_vertices_communicated_to_p4est() const
+    {
+      Assert(false, ExcNotImplemented());
+      return false;
+    }
+
+
+
+    template <int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
+    void Triangulation<1, spacedim>::update_cell_relations()
     {
       Assert(false, ExcNotImplemented());
     }

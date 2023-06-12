@@ -207,7 +207,7 @@ namespace LocalIntegrators
      * \int_Z \nabla \times u \cdot v \,dx.
      * @f]
      *
-     * This is the standard curl operator in 3D and the scalar curl in 2D. The
+     * This is the standard curl operator in 3d and the scalar curl in 2d. The
      * vector curl operator can be obtained by exchanging test and trial
      * functions.
      */
@@ -221,7 +221,7 @@ namespace LocalIntegrators
       const unsigned int n_dofs = fe.dofs_per_cell;
       const unsigned int t_dofs = fetest.dofs_per_cell;
       AssertDimension(fe.get_fe().n_components(), dim);
-      // There should be the right number of components (3 in 3D, otherwise 1)
+      // There should be the right number of components (3 in 3d, otherwise 1)
       // for the curl.
       AssertDimension(fetest.get_fe().n_components(), (dim == 3) ? dim : 1);
       AssertDimension(M.m(), t_dofs);

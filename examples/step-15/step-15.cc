@@ -551,7 +551,7 @@ namespace Step15
     // fixed, they are of course no "real" degrees of freedom and so, strictly
     // speaking, we shouldn't have assembled entries in the residual vector
     // for them. However, as we always do, we want to do exactly the same
-    // thing on every cell and so we didn't not want to deal with the question
+    // thing on every cell and so we didn't want to deal with the question
     // of whether a particular degree of freedom sits at the boundary in the
     // integration above. Rather, we will simply set to zero these entries
     // after the fact. To this end, we need to determine which degrees
@@ -561,7 +561,7 @@ namespace Step15
     // function from namespace DoFTools:
     hanging_node_constraints.condense(residual);
 
-    for (types::global_dof_index i :
+    for (const types::global_dof_index i :
          DoFTools::extract_boundary_dofs(dof_handler))
       residual(i) = 0;
 

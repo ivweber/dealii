@@ -20,13 +20,13 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/exceptions.h>
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/point.h>
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/polynomial_space.h>
 #include <deal.II/base/tensor.h>
 #include <deal.II/base/tensor_polynomials_base.h>
 #include <deal.II/base/tensor_product_polynomials.h>
-#include <deal.II/base/thread_management.h>
 
 #include <memory>
 #include <vector>
@@ -45,7 +45,7 @@ DEAL_II_NAMESPACE_OPEN
  * polynomial order of each component must be two orders higher in the
  * corresponding direction, yielding the polynomial spaces
  * <i>(Q<sub>k+2,k</sub>, Q<sub>k,k+2</sub>)</i> and <i>(Q<sub>k+2,k,k</sub>,
- * Q<sub>k,k+2,k</sub>, Q<sub>k,k,k+2</sub>)</i> in 2D and 3D, resp.
+ * Q<sub>k,k+2,k</sub>, Q<sub>k,k,k+2</sub>)</i> in 2d and 3d, resp.
  *
  * @ingroup Polynomials
  */

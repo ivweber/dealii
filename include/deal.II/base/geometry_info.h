@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -157,7 +157,7 @@ namespace internal
       static constexpr std::array<unsigned int, 8>
       ucd_to_deal()
       {
-        return {{0, 1, 5, 4, 2, 3, 7, 6}};
+        return {{0, 4, 5, 1, 2, 6, 7, 3}};
       }
 
       static constexpr std::array<unsigned int, 6>
@@ -520,7 +520,7 @@ struct RefinementPossibilities
    * local coordinate system within the global coordinate system of the
    * space it lives in.
    */
-  enum Possibilities
+  enum Possibilities : std::uint8_t
   {
     /**
      * Do not perform refinement.
@@ -590,7 +590,7 @@ struct RefinementPossibilities<1>
    * local coordinate system within the global coordinate system of the
    * space it lives in.
    */
-  enum Possibilities
+  enum Possibilities : std::uint8_t
   {
     /**
      * Do not refine.
@@ -656,7 +656,7 @@ struct RefinementPossibilities<2>
    * local coordinate system within the global coordinate system of the
    * space it lives in.
    */
-  enum Possibilities
+  enum Possibilities : std::uint8_t
   {
     /**
      * Do not refine.
@@ -731,7 +731,7 @@ struct RefinementPossibilities<3>
    * local coordinate system within the global coordinate system of the
    * space it lives in.
    */
-  enum Possibilities
+  enum Possibilities : std::uint8_t
   {
     /**
      * Do not refine.
@@ -819,7 +819,7 @@ public:
    * mapping from the symbolic flags defined in the RefinementPossibilities
    * base class to actual numerical values (the array indices).
    */
-  operator std::uint8_t() const;
+  DEAL_II_HOST_DEVICE operator std::uint8_t() const;
 
   /**
    * Return the union of the refinement flags represented by the current
@@ -1438,8 +1438,12 @@ struct GeometryInfo<0>
  * This class provides dimension independent information to all topological
  * structures that make up the unit, or
  * @ref GlossReferenceCell "reference cell".
- * This class has been
+ * That said, this class only describes information about hypercube reference
+ * cells (i.e., lines, quadrilaterals, or hexahedra), which historically
+ * were the only kinds of cells supported by deal.II. This is no longer the
+ * case today, and consequently this class has been
  * superseded by the ReferenceCell class -- see there for more information.
+ * The rest of this class's documentation is therefore partly historical.
  *
  *
  * It is the one central point in the library where information about the
@@ -2117,7 +2121,7 @@ struct GeometryInfo
   /**
    * This field stores for each vertex to which faces it belongs. In any given
    * dimension, the number of faces is equal to the dimension. The first index
-   * in this 2D-array runs over all vertices, the second index over @p dim
+   * in this 2d-array runs over all vertices, the second index over @p dim
    * faces to which the vertex belongs.
    *
    * The order of the faces for each vertex is such that the first listed face
@@ -2199,7 +2203,7 @@ struct GeometryInfo
    * This field stores which child cells are adjacent to a certain face of the
    * mother cell.
    *
-   * For example, in 2D the layout of a cell is as follows:
+   * For example, in 2d the layout of a cell is as follows:
    * @verbatim
    * .      3
    * .   2-->--3
@@ -2319,7 +2323,7 @@ struct GeometryInfo
    * <tt>false</tt> and <tt>false</tt>, respectively. this combination
    * describes a face in standard orientation.
    *
-   * This function is only implemented in 3D.
+   * This function is only implemented in 3d.
    */
   static unsigned int
   standard_to_real_face_vertex(const unsigned int vertex,
@@ -2334,7 +2338,7 @@ struct GeometryInfo
    * <tt>false</tt> and <tt>false</tt>, respectively. this combination
    * describes a face in standard orientation.
    *
-   * This function is only implemented in 3D.
+   * This function is only implemented in 3d.
    */
   static unsigned int
   real_to_standard_face_vertex(const unsigned int vertex,
@@ -2349,7 +2353,7 @@ struct GeometryInfo
    * <tt>false</tt> and <tt>false</tt>, respectively. this combination
    * describes a face in standard orientation.
    *
-   * This function is only implemented in 3D.
+   * This function is only implemented in 3d.
    */
   static unsigned int
   standard_to_real_face_line(const unsigned int line,
@@ -2403,7 +2407,7 @@ struct GeometryInfo
    * <tt>false</tt>, respectively. this combination describes a face in
    * standard orientation.
    *
-   * This function is only implemented in 3D.
+   * This function is only implemented in 3d.
    */
   static unsigned int
   real_to_standard_face_line(const unsigned int line,
@@ -2810,7 +2814,7 @@ inline RefinementCase<dim>::RefinementCase(const std::uint8_t refinement_case)
 
 
 template <int dim>
-inline RefinementCase<dim>::operator std::uint8_t() const
+inline DEAL_II_HOST_DEVICE RefinementCase<dim>::operator std::uint8_t() const
 {
   return value;
 }
@@ -3671,6 +3675,10 @@ GeometryInfo<2>::face_refinement_case(
                    RefinementCase<dim>::isotropic_refinement + 1);
   AssertIndexRange(face_no, GeometryInfo<dim>::faces_per_cell);
 
+  // simple special case
+  if (cell_refinement_case == RefinementCase<dim>::cut_xy)
+    return RefinementCase<1>::cut_x;
+
   const RefinementCase<dim - 1>
     ref_cases[RefinementCase<dim>::isotropic_refinement +
               1][GeometryInfo<dim>::faces_per_cell / 2] = {
@@ -3701,6 +3709,10 @@ GeometryInfo<3>::face_refinement_case(
   AssertIndexRange(cell_refinement_case,
                    RefinementCase<dim>::isotropic_refinement + 1);
   AssertIndexRange(face_no, GeometryInfo<dim>::faces_per_cell);
+
+  // simple special case
+  if (cell_refinement_case == RefinementCase<dim>::cut_xyz)
+    return RefinementCase<dim - 1>::cut_xy;
 
   const RefinementCase<dim - 1>
     ref_cases[RefinementCase<dim>::isotropic_refinement + 1]
@@ -3812,6 +3824,10 @@ GeometryInfo<3>::line_refinement_case(
                    RefinementCase<dim>::isotropic_refinement + 1);
   AssertIndexRange(line_no, GeometryInfo<dim>::lines_per_cell);
 
+  // simple special case
+  if (cell_refinement_case == RefinementCase<dim>::cut_xyz)
+    return RefinementCase<1>::cut_x;
+
   // array indicating, which simple refine
   // case cuts a line in direction x, y or
   // z. For example, cut_y and everything
@@ -3827,7 +3843,7 @@ GeometryInfo<3>::line_refinement_case(
   const unsigned int direction[lines_per_cell] = {
     1, 1, 0, 0, 1, 1, 0, 0, 2, 2, 2, 2};
 
-  return ((cell_refinement_case & cut_one[direction[line_no]]) != 0u ?
+  return ((cell_refinement_case & cut_one[direction[line_no]]) ?
             RefinementCase<1>::cut_x :
             RefinementCase<1>::no_refinement);
 }

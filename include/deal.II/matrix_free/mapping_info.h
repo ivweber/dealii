@@ -33,7 +33,6 @@
 #include <deal.II/hp/q_collection.h>
 
 #include <deal.II/matrix_free/face_info.h>
-#include <deal.II/matrix_free/helper_functions.h>
 #include <deal.II/matrix_free/mapping_info_storage.h>
 
 #include <memory>
@@ -61,20 +60,21 @@ namespace internal
        * CellIterator::level() and CellIterator::index(), in order to allow
        * for different kinds of iterators, e.g. standard DoFHandler,
        * multigrid, etc.)  on a fixed Triangulation. In addition, a mapping
-       * and several 1D quadrature formulas are given.
+       * and several 1d quadrature formulas are given.
        */
       void
       initialize(
         const dealii::Triangulation<dim> &                        tria,
         const std::vector<std::pair<unsigned int, unsigned int>> &cells,
-        const FaceInfo<VectorizedArrayType::size()> &             faces,
+        const FaceInfo<VectorizedArrayType::size()> &             face_info,
         const std::vector<unsigned int> &active_fe_index,
         const std::shared_ptr<dealii::hp::MappingCollection<dim>> &mapping,
         const std::vector<dealii::hp::QCollection<dim>> &          quad,
         const UpdateFlags update_flags_cells,
         const UpdateFlags update_flags_boundary_faces,
         const UpdateFlags update_flags_inner_faces,
-        const UpdateFlags update_flags_faces_by_cells);
+        const UpdateFlags update_flags_faces_by_cells,
+        const bool        piola_transform);
 
       /**
        * Update the information in the given cells and faces that is the
@@ -86,7 +86,7 @@ namespace internal
       update_mapping(
         const dealii::Triangulation<dim> &                        tria,
         const std::vector<std::pair<unsigned int, unsigned int>> &cells,
-        const FaceInfo<VectorizedArrayType::size()> &             faces,
+        const FaceInfo<VectorizedArrayType::size()> &             face_info,
         const std::vector<unsigned int> &active_fe_index,
         const std::shared_ptr<dealii::hp::MappingCollection<dim>> &mapping);
 
@@ -158,6 +158,16 @@ namespace internal
       std::vector<GeometryType> face_type;
 
       /**
+       * Store whether the face geometry for the face_data_by_cells data
+       * structure is represented as Cartesian (cell type 0), with constant
+       * transform data (Jacobians) (cell type 1), or a general type (cell
+       * type 3). Note that both the interior and exterior agree on the type
+       * of the data structure, using the more general of the two.
+       */
+      std::vector<std::array<GeometryType, GeometryInfo<dim>::faces_per_cell>>
+        faces_by_cells_type;
+
+      /**
        * The data cache for the cells.
        */
       std::vector<MappingInfoStorage<dim, dim, VectorizedArrayType>> cell_data;
@@ -189,7 +199,7 @@ namespace internal
        * Reference-cell type related to each quadrature and active quadrature
        * index.
        */
-      std::vector<std::vector<dealii::ReferenceCell>> reference_cell_types;
+      std::vector<std::vector<ReferenceCell>> reference_cell_types;
 
       /**
        * Internal function to compute the geometry for the case the mapping is
@@ -209,15 +219,14 @@ namespace internal
        * given as a tuple of the level and index within the level as used in
        * the main initialization of the class
        *
-       * @param faces The description of the connectivity from faces to cells
-       * as filled in the MatrixFree class
+       * @param face_info The description of the connectivity from faces to
+       * cells as filled in the MatrixFree class
        */
       void
       compute_mapping_q(
         const dealii::Triangulation<dim> &                        tria,
         const std::vector<std::pair<unsigned int, unsigned int>> &cells,
-        const std::vector<FaceToCellTopology<VectorizedArrayType::size()>>
-          &faces);
+        const FaceInfo<VectorizedArrayType::size()> &             face_info);
 
       /**
        * Computes the information in the given cells, called within
@@ -251,6 +260,7 @@ namespace internal
       initialize_faces_by_cells(
         const dealii::Triangulation<dim> &                        tria,
         const std::vector<std::pair<unsigned int, unsigned int>> &cells,
+        const FaceInfo<VectorizedArrayType::size()> &             face_info,
         const dealii::hp::MappingCollection<dim> &                mapping);
     };
 
@@ -286,77 +296,6 @@ namespace internal
         return mapping_info.face_data[quad_no];
       }
     };
-
-
-
-    /**
-     * A class that is used to compare floating point arrays (e.g. std::vectors,
-     * Tensor<1,dim>, etc.). The idea of this class is to consider two arrays as
-     * equal if they are the same within a given tolerance. We use this
-     * comparator class within a std::map<> of the given arrays. Note that this
-     * comparison operator does not satisfy all the mathematical properties one
-     * usually wants to have (consider e.g. the numbers a=0, b=0.1, c=0.2 with
-     * tolerance 0.15; the operator gives a<c, but neither a<b? nor b<c? is
-     * satisfied). This is not a problem in the use cases for this class, but be
-     * careful when using it in other contexts.
-     */
-    template <typename Number,
-              typename VectorizedArrayType = VectorizedArray<Number>>
-    struct FPArrayComparator
-    {
-      FPArrayComparator(const Number scaling);
-
-      /**
-       * Compare two vectors of numbers (not necessarily of the same length)
-       */
-      bool
-      operator()(const std::vector<Number> &v1,
-                 const std::vector<Number> &v2) const;
-
-      /**
-       * Compare two vectorized arrays (stored as tensors to avoid alignment
-       * issues).
-       */
-      bool
-      operator()(
-        const Tensor<1, VectorizedArrayType::size(), Number> &t1,
-        const Tensor<1, VectorizedArrayType::size(), Number> &t2) const;
-
-      /**
-       * Compare two rank-1 tensors of vectorized arrays (stored as tensors to
-       * avoid alignment issues).
-       */
-      template <int dim>
-      bool
-      operator()(
-        const Tensor<1, dim, Tensor<1, VectorizedArrayType::size(), Number>>
-          &t1,
-        const Tensor<1, dim, Tensor<1, VectorizedArrayType::size(), Number>>
-          &t2) const;
-
-      /**
-       * Compare two rank-2 tensors of vectorized arrays (stored as tensors to
-       * avoid alignment issues).
-       */
-      template <int dim>
-      bool
-      operator()(
-        const Tensor<2, dim, Tensor<1, VectorizedArrayType::size(), Number>>
-          &t1,
-        const Tensor<2, dim, Tensor<1, VectorizedArrayType::size(), Number>>
-          &t2) const;
-
-      /**
-       * Compare two arrays of tensors.
-       */
-      template <int dim>
-      bool
-      operator()(const std::array<Tensor<2, dim, Number>, dim + 1> &t1,
-                 const std::array<Tensor<2, dim, Number>, dim + 1> &t2) const;
-
-      Number tolerance;
-    };
-
 
 
     /* ------------------- inline functions ----------------------------- */

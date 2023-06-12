@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2011 - 2021 by the deal.II authors
+ * Copyright (C) 2011 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -20,6 +20,7 @@
 
 // The necessary files from the deal.II library.
 #include <deal.II/base/logstream.h>
+#include <deal.II/base/multithread_info.h>
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/conditional_ostream.h>
@@ -32,6 +33,7 @@
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/distributed/tria.h>
@@ -254,7 +256,7 @@ namespace Step48
   // We define a time-dependent function that is used as initial
   // value. Different solutions can be obtained by varying the starting
   // time. This function, taken from step-25, would represent an analytic
-  // solution in 1D for all times, but is merely used for setting some
+  // solution in 1d for all times, but is merely used for setting some
   // starting solution of interest here. More elaborate choices that could
   // test the convergence of this program are given in step-25.
   template <int dim>

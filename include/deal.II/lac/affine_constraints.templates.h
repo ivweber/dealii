@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,7 +18,6 @@
 
 #include <deal.II/base/config.h>
 
-#include <deal.II/base/cuda_size.h>
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/mpi_compute_index_owner_internal.h>
 #include <deal.II/base/table.h>
@@ -108,7 +107,7 @@ bool
 AffineConstraints<number>::is_consistent_in_parallel(
   const std::vector<IndexSet> &locally_owned_dofs,
   const IndexSet &             locally_active_dofs,
-  const MPI_Comm &             mpi_communicator,
+  const MPI_Comm               mpi_communicator,
   const bool                   verbose) const
 {
   // Helper to return a ConstraintLine object that belongs to row @p row.
@@ -137,6 +136,7 @@ AffineConstraints<number>::is_consistent_in_parallel(
   // We will send all locally active dofs that are not locally owned for
   // checking. Note that we allow constraints to differ on locally_relevant (and
   // not active) DoFs.
+  // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
   IndexSet non_owned = locally_active_dofs;
   non_owned.subtract_set(locally_owned_dofs[myid]);
   for (unsigned int owner = 0; owner < nproc; ++owner)
@@ -194,22 +194,16 @@ AffineConstraints<number>::is_consistent_in_parallel(
 namespace internal
 {
   template <typename number>
-  std::vector<
-    std::tuple<types::global_dof_index,
-               number,
-               std::vector<std::pair<types::global_dof_index, number>>>>
+  std::vector<typename dealii::AffineConstraints<number>::ConstraintLine>
   compute_locally_relevant_constraints(
     const dealii::AffineConstraints<number> &constraints_in,
     const IndexSet &                         locally_owned_dofs,
     const IndexSet &                         locally_relevant_dofs,
     const MPI_Comm                           mpi_communicator)
   {
-    using ConstraintType =
-      std::tuple<types::global_dof_index,
-                 number,
-                 std::vector<std::pair<types::global_dof_index, number>>>;
-
     // The result vector filled step by step.
+    using ConstraintType =
+      typename dealii::AffineConstraints<number>::ConstraintLine;
     std::vector<ConstraintType> locally_relevant_constraints;
 
 #ifndef DEAL_II_WITH_MPI
@@ -226,17 +220,11 @@ namespace internal
     // helper function
     const auto sort_constraints = [&]() {
       std::sort(locally_relevant_constraints.begin(),
-                locally_relevant_constraints.end(),
-                [](const auto &a, const auto &b) {
-                  return std::get<0>(a) < std::get<0>(b);
-                });
+                locally_relevant_constraints.end());
 
       locally_relevant_constraints.erase(
         std::unique(locally_relevant_constraints.begin(),
-                    locally_relevant_constraints.end(),
-                    [](const auto &a, const auto &b) {
-                      return std::get<0>(a) == std::get<0>(b);
-                    }),
+                    locally_relevant_constraints.end()),
         locally_relevant_constraints.end());
     };
 
@@ -261,9 +249,10 @@ namespace internal
                                   true);
 
     Utilities::MPI::ConsensusAlgorithms::Selector<
-      std::pair<types::global_dof_index, types::global_dof_index>,
-      unsigned int>(constrained_indices_process, mpi_communicator)
-      .run();
+      std::vector<std::pair<types::global_dof_index, types::global_dof_index>>,
+      std::vector<unsigned int>>
+      consensus_algorithm;
+    consensus_algorithm.run(constrained_indices_process, mpi_communicator);
 
     // step 2: collect all locally owned constraints
     const auto constrained_indices_by_ranks =
@@ -283,16 +272,14 @@ namespace internal
           const types::global_dof_index index =
             constrained_indices.nth_index_in_set(i);
 
-          std::get<0>(entry) = index;
+          entry.index = index;
 
           if (constraints_in.is_inhomogeneously_constrained(index))
-            std::get<1>(entry) = constraints_in.get_inhomogeneity(index);
+            entry.inhomogeneity = constraints_in.get_inhomogeneity(index);
 
-          const auto constraints = constraints_in.get_constraint_entries(index);
-
-          if (constraints)
-            for (const auto &i : *constraints)
-              std::get<2>(entry).push_back(i);
+          if (const auto constraints =
+                constraints_in.get_constraint_entries(index))
+            entry.entries = *constraints;
 
           if (constrained_indices_owners[i] == my_rank)
             locally_relevant_constraints.push_back(entry);
@@ -388,9 +375,11 @@ namespace internal
                                       true);
 
       Utilities::MPI::ConsensusAlgorithms::Selector<
-        std::pair<types::global_dof_index, types::global_dof_index>,
-        unsigned int>(locally_relevant_dofs_process, mpi_communicator)
-        .run();
+        std::vector<
+          std::pair<types::global_dof_index, types::global_dof_index>>,
+        std::vector<unsigned int>>
+        consensus_algorithm;
+      consensus_algorithm.run(locally_relevant_dofs_process, mpi_communicator);
 
       const auto locally_relevant_dofs_by_ranks =
         locally_relevant_dofs_process.get_requesters();
@@ -411,14 +400,14 @@ namespace internal
             {
               // note: at this stage locally_relevant_constraints still
               // contains only locally owned constraints
-              const auto prt =
+              const auto ptr =
                 std::find_if(locally_relevant_constraints.begin(),
                              locally_relevant_constraints.end(),
                              [index](const auto &a) {
-                               return std::get<0>(a) == index;
+                               return a.index == index;
                              });
-              if (prt != locally_relevant_constraints.end())
-                data.push_back(*prt);
+              if (ptr != locally_relevant_constraints.end())
+                data.push_back(*ptr);
             }
 
           send_data[rank_and_indices.first] = Utilities::pack(data, false);
@@ -521,19 +510,16 @@ AffineConstraints<number>::make_consistent_in_parallel(
   // 3) refill this constraint matrix
   for (const auto &line : temporal_constraint_matrix)
     {
-      const types::global_dof_index index = std::get<0>(line);
-
       // ... line
-      this->add_line(index);
+      this->add_line(line.index);
 
       // ... inhomogeneity
-      if (std::get<1>(line) != number())
-        this->set_inhomogeneity(index, std::get<1>(line));
+      if (line.inhomogeneity != number())
+        this->set_inhomogeneity(line.index, line.inhomogeneity);
 
       // ... entries
-      if (std::get<2>(line).size() > 0)
-        for (const auto &j : std::get<2>(line))
-          this->add_entry(index, j.first, j.second);
+      if (!line.entries.empty())
+        this->add_entries(line.index, line.entries);
     }
 
 #ifdef DEBUG
@@ -707,19 +693,21 @@ AffineConstraints<number>::close()
       largest_idx = std::max(largest_idx, entry.first);
 #endif
 
-  // replace references to dofs that are themselves constrained. note that
-  // because we may replace references to other dofs that may themselves be
-  // constrained to third ones, we have to iterate over all this until we
-  // replace no chains of constraints any more
-  //
-  // the iteration replaces references to constrained degrees of freedom by
-  // second-order references. for example if x3=x0/2+x2/2 and x2=x0/2+x1/2,
-  // then the new list will be x3=x0/2+x0/4+x1/4. note that x0 appear
-  // twice. we will throw this duplicate out in the following step, where
-  // we sort the list so that throwing out duplicates becomes much more
-  // efficient. also, we have to do it only once, rather than in each
-  // iteration
+      // replace references to dofs that are themselves constrained. note that
+      // because we may replace references to other dofs that may themselves be
+      // constrained to third ones, we have to iterate over all this until we
+      // replace no chains of constraints any more
+      //
+      // the iteration replaces references to constrained degrees of freedom by
+      // second-order references. for example if x3=x0/2+x2/2 and x2=x0/2+x1/2,
+      // then the new list will be x3=x0/2+x0/4+x1/4. note that x0 appear
+      // twice. we will throw this duplicate out in the following step, where
+      // we sort the list so that throwing out duplicates becomes much more
+      // efficient. also, we have to do it only once, rather than in each
+      // iteration
+#ifdef DEBUG
   size_type iteration = 0;
+#endif
   while (true)
     {
       bool chained_constraint_replaced = false;
@@ -822,11 +810,13 @@ AffineConstraints<number>::close()
       if (chained_constraint_replaced == false)
         break;
 
+#ifdef DEBUG
       // increase iteration count. note that we should not iterate more
       // times than there are constraints, since this puts a natural upper
       // bound on the length of constraint chains
       ++iteration;
       Assert(iteration <= lines.size(), ExcInternalError());
+#endif
     }
 
   // finally sort the entries and re-scale them if necessary. in this step,
@@ -949,7 +939,7 @@ AffineConstraints<number>::is_closed() const
 
 template <typename number>
 bool
-AffineConstraints<number>::is_closed(const MPI_Comm &comm) const
+AffineConstraints<number>::is_closed(const MPI_Comm comm) const
 {
   return Utilities::MPI::min(static_cast<unsigned int>(is_closed()), comm) == 1;
 }
@@ -2249,24 +2239,12 @@ namespace internal
       vec.zero_out_ghost_values();
     }
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
-    template <typename Number>
-    __global__ void
-    set_zero_kernel(const size_type *  constrained_dofs,
-                    const unsigned int n_constrained_dofs,
-                    Number *           dst)
-    {
-      const unsigned int index = threadIdx.x + blockDim.x * blockIdx.x;
-      if (index < n_constrained_dofs)
-        dst[constrained_dofs[index]] = 0;
-    }
-
     template <typename number>
     void
     set_zero_parallel(
-      const std::vector<size_type> &                                 cm,
-      LinearAlgebra::distributed::Vector<number, MemorySpace::CUDA> &vec,
-      size_type                                                      shift = 0)
+      const std::vector<size_type> &                                    cm,
+      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &vec,
+      size_type shift = 0)
     {
       Assert(shift == 0, ExcNotImplemented());
       (void)shift;
@@ -2278,22 +2256,30 @@ namespace internal
           constrained_local_dofs_host.push_back(
             vec.get_partitioner()->global_to_local(global_index));
 
-      const int  n_constraints = constrained_local_dofs_host.size();
-      size_type *constrained_local_dofs_device;
-      Utilities::CUDA::malloc(constrained_local_dofs_device, n_constraints);
-      Utilities::CUDA::copy_to_dev(constrained_local_dofs_host,
-                                   constrained_local_dofs_device);
+      const int n_constraints = constrained_local_dofs_host.size();
+      Kokkos::View<size_type *, MemorySpace::Default::kokkos_space>
+        constrained_local_dofs_device(
+          Kokkos::view_alloc(Kokkos::WithoutInitializing,
+                             "constrained_local_dofs_device"),
+          n_constraints);
+      Kokkos::deep_copy(constrained_local_dofs_device,
+                        Kokkos::View<size_type *, Kokkos::HostSpace>(
+                          constrained_local_dofs_host.data(),
+                          constrained_local_dofs_host.size()));
 
-      const int n_blocks = 1 + (n_constraints - 1) / CUDAWrappers::block_size;
-      set_zero_kernel<<<n_blocks, CUDAWrappers::block_size>>>(
-        constrained_local_dofs_device, n_constraints, vec.get_values());
-      AssertCudaKernel();
-
-      Utilities::CUDA::free(constrained_local_dofs_device);
+      using ExecutionSpace =
+        MemorySpace::Default::kokkos_space::execution_space;
+      ExecutionSpace exec;
+      auto           local_values = vec.get_values();
+      Kokkos::parallel_for(
+        "dealii::set_zero_parallel",
+        Kokkos::RangePolicy<ExecutionSpace>(exec, 0, n_constraints),
+        KOKKOS_LAMBDA(int i) {
+          local_values[constrained_local_dofs_device[i]] = 0;
+        });
 
       vec.zero_out_ghost_values();
     }
-#endif
 
     template <class VectorType>
     void
@@ -3263,7 +3249,7 @@ namespace internal
       else
         col_val = 0;
 
-      // account for indirect contributions by constraints in row, going trough
+      // account for indirect contributions by constraints in row, going through
       // the direct and indirect references in the given column.
       for (size_type q = 0; q < global_rows.size(i); ++q)
         {
@@ -3359,10 +3345,21 @@ namespace internal
           {
             while (matrix_values->column() < column)
               ++matrix_values;
+
+            // Ensure that we haven't walked off the end of the row and
+            // accidentally found the column in a later row. This should
+            // not have happened since we believed we know that we enter
+            // entries sorted by column, and that all columns are represented
+            // in the current matrix row. But it's worth checking.
+            Assert(matrix_values->row() == row, ExcInternalError());
+
+            // Then also assert that the column index actually exists.
             Assert(matrix_values->column() == column,
                    typename SparseMatrix<
                      typename SparseMatrixIterator::MatrixType::value_type>::
                      ExcInvalidIndex(row, column));
+
+            // Now so convinced, let us add the relevant value:
             matrix_values->value() += value;
           }
       }
@@ -3682,10 +3679,10 @@ namespace internal
 
     // similar function as the one above for setting matrix diagonals, but now
     // doing that for sparsity patterns when setting them up using
-    // add_entries_local_to_global. In case we keep constrained entries, add all
-    // the rows and columns related to the constrained dof, otherwise just add
-    // the diagonal
-    template <typename number, typename SparsityPatternType>
+    // add_entries_local_to_global(). In case we keep constrained entries, add
+    // all the rows and columns related to the constrained dof, otherwise just
+    // add the diagonal
+    template <typename number>
     inline void
     set_sparsity_diagonals(
       const internal::AffineConstraints::GlobalRowsFromLocal<number>
@@ -3693,13 +3690,18 @@ namespace internal
       const std::vector<size_type> &local_dof_indices,
       const Table<2, bool> &        dof_mask,
       const bool                    keep_constrained_entries,
-      SparsityPatternType &         sparsity_pattern)
+      ScratchData<number> &         scratch_data,
+      SparsityPatternBase &         sparsity_pattern)
     {
       // if we got constraints, need to add the diagonal element and, if the
       // user requested so, also the rest of the entries in rows and columns
       // that have been left out above
       if (global_rows.n_constraints() > 0)
         {
+          std::vector<std::pair<size_type, size_type>> &cell_entries =
+            scratch_data.new_entries;
+          cell_entries.resize(0);
+          cell_entries.reserve(local_dof_indices.size());
           for (size_type i = 0; i < global_rows.n_constraints(); ++i)
             {
               const size_type local_row  = global_rows.constraint_origin(i);
@@ -3709,15 +3711,18 @@ namespace internal
                   for (size_type j = 0; j < local_dof_indices.size(); ++j)
                     {
                       if (dof_mask(local_row, j) == true)
-                        sparsity_pattern.add(global_row, local_dof_indices[j]);
+                        cell_entries.emplace_back(global_row,
+                                                  local_dof_indices[j]);
                       if (dof_mask(j, local_row) == true)
-                        sparsity_pattern.add(local_dof_indices[j], global_row);
+                        cell_entries.emplace_back(local_dof_indices[j],
+                                                  global_row);
                     }
                 }
               else
                 // don't keep constrained entries - just add the diagonal.
-                sparsity_pattern.add(global_row, global_row);
+                cell_entries.emplace_back(global_row, global_row);
             }
+          sparsity_pattern.add_entries(make_array_view(cell_entries));
         }
     }
 
@@ -3990,8 +3995,12 @@ AffineConstraints<number>::distribute_local_to_global(
                                                           val_ptr);
           const size_type n_values = col_ptr - cols.data();
           if (n_values > 0)
-            global_matrix.add(
-              row, n_values, cols.data(), vals.data(), false, true);
+            global_matrix.add(row,
+                              n_values,
+                              cols.data(),
+                              vals.data(),
+                              /* elide zero additions */ false,
+                              /* sorted by column index */ true);
         }
       else
         internal::AffineConstraints::resolve_matrix_row(
@@ -4273,14 +4282,12 @@ AffineConstraints<number>::distribute_local_to_global(
 
 
 template <typename number>
-template <typename SparsityPatternType>
 void
 AffineConstraints<number>::add_entries_local_to_global(
   const std::vector<size_type> &local_dof_indices,
-  SparsityPatternType &         sparsity_pattern,
+  SparsityPatternBase &         sparsity_pattern,
   const bool                    keep_constrained_entries,
-  const Table<2, bool> &        dof_mask,
-  const std::integral_constant<bool, false>) const
+  const Table<2, bool> &        dof_mask) const
 {
   Assert(sparsity_pattern.n_rows() == sparsity_pattern.n_cols(),
          ExcNotQuadratic());
@@ -4308,28 +4315,34 @@ AffineConstraints<number>::add_entries_local_to_global(
       // now add the indices we collected above to the sparsity pattern. Very
       // easy here - just add the same array to all the rows...
       for (size_type i = 0; i < n_actual_dofs; ++i)
-        sparsity_pattern.add_entries(actual_dof_indices[i],
-                                     actual_dof_indices.begin(),
-                                     actual_dof_indices.end(),
-                                     true);
+        sparsity_pattern.add_row_entries(actual_dof_indices[i],
+                                         make_array_view(actual_dof_indices),
+                                         true);
 
       // need to add the whole row and column structure in case we keep
-      // constrained entries. Unfortunately, we can't use the nice matrix
-      // structure we use elsewhere, so manually add those indices one by one.
+      // constrained entries.
+      std::vector<std::pair<size_type, size_type>> &cell_entries =
+        scratch_data->new_entries;
+      cell_entries.resize(0);
+      cell_entries.reserve(n_local_dofs);
       for (size_type i = 0; i < n_local_dofs; ++i)
         if (is_constrained(local_dof_indices[i]))
           {
             if (keep_constrained_entries == true)
               for (size_type j = 0; j < n_local_dofs; ++j)
                 {
-                  sparsity_pattern.add(local_dof_indices[i],
-                                       local_dof_indices[j]);
-                  sparsity_pattern.add(local_dof_indices[j],
-                                       local_dof_indices[i]);
+                  cell_entries.emplace_back(local_dof_indices[i],
+                                            local_dof_indices[j]);
+                  cell_entries.emplace_back(local_dof_indices[j],
+                                            local_dof_indices[i]);
                 }
             else
-              sparsity_pattern.add(local_dof_indices[i], local_dof_indices[i]);
+              {
+                cell_entries.emplace_back(local_dof_indices[i],
+                                          local_dof_indices[i]);
+              }
           }
+      sparsity_pattern.add_entries(make_array_view(cell_entries));
 
       return;
     }
@@ -4358,30 +4371,39 @@ AffineConstraints<number>::add_entries_local_to_global(
       // finally, write all the information that accumulated under the given
       // process into the global matrix row and into the vector
       if (col_ptr != cols.begin())
-        sparsity_pattern.add_entries(row, cols.begin(), col_ptr, true);
+        sparsity_pattern.add_row_entries(row,
+                                         make_array_view(cols.begin(), col_ptr),
+                                         true);
     }
   internal::AffineConstraints::set_sparsity_diagonals(global_rows,
                                                       local_dof_indices,
                                                       dof_mask,
                                                       keep_constrained_entries,
+                                                      *scratch_data,
                                                       sparsity_pattern);
 }
 
 
 
 template <typename number>
-template <typename SparsityPatternType>
 void
 AffineConstraints<number>::add_entries_local_to_global(
   const std::vector<size_type> &   row_indices,
   const AffineConstraints<number> &col_constraints,
   const std::vector<size_type> &   col_indices,
-  SparsityPatternType &            sparsity_pattern,
+  SparsityPatternBase &            sparsity_pattern,
   const bool                       keep_constrained_entries,
   const Table<2, bool> &           dof_mask) const
 {
   const size_type n_local_rows = row_indices.size();
   const size_type n_local_cols = col_indices.size();
+
+  typename internal::AffineConstraints::ScratchDataAccessor<number>
+    scratch_data(this->scratch_data);
+  std::vector<std::pair<size_type, size_type>> &cell_entries =
+    scratch_data->new_entries;
+  cell_entries.resize(0);
+  cell_entries.reserve(row_indices.size() * col_indices.size());
 
   // if constrained entries should be kept, need to add rows and columns of
   // those to the sparsity pattern
@@ -4390,11 +4412,12 @@ AffineConstraints<number>::add_entries_local_to_global(
       for (const size_type row_index : row_indices)
         if (is_constrained(row_index))
           for (const size_type col_index : col_indices)
-            sparsity_pattern.add(row_index, col_index);
+            cell_entries.emplace_back(row_index, col_index);
       for (const size_type col_index : col_indices)
         if (col_constraints.is_constrained(col_index))
           for (const size_type row_index : row_indices)
-            sparsity_pattern.add(row_index, col_index);
+            cell_entries.emplace_back(row_index, col_index);
+      sparsity_pattern.add_entries(make_array_view(cell_entries));
     }
 
   // if the dof mask is not active, all we have to do is to add some indices
@@ -4405,19 +4428,26 @@ AffineConstraints<number>::add_entries_local_to_global(
     dof_mask.n_rows() == n_local_rows && dof_mask.n_cols() == n_local_cols;
   if (dof_mask_is_active == false)
     {
-      std::vector<size_type> actual_row_indices(n_local_rows);
-      std::vector<size_type> actual_col_indices(n_local_cols);
-      make_sorted_row_list(row_indices, actual_row_indices);
-      col_constraints.make_sorted_row_list(col_indices, actual_col_indices);
-      const size_type n_actual_rows = actual_row_indices.size();
+      std::vector<size_type> &rows = scratch_data->rows;
+      std::vector<size_type> &cols = scratch_data->columns;
+      rows.resize(n_local_rows);
+      cols.resize(n_local_cols);
+      // TODO these fills may not be necessary: previously we assumed all zeros
+      // which seems incorrect. At least this way things will crash
+      std::fill(rows.begin(),
+                rows.end(),
+                std::numeric_limits<size_type>::max());
+      std::fill(cols.begin(),
+                cols.end(),
+                std::numeric_limits<size_type>::max());
+      make_sorted_row_list(row_indices, rows);
+      col_constraints.make_sorted_row_list(col_indices, cols);
+      const size_type n_actual_rows = rows.size();
 
       // now add the indices we collected above to the sparsity pattern. Very
       // easy here - just add the same array to all the rows...
       for (size_type i = 0; i < n_actual_rows; ++i)
-        sparsity_pattern.add_entries(actual_row_indices[i],
-                                     actual_col_indices.begin(),
-                                     actual_col_indices.end(),
-                                     true);
+        sparsity_pattern.add_row_entries(rows[i], make_array_view(cols), true);
       return;
     }
 
@@ -4428,12 +4458,11 @@ AffineConstraints<number>::add_entries_local_to_global(
 
 
 template <typename number>
-template <typename SparsityPatternType>
 void
 AffineConstraints<number>::add_entries_local_to_global(
   const std::vector<size_type> &row_indices,
   const std::vector<size_type> &col_indices,
-  SparsityPatternType &         sparsity_pattern,
+  SparsityPatternBase &         sparsity_pattern,
   const bool                    keep_constrained_entries,
   const Table<2, bool> &        dof_mask) const
 {
@@ -4444,140 +4473,6 @@ AffineConstraints<number>::add_entries_local_to_global(
                               sparsity_pattern,
                               keep_constrained_entries,
                               dof_mask);
-}
-
-
-
-template <typename number>
-template <typename SparsityPatternType>
-void
-AffineConstraints<number>::add_entries_local_to_global(
-  const std::vector<size_type> &local_dof_indices,
-  SparsityPatternType &         sparsity_pattern,
-  const bool                    keep_constrained_entries,
-  const Table<2, bool> &        dof_mask,
-  const std::integral_constant<bool, true>) const
-{
-  // just as the other add_entries_local_to_global function, but now
-  // specialized for block matrices.
-  Assert(sparsity_pattern.n_rows() == sparsity_pattern.n_cols(),
-         ExcNotQuadratic());
-  Assert(sparsity_pattern.n_block_rows() == sparsity_pattern.n_block_cols(),
-         ExcNotQuadratic());
-
-  const size_type n_local_dofs = local_dof_indices.size();
-  const size_type num_blocks   = sparsity_pattern.n_block_rows();
-
-  typename internal::AffineConstraints::ScratchDataAccessor<number>
-    scratch_data(this->scratch_data);
-
-  const bool dof_mask_is_active = (dof_mask.n_rows() == n_local_dofs);
-  if (dof_mask_is_active == true)
-    {
-      AssertDimension(dof_mask.n_cols(), n_local_dofs);
-    }
-  else
-    {
-      std::vector<size_type> &actual_dof_indices = scratch_data->columns;
-      actual_dof_indices.resize(n_local_dofs);
-      make_sorted_row_list(local_dof_indices, actual_dof_indices);
-      const size_type n_actual_dofs = actual_dof_indices.size();
-      (void)n_actual_dofs;
-
-      // additional construct that also takes care of block indices.
-      std::vector<size_type> &block_starts = scratch_data->block_starts;
-      block_starts.resize(num_blocks + 1);
-      internal::AffineConstraints::make_block_starts(sparsity_pattern,
-                                                     actual_dof_indices,
-                                                     block_starts);
-
-      for (size_type block = 0; block < num_blocks; ++block)
-        {
-          const size_type next_block = block_starts[block + 1];
-          for (size_type i = block_starts[block]; i < next_block; ++i)
-            {
-              Assert(i < n_actual_dofs, ExcInternalError());
-              const size_type row = actual_dof_indices[i];
-              Assert(row < sparsity_pattern.block(block, 0).n_rows(),
-                     ExcInternalError());
-              std::vector<size_type>::iterator index_it =
-                actual_dof_indices.begin();
-              for (size_type block_col = 0; block_col < num_blocks; ++block_col)
-                {
-                  const size_type next_block_col = block_starts[block_col + 1];
-                  sparsity_pattern.block(block, block_col)
-                    .add_entries(row,
-                                 index_it,
-                                 actual_dof_indices.begin() + next_block_col,
-                                 true);
-                  index_it = actual_dof_indices.begin() + next_block_col;
-                }
-            }
-        }
-
-      for (size_type i = 0; i < n_local_dofs; ++i)
-        if (is_constrained(local_dof_indices[i]))
-          {
-            if (keep_constrained_entries == true)
-              for (size_type j = 0; j < n_local_dofs; ++j)
-                {
-                  sparsity_pattern.add(local_dof_indices[i],
-                                       local_dof_indices[j]);
-                  sparsity_pattern.add(local_dof_indices[j],
-                                       local_dof_indices[i]);
-                }
-            else
-              sparsity_pattern.add(local_dof_indices[i], local_dof_indices[i]);
-          }
-
-      return;
-    }
-
-  // difficult case with dof_mask, similar to the distribute_local_to_global
-  // function for block matrices
-  internal::AffineConstraints::GlobalRowsFromLocal<number> &global_rows =
-    scratch_data->global_rows;
-  global_rows.reinit(n_local_dofs);
-  make_sorted_row_list(local_dof_indices, global_rows);
-  const size_type n_actual_dofs = global_rows.size();
-
-  // additional construct that also takes care of block indices.
-  std::vector<size_type> &block_starts = scratch_data->block_starts;
-  block_starts.resize(num_blocks + 1);
-  internal::AffineConstraints::make_block_starts(sparsity_pattern,
-                                                 global_rows,
-                                                 block_starts);
-
-  std::vector<size_type> &cols = scratch_data->columns;
-  cols.resize(n_actual_dofs);
-
-  // the basic difference to the non-block variant from now onwards is that we
-  // go through the blocks of the matrix separately.
-  for (size_type block = 0; block < num_blocks; ++block)
-    {
-      const size_type next_block = block_starts[block + 1];
-      for (size_type i = block_starts[block]; i < next_block; ++i)
-        {
-          const size_type row = global_rows.global_row(i);
-          for (size_type block_col = 0; block_col < num_blocks; ++block_col)
-            {
-              const size_type begin_block = block_starts[block_col],
-                              end_block   = block_starts[block_col + 1];
-              std::vector<size_type>::iterator col_ptr = cols.begin();
-              internal::AffineConstraints::resolve_matrix_row(
-                global_rows, i, begin_block, end_block, dof_mask, col_ptr);
-
-              sparsity_pattern.block(block, block_col)
-                .add_entries(row, cols.begin(), col_ptr, true);
-            }
-        }
-    }
-
-  internal::AffineConstraints::set_sparsity_diagonals(global_rows,
-                                                      local_dof_indices,
-                                                      dof_mask,
-                                                      keep_constrained_entries,
-                                                      sparsity_pattern);
 }
 
 DEAL_II_NAMESPACE_CLOSE

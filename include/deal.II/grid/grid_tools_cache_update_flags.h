@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -83,6 +83,12 @@ namespace GridTools
      * Update vertex to neighbor subdomain
      */
     update_vertex_to_neighbor_subdomain = 0x100,
+
+    /**
+     * Update the information about which subdomains are connected to each
+     * vertex.
+     */
+    update_vertex_with_ghost_neighbors = 0x200,
 
     /**
      * Update all objects.

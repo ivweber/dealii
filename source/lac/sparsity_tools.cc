@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2020 by the deal.II authors
+// Copyright (C) 2008 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -69,24 +69,23 @@ namespace SparsityTools
       AssertThrow(false, ExcMETISNotInstalled());
 #else
 
-      // generate the data structures for
-      // METIS. Note that this is particularly
-      // simple, since METIS wants exactly our
-      // compressed row storage format. we only
-      // have to set up a few auxiliary arrays
-      idx_t n    = static_cast<signed int>(sparsity_pattern.n_rows()),
-            ncon = 1, // number of balancing constraints (should be >0)
-        nparts =
-          static_cast<int>(n_partitions), // number of subdomains to create
-        dummy;                            // the numbers of edges cut by the
-      // resulting partition
+      // Generate the data structures for METIS. Note that this is particularly
+      // simple, since METIS wants exactly our compressed row storage format.
+      // We only have to set up a few auxiliary arrays and convert from our
+      // unsigned cell weights to signed ones.
+      idx_t n = static_cast<signed int>(sparsity_pattern.n_rows());
+
+      idx_t ncon = 1; // number of balancing constraints (should be >0)
 
       // We can not partition n items into more than n parts. METIS will
       // generate non-sensical output (everything is owned by a single process)
       // and complain with a message (but won't return an error code!):
       // ***Cannot bisect a graph with 0 vertices!
       // ***You are trying to partition a graph into too many parts!
-      nparts = std::min(n, nparts);
+      idx_t nparts =
+        std::min(n,
+                 static_cast<idx_t>(
+                   n_partitions)); // number of subdomains to create
 
       // use default options for METIS
       idx_t options[METIS_NOPTIONS];
@@ -110,7 +109,7 @@ namespace SparsityTools
 
       std::vector<idx_t> int_partition_indices(sparsity_pattern.n_rows());
 
-      // Setup cell weighting option
+      // Set up cell weighting option
       std::vector<idx_t> int_cell_weights;
       if (cell_weights.size() > 0)
         {
@@ -134,6 +133,7 @@ namespace SparsityTools
       // Select which type of partitioning to create
 
       // Use recursive if the number of partitions is less than or equal to 8
+      idx_t dummy; // output: # of edges cut by the resulting partition
       if (nparts <= 8)
         ierr = METIS_PartGraphRecursive(&n,
                                         &ncon,
@@ -621,9 +621,8 @@ namespace SparsityTools
     DynamicSparsityPattern::size_type next_free_number = 0;
 
     // enumerate the first round dofs
-    for (DynamicSparsityPattern::size_type i = 0; i != last_round_dofs.size();
-         ++i)
-      new_indices[last_round_dofs[i]] = next_free_number++;
+    for (const auto &last_round_dof : last_round_dofs)
+      new_indices[last_round_dof] = next_free_number++;
 
     // now do as many steps as needed to renumber all dofs
     while (true)
@@ -915,7 +914,7 @@ namespace SparsityTools
   void
   gather_sparsity_pattern(DynamicSparsityPattern &dsp,
                           const IndexSet &        locally_owned_rows,
-                          const MPI_Comm &        mpi_comm,
+                          const MPI_Comm          mpi_comm,
                           const IndexSet &        locally_relevant_rows)
   {
     using map_vec_t =
@@ -1008,7 +1007,7 @@ namespace SparsityTools
   distribute_sparsity_pattern(
     DynamicSparsityPattern &                              dsp,
     const std::vector<DynamicSparsityPattern::size_type> &rows_per_cpu,
-    const MPI_Comm &                                      mpi_comm,
+    const MPI_Comm                                        mpi_comm,
     const IndexSet &                                      myrange)
   {
     const unsigned int myid = Utilities::MPI::this_mpi_process(mpi_comm);
@@ -1029,7 +1028,7 @@ namespace SparsityTools
   void
   distribute_sparsity_pattern(DynamicSparsityPattern &dsp,
                               const IndexSet &        locally_owned_rows,
-                              const MPI_Comm &        mpi_comm,
+                              const MPI_Comm          mpi_comm,
                               const IndexSet &        locally_relevant_rows)
   {
     IndexSet requested_rows(locally_relevant_rows);
@@ -1096,7 +1095,7 @@ namespace SparsityTools
   void
   distribute_sparsity_pattern(BlockDynamicSparsityPattern &dsp,
                               const std::vector<IndexSet> &owned_set_per_cpu,
-                              const MPI_Comm &             mpi_comm,
+                              const MPI_Comm               mpi_comm,
                               const IndexSet &             myrange)
   {
     const unsigned int myid = Utilities::MPI::this_mpi_process(mpi_comm);
@@ -1111,7 +1110,7 @@ namespace SparsityTools
   void
   distribute_sparsity_pattern(BlockDynamicSparsityPattern &dsp,
                               const IndexSet &             locally_owned_rows,
-                              const MPI_Comm &             mpi_comm,
+                              const MPI_Comm               mpi_comm,
                               const IndexSet &locally_relevant_rows)
   {
     using map_vec_t =

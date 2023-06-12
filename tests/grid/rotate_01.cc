@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2018 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,6 +29,20 @@
 template <int dim, int spacedim>
 void
 test();
+
+template <>
+void
+test<1, 2>()
+{
+  const int                    dim      = 1;
+  const int                    spacedim = 2;
+  Triangulation<dim, spacedim> tria;
+  GridGenerator::hyper_sphere<spacedim>(tria);
+
+  // GridOut().write_gnuplot (tria, deallog.get_file_stream());
+  GridTools::rotate(numbers::PI / 3.0, tria);
+  GridOut().write_gnuplot(tria, deallog.get_file_stream());
+}
 
 template <>
 void
@@ -79,6 +93,7 @@ main()
 {
   initlog();
 
+  test<1, 2>();
   test<2, 2>();
   test<1, 3>();
   test<2, 3>();

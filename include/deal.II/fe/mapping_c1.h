@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2020 by the deal.II authors
+// Copyright (C) 2001 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,8 +23,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup mapping */
-/*@{*/
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * Mapping class that uses C1 (continuously differentiable) cubic mappings of
@@ -80,7 +82,7 @@ public:
     std::vector<Point<dim>> &                         a) const override;
 };
 
-/*@}*/
+/** @} */
 
 /* -------------- declaration of explicit specializations ------------- */
 

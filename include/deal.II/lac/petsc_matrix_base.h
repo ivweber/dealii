@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,34 +14,34 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_petsc_matrix_base_h
-#  define dealii_petsc_matrix_base_h
+#define dealii_petsc_matrix_base_h
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  ifdef DEAL_II_WITH_PETSC
+#ifdef DEAL_II_WITH_PETSC
 
-#    include <deal.II/base/subscriptor.h>
+#  include <deal.II/base/subscriptor.h>
 
-#    include <deal.II/lac/exceptions.h>
-#    include <deal.II/lac/full_matrix.h>
-#    include <deal.II/lac/petsc_compatibility.h>
-#    include <deal.II/lac/petsc_vector_base.h>
-#    include <deal.II/lac/vector_operation.h>
+#  include <deal.II/lac/exceptions.h>
+#  include <deal.II/lac/full_matrix.h>
+#  include <deal.II/lac/petsc_compatibility.h>
+#  include <deal.II/lac/petsc_vector_base.h>
+#  include <deal.II/lac/vector_operation.h>
 
-#    include <petscmat.h>
+#  include <petscmat.h>
 
-#    include <cmath>
-#    include <memory>
-#    include <vector>
+#  include <cmath>
+#  include <memory>
+#  include <vector>
 
 DEAL_II_NAMESPACE_OPEN
 
 // Forward declarations
-#    ifndef DOXYGEN
+#  ifndef DOXYGEN
 template <typename Matrix>
 class BlockMatrixBase;
-#    endif
+#  endif
 
 
 namespace PETScWrappers
@@ -305,6 +305,26 @@ namespace PETScWrappers
     MatrixBase();
 
     /**
+     * Initialize a Matrix from a PETSc Mat object. Note that we do not copy the
+     * matrix. Any PETSc object (including the Mat type) is in fact a reference
+     * counted pointer.
+     *
+     * A reference counted pointer is a type of pointer that maintains a
+     * reference count for the object it points to. The reference count is
+     * incremented each time a new reference to the object is created, and
+     * decremented each time a reference is destroyed. When the reference count
+     * reaches zero, the object is automatically deleted, freeing up the memory
+     * it was using.
+     *
+     * In the context of PETSc, reference counted pointers are used to manage
+     * the memory of objects such as vectors, matrices, and solvers. By using
+     * reference counted pointers, PETSc ensures that memory is automatically
+     * released when it is no longer needed, without the need for explicit
+     * memory management.
+     */
+    explicit MatrixBase(const Mat &);
+
+    /**
      * Copy constructor. It is deleted as copying this base class
      * without knowing the concrete kind of matrix stored may both
      * miss important details and be expensive if the matrix is large.
@@ -325,6 +345,15 @@ namespace PETScWrappers
     virtual ~MatrixBase() override;
 
     /**
+     * This method associates the PETSc Mat to the instance of the class.
+     * This is particularly useful when performing PETSc to Deal.II operations
+     * since it allows to reuse the Deal.II MatrixBase and the PETSc Mat
+     * without incurring in memory copies.
+     */
+    void
+    reinit(Mat A);
+
+    /**
      * This operator assigns a scalar to a matrix. Since this does usually not
      * make much sense (should we set all matrix entries to this value? Only
      * the nonzero entries of the sparsity pattern?), this operation is only
@@ -335,6 +364,7 @@ namespace PETScWrappers
      */
     MatrixBase &
     operator=(const value_type d);
+
     /**
      * Release all memory and return to a state just like after having called
      * the default constructor.
@@ -551,6 +581,13 @@ namespace PETScWrappers
                const PetscScalar             new_diag_value = 0);
 
     /**
+     * Same as clear_rows(), except that the function also zeros the columns.
+     */
+    void
+    clear_rows_columns(const std::vector<size_type> &row_and_column_indices,
+                       const PetscScalar             new_diag_value = 0);
+
+    /**
      * PETSc matrices store their own sparsity patterns. So, in analogy to our
      * own SparsityPattern class, this function compresses the sparsity
      * pattern and allows the resulting matrix to be used in all other
@@ -642,18 +679,35 @@ namespace PETScWrappers
     in_local_range(const size_type index) const;
 
     /**
-     * Return a reference to the MPI communicator object in use with this
-     * matrix. This function has to be implemented in derived classes.
+     * Return the local number of columns stored on the present MPI process.
+     *
+     * To figure out which elements exactly are stored locally, use
+     * local_domain().
      */
-    virtual const MPI_Comm &
-    get_mpi_communicator() const = 0;
+    size_type
+    local_domain_size() const;
+
+    /**
+     * Return a pair of indices indicating which columns of this matrix are
+     * stored locally. The first number is the index of the first column stored,
+     * the second the index of the one past the last one that is stored
+     * locally.
+     */
+    std::pair<size_type, size_type>
+    local_domain() const;
+
+    /**
+     * Return the underlying MPI communicator.
+     */
+    MPI_Comm
+    get_mpi_communicator() const;
 
     /**
      * Return the number of nonzero elements of this matrix. Actually, it
      * returns the number of entries in the sparsity pattern; if any of the
      * entries should happen to be zero, it is counted anyway.
      */
-    size_type
+    std::uint64_t
     n_nonzero_elements() const;
 
     /**
@@ -694,7 +748,7 @@ namespace PETScWrappers
      * Return the square of the norm of the vector $v$ with respect to the
      * norm induced by this matrix, i.e. $\left(v,Mv\right)$. This is useful,
      * e.g. in the finite element context, where the $L_2$ norm of a function
-     * equals the matrix norm with respect to the mass matrix of the vector
+     * equals the matrix norm with respect to the @ref GlossMassMatrix "mass matrix" of the vector
      * representing the nodal values of the finite element function.
      *
      * Obviously, the matrix needs to be quadratic for this operation.
@@ -934,7 +988,7 @@ namespace PETScWrappers
      * Exception
      */
     DeclExceptionMsg(ExcSourceEqualsDestination,
-                     "You are attempting an operation on two matrices that "
+                     "You are attempting an operation on two vectors that "
                      "are the same object, but the operation requires that the "
                      "two objects are in fact different.");
 
@@ -1070,7 +1124,7 @@ namespace PETScWrappers
 
 
 
-#    ifndef DOXYGEN
+#  ifndef DOXYGEN
   // ---------------------- inline and template functions ---------------------
 
 
@@ -1610,14 +1664,19 @@ namespace PETScWrappers
     prepare_action(VectorOperation::insert);
   }
 
-#    endif // DOXYGEN
+  inline MPI_Comm
+  MatrixBase::get_mpi_communicator() const
+  {
+    return PetscObjectComm(reinterpret_cast<PetscObject>(matrix));
+  }
+
+#  endif // DOXYGEN
 } // namespace PETScWrappers
 
 
 DEAL_II_NAMESPACE_CLOSE
 
 
-#  endif // DEAL_II_WITH_PETSC
+#endif // DEAL_II_WITH_PETSC
 
 #endif
-/*---------------------------- petsc_matrix_base.h --------------------------*/

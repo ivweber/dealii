@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,6 +24,10 @@
 #include <deal.II/base/quadrature.h>
 #include <deal.II/base/std_cxx17/optional.h>
 
+#include <deal.II/dofs/dof_handler.h>
+
+#include <deal.II/grid/tria.h>
+
 #include <deal.II/hp/q_collection.h>
 
 #include <deal.II/non_matching/immersed_surface_quadrature.h>
@@ -39,8 +43,15 @@ namespace NonMatching
     {
       template <int dim, int spacedim>
       class QGenerator;
-    }
-  } // namespace internal
+    } // namespace QuadratureGeneratorImplementation
+
+
+    namespace DiscreteQuadratureGeneratorImplementation
+    {
+      template <int dim>
+      class CellWiseFunction;
+    } // namespace DiscreteQuadratureGeneratorImplementation
+  }   // namespace internal
 
 
   /**
@@ -72,8 +83,8 @@ namespace NonMatching
      *
      * $|\frac{\partial \psi}{\partial x_i}| > 0$.
      *
-     * In practice, it might happend the bound we have for the expression in
-     * the left-hand side is only floating-point close to zero.
+     * In practice, the bound we have for the expression in the left-hand side
+     * may be near but not equal to zero due to roundoff errors.
      *
      * This constant is a safety margin, $C$, that states that the implicit
      * function theorem can be used when
@@ -148,19 +159,19 @@ namespace NonMatching
    * The underlying algorithm use a 1-dimensional quadrature rule as base for
    * creating the immersed quadrature rules. Gauss-Legendre quadrature
    * (QGauss) is recommended. The constructor takes an hp::QCollection<1>.
-   * One can select which 1D-quadrature in the collection should be used
-   * through the set_1D_quadrature() function. The number of quadrature points
+   * One can select which 1d-quadrature in the collection should be used
+   * through the set_1d_quadrature() function. The number of quadrature points
    * in the constructed quadratures will vary depending on the level set
    * function. More quadrature points will be created if the intersection is
    * "bad", for example, if the zero-contour has a high curvature compared to
-   * the size of the box. However, if the number of points in the 1D quadrature
+   * the size of the box. However, if the number of points in the 1d quadrature
    * is $n$ the number of points will be proportional to $n^{dim}$ in the bulk
    * quadratures and to $n^{dim-1}$ in the surface quadrature. For example,
-   * in the 2D-example in the above figure, there are 2 points in the
-   * 1D-quadrature. If the 1D-quadrature is a Gauss-Legendre quadrature and the
+   * in the 2d-example in the above figure, there are 2 points in the
+   * 1d-quadrature. If the 1d-quadrature is a Gauss-Legendre quadrature and the
    * grid has size $h$, the immersed quadratures typically give global errors
    * proportional to $h^{2n}$, both for the bulk and surface integrals. If the
-   * 1D-quadrature has positive weights, the weights of the immersed quadratures
+   * 1d-quadrature has positive weights, the weights of the immersed quadratures
    * will also be positive.
    *
    * A detailed description of the underlying algorithm can be found in
@@ -180,10 +191,10 @@ namespace NonMatching
     using AdditionalData = AdditionalQGeneratorData;
 
     /**
-     * Constructor. Each Quadrature<1> in @p quadratures1D can be chosen as base
+     * Constructor. Each Quadrature<1> in @p quadratures1d can be chosen as base
      * for generating the immersed quadrature rules.
      *
-     * @note It is important that each 1D-quadrature rule in the
+     * @note It is important that each 1d-quadrature rule in the
      * hp::QCollection does not contain the points 0 and 1.
      */
     QuadratureGenerator(
@@ -235,7 +246,7 @@ namespace NonMatching
     get_surface_quadrature() const;
 
     /**
-     * Set which 1D-quadrature in the collection passed to the constructor
+     * Set which 1d-quadrature in the collection passed to the constructor
      * should be used to create the immersed quadratures.
      */
     void
@@ -273,7 +284,7 @@ namespace NonMatching
    * function, $\phi$. It then creates the (dim-1)-dimensional quadratures by
    * calling QuadratureGenerator with $\phi$. This means that what holds for the
    * QuadratureGenerator class in general also holds for this class. In
-   * particular, if the 1D-quadrature that is used as base contains $n$ points,
+   * particular, if the 1d-quadrature that is used as base contains $n$ points,
    * the number of points will be proportional to $n^{dim-1}$ in the in the
    * inside/outside quadratures and to $n^{dim-2}$ in the surface quadrature.
    */
@@ -284,10 +295,10 @@ namespace NonMatching
     using AdditionalData = AdditionalQGeneratorData;
 
     /**
-     * Constructor. Each Quadrature<1> in @p quadratures1D can be chosen as base
+     * Constructor. Each Quadrature<1> in @p quadratures1d can be chosen as base
      * for generating the immersed quadrature rules.
      *
-     * @note It is important that each 1D-quadrature rule in the
+     * @note It is important that each 1d-quadrature rule in the
      * hp::QCollection does not contain the points 0 and 1.
      */
     FaceQuadratureGenerator(
@@ -341,7 +352,7 @@ namespace NonMatching
     get_surface_quadrature() const;
 
     /**
-     * Set which 1D-quadrature in the collection passed to the constructor
+     * Set which 1d-quadrature in the collection passed to the constructor
      * should be used to create the immersed quadratures.
      */
     void
@@ -359,6 +370,217 @@ namespace NonMatching
      * but having dim-dimensional normals.
      */
     ImmersedSurfaceQuadrature<dim - 1, dim> surface_quadrature;
+  };
+
+
+  /**
+   * Specialization of the FaceQuadratureGenerator class for the 1-dimensional
+   * case.
+   *
+   * In 1d, a face is only a point. Thus to generate the immersed
+   * quadrature rules we add a single 0-dimensional quadrature point to the
+   * inside or outside quadrature rule depending on if the level set function is
+   * positive or negative at the face. The added quadrature point will have
+   * weight equal to 1. The immersed surface quadrature over a face corresponds
+   * to integrating over a dim-1 dimensional curve. Thus, surface quadrature
+   * generated by this specialized class is always empty.
+   *
+   * This class must be specialized in 1d, because the general
+   * FaceQuadratureGenerator<dim> class uses the QuadratureGenerator<dim-1>
+   * class internally, which does not make sense when dim-1 = 0.
+   */
+  template <>
+  class FaceQuadratureGenerator<1>
+  {
+  public:
+    using AdditionalData = AdditionalQGeneratorData;
+
+    /**
+     * Constructor. The incoming hp::QCollection is not used. But this class
+     * must have the same signature as the non-specialized class.
+     */
+    FaceQuadratureGenerator(
+      const hp::QCollection<1> &quadratures1D,
+      const AdditionalData &    additional_data = AdditionalData());
+
+    /**
+     * Construct immersed quadratures rules for the incoming level set
+     * function on a given face of the BoundingBox.
+     *
+     * To get the constructed quadratures, use the functions
+     * get_inside_quadrature(),
+     * get_outside_quadrature(),
+     * get_surface_quadrature().
+     */
+    void
+    generate(const Function<1> &   level_set,
+             const BoundingBox<1> &box,
+             const unsigned int    face_index);
+
+    /**
+     * @copydoc FaceQuadratureGenerator<dim>::get_inside_quadrature()
+     */
+    const Quadrature<0> &
+    get_inside_quadrature() const;
+
+    /**
+     * @copydoc FaceQuadratureGenerator<dim>::get_outside_quadrature()
+     */
+    const Quadrature<0> &
+    get_outside_quadrature() const;
+
+    /**
+     * Return the quadrature rule for the region
+     * $\{x \in F : \psi(x) = 0 \}$
+     * where, $F$ is the face of the BoundingBox passed to generate().
+     *
+     * @note In 1d, this quadrature always contains 0 points.
+     */
+    const ImmersedSurfaceQuadrature<0, 1> &
+    get_surface_quadrature() const;
+
+    /**
+     * This function does nothing. It only exist to be compatible with
+     * FaceQuadratureGenerator<dim>.
+     */
+    void
+    set_1D_quadrature(const unsigned int q_index);
+
+  private:
+    /**
+     * Quadrature for the region
+     * $\{x \in F : \psi(x) < 0 \}$.
+     * Created in the last call to generate().
+     */
+    Quadrature<0> inside_quadrature;
+
+    /**
+     * Quadrature for the region
+     * $\{x \in F : \psi(x) > 0 \}$.
+     * Created in the last call to generate().
+     */
+    Quadrature<0> outside_quadrature;
+
+    /**
+     * Quadrature for the region
+     * $\{x \in F : \psi(x) = 0 \}$.
+     * This quadrature always contains zero points in 1d.
+     */
+    const ImmersedSurfaceQuadrature<0, 1> surface_quadrature;
+  };
+
+
+  /**
+   * This class generates the same type of immersed quadrature rules as those
+   * described in the QuadratureGenerator class. The difference is that this
+   * class handles the case when the the domain is a discrete level set
+   * function, i.e., when the level set function is described as a
+   * (DoFHandler, Vector) pair. The generate()-function of this class takes a
+   * cell in real space and constructs the immersed quadrature rules in
+   * reference space over this cell. These quadrature rules can then be obtained
+   * with one of the functions:
+   * get_inside_quadrature(),
+   * get_outside_quadrature(), and
+   * get_surface_quadrature().
+   *
+   * Internally, the quadrature generation is done by transforming the discrete
+   * level set function from real space to reference space and using the same
+   * algorithm as in the QuadratureGenerator class.
+   */
+  template <int dim>
+  class DiscreteQuadratureGenerator : public QuadratureGenerator<dim>
+  {
+  public:
+    using AdditionalData = AdditionalQGeneratorData;
+
+    /**
+     * Constructor, the discrete level set function is described by the
+     * incoming DoFHandler and Vector. Pointers to these are stored
+     * internally, so they must have a longer lifetime than the created this
+     * class. The hp::QCollection<1> and AdditionalData is passed to the
+     * QuadratureGenerator class.
+     */
+    template <class VectorType>
+    DiscreteQuadratureGenerator(
+      const hp::QCollection<1> &quadratures1D,
+      const DoFHandler<dim> &   dof_handler,
+      const VectorType &        level_set,
+      const AdditionalData &    additional_data = AdditionalData());
+
+    /**
+     * Construct immersed quadratures rules based on the discrete level
+     * set vector over the incoming cell.
+     *
+     * @note The cell needs to belong to the same triangulation as the one
+     * associated with the DoFHandler passed to the constructor.
+     */
+    void
+    generate(const typename Triangulation<dim>::active_cell_iterator &cell);
+
+  private:
+    /**
+     * Function that describes our level set function in reference space.
+     */
+    std::unique_ptr<internal::DiscreteQuadratureGeneratorImplementation::
+                      CellWiseFunction<dim>>
+      reference_space_level_set;
+  };
+
+  /**
+   * This class generates the same type of immersed quadrature rules as those
+   * described in the FaceQuadratureGenerator class. The difference is that this
+   * class handles the case when the the domain is a discrete level set
+   * function, i.e., when the level set function is described as a
+   * (DoFHandler, Vector) pair. The generate()-function of this class takes a
+   * cell in real space plus the respective face index and constructs the
+   * immersed quadrature rules in reference space over this face. These
+   * quadrature rules can then be obtained with one of the functions:
+   * get_inside_quadrature(),
+   * get_outside_quadrature(), and
+   * get_surface_quadrature().
+   *
+   * Internally, the quadrature generation is done by transforming the discrete
+   * level set function from real space to reference space and using the same
+   * algorithm as in the FaceQuadratureGenerator class.
+   */
+  template <int dim>
+  class DiscreteFaceQuadratureGenerator : public FaceQuadratureGenerator<dim>
+  {
+  public:
+    using AdditionalData = AdditionalQGeneratorData;
+
+    /**
+     * Constructor, the discrete level set function is described by the
+     * incoming DoFHandler and Vector. Pointers to these are stored
+     * internally, so they must have a longer lifetime than the created this
+     * class. The hp::QCollection<1> and AdditionalData is passed to the
+     * QuadratureGenerator class.
+     */
+    template <class VectorType>
+    DiscreteFaceQuadratureGenerator(
+      const hp::QCollection<1> &quadratures1D,
+      const DoFHandler<dim> &   dof_handler,
+      const VectorType &        level_set,
+      const AdditionalData &    additional_data = AdditionalData());
+
+    /**
+     * Construct immersed quadratures rules based on the discrete level
+     * set vector over the incoming face described by cell and face index.
+     *
+     * @note The cell needs to belong to the same triangulation as the one
+     * associated with the DoFHandler passed to the constructor.
+     */
+    void
+    generate(const typename Triangulation<dim>::active_cell_iterator &cell,
+             const unsigned int face_index);
+
+  private:
+    /**
+     * Function that describes our level set function in reference space.
+     */
+    std::unique_ptr<internal::DiscreteQuadratureGeneratorImplementation::
+                      CellWiseFunction<dim>>
+      reference_space_level_set;
   };
 
 
@@ -577,16 +799,16 @@ namespace NonMatching
        * $dim=spacedim$, points for the surface quadrature.
        *
        * For each lower dimensional quadrature point, $(x_I, w_I)$ in the
-       * indefinite quadrature, we create several 1D-level set functions by
+       * indefinite quadrature, we create several 1d-level set functions by
        * restricting $\psi_j$ to $x_I$. We then partition the interval $[L, R]$
        * into $[y_0, y_1, ..., y_n]$, where $y_0 = L$, $y_n = R$, and the
-       * remaining $y_i$ are the roots of the 1D-level set functions in
+       * remaining $y_i$ are the roots of the 1d-level set functions in
        * $[L, R]$. Since the level set functions change sign between the
        * roots, each interval belong to different regions in the quadrature
        * partitioning.
        *
        * In each interval, $[y_i, y_{i+1}]$, we distribute points
-       * according to the 1D-base quadrature, $(x_q, w_q)$ and take the
+       * according to the 1d-base quadrature, $(x_q, w_q)$ and take the
        * cartesian product with $(x_I, w_I)$ to create the $dim$-dimensional
        * quadrature points, $(X_q, W_q)$:
        * $X_q = x_I \times (y_i + (y_{i+1} - y_i) x_q)$,
@@ -627,7 +849,7 @@ namespace NonMatching
                  QPartitioning<dim> &       q_partitioning);
 
         /**
-         * Set which 1D-quadrature in the collection passed to the constructor
+         * Set which 1d-quadrature in the collection passed to the constructor
          * should be used to create the immersed quadratures.
          */
         void
@@ -670,13 +892,13 @@ namespace NonMatching
         unsigned int q_index;
 
         /**
-         * 1D-functions, that are restrictions of each dim-dimensional level set
+         * 1d-functions, that are restrictions of each dim-dimensional level set
          * function passed to generate() to some $(dim-1)$-dimensional point.
          */
         std::vector<Functions::PointRestriction<dim - 1>> point_restrictions;
 
         /**
-         * Class used to find the roots of the above 1D-restictions.
+         * Class used to find the roots of the above 1d-restictions.
          */
         RootFinder root_finder;
 
@@ -684,7 +906,7 @@ namespace NonMatching
          * The roots of the functions in point_restrictions.
          * This will be the values of the height functions, $\{H_i(x_I)\}$ at
          * some lower dimensional quadrature point,
-         * $x_I \in \mathbb{R}^{dim-1}}$.
+         * $x_I \in \mathbb{R}^{dim-1}$.
          */
         std::vector<double> roots;
       };
@@ -758,13 +980,13 @@ namespace NonMatching
         const AdditionalQGeneratorData additional_data;
 
         /**
-         * Which 1D-quadrature in the collection we should use to generate
+         * Which 1d-quadrature in the collection we should use to generate
          * the immersed quadrature.
          */
         unsigned int q_index;
 
         /**
-         * Index of the quadrature in q_collection1D that should use to
+         * Index of the quadrature in q_collection1d that should use to
          * generate the immersed quadrature rules.
          */
         const SmartPointer<const hp::QCollection<1>> q_collection1D;
@@ -886,7 +1108,7 @@ namespace NonMatching
                  const unsigned int      n_box_splits);
 
         /**
-         * Set which 1D-quadrature in the collection passed to the constructor
+         * Set which 1d-quadrature in the collection passed to the constructor
          * should be used to create the immersed quadratures.
          */
         void
@@ -961,21 +1183,21 @@ namespace NonMatching
 
         /**
          * Stores tensor products of each of the Quadrature<1>'s in
-         * q_collection1D.
+         * q_collection1d.
          */
         hp::QCollection<dim> tensor_products;
       };
 
 
       /**
-       * The 1D-base case of the recursive algorithm QGenerator<dim, spacedim>.
+       * The 1d-base case of the recursive algorithm QGenerator<dim, spacedim>.
        *
        * Let $L$ and $R$ be the left and right bounds of the one-dimensional
        * BoundingBox. This interval is partitioned into $[x_0, x_1, ..., x_n]$
        * where $x_0 = L$, $x_n = R$, and the remaining $x_i$ are the roots
        * of the level set functions in the interval $[L, R]$. In each interval,
        * $[x_i, x_{i+1}]$, quadrature points are distributed according to a
-       * 1D-quadrature rule. These points are added to one of the regions of
+       * 1d-quadrature rule. These points are added to one of the regions of
        * QPartitioning determined from the signs of the level set
        * functions on the interval (see documentation of QPartitioning).
        *
@@ -1005,7 +1227,7 @@ namespace NonMatching
                  const unsigned int    n_box_splits);
 
         /**
-         * Set which 1D-quadrature in the collection passed to the constructor
+         * Set which 1d-quadrature in the collection passed to the constructor
          * should be used to create the immersed quadratures.
          */
         void
@@ -1033,7 +1255,7 @@ namespace NonMatching
 
         /**
          * This would be the height-function direction in higher dimensions,
-         * but in 1D there is only one coordinate direction.
+         * but in 1d there is only one coordinate direction.
          */
         const unsigned int direction = 0;
 
@@ -1047,12 +1269,12 @@ namespace NonMatching
 
 
       /**
-       * Take the tensor product between (point, weight) and @p quadrature1D
+       * Take the tensor product between (point, weight) and @p quadrature1d
        * scaled over [start, end] and add the resulting dim-dimensional
        * quadrature points to @p quadrature.
        *
        * @p component_in_dim specifies which dim-dimensional coordinate
-       * quadrature1D should be written to.
+       * quadrature1d should be written to.
        */
       template <int dim>
       void
@@ -1126,7 +1348,7 @@ namespace NonMatching
        *
        * $|\partial_k \psi_j| > L_{jk}$.
        *
-       * and then returns a coordindate direction, $i$, and a lower bound $L$,
+       * and then returns a coordinate direction, $i$, and a lower bound $L$,
        * such that
        *
        * @f[
@@ -1150,6 +1372,33 @@ namespace NonMatching
         const std::vector<FunctionBounds<dim>> &all_function_bounds);
 
     } // namespace QuadratureGeneratorImplementation
+
+
+    namespace DiscreteQuadratureGeneratorImplementation
+    {
+      /**
+       * Interface for a scalar Function which has a
+       * set_active_cell(..)-function. That is, a function which we in some way
+       * need to associate with a given cell in order to evaluate.
+       */
+      template <int dim>
+      class CellWiseFunction : public Function<dim>
+      {
+      public:
+        /**
+         * Destructor. Declared to make it virtual.
+         */
+        virtual ~CellWiseFunction() = default;
+
+        /**
+         * Set the cell that the function should be evaluated on.
+         */
+        virtual void
+        set_active_cell(
+          const typename Triangulation<dim>::active_cell_iterator &cell) = 0;
+      };
+
+    } // namespace DiscreteQuadratureGeneratorImplementation
   }   // namespace internal
 
 } // namespace NonMatching

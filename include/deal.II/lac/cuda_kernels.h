@@ -18,7 +18,7 @@
 
 #include <deal.II/base/config.h>
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
 
 
 #  include <deal.II/base/cuda_size.h>
@@ -103,7 +103,8 @@ namespace LinearAlgebra
       struct Binop_Subtraction<std::complex<Number>>
       {
         __device__ static inline std::complex<Number>
-        operation(const std::complex<Number> a, const std::complex<Number> b)
+        operation(const std::complex<Number> a,
+                  const std::complex<Number> /*b*/)
         {
           printf("This function is not implemented for std::complex<Number>!");
           assert(false);

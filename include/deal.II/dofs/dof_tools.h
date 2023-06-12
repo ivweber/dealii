@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,9 +27,8 @@
 
 #include <deal.II/fe/component_mask.h>
 
-#include <deal.II/hp/dof_handler.h>
-
 #include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/sparsity_pattern_base.h>
 
 #include <map>
 #include <ostream>
@@ -54,10 +53,10 @@ namespace hp
   class FECollection;
 } // namespace hp
 template <class MeshType>
+DEAL_II_CXX20_REQUIRES(concepts::is_triangulation_or_dof_handler<MeshType>)
 class InterGridMap;
 template <int dim, int spacedim>
 class Mapping;
-class SparsityPattern;
 template <int dim, class T>
 class Table;
 template <typename Number>
@@ -136,7 +135,7 @@ namespace DoFTools
  * With this vector, one can get, for any given degree of freedom, a unique
  * number among those DoFs that sit on the boundary; or, if your DoF was
  * interior to the domain, the result would be numbers::invalid_dof_index.
- * We need this mapping, for example, to build the mass matrix on the boundary
+ * We need this mapping, for example, to build the @ref GlossMassMatrix "mass matrix" on the boundary
  * (for this, see make_boundary_sparsity_pattern() function, the corresponding
  * section below, as well as the MatrixCreator namespace documentation).
  *
@@ -284,9 +283,7 @@ namespace DoFTools
   dof_couplings_from_component_couplings(
     const hp::FECollection<dim, spacedim> &fe,
     const Table<2, Coupling> &             component_couplings);
-  /**
-   * @}
-   */
+  /** @} */
 
   /**
    * @name Sparsity pattern generation
@@ -409,14 +406,11 @@ namespace DoFTools
    *
    * @ingroup constraints
    */
-  template <int dim,
-            int spacedim,
-            typename SparsityPatternType,
-            typename number = double>
+  template <int dim, int spacedim, typename number = double>
   void
   make_sparsity_pattern(
     const DoFHandler<dim, spacedim> &dof_handler,
-    SparsityPatternType &            sparsity_pattern,
+    SparsityPatternBase &            sparsity_pattern,
     const AffineConstraints<number> &constraints = AffineConstraints<number>(),
     const bool                       keep_constrained_dofs = true,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id);
@@ -486,15 +480,12 @@ namespace DoFTools
    *
    * @ingroup constraints
    */
-  template <int dim,
-            int spacedim,
-            typename SparsityPatternType,
-            typename number = double>
+  template <int dim, int spacedim, typename number = double>
   void
   make_sparsity_pattern(
     const DoFHandler<dim, spacedim> &dof_handler,
     const Table<2, Coupling> &       coupling,
-    SparsityPatternType &            sparsity_pattern,
+    SparsityPatternBase &            sparsity_pattern,
     const AffineConstraints<number> &constraints = AffineConstraints<number>(),
     const bool                       keep_constrained_dofs = true,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id);
@@ -519,11 +510,11 @@ namespace DoFTools
    * whereas the ones that correspond to columns come from the second
    * DoFHandler.
    */
-  template <int dim, int spacedim, typename SparsityPatternType>
+  template <int dim, int spacedim>
   void
   make_sparsity_pattern(const DoFHandler<dim, spacedim> &dof_row,
                         const DoFHandler<dim, spacedim> &dof_col,
-                        SparsityPatternType &            sparsity);
+                        SparsityPatternBase &            sparsity);
 
   /**
    * Compute which entries of a matrix built on the given @p dof_handler may
@@ -570,10 +561,10 @@ namespace DoFTools
    *
    * @ingroup constraints
    */
-  template <int dim, int spacedim, typename SparsityPatternType>
+  template <int dim, int spacedim>
   void
   make_flux_sparsity_pattern(const DoFHandler<dim, spacedim> &dof_handler,
-                             SparsityPatternType &            sparsity_pattern);
+                             SparsityPatternBase &            sparsity_pattern);
 
   /**
    * This function does essentially the same as the other
@@ -583,14 +574,11 @@ namespace DoFTools
    *
    * @ingroup constraints
    */
-  template <int dim,
-            int spacedim,
-            typename SparsityPatternType,
-            typename number>
+  template <int dim, int spacedim, typename number>
   void
   make_flux_sparsity_pattern(
     const DoFHandler<dim, spacedim> &dof_handler,
-    SparsityPatternType &            sparsity_pattern,
+    SparsityPatternBase &            sparsity_pattern,
     const AffineConstraints<number> &constraints,
     const bool                       keep_constrained_dofs = true,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id);
@@ -615,11 +603,11 @@ namespace DoFTools
    *
    * @ingroup constraints
    */
-  template <int dim, int spacedim, typename SparsityPatternType>
+  template <int dim, int spacedim>
   void
   make_flux_sparsity_pattern(
     const DoFHandler<dim, spacedim> &dof,
-    SparsityPatternType &            sparsity,
+    SparsityPatternBase &            sparsity,
     const Table<2, Coupling> &       cell_integrals_mask,
     const Table<2, Coupling> &       face_integrals_mask,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id);
@@ -639,8 +627,8 @@ namespace DoFTools
    * in the triangulation. By default flux couplings are added over all internal
    * faces. @p face_has_flux_coupling should be a function that takes an
    * active_cell_iterator and a face index and should return true if there is a
-   * flux coupling over the face. When using the ::dealii::DoFHandler we could,
-   * for example, use
+   * flux coupling over the face. When using DoFHandler we could, for example,
+   * use
    *
    * @code
    *  auto face_has_flux_coupling =
@@ -651,14 +639,11 @@ namespace DoFTools
    *    };
    * @endcode
    */
-  template <int dim,
-            int spacedim,
-            typename SparsityPatternType,
-            typename number>
+  template <int dim, int spacedim, typename number>
   void
   make_flux_sparsity_pattern(
     const DoFHandler<dim, spacedim> &dof,
-    SparsityPatternType &            sparsity,
+    SparsityPatternBase &            sparsity,
     const AffineConstraints<number> &constraints,
     const bool                       keep_constrained_dofs,
     const Table<2, Coupling> &       couplings,
@@ -678,12 +663,12 @@ namespace DoFTools
    * the matrix does not consist of domain integrals, but only of integrals
    * over the boundary of the domain.
    */
-  template <int dim, int spacedim, typename SparsityPatternType>
+  template <int dim, int spacedim>
   void
   make_boundary_sparsity_pattern(
     const DoFHandler<dim, spacedim> &           dof,
     const std::vector<types::global_dof_index> &dof_to_boundary_mapping,
-    SparsityPatternType &                       sparsity_pattern);
+    SparsityPatternBase &                       sparsity_pattern);
 
   /**
    * This function is a variation of the previous
@@ -702,17 +687,14 @@ namespace DoFTools
    * map with the boundary indicators you want and set the function pointers to
    * null pointers).
    */
-  template <int dim,
-            int spacedim,
-            typename SparsityPatternType,
-            typename number>
+  template <int dim, int spacedim, typename number>
   void
   make_boundary_sparsity_pattern(
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
       &                                         boundary_ids,
     const std::vector<types::global_dof_index> &dof_to_boundary_mapping,
-    SparsityPatternType &                       sparsity);
+    SparsityPatternBase &                       sparsity);
 
   /**
    * @}
@@ -1048,9 +1030,9 @@ namespace DoFTools
   template <typename FaceIterator, typename number>
   void
   make_periodicity_constraints(
-    const FaceIterator &                         face_1,
-    const typename identity<FaceIterator>::type &face_2,
-    AffineConstraints<number> &                  constraints,
+    const FaceIterator &                            face_1,
+    const std_cxx20::type_identity_t<FaceIterator> &face_2,
+    AffineConstraints<number> &                     constraints,
     const ComponentMask &            component_mask   = ComponentMask(),
     const bool                       face_orientation = true,
     const bool                       face_flip        = false,
@@ -1059,7 +1041,6 @@ namespace DoFTools
     const std::vector<unsigned int> &first_vector_components =
       std::vector<unsigned int>(),
     const number periodicity_factor = 1.);
-
 
 
   /**
@@ -1087,24 +1068,6 @@ namespace DoFTools
     const std::vector<GridTools::PeriodicFacePair<
       typename DoFHandler<dim, spacedim>::cell_iterator>> &periodic_faces,
     AffineConstraints<number> &                            constraints,
-    const ComponentMask &            component_mask = ComponentMask(),
-    const std::vector<unsigned int> &first_vector_components =
-      std::vector<unsigned int>(),
-    const number periodicity_factor = 1.);
-
-  /**
-   * The same as above.
-   *
-   * @deprecated Use the function that takes dim and spacedim as template
-   *   argument.
-   */
-  template <typename DoFHandlerType, typename number>
-  DEAL_II_DEPRECATED void
-  make_periodicity_constraints(
-    const std::vector<
-      GridTools::PeriodicFacePair<typename DoFHandlerType::cell_iterator>>
-      &                              periodic_faces,
-    AffineConstraints<number> &      constraints,
     const ComponentMask &            component_mask = ComponentMask(),
     const std::vector<unsigned int> &first_vector_components =
       std::vector<unsigned int>(),
@@ -1520,7 +1483,7 @@ namespace DoFTools
   extract_constant_modes(const DoFHandler<dim, spacedim> &dof_handler,
                          const ComponentMask &            component_mask,
                          std::vector<std::vector<bool>> & constant_modes);
-  //@}
+  /** @} */
 
   /**
    * @name Parallelization and domain decomposition
@@ -1626,8 +1589,7 @@ namespace DoFTools
    * DoFHandler objects built on parallel::distributed::Triangulation this set
    * is the union of DoFHandler::locally_owned_dofs() and the DoF indices on
    * all ghost cells. In essence, it is the DoF indices on all cells that are
-   * not artificial (see
-   * @ref GlossArtificialCell "the glossary").
+   * not artificial (see @ref GlossArtificialCell "the glossary").
    *
    * @deprecated Use the previous function instead.
    */
@@ -1638,12 +1600,12 @@ namespace DoFTools
 
   /**
    * Extract the set of locally owned DoF indices for each component within the
-   * mask that are owned by the current  processor. For components disabled by
+   * mask that are owned by the current processor. For components disabled by
    * the mask, an empty IndexSet is returned. For a scalar DoFHandler built on a
    * sequential triangulation, the return vector contains a single complete
    * IndexSet with all DoF indices. If the mask contains all components (which
    * also corresponds to the default value), then the union of the returned
-   * index sets equlas what DoFHandler::locally_owned_dofs() returns.
+   * index sets equals what DoFHandler::locally_owned_dofs() returns.
    */
   template <int dim, int spacedim>
   std::vector<IndexSet>
@@ -1830,7 +1792,8 @@ namespace DoFTools
   dof_indices_with_subdomain_association(
     const DoFHandler<dim, spacedim> &dof_handler,
     const types::subdomain_id        subdomain);
-  // @}
+  /** @} */
+
   /**
    * @name DoF indices on patches of cells
    *
@@ -1839,7 +1802,7 @@ namespace DoFTools
    * and related classes to implement Schwarz preconditioners and smoothers,
    * where the subdomains consist of small numbers of cells only.
    */
-  //@{
+  /** @{ */
 
   /**
    * Return the set of degrees of freedom that live on a set of cells (i.e., a
@@ -1890,17 +1853,6 @@ namespace DoFTools
   get_dofs_on_patch(
     const std::vector<typename DoFHandler<dim, spacedim>::active_cell_iterator>
       &patch);
-
-  /**
-   * The same as above.
-   *
-   * @deprecated Use the function that takes dim and spacedim as template
-   *   argument.
-   */
-  template <typename DoFHandlerType>
-  DEAL_II_DEPRECATED std::vector<types::global_dof_index>
-                     get_dofs_on_patch(
-                       const std::vector<typename DoFHandlerType::active_cell_iterator> &patch);
 
   /**
    * Creates a sparsity pattern, which lists
@@ -2167,9 +2119,15 @@ namespace DoFTools
    * For DoFHandler objects without hp-capabilities given as first argument, the
    * returned vector will consist of only zeros, indicating that all cells use
    * the same finite element. In hp-mode, the values may be different, though.
+   *
+   * As we do not know the active FE index on artificial cells, we set them to
+   * the invalid value numbers::invalid_fe_index.
+   *
+   * @deprecated Use DoFHandler::get_active_fe_indices() that returns the result
+   * vector.
    */
   template <int dim, int spacedim>
-  void
+  DEAL_II_DEPRECATED_EARLY void
   get_active_fe_indices(const DoFHandler<dim, spacedim> &dof_handler,
                         std::vector<unsigned int> &      active_fe_indices);
 
@@ -2205,17 +2163,6 @@ namespace DoFTools
   count_dofs_on_patch(
     const std::vector<typename DoFHandler<dim, spacedim>::active_cell_iterator>
       &patch);
-
-  /**
-   * The same as above.
-   *
-   * @deprecated Use the function that takes dim and spacedim as template
-   *   argument.
-   */
-  template <typename DoFHandlerType>
-  DEAL_II_DEPRECATED unsigned int
-  count_dofs_on_patch(
-    const std::vector<typename DoFHandlerType::active_cell_iterator> &patch);
 
   /**
    * @}
@@ -2301,10 +2248,10 @@ namespace DoFTools
   template <int dim, int spacedim>
   void
   map_dofs_to_support_points(
-    const dealii::hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &                   dof_handler,
-    std::vector<Point<spacedim>> &                      support_points,
-    const ComponentMask &                               mask = ComponentMask());
+    const hp::MappingCollection<dim, spacedim> &mapping,
+    const DoFHandler<dim, spacedim> &           dof_handler,
+    std::vector<Point<spacedim>> &              support_points,
+    const ComponentMask &                       mask = ComponentMask());
 
   /**
    * This function is a version of the above map_dofs_to_support_points
@@ -2327,17 +2274,37 @@ namespace DoFTools
    * is of course dense, i.e., every DoF is to be found in it.
    *
    * @param[in] mapping The mapping from the reference cell to the real cell on
-   * which DoFs are defined.
+   *   which DoFs are defined.
    * @param[in] dof_handler The object that describes which DoF indices live on
-   * which cell of the triangulation.
-   * @param[in,out] support_points A map that for every locally relevant DoF
-   * index contains the corresponding location in real space coordinates.
-   * Previous content of this object is deleted in this function.
+   *   which cell of the triangulation.
    * @param[in] mask An optional component mask that restricts the
-   * components from which the support points are extracted.
+   *   components from which the support points are extracted.
+   * @return A map that for every locally relevant DoF
+   *   index contains the corresponding location in real space coordinates.
    */
   template <int dim, int spacedim>
-  void
+  std::map<types::global_dof_index, Point<spacedim>>
+  map_dofs_to_support_points(const Mapping<dim, spacedim> &   mapping,
+                             const DoFHandler<dim, spacedim> &dof_handler,
+                             const ComponentMask &mask = ComponentMask());
+
+  /**
+   * Same as the previous function but for the hp-case.
+   */
+  template <int dim, int spacedim>
+  std::map<types::global_dof_index, Point<spacedim>>
+  map_dofs_to_support_points(
+    const hp::MappingCollection<dim, spacedim> &mapping,
+    const DoFHandler<dim, spacedim> &           dof_handler,
+    const ComponentMask &                       mask = ComponentMask());
+
+  /**
+   * A version of the function of same name that returns the map via its third
+   * argument. This function is deprecated.
+   * @deprecated Use the function that returns the `std::map` instead.
+   */
+  template <int dim, int spacedim>
+  DEAL_II_DEPRECATED_EARLY void
   map_dofs_to_support_points(
     const Mapping<dim, spacedim> &                      mapping,
     const DoFHandler<dim, spacedim> &                   dof_handler,
@@ -2345,12 +2312,14 @@ namespace DoFTools
     const ComponentMask &                               mask = ComponentMask());
 
   /**
-   * Same as the previous function but for the hp-case.
+   * A version of the function of same name that returns the map via its third
+   * argument. This function is deprecated.
+   * @deprecated Use the function that returns the `std::map` instead.
    */
   template <int dim, int spacedim>
-  void
+  DEAL_II_DEPRECATED_EARLY void
   map_dofs_to_support_points(
-    const dealii::hp::MappingCollection<dim, spacedim> &mapping,
+    const hp::MappingCollection<dim, spacedim> &        mapping,
     const DoFHandler<dim, spacedim> &                   dof_handler,
     std::map<types::global_dof_index, Point<spacedim>> &support_points,
     const ComponentMask &                               mask = ComponentMask());
@@ -2433,7 +2402,8 @@ namespace DoFTools
    * given map @p support_points.  For each support point location, a string
    * label containing a list of all DoFs from the map is generated.  The map
    * can be generated with a call to map_dofs_to_support_points() and is useful
-   * to visualize location and global numbering of unknowns.
+   * to visualize location and global numbering of unknowns. This function is
+   * used in step-2.
    *
    * An example for the format of each line in the output is:
    * @code
@@ -2683,50 +2653,6 @@ namespace DoFTools
     point_to_index_map.clear();
     for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i)
       point_to_index_map[support_points[i]] = i;
-  }
-
-
-
-  template <typename DoFHandlerType, typename number>
-  inline void
-  make_periodicity_constraints(
-    const std::vector<
-      GridTools::PeriodicFacePair<typename DoFHandlerType::cell_iterator>>
-      &                              periodic_faces,
-    AffineConstraints<number> &      constraints,
-    const ComponentMask &            component_mask,
-    const std::vector<unsigned int> &first_vector_components,
-    const number                     periodicity_factor)
-  {
-    make_periodicity_constraints<DoFHandlerType::dimension,
-                                 DoFHandlerType::space_dimension>(
-      periodic_faces,
-      constraints,
-      component_mask,
-      first_vector_components,
-      periodicity_factor);
-  }
-
-
-
-  template <typename DoFHandlerType>
-  inline std::vector<types::global_dof_index>
-  get_dofs_on_patch(
-    const std::vector<typename DoFHandlerType::active_cell_iterator> &patch)
-  {
-    return get_dofs_on_patch<DoFHandlerType::dimension,
-                             DoFHandlerType::space_dimension>(patch);
-  }
-
-
-
-  template <typename DoFHandlerType>
-  inline unsigned int
-  count_dofs_on_patch(
-    const std::vector<typename DoFHandlerType::active_cell_iterator> &patch)
-  {
-    return count_dofs_on_patch<DoFHandlerType::dimension,
-                               DoFHandlerType::space_dimension>(patch);
   }
 } // namespace DoFTools
 

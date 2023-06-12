@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,6 +22,7 @@
 #include <deal.II/base/mpi.templates.h>
 #include <deal.II/base/mpi_compute_index_owner_internal.h>
 #include <deal.II/base/mpi_noncontiguous_partitioner.h>
+#include <deal.II/base/mpi_tags.h>
 
 #include <deal.II/lac/vector_space_vector.h>
 

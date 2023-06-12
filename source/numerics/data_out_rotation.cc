@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,12 +21,12 @@
 
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/hp/fe_values.h>
+#include <deal.II/hp/fe_collection.h>
 
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/vector.h>
@@ -46,7 +46,7 @@ DEAL_II_NAMESPACE_OPEN
 // don't iterate over all cells and if cell data is requested. in that
 // case, we need to calculate cell_number as in the DataOut class
 
-// Not implemented for 3D
+// Not implemented for 3d
 
 
 namespace internal
@@ -220,26 +220,26 @@ DataOutRotation<dim, spacedim>::build_one_patch(
                       // at each point there is
                       // only one component of
                       // value, gradient etc.
-                      if ((update_flags & update_values) != 0u)
+                      if (update_flags & update_values)
                         this->dof_data[dataset]->get_function_values(
                           fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
                             real_part,
                           data.patch_values_scalar.solution_values);
-                      if ((update_flags & update_gradients) != 0u)
+                      if (update_flags & update_gradients)
                         this->dof_data[dataset]->get_function_gradients(
                           fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
                             real_part,
                           data.patch_values_scalar.solution_gradients);
-                      if ((update_flags & update_hessians) != 0u)
+                      if (update_flags & update_hessians)
                         this->dof_data[dataset]->get_function_hessians(
                           fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
                             real_part,
                           data.patch_values_scalar.solution_hessians);
 
-                      if ((update_flags & update_quadrature_points) != 0u)
+                      if (update_flags & update_quadrature_points)
                         data.patch_values_scalar.evaluation_points =
                           fe_patch_values.get_quadrature_points();
 
@@ -261,26 +261,26 @@ DataOutRotation<dim, spacedim>::build_one_patch(
 
                       // at each point there is a vector valued function and
                       // its derivative...
-                      if ((update_flags & update_values) != 0u)
+                      if (update_flags & update_values)
                         this->dof_data[dataset]->get_function_values(
                           fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
                             real_part,
                           data.patch_values_system.solution_values);
-                      if ((update_flags & update_gradients) != 0u)
+                      if (update_flags & update_gradients)
                         this->dof_data[dataset]->get_function_gradients(
                           fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
                             real_part,
                           data.patch_values_system.solution_gradients);
-                      if ((update_flags & update_hessians) != 0u)
+                      if (update_flags & update_hessians)
                         this->dof_data[dataset]->get_function_hessians(
                           fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
                             real_part,
                           data.patch_values_system.solution_hessians);
 
-                      if ((update_flags & update_quadrature_points) != 0u)
+                      if (update_flags & update_quadrature_points)
                         data.patch_values_system.evaluation_points =
                           fe_patch_values.get_quadrature_points();
 
@@ -511,14 +511,17 @@ DataOutRotation<dim, spacedim>::build_patches(
     else
       n_postprocessor_outputs[dataset] = 0;
 
+  Assert(!this->triangulation->is_mixed_mesh(), ExcNotImplemented());
+  const auto reference_cell = this->triangulation->get_reference_cells()[0];
   internal::DataOutRotationImplementation::ParallelData<dim, spacedim>
-    thread_data(n_datasets,
-                n_subdivisions,
-                n_patches_per_circle,
-                n_postprocessor_outputs,
-                StaticMappingQ1<dim, spacedim>::mapping,
-                this->get_fes(),
-                update_flags);
+    thread_data(
+      n_datasets,
+      n_subdivisions,
+      n_patches_per_circle,
+      n_postprocessor_outputs,
+      reference_cell.template get_default_linear_mapping<dim, spacedim>(),
+      this->get_fes(),
+      update_flags);
   std::vector<DataOutBase::Patch<patch_dim, patch_spacedim>> new_patches(
     n_patches_per_circle);
   for (unsigned int i = 0; i < new_patches.size(); ++i)

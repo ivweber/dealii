@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -39,6 +39,7 @@
 #include <cctype>
 #include <fstream>
 #include <functional>
+#include <limits>
 #include <map>
 
 #ifdef DEAL_II_WITH_ASSIMP
@@ -63,39 +64,74 @@ namespace
    * boundary indicators on vertices after the triangulation has already been
    * created.
    *
-   * TODO: Fix this properly via SubcellData
+   * This function ignores all non-boundary vertices. Boundary ids can only be
+   * assigned to internal vertices - however, the grid fixup routines (e.g.,
+   * combining duplicated vertices) may switch vertices from boundary to
+   * non-boundary. Get around this in two ways:
+   *
+   * 1. Ignore any attempt to set a boundary id on a non-boundary vertex.
+   * 2. Work around possible vertex renumberings by using Point<spacedim>
+   *   instead of the corresponding vertex number (which may be out of date)
+   *
+   * TODO: fix this properly via SubCellData
    */
   template <int spacedim>
   void
   assign_1d_boundary_ids(
-    const std::map<unsigned int, types::boundary_id> &boundary_ids,
-    Triangulation<1, spacedim> &                      triangulation)
+    const std::vector<std::pair<Point<spacedim>, types::boundary_id>>
+      &                         boundary_ids,
+    Triangulation<1, spacedim> &triangulation)
   {
-    if (boundary_ids.size() > 0)
-      for (const auto &cell : triangulation.active_cell_iterators())
-        for (unsigned int f : GeometryInfo<1>::face_indices())
-          if (boundary_ids.find(cell->vertex_index(f)) != boundary_ids.end())
-            {
-              AssertThrow(
-                cell->at_boundary(f),
-                ExcMessage(
-                  "You are trying to prescribe boundary ids on the face "
-                  "of a 1d cell (i.e., on a vertex), but this face is not actually at "
-                  "the boundary of the mesh. This is not allowed."));
-              cell->face(f)->set_boundary_id(
-                boundary_ids.find(cell->vertex_index(f))->second);
-            }
+    for (auto &cell : triangulation.active_cell_iterators())
+      for (const unsigned int face_no : ReferenceCells::Line.face_indices())
+        if (cell->face(face_no)->at_boundary())
+          for (const auto &pair : boundary_ids)
+            if (cell->face(face_no)->vertex(0) == pair.first)
+              {
+                cell->face(face_no)->set_boundary_id(pair.second);
+                break;
+              }
   }
 
 
   template <int dim, int spacedim>
   void
-  assign_1d_boundary_ids(const std::map<unsigned int, types::boundary_id> &,
-                         Triangulation<dim, spacedim> &)
+  assign_1d_boundary_ids(
+    const std::vector<std::pair<Point<spacedim>, types::boundary_id>> &,
+    Triangulation<dim, spacedim> &)
   {
     // we shouldn't get here since boundary ids are not assigned to
     // vertices except in 1d
     Assert(dim != 1, ExcInternalError());
+  }
+
+  /**
+   * Apply each of the grid fixup routines in the correct sequence.
+   */
+  template <int dim, int spacedim>
+  void
+  apply_grid_fixup_functions(std::vector<Point<spacedim>> &vertices,
+                             std::vector<CellData<dim>> &  cells,
+                             SubCellData &                 subcelldata)
+  {
+    // check that no forbidden arrays are used
+    Assert(subcelldata.check_consistency(dim), ExcInternalError());
+    const auto n_hypercube_vertices =
+      ReferenceCells::get_hypercube<dim>().n_vertices();
+    bool is_only_hypercube = true;
+    for (const CellData<dim> &cell : cells)
+      if (cell.vertices.size() != n_hypercube_vertices)
+        {
+          is_only_hypercube = false;
+          break;
+        }
+
+    GridTools::delete_unused_vertices(vertices, cells, subcelldata);
+    if (dim == spacedim)
+      GridTools::invert_cells_with_negative_measure(vertices, cells);
+
+    if (is_only_hypercube)
+      GridTools::consistently_order_cells(cells);
   }
 } // namespace
 
@@ -195,9 +231,6 @@ GridIn<dim, spacedim>::read_vtk(std::istream &in)
   unsigned int n_geometric_objects = 0;
   unsigned int n_ints;
 
-  bool is_quad_or_hex_mesh = false;
-  bool is_tria_or_tet_mesh = false;
-
   if (keyword == "CELLS")
     {
       // jump to the `CELL_TYPES` section and read in cell types
@@ -235,11 +268,6 @@ GridIn<dim, spacedim>::read_vtk(std::istream &in)
               // VTK_TETRA is 10, VTK_HEXAHEDRON is 12
               if (cell_types[count] == 10 || cell_types[count] == 12)
                 {
-                  if (cell_types[count] == 10)
-                    is_tria_or_tet_mesh = true;
-                  if (cell_types[count] == 12)
-                    is_quad_or_hex_mesh = true;
-
                   // we assume that the file contains first all cells,
                   // and only then any faces or lines
                   AssertThrow(subcelldata.boundary_quads.size() == 0 &&
@@ -267,11 +295,6 @@ GridIn<dim, spacedim>::read_vtk(std::istream &in)
               // VTK_TRIANGLE is 5, VTK_QUAD is 9
               else if (cell_types[count] == 5 || cell_types[count] == 9)
                 {
-                  if (cell_types[count] == 5)
-                    is_tria_or_tet_mesh = true;
-                  if (cell_types[count] == 9)
-                    is_quad_or_hex_mesh = true;
-
                   // we assume that the file contains first all cells,
                   // then all faces, and finally all lines
                   AssertThrow(subcelldata.boundary_lines.size() == 0,
@@ -318,11 +341,6 @@ GridIn<dim, spacedim>::read_vtk(std::istream &in)
                   // and only then any faces
                   AssertThrow(subcelldata.boundary_lines.size() == 0,
                               ExcNotImplemented());
-
-                  if (cell_types[count] == 5)
-                    is_tria_or_tet_mesh = true;
-                  if (cell_types[count] == 9)
-                    is_quad_or_hex_mesh = true;
 
                   cells.emplace_back(n_vertices);
 
@@ -556,29 +574,8 @@ GridIn<dim, spacedim>::read_vtk(std::istream &in)
               }
           }
 
-      Assert(subcelldata.check_consistency(dim), ExcInternalError());
-
-
-      // TODO: the functions below (GridTools::delete_unused_vertices(),
-      // GridTools::invert_all_negative_measure_cells(),
-      // GridTools::consistently_order_cells()) need to be
-      // revisited for simplex/mixed meshes
-
-      if (dim == 1 || (is_quad_or_hex_mesh && !is_tria_or_tet_mesh))
-        {
-          GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-
-          if (dim == spacedim)
-            GridTools::invert_all_negative_measure_cells(vertices, cells);
-
-          GridTools::consistently_order_cells(cells);
-          tria->create_triangulation(vertices, cells, subcelldata);
-        }
-      else
-        {
-          // simplex or mixed mesh
-          tria->create_triangulation(vertices, cells, subcelldata);
-        }
+      apply_grid_fixup_functions(vertices, cells, subcelldata);
+      tria->create_triangulation(vertices, cells, subcelldata);
     }
   else
     AssertThrow(false,
@@ -828,10 +825,10 @@ GridIn<dim, spacedim>::read_unv(std::istream &in)
 
       while (tmp != -1) // we do until reach end of 2467 or 2477
         {
-          int n_entities; // number of entities in group
-          int id;         // id is either material or bc
-          int no;         // unv
-          int dummy;
+          int  n_entities; // number of entities in group
+          long id;         // id is either material or bc
+          int  no;         // unv
+          int  dummy;
 
           AssertThrow(in.fail() == false, ExcIO());
           in >> dummy;
@@ -844,7 +841,37 @@ GridIn<dim, spacedim>::read_unv(std::istream &in)
             n_entities;
 
           AssertThrow(in.fail() == false, ExcIO());
-          in >> id;
+          // Occasionally we encounter IDs that are not integers - we don't
+          // support that case since there is no sane way for us to determine
+          // integer IDs from, e.g., strings.
+          std::string line;
+          // The next character in the input buffer is a newline character so
+          // we need a call to std::getline() to retrieve it (it is logically
+          // a line):
+          std::getline(in, line);
+          AssertThrow(line.size() == 0,
+                      ExcMessage(
+                        "The line before the line containing an ID has too "
+                        "many entries. This is not a valid UNV file."));
+          // now get the line containing the id:
+          std::getline(in, line);
+          AssertThrow(in.fail() == false, ExcIO());
+          std::istringstream id_stream(line);
+          id_stream >> id;
+          AssertThrow(
+            !id_stream.fail() && id_stream.eof(),
+            ExcMessage(
+              "The given UNV file contains a boundary or material id set to '" +
+              line +
+              "', which cannot be parsed as a fixed-width integer, whereas "
+              "deal.II only supports integer boundary and material ids. To fix "
+              "this, ensure that all such ids are given integer values."));
+          AssertThrow(
+            0 <= id &&
+              id <= long(std::numeric_limits<types::material_id>::max()),
+            ExcMessage("The provided integer id '" + std::to_string(id) +
+                       "' is not convertible to either types::material_id nor "
+                       "types::boundary_id."));
 
           const unsigned int n_lines =
             (n_entities % 2 == 0) ? (n_entities / 2) : ((n_entities + 1) / 2);
@@ -868,26 +895,18 @@ GridIn<dim, spacedim>::read_unv(std::istream &in)
                     cells[cell_indices[no]].material_id = id;
 
                   if (line_indices.count(no) > 0) // boundary line - bc
-                    subcelldata.boundary_lines[line_indices[no]].material_id =
+                    subcelldata.boundary_lines[line_indices[no]].boundary_id =
                       id;
 
                   if (quad_indices.count(no) > 0) // boundary quad - bc
-                    subcelldata.boundary_quads[quad_indices[no]].material_id =
+                    subcelldata.boundary_quads[quad_indices[no]].boundary_id =
                       id;
                 }
             }
         }
     }
 
-  Assert(subcelldata.check_consistency(dim), ExcInternalError());
-
-  GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-
-  if (dim == spacedim)
-    GridTools::invert_all_negative_measure_cells(vertices, cells);
-
-  GridTools::consistently_order_cells(cells);
-
+  apply_grid_fixup_functions(vertices, cells, subcelldata);
   tria->create_triangulation(vertices, cells, subcelldata);
 }
 
@@ -1108,18 +1127,9 @@ GridIn<dim, spacedim>::read_ucd(std::istream &in,
         AssertThrow(false, ExcUnknownIdentifier(cell_type));
     }
 
-
-  // check that no forbidden arrays are used
-  Assert(subcelldata.check_consistency(dim), ExcInternalError());
-
   AssertThrow(in.fail() == false, ExcIO());
 
-  // do some clean-up on vertices...
-  GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-  // ... and cells
-  if (dim == spacedim)
-    GridTools::invert_all_negative_measure_cells(vertices, cells);
-  GridTools::consistently_order_cells(cells);
+  apply_grid_fixup_functions(vertices, cells, subcelldata);
   tria->create_triangulation(vertices, cells, subcelldata);
 }
 
@@ -1323,6 +1333,8 @@ GridIn<dim, spacedim>::read_dbmesh(std::istream &in)
   getline(in, line);
   AssertThrow(line == "Quadrilaterals", ExcInvalidDBMESHInput(line));
 
+  static constexpr std::array<unsigned int, 8> local_vertex_numbering = {
+    {0, 1, 5, 4, 2, 3, 7, 6}};
   std::vector<CellData<dim>> cells;
   SubCellData                subcelldata;
   unsigned int               n_cells;
@@ -1334,7 +1346,9 @@ GridIn<dim, spacedim>::read_dbmesh(std::istream &in)
       cells.emplace_back();
       for (const unsigned int i : GeometryInfo<dim>::vertex_indices())
         {
-          in >> cells.back().vertices[GeometryInfo<dim>::ucd_to_deal[i]];
+          in >>
+            cells.back().vertices[dim == 3 ? local_vertex_numbering[i] :
+                                             GeometryInfo<dim>::ucd_to_deal[i]];
 
           AssertThrow((cells.back().vertices[i] >= 1) &&
                         (static_cast<unsigned int>(cells.back().vertices[i]) <=
@@ -1361,18 +1375,9 @@ GridIn<dim, spacedim>::read_dbmesh(std::istream &in)
     ;
   // ok, so we are not at the end of
   // the file, that's it, mostly
-
-
-  // check that no forbidden arrays are used
-  Assert(subcelldata.check_consistency(dim), ExcInternalError());
-
   AssertThrow(in.fail() == false, ExcIO());
 
-  // do some clean-up on vertices...
-  GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-  // ...and cells
-  GridTools::invert_all_negative_measure_cells(vertices, cells);
-  GridTools::consistently_order_cells(cells);
+  apply_grid_fixup_functions(vertices, cells, subcelldata);
   tria->create_triangulation(vertices, cells, subcelldata);
 }
 
@@ -1429,18 +1434,14 @@ GridIn<dim, spacedim>::read_xda(std::istream &in)
         in >> vertex[d];
       for (unsigned int d = spacedim; d < 3; ++d)
         {
-          // file is always in 3D
+          // file is always in 3d
           double dummy;
           in >> dummy;
         }
     }
   AssertThrow(in.fail() == false, ExcIO());
 
-  // do some clean-up on vertices...
-  GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-  // ... and cells
-  GridTools::invert_all_negative_measure_cells(vertices, cells);
-  GridTools::consistently_order_cells(cells);
+  apply_grid_fixup_functions(vertices, cells, subcelldata);
   tria->create_triangulation(vertices, cells, subcelldata);
 }
 
@@ -1469,6 +1470,15 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
       // read one line
       std::string line;
       std::getline(in, line);
+
+      // We tend to get these sorts of files from folks who run on
+      // Windows and where line endings are \r\n instead of just
+      // \n. The \r is redundant unless you still use a line printer,
+      // so get rid of it in order to not confuse any of the functions
+      // below that try to interpret the entire content of a line
+      // as a string:
+      if ((line.size() > 0) && (line.back() == '\r'))
+        line.erase(line.size() - 1);
 
       // Strip trailing comments, then strip whatever spaces are at the end
       // of the line, and if anything is left, concatenate that to the previous
@@ -1554,7 +1564,8 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
     while (whole_file.peek() == '\n')
       whole_file.get();
     std::getline(whole_file, s);
-    AssertThrow(s == "4 Mesh", ExcNotImplemented());
+    AssertThrow(s == "4 Mesh",
+                ExcMessage("Expected '4 Mesh', but got '" + s + "'."));
   }
   {
     unsigned int version;
@@ -1720,7 +1731,7 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
             ; // do nothing
           else if (object_type == ReferenceCells::Line)
             {
-              if (spacedim == 1)
+              if (dim == 1)
                 {
                   cells.emplace_back();
                   cells.back().vertices = vertices_for_this_element;
@@ -1735,7 +1746,7 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
           else if ((object_type == ReferenceCells::Triangle) ||
                    (object_type == ReferenceCells::Quadrilateral))
             {
-              if (spacedim == 2)
+              if (dim == 2)
                 {
                   cells.emplace_back();
                   cells.back().vertices = vertices_for_this_element;
@@ -1750,7 +1761,7 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
           else if ((object_type == ReferenceCells::Tetrahedron) ||
                    (object_type == ReferenceCells::Wedge))
             {
-              if (spacedim == 3)
+              if (dim == 3)
                 {
                   cells.emplace_back();
                   cells.back().vertices = vertices_for_this_element;
@@ -1787,7 +1798,7 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
                 ; // do nothing
               else if (object_type == ReferenceCells::Line)
                 {
-                  if (spacedim == 1)
+                  if (dim == 1)
                     cells[cells.size() - n_elements + e].material_id =
                       geometric_entity_index;
                   else
@@ -1799,7 +1810,7 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
               else if ((object_type == ReferenceCells::Triangle) ||
                        (object_type == ReferenceCells::Quadrilateral))
                 {
-                  if (spacedim == 2)
+                  if (dim == 2)
                     cells[cells.size() - n_elements + e].material_id =
                       geometric_entity_index;
                   else
@@ -1811,7 +1822,7 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
               else if ((object_type == ReferenceCells::Tetrahedron) ||
                        (object_type == ReferenceCells::Wedge))
                 {
-                  if (spacedim == 3)
+                  if (dim == 3)
                     cells[cells.size() - n_elements + e].material_id =
                       geometric_entity_index;
                   else
@@ -2313,10 +2324,16 @@ GridIn<dim, spacedim>::read_msh(std::istream &in)
   std::vector<CellData<dim>>                 cells;
   SubCellData                                subcelldata;
   std::map<unsigned int, types::boundary_id> boundary_ids_1d;
-  bool                                       is_quad_or_hex_mesh = false;
-  bool                                       is_tria_or_tet_mesh = false;
+
+  // Track the number of times each vertex is used in 1D. This determines
+  // whether or not we can assign a boundary id to a vertex. This is necessary
+  // because sometimes gmsh saves internal vertices in the $ELEM list in codim
+  // 1 or codim 2.
+  std::map<unsigned int, unsigned int> vertex_counts;
 
   {
+    static constexpr std::array<unsigned int, 8> local_vertex_numbering = {
+      {0, 1, 5, 4, 2, 3, 7, 6}};
     unsigned int global_cell = 0;
     for (int entity_block = 0; entity_block < n_entity_blocks; ++entity_block)
       {
@@ -2465,25 +2482,13 @@ GridIn<dim, spacedim>::read_msh(std::istream &in)
                 if (cell_type == 1) // line
                   vertices_per_cell = 2;
                 else if (cell_type == 2) // tri
-                  {
-                    vertices_per_cell   = 3;
-                    is_tria_or_tet_mesh = true;
-                  }
+                  vertices_per_cell = 3;
                 else if (cell_type == 3) // quad
-                  {
-                    vertices_per_cell   = 4;
-                    is_quad_or_hex_mesh = true;
-                  }
+                  vertices_per_cell = 4;
                 else if (cell_type == 4) // tet
-                  {
-                    vertices_per_cell   = 4;
-                    is_tria_or_tet_mesh = true;
-                  }
+                  vertices_per_cell = 4;
                 else if (cell_type == 5) // hex
-                  {
-                    vertices_per_cell   = 8;
-                    is_quad_or_hex_mesh = true;
-                  }
+                  vertices_per_cell = 8;
 
                 AssertThrow(nod_num == vertices_per_cell,
                             ExcMessage(
@@ -2492,20 +2497,18 @@ GridIn<dim, spacedim>::read_msh(std::istream &in)
 
                 // allocate and read indices
                 cells.emplace_back();
-                cells.back().vertices.resize(vertices_per_cell);
+                CellData<dim> &cell = cells.back();
+                cell.vertices.resize(vertices_per_cell);
                 for (unsigned int i = 0; i < vertices_per_cell; ++i)
                   {
                     // hypercube cells need to be reordered
                     if (vertices_per_cell ==
                         GeometryInfo<dim>::vertices_per_cell)
-                      {
-                        in >> cells.back()
-                                .vertices[GeometryInfo<dim>::ucd_to_deal[i]];
-                      }
+                      in >> cell.vertices[dim == 3 ?
+                                            local_vertex_numbering[i] :
+                                            GeometryInfo<dim>::ucd_to_deal[i]];
                     else
-                      {
-                        in >> cells.back().vertices[i];
-                      }
+                      in >> cell.vertices[i];
                   }
 
                 // to make sure that the cast won't fail
@@ -2519,21 +2522,21 @@ GridIn<dim, spacedim>::read_msh(std::istream &in)
                 // numbers::invalid_material_id-1
                 AssertIndexRange(material_id, numbers::invalid_material_id);
 
-                cells.back().material_id = material_id;
+                cell.material_id = material_id;
 
                 // transform from gmsh to consecutive numbering
                 for (unsigned int i = 0; i < vertices_per_cell; ++i)
                   {
-                    AssertThrow(
-                      vertex_indices.find(cells.back().vertices[i]) !=
-                        vertex_indices.end(),
-                      ExcInvalidVertexIndexGmsh(cell_per_entity,
-                                                elm_number,
-                                                cells.back().vertices[i]));
+                    AssertThrow(vertex_indices.find(cell.vertices[i]) !=
+                                  vertex_indices.end(),
+                                ExcInvalidVertexIndexGmsh(cell_per_entity,
+                                                          elm_number,
+                                                          cell.vertices[i]));
 
-                    // vertex with this index exists
-                    cells.back().vertices[i] =
-                      vertex_indices[cells.back().vertices[i]];
+                    const auto vertex = vertex_indices[cell.vertices[i]];
+                    if (dim == 1)
+                      vertex_counts[vertex] += 1u;
+                    cell.vertices[i] = vertex;
                   }
               }
             else if ((cell_type == 1) &&
@@ -2582,15 +2585,9 @@ GridIn<dim, spacedim>::read_msh(std::istream &in)
                 unsigned int vertices_per_cell = 0;
                 // check cell type
                 if (cell_type == 2) // tri
-                  {
-                    vertices_per_cell   = 3;
-                    is_tria_or_tet_mesh = true;
-                  }
+                  vertices_per_cell = 3;
                 else if (cell_type == 3) // quad
-                  {
-                    vertices_per_cell   = 4;
-                    is_quad_or_hex_mesh = true;
-                  }
+                  vertices_per_cell = 4;
 
                 subcelldata.boundary_quads.emplace_back();
 
@@ -2666,10 +2663,6 @@ GridIn<dim, spacedim>::read_msh(std::istream &in)
   static const std::string end_elements_marker[] = {"$ENDELM", "$EndElements"};
   AssertThrow(line == end_elements_marker[gmsh_file_format == 10 ? 0 : 1],
               ExcInvalidGMSHInput(line));
-
-  // check that no forbidden arrays are used
-  Assert(subcelldata.check_consistency(dim), ExcInternalError());
-
   AssertThrow(in.fail() == false, ExcIO());
 
   // check that we actually read some cells.
@@ -2677,26 +2670,23 @@ GridIn<dim, spacedim>::read_msh(std::istream &in)
               ExcGmshNoCellInformation(subcelldata.boundary_lines.size(),
                                        subcelldata.boundary_quads.size()));
 
-  // TODO: the functions below (GridTools::delete_unused_vertices(),
-  // GridTools::invert_all_negative_measure_cells(),
-  // GridTools::consistently_order_cells()) need to be revisited
-  // for simplex/mixed meshes
+  // apply_grid_fixup_functions() may invalidate the vertex indices (since it
+  // will delete duplicated or unused vertices). Get around this by storing
+  // Points directly in that case so that the comparisons are valid.
+  std::vector<std::pair<Point<spacedim>, types::boundary_id>> boundary_id_pairs;
+  if (dim == 1)
+    for (const auto &pair : vertex_counts)
+      if (pair.second == 1u)
+        boundary_id_pairs.emplace_back(vertices[pair.first],
+                                       boundary_ids_1d[pair.first]);
 
-  if (dim == 1 || (is_quad_or_hex_mesh && !is_tria_or_tet_mesh))
-    {
-      // do some clean-up on vertices...
-      GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-      // ... and cells
-      if (dim == spacedim)
-        GridTools::invert_cells_with_negative_measure(vertices, cells);
-      GridTools::consistently_order_cells(cells);
-    }
+  apply_grid_fixup_functions(vertices, cells, subcelldata);
   tria->create_triangulation(vertices, cells, subcelldata);
 
   // in 1d, we also have to attach boundary ids to vertices, which does not
-  // currently work through the call above
+  // currently work through the call above.
   if (dim == 1)
-    assign_1d_boundary_ids(boundary_ids_1d, *tria);
+    assign_1d_boundary_ids(boundary_id_pairs, *tria);
 }
 
 
@@ -2726,6 +2716,12 @@ GridIn<dim, spacedim>::read_msh(const std::string &fname)
   std::vector<CellData<dim>>                 cells;
   SubCellData                                subcelldata;
   std::map<unsigned int, types::boundary_id> boundary_ids_1d;
+
+  // Track the number of times each vertex is used in 1D. This determines
+  // whether or not we can assign a boundary id to a vertex. This is necessary
+  // because sometimes gmsh saves internal vertices in the $ELEM list in codim
+  // 1 or codim 2.
+  std::map<unsigned int, unsigned int> vertex_counts;
 
   gmsh::initialize();
   gmsh::option::setNumber("General.Verbosity", 0);
@@ -2860,8 +2856,12 @@ GridIn<dim, spacedim>::read_msh(const std::string &fname)
                   cells.emplace_back(n_vertices);
                   auto &cell = cells.back();
                   for (unsigned int v = 0; v < n_vertices; ++v)
-                    cell.vertices[v] =
-                      nodes[n_vertices * j + gmsh_to_dealii[type][v]] - 1;
+                    {
+                      cell.vertices[v] =
+                        nodes[n_vertices * j + gmsh_to_dealii[type][v]] - 1;
+                      if (dim == 1)
+                        vertex_counts[cell.vertices[v]] += 1u;
+                    }
                   cell.manifold_id = manifold_id;
                   cell.material_id = boundary_id;
                 }
@@ -2898,14 +2898,23 @@ GridIn<dim, spacedim>::read_msh(const std::string &fname)
         }
     }
 
-  Assert(subcelldata.check_consistency(dim), ExcInternalError());
+  // apply_grid_fixup_functions() may invalidate the vertex indices (since it
+  // will delete duplicated or unused vertices). Get around this by storing
+  // Points directly in that case so that the comparisons are valid.
+  std::vector<std::pair<Point<spacedim>, types::boundary_id>> boundary_id_pairs;
+  if (dim == 1)
+    for (const auto &pair : vertex_counts)
+      if (pair.second == 1u)
+        boundary_id_pairs.emplace_back(vertices[pair.first],
+                                       boundary_ids_1d[pair.first]);
 
+  apply_grid_fixup_functions(vertices, cells, subcelldata);
   tria->create_triangulation(vertices, cells, subcelldata);
 
   // in 1d, we also have to attach boundary ids to vertices, which does not
-  // currently work through the call above
+  // currently work through the call above.
   if (dim == 1)
-    assign_1d_boundary_ids(boundary_ids_1d, *tria);
+    assign_1d_boundary_ids(boundary_id_pairs, *tria);
 
   gmsh::clear();
   gmsh::finalize();
@@ -3370,19 +3379,10 @@ GridIn<2>::read_tecplot(std::istream &in)
           for (const unsigned int j : GeometryInfo<dim>::vertex_indices())
             in >> cells[i].vertices[GeometryInfo<dim>::ucd_to_deal[j]];
         }
-      // do some clean-up on vertices
-      GridTools::delete_unused_vertices(vertices, cells, subcelldata);
     }
-
-  // check that no forbidden arrays are
-  // used. as we do not read in any
-  // subcelldata, nothing should happen here.
-  Assert(subcelldata.check_consistency(dim), ExcInternalError());
   AssertThrow(in.fail() == false, ExcIO());
 
-  // do some cleanup on cells
-  GridTools::invert_all_negative_measure_cells(vertices, cells);
-  GridTools::consistently_order_cells(cells);
+  apply_grid_fixup_functions(vertices, cells, subcelldata);
   tria->create_triangulation(vertices, cells, subcelldata);
 }
 
@@ -3445,6 +3445,8 @@ GridIn<dim, spacedim>::read_assimp(const std::string &filename,
   unsigned int v_offset = 0;
   unsigned int c_offset = 0;
 
+  static constexpr std::array<unsigned int, 8> local_vertex_numbering = {
+    {0, 1, 5, 4, 2, 3, 7, 6}};
   // The index of the mesh will be used as a material index.
   for (unsigned int m = start_mesh; m < end_mesh; ++m)
     {
@@ -3489,7 +3491,8 @@ GridIn<dim, spacedim>::read_assimp(const std::string &filename,
               for (const unsigned int f : GeometryInfo<dim>::vertex_indices())
                 {
                   cells[valid_cell]
-                    .vertices[GeometryInfo<dim>::ucd_to_deal[f]] =
+                    .vertices[dim == 3 ? local_vertex_numbering[f] :
+                                         GeometryInfo<dim>::ucd_to_deal[f]] =
                     mFaces[i].mIndices[f] + v_offset;
                 }
               cells[valid_cell].material_id = m;
@@ -3534,10 +3537,7 @@ GridIn<dim, spacedim>::read_assimp(const std::string &filename,
         }
     }
 
-  GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-  if (dim == spacedim)
-    GridTools::invert_all_negative_measure_cells(vertices, cells);
-  GridTools::consistently_order_cells(cells);
+  apply_grid_fixup_functions(vertices, cells, subcelldata);
   tria->create_triangulation(vertices, cells, subcelldata);
 
 #else
@@ -3576,7 +3576,11 @@ namespace
                                          numbers.end()),
                       type_name_2.end());
 
-    if (type_name_2 == "TRI" || type_name_2 == "TRIANGLE")
+    // The manual specifies BAR, BEAM, and TRUSS: in practice people use EDGE
+    if (type_name_2 == "BAR" || type_name_2 == "BEAM" ||
+        type_name_2 == "EDGE" || type_name_2 == "TRUSS")
+      return ReferenceCells::Line;
+    else if (type_name_2 == "TRI" || type_name_2 == "TRIANGLE")
       return ReferenceCells::Triangle;
     else if (type_name_2 == "QUAD" || type_name_2 == "QUADRILATERAL")
       return ReferenceCells::Quadrilateral;
@@ -3675,6 +3679,7 @@ namespace
         // Collect into a sortable data structure:
         std::vector<std::pair<std::size_t, std::vector<int>>>
           face_id_to_side_sets;
+        face_id_to_side_sets.reserve(face_side_sets.size());
         for (auto &pair : face_side_sets)
           {
             Assert(pair.second.size() > 0, ExcInternalError());
@@ -3691,6 +3696,10 @@ namespace
                                                         b.second.end());
                   });
 
+        if (dim == 2)
+          subcelldata.boundary_lines.reserve(face_id_to_side_sets.size());
+        else if (dim == 3)
+          subcelldata.boundary_quads.reserve(face_id_to_side_sets.size());
         types::boundary_id current_b_or_m_id = 0;
         for (const auto &pair : face_id_to_side_sets)
           {
@@ -3800,13 +3809,7 @@ GridIn<dim, spacedim>::read_exodusii(
   AssertDimension(mesh_dimension, spacedim);
 
   // Read nodes:
-  std::vector<double> xs(n_nodes);
-  std::vector<double> ys(n_nodes);
-  std::vector<double> zs(n_nodes);
-
-  ierr = ex_get_coord(ex_id, xs.data(), ys.data(), zs.data());
-  AssertThrowExodusII(ierr);
-
+  //
   // Even if there is a node numbering array the values stored inside the
   // ExodusII file must use the contiguous, internal ordering (see Section 4.5
   // of the manual - "Internal (contiguously numbered) node and element IDs
@@ -3815,31 +3818,39 @@ GridIn<dim, spacedim>::read_exodusii(
   // connectivity.")
   std::vector<Point<spacedim>> vertices;
   vertices.reserve(n_nodes);
-  for (int vertex_n = 0; vertex_n < n_nodes; ++vertex_n)
-    {
-      switch (spacedim)
-        {
-          case 1:
-            vertices.emplace_back(xs[vertex_n]);
-            break;
-          case 2:
-            vertices.emplace_back(xs[vertex_n], ys[vertex_n]);
-            break;
-          case 3:
-            vertices.emplace_back(xs[vertex_n], ys[vertex_n], zs[vertex_n]);
-            break;
-          default:
-            Assert(spacedim <= 3, ExcNotImplemented());
-        }
-    }
+  {
+    std::vector<double> xs(n_nodes);
+    std::vector<double> ys(n_nodes);
+    std::vector<double> zs(n_nodes);
+
+    ierr = ex_get_coord(ex_id, xs.data(), ys.data(), zs.data());
+    AssertThrowExodusII(ierr);
+
+    for (int vertex_n = 0; vertex_n < n_nodes; ++vertex_n)
+      {
+        switch (spacedim)
+          {
+            case 1:
+              vertices.emplace_back(xs[vertex_n]);
+              break;
+            case 2:
+              vertices.emplace_back(xs[vertex_n], ys[vertex_n]);
+              break;
+            case 3:
+              vertices.emplace_back(xs[vertex_n], ys[vertex_n], zs[vertex_n]);
+              break;
+            default:
+              Assert(spacedim <= 3, ExcNotImplemented());
+          }
+      }
+  }
 
   std::vector<int> element_block_ids(n_element_blocks);
   ierr = ex_get_ids(ex_id, EX_ELEM_BLOCK, element_block_ids.data());
   AssertThrowExodusII(ierr);
 
-  bool is_only_quad_or_hex = true;
-
   std::vector<CellData<dim>> cells;
+  cells.reserve(n_elements);
   // Elements are grouped together by same reference cell type in element
   // blocks. There may be multiple blocks for a single reference cell type,
   // but "each element block may contain only one element type".
@@ -3865,9 +3876,13 @@ GridIn<dim, spacedim>::read_exodusii(
       AssertThrowExodusII(ierr);
       const ReferenceCell type =
         exodusii_name_to_type(string_temp.data(), n_nodes_per_element);
-
-      if (type.is_simplex())
-        is_only_quad_or_hex = false;
+      AssertThrow(type.get_dimension() == dim,
+                  ExcMessage(
+                    "The ExodusII block " + std::to_string(element_block_id) +
+                    " with element type " + std::string(string_temp.data()) +
+                    " has dimension " + std::to_string(type.get_dimension()) +
+                    ", which does not match the topological mesh dimension " +
+                    std::to_string(dim) + "."));
 
       // The number of nodes per element may be larger than what we want to
       // read - for example, if the Exodus file contains a QUAD9 element, we
@@ -3887,13 +3902,13 @@ GridIn<dim, spacedim>::read_exodusii(
            elem_n += n_nodes_per_element)
         {
           CellData<dim> cell(type.n_vertices());
-          for (unsigned int i : type.vertex_indices())
+          for (const unsigned int i : type.vertex_indices())
             {
               cell.vertices[type.exodusii_vertex_to_deal_vertex(i)] =
                 connection[elem_n + i] - 1;
             }
           cell.material_id = element_block_id;
-          cells.push_back(cell);
+          cells.push_back(std::move(cell));
         }
     }
 
@@ -3903,16 +3918,7 @@ GridIn<dim, spacedim>::read_exodusii(
   ierr = ex_close(ex_id);
   AssertThrowExodusII(ierr);
 
-  if (is_only_quad_or_hex)
-    {
-      // do some clean-up on vertices...
-      GridTools::delete_unused_vertices(vertices, cells, pair.first);
-      // ... and cells
-      if (dim == spacedim)
-        GridTools::invert_all_negative_measure_cells(vertices, cells);
-      GridTools::consistently_order_cells(cells);
-    }
-
+  apply_grid_fixup_functions(vertices, cells, pair.first);
   tria->create_triangulation(vertices, cells, pair.first);
   ExodusIIData out;
   out.id_to_sideset_ids = std::move(pair.second);
@@ -4439,8 +4445,8 @@ namespace
             // of which we're not particularly interested in except
             // whether they represent quads or hexahedrals.
             // *ELEMENT, TYPE=S4R, ELSET=EB<material id>
-            // *ELEMENT, TYPE=C3D8R, ELSET=EB<material id>
-            // *ELEMENT, TYPE=C3D8
+            // *ELEMENT, TYPE=C3d8R, ELSET=EB<material id>
+            // *ELEMENT, TYPE=C3d8
             // Elements itself (n=4 or n=8):
             // Index, i[0], ..., i[n]
 

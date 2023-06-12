@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,30 +14,27 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_sparse_matrix_h
-#  define dealii_sparse_matrix_h
+#define dealii_sparse_matrix_h
 
+#include <deal.II/base/config.h>
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/mpi_stub.h>
+#include <deal.II/base/smartpointer.h>
+#include <deal.II/base/subscriptor.h>
 
-#  include <deal.II/base/smartpointer.h>
-#  include <deal.II/base/subscriptor.h>
+#include <deal.II/lac/exceptions.h>
+#include <deal.II/lac/identity_matrix.h>
+#include <deal.II/lac/sparsity_pattern.h>
+#include <deal.II/lac/vector_operation.h>
 
-#  include <deal.II/lac/exceptions.h>
-#  include <deal.II/lac/identity_matrix.h>
-#  include <deal.II/lac/sparsity_pattern.h>
-#  include <deal.II/lac/vector_operation.h>
-#  ifdef DEAL_II_WITH_MPI
-#    include <mpi.h>
-#  endif
-
-#  include <iterator>
-#  include <memory>
+#include <iterator>
+#include <memory>
 
 
 DEAL_II_NAMESPACE_OPEN
 
 // Forward declarations
-#  ifndef DOXYGEN
+#ifndef DOXYGEN
 template <typename number>
 class Vector;
 template <typename number>
@@ -46,25 +43,25 @@ template <typename Matrix>
 class BlockMatrixBase;
 template <typename number>
 class SparseILU;
-#    ifdef DEAL_II_WITH_MPI
+#  ifdef DEAL_II_WITH_MPI
 namespace Utilities
 {
   namespace MPI
   {
     template <typename Number>
     void
-    sum(const SparseMatrix<Number> &, const MPI_Comm &, SparseMatrix<Number> &);
+    sum(const SparseMatrix<Number> &, const MPI_Comm, SparseMatrix<Number> &);
   }
 } // namespace Utilities
-#    endif
+#  endif
 
-#    ifdef DEAL_II_WITH_TRILINOS
+#  ifdef DEAL_II_WITH_TRILINOS
 namespace TrilinosWrappers
 {
   class SparseMatrix;
 }
-#    endif
 #  endif
+#endif
 
 /**
  * @addtogroup Matrix1
@@ -577,7 +574,7 @@ public:
   /**
    * @name Constructors and initialization
    */
-  //@{
+  /** @{ */
   /**
    * Constructor; initializes the matrix to be empty, without any structure,
    * i.e.  the matrix is not usable at all. This constructor is therefore only
@@ -713,11 +710,11 @@ public:
    */
   virtual void
   clear();
-  //@}
+  /** @} */
   /**
    * @name Information on the matrix
    */
-  //@{
+  /** @{ */
   /**
    * Return whether the object is empty. It is empty if either both dimensions
    * are zero or no SparsityPattern is associated.
@@ -786,13 +783,13 @@ public:
   /**
    * Dummy function for compatibility with distributed, parallel matrices.
    */
-  void compress(::dealii::VectorOperation::values);
+  void compress(VectorOperation::values);
 
-  //@}
+  /** @} */
   /**
    * @name Modifying entries
    */
-  //@{
+  /** @{ */
   /**
    * Set the element (<i>i,j</i>) to <tt>value</tt>. Throws an error if the
    * entry does not exist or if <tt>value</tt> is not a finite number. Still,
@@ -909,8 +906,8 @@ public:
       const bool                    elide_zero_values = true);
 
   /**
-   * Set several elements in the specified row of the matrix with column
-   * indices as given by <tt>col_indices</tt> to the respective value.
+   * Add the provided values to several elements in the specified row of the
+   * matrix with column indices as given by <tt>col_indices</tt>.
    *
    * The optional parameter <tt>elide_zero_values</tt> can be used to specify
    * whether zero values should be added anyway or these should be filtered
@@ -1022,7 +1019,7 @@ public:
   void
   copy_from(const FullMatrix<somenumber> &matrix);
 
-#  ifdef DEAL_II_WITH_TRILINOS
+#ifdef DEAL_II_WITH_TRILINOS
   /**
    * Copy the given Trilinos matrix to this one. The operation triggers an
    * assertion if the sparsity patterns of the current object does not contain
@@ -1034,7 +1031,7 @@ public:
    */
   SparseMatrix<number> &
   copy_from(const TrilinosWrappers::SparseMatrix &matrix);
-#  endif
+#endif
 
   /**
    * Add <tt>matrix</tt> scaled by <tt>factor</tt> to this matrix, i.e. the
@@ -1051,11 +1048,11 @@ public:
   void
   add(const number factor, const SparseMatrix<somenumber> &matrix);
 
-  //@}
+  /** @} */
   /**
    * @name Accessing elements
    */
-  //@{
+  /** @{ */
 
   /**
    * Return the value of the entry (<i>i,j</i>).  This may be an expensive
@@ -1113,11 +1110,11 @@ public:
   number &
   diag_element(const size_type i);
 
-  //@}
+  /** @} */
   /**
    * @name Multiplying matrices and vectors
    */
-  //@{
+  /** @{ */
   /**
    * Matrix-vector multiplication: let <i>dst = M*src</i> with <i>M</i> being
    * this matrix.
@@ -1200,7 +1197,7 @@ public:
    * Return the square of the norm of the vector $v$ with respect to the norm
    * induced by this matrix, i.e. $\left(v,Mv\right)$. This is useful, e.g. in
    * the finite element context, where the $L_2$ norm of a function equals the
-   * matrix norm with respect to the mass matrix of the vector representing
+   * matrix norm with respect to the @ref GlossMassMatrix "mass matrix" of the vector representing
    * the nodal values of the finite element function.
    *
    * Obviously, the matrix needs to be quadratic for this operation, and for
@@ -1315,11 +1312,11 @@ public:
          const Vector<number> &       V = Vector<number>(),
          const bool                   rebuild_sparsity_pattern = true) const;
 
-  //@}
+  /** @} */
   /**
    * @name Matrix norms
    */
-  //@{
+  /** @{ */
 
   /**
    * Return the $l_1$-norm of the matrix, that is $|M|_1=\max_{\mathrm{all\
@@ -1347,11 +1344,11 @@ public:
    */
   real_type
   frobenius_norm() const;
-  //@}
+  /** @} */
   /**
    * @name Preconditioning methods
    */
-  //@{
+  /** @{ */
 
   /**
    * Apply the Jacobi preconditioner, which multiplies every element of the
@@ -1495,11 +1492,11 @@ public:
   SSOR_step(Vector<somenumber> &      v,
             const Vector<somenumber> &b,
             const number              omega = 1.) const;
-  //@}
+  /** @} */
   /**
    * @name Iterators
    */
-  //@{
+  /** @{ */
 
   /**
    * Return an iterator pointing to the first element of the matrix.
@@ -1563,11 +1560,11 @@ public:
    */
   iterator
   end(const size_type r);
-  //@}
+  /** @} */
   /**
    * @name Input/Output
    */
-  //@{
+  /** @{ */
 
   /**
    * Print the matrix to the given stream, using the format <tt>(row,column)
@@ -1665,7 +1662,7 @@ public:
    */
   void
   block_read(std::istream &in);
-  //@}
+  /** @} */
   /**
    * @addtogroup Exceptions
    * @{
@@ -1713,10 +1710,10 @@ public:
    * Exception
    */
   DeclExceptionMsg(ExcSourceEqualsDestination,
-                   "You are attempting an operation on two matrices that "
+                   "You are attempting an operation on two vectors that "
                    "are the same object, but the operation requires that the "
                    "two objects are in fact different.");
-  //@}
+  /** @} */
 
 protected:
   /**
@@ -1782,17 +1779,17 @@ private:
   template <typename, bool>
   friend class SparseMatrixIterators::Accessor;
 
-#  ifdef DEAL_II_WITH_MPI
+#ifdef DEAL_II_WITH_MPI
   // Give access to internal datastructures to perform MPI operations.
   template <typename Number>
   friend void
   Utilities::MPI::sum(const SparseMatrix<Number> &,
-                      const MPI_Comm &,
+                      const MPI_Comm,
                       SparseMatrix<Number> &);
-#  endif
+#endif
 };
 
-#  ifndef DOXYGEN
+#ifndef DOXYGEN
 /*---------------------- Inline functions -----------------------------------*/
 
 
@@ -2000,7 +1997,8 @@ SparseMatrix<number>::add(const size_type               row,
       col_indices.size(),
       col_indices.data(),
       values.data(),
-      elide_zero_values);
+      elide_zero_values,
+      std::is_sorted(col_indices.begin(), col_indices.end()));
 }
 
 
@@ -2577,12 +2575,9 @@ SparseMatrix<number>::prepare_set()
   // nothing to do here
 }
 
-#  endif // DOXYGEN
+#endif // DOXYGEN
 
-
-/*----------------------------   sparse_matrix.h ---------------------------*/
 
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
-/*----------------------------   sparse_matrix.h ---------------------------*/

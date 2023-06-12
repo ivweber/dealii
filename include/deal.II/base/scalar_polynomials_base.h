@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2021 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,8 @@
 #include <deal.II/base/point.h>
 #include <deal.II/base/tensor.h>
 
+#include <memory>
+#include <string>
 #include <vector>
 
 DEAL_II_NAMESPACE_OPEN

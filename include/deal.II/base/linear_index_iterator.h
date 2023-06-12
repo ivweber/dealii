@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -142,7 +142,11 @@ public:
   /**
    * Iterator category.
    */
+#ifdef DEAL_II_HAVE_CXX20
+  using iterator_category = std::contiguous_iterator_tag;
+#else
   using iterator_category = std::random_access_iterator_tag;
+#endif
 
   /**
    * An alias for the type you get when you dereference an iterator of the
@@ -250,9 +254,9 @@ public:
    * the same entry in the same container.
    */
   template <typename OtherIterator>
-  friend typename std::enable_if<
+  friend std::enable_if_t<
     std::is_convertible<OtherIterator, DerivedIterator>::value,
-    bool>::type
+    bool>
   operator==(const LinearIndexIterator &left, const OtherIterator &right)
   {
     const auto &right_2 = static_cast<const DerivedIterator &>(right);
@@ -263,9 +267,9 @@ public:
    * Opposite of operator==().
    */
   template <typename OtherIterator>
-  friend typename std::enable_if<
+  friend std::enable_if_t<
     std::is_convertible<OtherIterator, DerivedIterator>::value,
-    bool>::type
+    bool>
   operator!=(const LinearIndexIterator &left, const OtherIterator &right)
   {
     return !(left == right);

@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2003 - 2021 by the deal.II authors
+ * Copyright (C) 2003 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -44,6 +44,7 @@
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>

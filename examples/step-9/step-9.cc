@@ -812,8 +812,8 @@ namespace Step9
   // understand data that is associated with nodes: they cannot plot
   // fifth-degree basis functions, which results in a very inaccurate picture
   // of the solution we computed. To get around this we save multiple
-  // <em>patches</em> per cell: in 2D we save 64 bilinear `cells' to the VTU
-  // file for each cell, and in 3D we save 512. The end result is that the
+  // <em>patches</em> per cell: in 2d we save 64 bilinear `cells' to the VTU
+  // file for each cell, and in 3d we save 512. The end result is that the
   // visualization program will use a piecewise linear interpolation of the
   // cubic basis functions: this captures the solution detail and, with most
   // screen resolutions, looks smooth. We save the grid in a separate step
@@ -844,8 +844,7 @@ namespace Step9
       // disk. Here we ask ZLib, a compression library, to compress the data
       // in a way that maximizes throughput.
       DataOutBase::VtkFlags vtk_flags;
-      vtk_flags.compression_level =
-        DataOutBase::VtkFlags::ZlibCompressionLevel::best_speed;
+      vtk_flags.compression_level = DataOutBase::CompressionLevel::best_speed;
       data_out.set_flags(vtk_flags);
 
       std::ofstream output("solution-" + std::to_string(cycle) + ".vtu");
@@ -1054,7 +1053,7 @@ namespace Step9
 
           // Then check whether the neighbor is active. If it is, then it
           // is on the same level or one level coarser (if we are not in
-          // 1D), and we are interested in it in any case.
+          // 1d), and we are interested in it in any case.
           if (neighbor->is_active())
             scratch_data.active_neighbors.push_back(neighbor);
           else

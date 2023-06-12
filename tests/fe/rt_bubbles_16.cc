@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,7 +16,7 @@
 
 // The test is used to check the restriction_is_additive flags. The
 // face degrees of freedom of an RT_Bubbles element must be non-additive
-// as they have continuity requrements. The interior DoFs however must
+// as they have continuity requirements. The interior DoFs however must
 // be additive.
 
 #include <deal.II/fe/fe_rt_bubbles.h>
@@ -25,8 +25,6 @@
 
 #include "../tests.h"
 
-
-std::ofstream logfile("output");
 
 template <int dim>
 void

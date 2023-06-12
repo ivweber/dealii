@@ -31,14 +31,16 @@ DEAL_II_NAMESPACE_OPEN
 
 // Forward declarations
 #ifndef DOXYGEN
-template <int, int>
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
 #endif
 
 
-/*!@addtogroup mapping */
-/*@{*/
-
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * This class implements a caching strategy for objects of the MappingQ family
@@ -248,7 +250,7 @@ private:
   bool uses_level_info;
 };
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

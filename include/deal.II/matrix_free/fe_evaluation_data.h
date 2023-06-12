@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,10 @@
 
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/exceptions.h>
+#include <deal.II/base/geometry_info.h>
+#include <deal.II/base/signaling_nan.h>
 #include <deal.II/base/smartpointer.h>
+#include <deal.II/base/std_cxx20/iota_view.h>
 #include <deal.II/base/symmetric_tensor.h>
 #include <deal.II/base/template_constraints.h>
 #include <deal.II/base/tensor.h>
@@ -31,7 +34,6 @@
 #include <deal.II/matrix_free/dof_info.h>
 #include <deal.II/matrix_free/mapping_info_storage.h>
 #include <deal.II/matrix_free/shape_info.h>
-#include <deal.II/matrix_free/type_traits.h>
 
 
 DEAL_II_NAMESPACE_OPEN
@@ -119,12 +121,13 @@ class FEEvaluationData
 public:
   static constexpr unsigned int dimension = dim;
 
-  using NumberType = Number;
-
+  using NumberType             = Number;
+  using shape_info_number_type = Number;
   using ScalarNumber =
     typename internal::VectorizedArrayTrait<Number>::value_type;
 
-  static constexpr unsigned int n_lanes = sizeof(Number) / sizeof(ScalarNumber);
+  static constexpr unsigned int n_lanes =
+    internal::VectorizedArrayTrait<Number>::width();
 
   /**
    * Constructor, taking a single ShapeInfo object to inject the capability
@@ -148,6 +151,11 @@ public:
   operator=(const FEEvaluationData &other);
 
   /**
+   * Destructor.
+   */
+  virtual ~FEEvaluationData() = default;
+
+  /**
    * Sets the pointers for values, gradients, hessians to the central
    * scratch_data_array inside the given scratch array, for a given number of
    * components as provided by one of the derived classes.
@@ -167,7 +175,7 @@ public:
   /**
    * @name 1: Access to geometry data at quadrature points
    */
-  //@{
+  /** @{ */
 
   /**
    * Return an ArrayView to internal memory for temporary use. Note that some
@@ -219,14 +227,22 @@ public:
    * @note Only implemented in case `is_face == true`.
    */
   Tensor<1, dim, Number>
+  normal_vector(const unsigned int q_point) const;
+
+  /**
+   * Same as `normal_vector(const unsigned int q_point)`.
+   *
+   * @warning  This function will be deprecated!
+   */
+  Tensor<1, dim, Number>
   get_normal_vector(const unsigned int q_point) const;
 
-  //@}
+  /** @} */
 
   /**
    * @name 2: Access to internal data arrays
    */
-  //@{
+  /** @{ */
   /**
    * Return a read-only pointer to the first field of the dof values. This is
    * the data field the read_dof_values() functions write into. First come the
@@ -307,7 +323,7 @@ public:
    * Return a read-only pointer to the first field of function hessians on
    * quadrature points. First comes the xx-component of the hessian for the
    * first component on all quadrature points, then the yy-component,
-   * zz-component in (3D), then the xy-component, and so on. Next comes the xx-
+   * zz-component in (3d), then the xy-component, and so on. Next comes the xx-
    * component of the second component, and so on. This is related to the
    * internal data structures used in this class. The raw data after a call to
    * @p evaluate only contains unit cell operations, so possible
@@ -322,7 +338,7 @@ public:
    * Return a read and write pointer to the first field of function hessians
    * on quadrature points. First comes the xx-component of the hessian for the
    * first component on all quadrature points, then the yy-component,
-   * zz-component in (3D), then the xy-component, and so on. Next comes the
+   * zz-component in (3d), then the xy-component, and so on. Next comes the
    * xx-component of the second component, and so on. This is related to the
    * internal data structures used in this class. The raw data after a call to
    * @p evaluate only contains unit cell operations, so possible
@@ -333,12 +349,12 @@ public:
   Number *
   begin_hessians();
 
-  //@}
+  /** @} */
 
   /**
    * @name 3: Information about the current cell this class operates on
    */
-  //@{
+  /** @{ */
 
   /**
    * Return the index offset within the geometry fields for the cell the @p
@@ -533,21 +549,34 @@ public:
       return face_ids;
   }
 
-  //@}
+  /**
+   * Return an object that can be thought of as an array containing all indices
+   * from zero to @p n_quadrature_points. This allows to write code using
+   * range-based for loops.
+   */
+  std_cxx20::ranges::iota_view<unsigned int, unsigned int>
+  quadrature_point_indices() const;
+
+  /** @} */
 
   /**
    * @name 3: Functions to access cell- and face-data vectors.
    */
-  //@{
+  /** @{ */
 
   /**
    * Provides a unified interface to access data in a vector of
    * VectorizedArray fields of length MatrixFree::n_cell_batches() +
    * MatrixFree::n_ghost_cell_batches() for cell data. It is implemented
    * both for cells and faces (access data to the associated cell).
+   *
+   * The underlying type can be both the Number type as given by the class
+   * template (i.e., VectorizedArrayType) as well as std::array with as many
+   * entries as n_lanes.
    */
-  Number
-  read_cell_data(const AlignedVector<Number> &array) const;
+  template <typename T>
+  T
+  read_cell_data(const AlignedVector<T> &array) const;
 
   /**
    * Provides a unified interface to set data in a vector of
@@ -555,26 +584,9 @@ public:
    * MatrixFree::n_ghost_cell_batches() for cell data. It is implemented
    * both for cells and faces (access data to the associated cell).
    */
-  void
-  set_cell_data(AlignedVector<Number> &array, const Number &value) const;
-
-  /**
-   * The same as above, just for std::array of length of Number for
-   * arbitrary data type.
-   */
-  template <typename T>
-  std::array<T, Number::size()>
-  read_cell_data(
-    const AlignedVector<std::array<T, Number::size()>> &array) const;
-
-  /**
-   * The same as above, just for std::array of length of Number for
-   * arbitrary data type.
-   */
   template <typename T>
   void
-  set_cell_data(AlignedVector<std::array<T, Number::size()>> &array,
-                const std::array<T, Number::size()> &         value) const;
+  set_cell_data(AlignedVector<T> &array, const T &value) const;
 
   /**
    * Provides a unified interface to access data in a vector of
@@ -584,8 +596,9 @@ public:
    *
    * @note Only implemented for faces.
    */
-  Number
-  read_face_data(const AlignedVector<Number> &array) const;
+  template <typename T>
+  T
+  read_face_data(const AlignedVector<T> &array) const;
 
   /**
    * Provides a unified interface to set data in a vector of
@@ -595,28 +608,11 @@ public:
    *
    * @note Only implemented for faces.
    */
-  void
-  set_face_data(AlignedVector<Number> &array, const Number &value) const;
-
-  /**
-   * The same as above, just for std::array of length of Number for
-   * arbitrary data type.
-   */
-  template <typename T>
-  std::array<T, Number::size()>
-  read_face_data(
-    const AlignedVector<std::array<T, Number::size()>> &array) const;
-
-  /**
-   * The same as above, just for std::array of length of Number for
-   * arbitrary data type.
-   */
   template <typename T>
   void
-  set_face_data(AlignedVector<std::array<T, Number::size()>> &array,
-                const std::array<T, Number::size()> &         value) const;
+  set_face_data(AlignedVector<T> &array, const T &value) const;
 
-  //@}
+  /** @} */
 
   /**
    * This data structure is used for the initialization by the derived
@@ -657,7 +653,7 @@ protected:
 
   /**
    * A pointer to the unit cell shape data, i.e., values, gradients and
-   * Hessians in 1D at the quadrature points that constitute the tensor
+   * Hessians in 1d at the quadrature points that constitute the tensor
    * product. Also contained in matrix_info, but it simplifies code if we
    * store a reference to it.
    */
@@ -727,8 +723,16 @@ protected:
   const Point<dim, Number> *quadrature_points;
 
   /**
-   * A pointer to the Jacobian information of the present cell. Only set to a
-   * useful value if on a non-Cartesian cell.
+   * A pointer to the inverse transpose Jacobian information of the present
+   * cell. Only the first inverse transpose Jacobian (q_point = 0) is set for
+   * Cartesian/affine cells, and the actual Jacobian is stored at index 1
+   * instead. For faces on hypercube elements, the derivatives are reorder s.t.
+   * the derivative orthogonal to the face is stored last, i.e for dim = 3 and
+   * face_no = 0 or 1, the derivatives are ordered as [dy, dz, dx], face_no = 2
+   * or 3: [dz, dx, dy], and face_no = 5 or 6: [dx, dy, dz]. If the Jacobian
+   * also is stored, the components are instead reordered in the same way.
+   * Filled from MappingInfoStorage.jacobians in
+   * include/deal.II/matrix_free/mapping_info.templates.h
    */
   const Tensor<2, dim, Number> *jacobian;
 
@@ -738,6 +742,13 @@ protected:
    */
   const Tensor<1, dim *(dim + 1) / 2, Tensor<1, dim, Number>>
     *jacobian_gradients;
+
+  /**
+   * A pointer to the gradients of the Jacobian transformation of the
+   * present cell.
+   */
+  const Tensor<1, dim *(dim + 1) / 2, Tensor<1, dim, Number>>
+    *jacobian_gradients_non_inverse;
 
   /**
    * A pointer to the Jacobian determinant of the present cell. If on a
@@ -792,6 +803,20 @@ protected:
    * memory can get reused between different calls.
    */
   Number *values_quad;
+
+  /**
+   * This field stores the values of the finite element function on
+   * quadrature points after applying unit cell transformations or before
+   * integrating. This field is accessed when performing the contravariant
+   * Piola transform for gradients on general cells. This is done by the
+   * functions get_gradient() and submit_gradient() when using a H(div)-
+   * conforming finite element such as FE_RaviartThomasNodal.
+   *
+   * The values of this array are stored in the start section of
+   * @p scratch_data_array. Due to its access as a thread local memory, the
+   * memory can get reused between different calls.
+   */
+  Number *values_from_gradients_quad;
 
   /**
    * This field stores the gradients of the finite element function on
@@ -963,6 +988,12 @@ protected:
     internal::MatrixFreeFunctions::MappingDataOnTheFly<dim, Number>>
     mapped_geometry;
 
+  /**
+   * Bool indicating if the divergence is requested. Used internally in the case
+   * of the Piola transform.
+   */
+  bool divergence_is_requested;
+
   // Make FEEvaluation and FEEvaluationBase objects friends for access to
   // protected member mapped_geometry.
   template <int, int, typename, bool, typename>
@@ -1022,6 +1053,7 @@ inline FEEvaluationData<dim, Number, is_face>::FEEvaluationData(
   , quadrature_points(nullptr)
   , jacobian(nullptr)
   , jacobian_gradients(nullptr)
+  , jacobian_gradients_non_inverse(nullptr)
   , J_value(nullptr)
   , normal_vectors(nullptr)
   , normal_x_jacobian(nullptr)
@@ -1046,6 +1078,7 @@ inline FEEvaluationData<dim, Number, is_face>::FEEvaluationData(
         internal::MatrixFreeFunctions::DoFInfo::dof_access_cell)
   , subface_index(0)
   , cell_type(internal::MatrixFreeFunctions::general)
+  , divergence_is_requested(false)
 {}
 
 
@@ -1071,6 +1104,7 @@ inline FEEvaluationData<dim, Number, is_face>::FEEvaluationData(
   , quadrature_points(nullptr)
   , jacobian(nullptr)
   , jacobian_gradients(nullptr)
+  , jacobian_gradients_non_inverse(nullptr)
   , J_value(nullptr)
   , normal_vectors(nullptr)
   , normal_x_jacobian(nullptr)
@@ -1081,12 +1115,16 @@ inline FEEvaluationData<dim, Number, is_face>::FEEvaluationData(
   , dof_access_index(internal::MatrixFreeFunctions::DoFInfo::dof_access_cell)
   , mapped_geometry(mapped_geometry)
   , is_reinitialized(false)
+  , divergence_is_requested(false)
 {
   mapping_data = &mapped_geometry->get_data_storage();
   jacobian     = mapped_geometry->get_data_storage().jacobians[0].begin();
   J_value      = mapped_geometry->get_data_storage().JxW_values.begin();
   jacobian_gradients =
     mapped_geometry->get_data_storage().jacobian_gradients[0].begin();
+  jacobian_gradients_non_inverse = mapped_geometry->get_data_storage()
+                                     .jacobian_gradients_non_inverse[0]
+                                     .begin();
   quadrature_points =
     mapped_geometry->get_data_storage().quadrature_points.begin();
 }
@@ -1104,17 +1142,18 @@ FEEvaluationData<dim, Number, is_face>::operator=(const FEEvaluationData &other)
   AssertDimension(active_quad_index, other.active_quad_index);
   AssertDimension(n_quadrature_points, descriptor->n_q_points);
 
-  data               = other.data;
-  dof_info           = other.dof_info;
-  mapping_data       = other.mapping_data;
-  descriptor         = other.descriptor;
-  jacobian           = nullptr;
-  J_value            = nullptr;
-  normal_vectors     = nullptr;
-  normal_x_jacobian  = nullptr;
-  jacobian_gradients = nullptr;
-  quadrature_points  = nullptr;
-  quadrature_weights = other.quadrature_weights;
+  data                           = other.data;
+  dof_info                       = other.dof_info;
+  mapping_data                   = other.mapping_data;
+  descriptor                     = other.descriptor;
+  jacobian                       = nullptr;
+  J_value                        = nullptr;
+  normal_vectors                 = nullptr;
+  normal_x_jacobian              = nullptr;
+  jacobian_gradients             = nullptr;
+  jacobian_gradients_non_inverse = nullptr;
+  quadrature_points              = nullptr;
+  quadrature_weights             = other.quadrature_weights;
 
 #  ifdef DEBUG
   is_reinitialized           = false;
@@ -1134,10 +1173,11 @@ FEEvaluationData<dim, Number, is_face>::operator=(const FEEvaluationData &other)
          internal::MatrixFreeFunctions::DoFInfo::dof_access_face_interior :
          internal::MatrixFreeFunctions::DoFInfo::dof_access_face_exterior) :
       internal::MatrixFreeFunctions::DoFInfo::dof_access_cell;
-  face_numbers[0]      = 0;
-  face_orientations[0] = 0;
-  subface_index        = 0;
-  cell_type            = internal::MatrixFreeFunctions::general;
+  face_numbers[0]         = 0;
+  face_orientations[0]    = 0;
+  subface_index           = 0;
+  cell_type               = internal::MatrixFreeFunctions::general;
+  divergence_is_requested = false;
 
   return *this;
 }
@@ -1162,25 +1202,35 @@ FEEvaluationData<dim, Number, is_face>::set_data_pointers(
     2 * n_quadrature_points;
   const unsigned int size_data_arrays =
     n_components * dofs_per_component +
-    (n_components * ((dim * (dim + 1)) / 2 + 2 * dim + 1) *
+    (n_components * ((dim * (dim + 1)) / 2 + 2 * dim + 2) *
      n_quadrature_points);
 
   const unsigned int allocated_size = size_scratch_data + size_data_arrays;
+#  ifdef DEBUG
+  scratch_data_array->clear();
+  scratch_data_array->resize(allocated_size,
+                             Number(numbers::signaling_nan<ScalarNumber>()));
+#  else
   scratch_data_array->resize_fast(allocated_size);
+#  endif
   scratch_data.reinit(scratch_data_array->begin() + size_data_arrays,
                       size_scratch_data);
 
   // set the pointers to the correct position in the data array
   values_dofs = scratch_data_array->begin();
   values_quad = scratch_data_array->begin() + n_components * dofs_per_component;
-  gradients_quad = scratch_data_array->begin() +
-                   n_components * (dofs_per_component + n_quadrature_points);
+  values_from_gradients_quad =
+    scratch_data_array->begin() +
+    n_components * (dofs_per_component + n_quadrature_points);
+  gradients_quad =
+    scratch_data_array->begin() +
+    n_components * (dofs_per_component + 2 * n_quadrature_points);
   gradients_from_hessians_quad =
     scratch_data_array->begin() +
-    n_components * (dofs_per_component + (dim + 1) * n_quadrature_points);
+    n_components * (dofs_per_component + (dim + 2) * n_quadrature_points);
   hessians_quad =
     scratch_data_array->begin() +
-    n_components * (dofs_per_component + (2 * dim + 1) * n_quadrature_points);
+    n_components * (dofs_per_component + (2 * dim + 2) * n_quadrature_points);
 }
 
 
@@ -1218,7 +1268,7 @@ FEEvaluationData<dim, Number, is_face>::reinit_face(
 
 template <int dim, typename Number, bool is_face>
 inline DEAL_II_ALWAYS_INLINE Tensor<1, dim, Number>
-FEEvaluationData<dim, Number, is_face>::get_normal_vector(
+FEEvaluationData<dim, Number, is_face>::normal_vector(
   const unsigned int q_point) const
 {
   AssertIndexRange(q_point, n_quadrature_points);
@@ -1229,6 +1279,17 @@ FEEvaluationData<dim, Number, is_face>::get_normal_vector(
     return normal_vectors[0];
   else
     return normal_vectors[q_point];
+}
+
+
+
+// This function is deprecated.
+template <int dim, typename Number, bool is_face>
+inline DEAL_II_ALWAYS_INLINE Tensor<1, dim, Number>
+FEEvaluationData<dim, Number, is_face>::get_normal_vector(
+  const unsigned int q_point) const
+{
+  return normal_vector(q_point);
 }
 
 
@@ -1432,7 +1493,7 @@ FEEvaluationData<dim, Number, is_face>::get_cell_type() const
 
 
 template <int dim, typename Number, bool is_face>
-inline const internal::MatrixFreeFunctions::ShapeInfo<Number> &
+inline const typename FEEvaluationData<dim, Number, is_face>::ShapeInfoType &
 FEEvaluationData<dim, Number, is_face>::get_shape_info() const
 {
   Assert(data != nullptr, ExcInternalError());
@@ -1521,7 +1582,7 @@ FEEvaluationData<dim, Number, is_face>::get_scratch_data() const
 
 
 template <int dim, typename Number, bool is_face>
-std::uint8_t
+inline std::uint8_t
 FEEvaluationData<dim, Number, is_face>::get_face_no(const unsigned int v) const
 {
   Assert(is_face, ExcNotInitialized());
@@ -1547,7 +1608,7 @@ FEEvaluationData<dim, Number, is_face>::get_subface_index() const
 
 
 template <int dim, typename Number, bool is_face>
-std::uint8_t
+inline std::uint8_t
 FEEvaluationData<dim, Number, is_face>::get_face_orientation(
   const unsigned int v) const
 {
@@ -1582,16 +1643,25 @@ FEEvaluationData<dim, Number, is_face>::is_interior_face() const
 
 
 
+template <int dim, typename Number, bool is_face>
+inline std_cxx20::ranges::iota_view<unsigned int, unsigned int>
+FEEvaluationData<dim, Number, is_face>::quadrature_point_indices() const
+{
+  return {0U, n_quadrature_points};
+}
+
+
+
 namespace internal
 {
   template <std::size_t N,
-            typename VectorizedArrayType2,
-            typename GlobalVectorType,
+            typename VectorOfArrayType,
+            typename ArrayType,
             typename FU>
   inline void
   process_cell_or_face_data(const std::array<unsigned int, N> indices,
-                            GlobalVectorType &                array,
-                            VectorizedArrayType2 &            out,
+                            VectorOfArrayType &               array,
+                            ArrayType &                       out,
                             const FU &                        fu)
   {
     for (unsigned int i = 0; i < N; ++i)
@@ -1601,50 +1671,35 @@ namespace internal
           fu(out[i], array[indices[i] / N][indices[i] % N]);
         }
   }
+
+  template <std::size_t N, typename VectorOfArrayType, typename ArrayType>
+  inline void
+  set_valid_element_to_array(const std::array<unsigned int, N> indices,
+                             const VectorOfArrayType &         array,
+                             ArrayType &                       out)
+  {
+    AssertDimension(indices.size(), out.size());
+    AssertDimension(indices.size(), array[0].size());
+    // set all entries in array to a valid element
+    int index = 0;
+    for (; index < N; ++index)
+      if (indices[index] != numbers::invalid_unsigned_int)
+        break;
+    for (unsigned int i = 0; i < N; ++i)
+      out[i] = array[indices[index] / N][indices[index] % N];
+  }
 } // namespace internal
 
 
 
 template <int dim, typename Number, bool is_face>
-inline Number
+template <typename T>
+inline T
 FEEvaluationData<dim, Number, is_face>::read_cell_data(
-  const AlignedVector<Number> &array) const
+  const AlignedVector<T> &array) const
 {
-  Number out = Number(1.);
-  internal::process_cell_or_face_data(this->get_cell_ids(),
-                                      array,
-                                      out,
-                                      [](auto &local, const auto &global) {
-                                        local = global;
-                                      });
-  return out;
-}
-
-
-
-template <int dim, typename Number, bool is_face>
-inline void
-FEEvaluationData<dim, Number, is_face>::set_cell_data(
-  AlignedVector<Number> &array,
-  const Number &         in) const
-{
-  internal::process_cell_or_face_data(this->get_cell_ids(),
-                                      array,
-                                      in,
-                                      [](const auto &local, auto &global) {
-                                        global = local;
-                                      });
-}
-
-
-
-template <int dim, typename Number, bool is_face>
-template <typename T>
-inline std::array<T, Number::size()>
-FEEvaluationData<dim, Number, is_face>::read_cell_data(
-  const AlignedVector<std::array<T, Number::size()>> &array) const
-{
-  std::array<T, Number::size()> out;
+  T out;
+  internal::set_valid_element_to_array(this->get_cell_ids(), array, out);
   internal::process_cell_or_face_data(this->get_cell_ids(),
                                       array,
                                       out,
@@ -1659,9 +1714,8 @@ FEEvaluationData<dim, Number, is_face>::read_cell_data(
 template <int dim, typename Number, bool is_face>
 template <typename T>
 inline void
-FEEvaluationData<dim, Number, is_face>::set_cell_data(
-  AlignedVector<std::array<T, Number::size()>> &array,
-  const std::array<T, Number::size()> &         in) const
+FEEvaluationData<dim, Number, is_face>::set_cell_data(AlignedVector<T> &array,
+                                                      const T &in) const
 {
   internal::process_cell_or_face_data(this->get_cell_ids(),
                                       array,
@@ -1674,45 +1728,13 @@ FEEvaluationData<dim, Number, is_face>::set_cell_data(
 
 
 template <int dim, typename Number, bool is_face>
-inline Number
+template <typename T>
+inline T
 FEEvaluationData<dim, Number, is_face>::read_face_data(
-  const AlignedVector<Number> &array) const
+  const AlignedVector<T> &array) const
 {
-  Number out = Number(1.);
-  internal::process_cell_or_face_data(this->get_face_ids(),
-                                      array,
-                                      out,
-                                      [](auto &local, const auto &global) {
-                                        local = global;
-                                      });
-  return out;
-}
-
-
-
-template <int dim, typename Number, bool is_face>
-inline void
-FEEvaluationData<dim, Number, is_face>::set_face_data(
-  AlignedVector<Number> &array,
-  const Number &         in) const
-{
-  internal::process_cell_or_face_data(this->get_face_ids(),
-                                      array,
-                                      in,
-                                      [](const auto &local, auto &global) {
-                                        global = local;
-                                      });
-}
-
-
-
-template <int dim, typename Number, bool is_face>
-template <typename T>
-inline std::array<T, Number::size()>
-FEEvaluationData<dim, Number, is_face>::read_face_data(
-  const AlignedVector<std::array<T, Number::size()>> &array) const
-{
-  std::array<T, Number::size()> out;
+  T out;
+  internal::set_valid_element_to_array(this->get_cell_ids(), array, out);
   internal::process_cell_or_face_data(this->get_face_ids(),
                                       array,
                                       out,
@@ -1727,9 +1749,8 @@ FEEvaluationData<dim, Number, is_face>::read_face_data(
 template <int dim, typename Number, bool is_face>
 template <typename T>
 inline void
-FEEvaluationData<dim, Number, is_face>::set_face_data(
-  AlignedVector<std::array<T, Number::size()>> &array,
-  const std::array<T, Number::size()> &         in) const
+FEEvaluationData<dim, Number, is_face>::set_face_data(AlignedVector<T> &array,
+                                                      const T &in) const
 {
   internal::process_cell_or_face_data(this->get_face_ids(),
                                       array,

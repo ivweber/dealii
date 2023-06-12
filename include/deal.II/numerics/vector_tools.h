@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -81,7 +81,7 @@ DEAL_II_NAMESPACE_OPEN
  * (<i>f<sub>h</sub></i>,<i>v<sub>h</sub></i>)=(<i>f</i>,<i>v<sub>h</sub></i>)
  * for all discrete test functions <i>v<sub>h</sub></i>. This is done through
  * the solution of the linear system of equations <i> M v = f</i> where
- * <i>M</i> is the mass matrix $m_{ij} = \int_\Omega \phi_i(x) \phi_j(x) dx$
+ * <i>M</i> is the @ref GlossMassMatrix "mass matrix" $m_{ij} = \int_\Omega \phi_i(x) \phi_j(x) dx$
  * and $f_i = \int_\Omega f(x) \phi_i(x) dx$. The solution vector $v$ then is
  * the nodal representation of the projection <i>f<sub>h</sub></i>. The
  * project() functions are used in the step-21 and step-23 tutorial programs.
@@ -204,7 +204,7 @@ DEAL_II_NAMESPACE_OPEN
  * The projection takes place on all boundary parts with boundary indicators
  * listed in the map (std::map<types::boundary_id, const
  * Function<spacedim,number>*>) of boundary functions. These boundary parts may
- * or may not be continuous. For these boundary parts, the mass matrix is
+ * or may not be continuous. For these boundary parts, the @ref GlossMassMatrix "mass matrix" is
  * assembled using the MatrixTools::create_boundary_mass_matrix() function, as
  * well as the appropriate right hand side. Then the resulting system of
  * equations is solved using a simple CG method (without preconditioning), which
@@ -244,10 +244,10 @@ DEAL_II_NAMESPACE_OPEN
  * want to choose a quadrature formula with more quadrature points or one with
  * another distribution of the quadrature points in this case. You should also
  * take into account the superconvergence properties of finite elements in
- * some points: for example in 1D, the standard finite element method is a
+ * some points: for example in 1d, the standard finite element method is a
  * collocation method and should return the exact value at nodal points.
  * Therefore, the trapezoidal rule should always return a vanishing L-infinity
- * error. Conversely, in 2D the maximum L-infinity error should be located at
+ * error. Conversely, in 2d the maximum L-infinity error should be located at
  * the vertices or at the center of the cell, which would make it plausible to
  * use the Simpson quadrature rule. On the other hand, there may be
  * superconvergence at Gauss integration points. These examples are not

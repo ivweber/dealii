@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2021 by the deal.II authors
+// Copyright (C) 2008 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,7 +19,7 @@
 
 #include <deal.II/base/config.h>
 
-#include <deal.II/base/mpi.h>
+#include <deal.II/base/mpi_stub.h>
 #include <deal.II/base/partitioner.h>
 #include <deal.II/base/smartpointer.h>
 #include <deal.II/base/subscriptor.h>
@@ -66,7 +66,8 @@ namespace parallel
    * @ref GlossMPICommunicator "MPI communicators"
    * or that they have
    * @ref GlossLocallyOwnedCell "locally owned",
-   * @ref GlossGhostCell "ghost", and possibly
+   * @ref GlossGhostCell "ghost",
+   * and possibly
    * @ref GlossArtificialCell "artificial cells".
    * This class provides
    * a number of member functions that allows querying some information
@@ -82,7 +83,7 @@ namespace parallel
      * Constructor.
      */
     TriangulationBase(
-      const MPI_Comm &mpi_communicator,
+      const MPI_Comm mpi_communicator,
       const typename dealii::Triangulation<dim, spacedim>::MeshSmoothing
                  smooth_grid = (dealii::Triangulation<dim, spacedim>::none),
       const bool check_for_distorted_cells = false);
@@ -201,19 +202,12 @@ namespace parallel
     const std::set<types::subdomain_id> &
     level_ghost_owners() const;
 
-    /**
-     * Return partitioner for the global indices of the cells on the active
-     * level of the triangulation.
-     */
     const std::weak_ptr<const Utilities::MPI::Partitioner>
-    global_active_cell_index_partitioner() const;
+    global_active_cell_index_partitioner() const override;
 
-    /**
-     * Return partitioner for the global indices of the cells on the given @p
-     * level of the triangulation.
-     */
     const std::weak_ptr<const Utilities::MPI::Partitioner>
-    global_level_cell_index_partitioner(const unsigned int level) const;
+    global_level_cell_index_partitioner(
+      const unsigned int level) const override;
 
     /**
      * @copydoc dealii::Triangulation::get_boundary_ids()
@@ -434,8 +428,11 @@ namespace parallel
    *       return false;
    *   }
    * @endcode
+   *
+   * @dealiiConceptRequires{(concepts::is_valid_dim_spacedim<dim, spacedim>)}
    */
   template <int dim, int spacedim = dim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   class DistributedTriangulationBase
     : public dealii::parallel::TriangulationBase<dim, spacedim>
   {
@@ -444,7 +441,7 @@ namespace parallel
      * Constructor.
      */
     DistributedTriangulationBase(
-      const MPI_Comm &mpi_communicator,
+      const MPI_Comm mpi_communicator,
       const typename dealii::Triangulation<dim, spacedim>::MeshSmoothing
                  smooth_grid = (dealii::Triangulation<dim, spacedim>::none),
       const bool check_for_distorted_cells = false);
@@ -505,7 +502,7 @@ namespace parallel
      *
      * @deprecated The autopartition parameter has been removed.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     virtual void
     load(const std::string &filename, const bool autopartition) = 0;
 
@@ -685,7 +682,8 @@ namespace parallel
      * Save additional cell-attached data into the given file. The first
      * arguments are used to determine the offsets where to write buffers to.
      *
-     * Called by @ref save.
+     * Called by
+     * @ref save.
      */
     void
     save_attached_data(const unsigned int global_first_cell,
@@ -697,7 +695,8 @@ namespace parallel
      * The first arguments are used to determine the offsets where to read
      * buffers from.
      *
-     * Called by @ref load.
+     * Called by
+     * @ref load.
      */
     void
     load_attached_data(const unsigned int global_first_cell,
@@ -777,7 +776,7 @@ namespace parallel
     class DataTransfer
     {
     public:
-      DataTransfer(const MPI_Comm &mpi_communicator);
+      DataTransfer(const MPI_Comm mpi_communicator);
 
       /**
        * Prepare data transfer by calling the pack callback functions on each

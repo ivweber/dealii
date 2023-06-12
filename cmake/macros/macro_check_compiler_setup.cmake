@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2016 - 2017 by the deal.II authors
+## Copyright (C) 2016 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -15,7 +15,7 @@
 
 #
 # Usage:
-#   CHECK_COMPILER_SETUP("compiler flag string" "linker flag string" _var
+#   check_compiler_setup("compiler flag string" "linker flag string" _var
 #     [libraries]
 #     )
 #
@@ -25,55 +25,76 @@
 # ${_var} is set to true, otherwise it is set to false.
 #
 
-MACRO(CHECK_COMPILER_SETUP _compiler_flags_unstr _linker_flags_unstr _var)
-  #
-  # Strip -Wl,--as-needed from the list of linker flags. This works around
-  # a serious regression with ld.bfd in combination with -Wl,--as-needed
-  # when compiling a simple
-  #
-  #    int main () { return 0; }
-  #
-  # and linking against a *huge* list of (entirely unused) libraries.
-  #
-  # Ideally, one should use ld.gold [1] instead of ld.bfd - but because
-  # this is not always possible, simply disable -Wl,--as-needed.
-  #
-  # See https://github.com/dealii/dealii/issues/3686
-  #
-  # [1] https://lwn.net/Articles/274859/
-  #
-  STRING(REPLACE "-Wl,--as-needed" "" _linker_flags "${_linker_flags_unstr}")
+macro(check_compiler_setup _compiler_flags _linker_flags _var)
+  message(STATUS "Performing Test ${_var}")
 
   #
-  # Strip leading and trailing whitespace to make CMake 2.8.8 happy
+  # We used to do some fancy caching here, but for now simply rerun this
+  # check every time and do not bother with an elaborate caching strategy.
+  # We simply keep the build directory for the check around and rely on the
+  # build system to skip unnecessary recompilation.
   #
-  STRING(STRIP "${_compiler_flags_unstr}" _compiler_flags)
-  STRING(STRIP "${_linker_flags}" _linker_flags)
 
   #
-  # Rerun this test if flags have changed:
+  # Prepare compile and link options:
   #
-  IF(NOT "${_compiler_flags}" STREQUAL "${CACHED_${_var}_compiler_flags}"
-     OR NOT "${_linker_flags}" STREQUAL "${CACHED_${_var}_linker_flags}"
-     OR NOT "${ARGN}" STREQUAL "${CACHED_${_var}_ARGN}")
-    UNSET(${_var} CACHE)
-  ENDIF()
 
-  SET(CACHED_${_var}_compiler_flags "${_compiler_flags}"
-    CACHE INTERNAL "" FORCE
+  separate_arguments(_compile_options UNIX_COMMAND "${_compiler_flags}")
+  shell_escape_option_groups(_compile_options)
+  separate_arguments(_link_options UNIX_COMMAND "${_linker_flags}")
+  shell_escape_option_groups(_link_options)
+
+  #
+  # Ideally, we would like to simply list our internal interface_* targets,
+  # which might recursively list imported targets... But unfortunately,
+  # CMake as of version 3.25 does not support this operation.
+  #
+  # Remark: What we try to accomplish here is somewhat fundamentally
+  # incompatible with how CMake envisions import targets to function.
+  # Namely, the final link line is only constructed after the "configure
+  # phase" during the "generator phase".
+  #
+  # As a workaround, at least for now, let us make the assumption that we
+  # only ever encounter an interface_* target and that imported targets
+  # have been expanded.
+  #
+
+  set(_libraries)
+  foreach(_entry ${ARGN})
+    if(TARGET ${_entry})
+      get_target_property(_value ${_entry} INTERFACE_LINK_LIBRARIES)
+      if(NOT "${_value}" MATCHES "-NOTFOUND")
+        list(APPEND _libraries ${_value})
+      endif()
+      get_target_property(_values ${_entry} INTERFACE_COMPILE_OPTIONS)
+      if(NOT "${_values}" MATCHES "-NOTFOUND")
+        list(APPEND _compile_options ${_values})
+      endif()
+      get_target_property(_values ${_entry} INTERFACE_LINK_OPTIONS)
+      if(NOT "${_values}" MATCHES "-NOTFOUND")
+        list(APPEND _link_options ${_values})
+      endif()
+    else()
+      list(APPEND _libraries ${_entry})
+    endif()
+  endforeach()
+
+  try_compile(
+    ${_var}
+    ${CMAKE_CURRENT_BINARY_DIR}/check_compiler_setup/${_var}
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/macros/check_compiler_setup
+    CheckCompilerSetup${_var}
+    CMAKE_FLAGS "-DTEST_COMPILE_OPTIONS=${_compile_options}"
+                "-DTEST_LINK_OPTIONS=${_link_options}"
+                "-DTEST_LINK_LIBRARIES=${_libraries}"
+                "-DCMAKE_VERBOSE_MAKEFILE=ON"
+    OUTPUT_VARIABLE _output
     )
-  SET(CACHED_${_var}_linker_flags "${_linker_flags}"
-    CACHE INTERNAL "" FORCE
-    )
-  SET(CACHED_${_var}_ARGN "${ARGN}" CACHE INTERNAL "" FORCE)
 
-  SET(CMAKE_REQUIRED_FLAGS "${_compiler_flags} ${_linker_flags}")
-  SET(CMAKE_REQUIRED_LIBRARIES ${ARGN})
-
-  CHECK_CXX_SOURCE_COMPILES("int main(){ return 0; }" ${_var})
-  RESET_CMAKE_REQUIRED()
-
-  IF(${_var})
-    SET(${_var} TRUE CACHE INTERNAL "")
-  ENDIF()
-ENDMACRO()
+  if(${_var})
+    message(STATUS "Performing Test ${_var} - Success")
+  else()
+    message(STATUS "Performing Test ${_var} - Failed")
+    message(STATUS "Compiler output:\n\n${_output}")
+  endif()
+endmacro()

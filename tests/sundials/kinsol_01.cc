@@ -40,12 +40,9 @@
  * Run statistics (optional outputs) are printed at the end.
  */
 int
-main(int argc, char **argv)
+main()
 {
   initlog();
-
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(
-    argc, argv, numbers::invalid_unsigned_int);
 
   using VectorType = Vector<double>;
 
@@ -57,14 +54,14 @@ main(int argc, char **argv)
   prm.parse_input(ifile);
 
   // Size of the problem
-  unsigned int N = 3;
+  const unsigned int N = 3;
 
   SUNDIALS::KINSOL<VectorType> kinsol(data);
 
   kinsol.reinit_vector = [N](VectorType &v) { v.reinit(N); };
 
   // Robert example
-  kinsol.iteration_function = [](const VectorType &u, VectorType &F) -> int {
+  kinsol.iteration_function = [](const VectorType &u, VectorType &F) {
     const double dstep = 0.1;
     const double y10   = 1.0;
     const double y20   = 0.0;
@@ -76,8 +73,6 @@ main(int argc, char **argv)
     F[0] = yd1 + y10;
     F[1] = -yd1 - yd3 + y20;
     F[2] = yd3 + y30;
-
-    return 0;
   };
 
   VectorType v(N);

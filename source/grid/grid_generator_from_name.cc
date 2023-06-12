@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -50,7 +50,7 @@ namespace GridGenerator
      * Return true if a grid was actually generated, false otherwise.
      */
     template <int dim, int spacedim>
-    typename std::enable_if<dim != spacedim, bool>::type
+    std::enable_if_t<dim != spacedim, bool>
     generate_codimension_zero_grid(const std::string &,
                                    const std::string &,
                                    Triangulation<dim, spacedim> &)
@@ -230,6 +230,21 @@ namespace GridGenerator
                          double,
                          unsigned int,
                          bool>(concentric_hyper_shells, arguments, tria);
+
+      else if (name == "subdivided_hyper_cube_with_simplices")
+        parse_and_create<dim, dim, unsigned int, double, double, bool>(
+          subdivided_hyper_cube_with_simplices, arguments, tria);
+
+      else if (name == "subdivided_hyper_rectangle_with_simplices")
+        parse_and_create<dim,
+                         dim,
+                         const std::vector<unsigned int> &,
+                         const Point<dim> &,
+                         const Point<dim> &,
+                         bool>(subdivided_hyper_rectangle_with_simplices,
+                               arguments,
+                               tria);
+
       else
         return false;
 
@@ -243,7 +258,7 @@ namespace GridGenerator
      * Return true if a grid was actually generated, false otherwise.
      */
     template <int dim, int spacedim>
-    typename std::enable_if<dim != spacedim - 1, bool>::type
+    std::enable_if_t<dim != spacedim - 1, bool>
     generate_codimension_one_grid(const std::string &,
                                   const std::string &,
                                   Triangulation<dim, spacedim> &)

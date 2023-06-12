@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,7 +35,7 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.h>
 
-#include <deal.II/lac/petsc_parallel_vector.h>
+#include <deal.II/lac/petsc_vector.h>
 
 #include "../tests.h"
 

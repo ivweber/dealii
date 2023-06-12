@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,39 +14,41 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_thread_management_h
-#  define dealii_thread_management_h
+#define dealii_thread_management_h
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  include <deal.II/base/exceptions.h>
-#  include <deal.II/base/multithread_info.h>
-#  include <deal.II/base/std_cxx17/tuple.h>
-#  include <deal.II/base/template_constraints.h>
+#include <deal.II/base/exceptions.h>
+#include <deal.II/base/multithread_info.h>
+#include <deal.II/base/mutex.h>
+#include <deal.II/base/std_cxx17/tuple.h>
+#include <deal.II/base/template_constraints.h>
 
-#  include <atomic>
-#  include <condition_variable>
-#  include <functional>
-#  include <future>
-#  include <iterator>
-#  include <list>
-#  include <memory>
-#  include <mutex>
-#  include <thread>
-#  include <utility>
-#  include <vector>
+#include <atomic>
+#include <functional>
+#include <future>
+#include <list>
+#include <memory>
+#include <thread>
+#include <utility>
+#include <vector>
 
-#  ifdef DEAL_II_WITH_TBB
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
-#    include <tbb/task_group.h>
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
-#  endif
+#ifdef DEAL_II_HAVE_CXX20
+#  include <concepts>
+#endif
+
+
+#ifdef DEAL_II_WITH_TBB
+#  include <tbb/task_group.h>
+#endif
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup threads */
-/*@{*/
-
+/**
+ * @addtogroup threads
+ * @{
+ */
 
 /**
  * A namespace for the implementation of thread management in deal.II. Most of
@@ -55,55 +57,6 @@ DEAL_II_NAMESPACE_OPEN
  *
  * @ingroup threads
  */
-namespace Threads
-{
-  /**
-   * A class implementing a <a
-   * href="https://en.wikipedia.org/wiki/Lock_(computer_science)">mutex</a>.
-   * Mutexes are used to lock data structures to ensure that only a
-   * single thread of execution can access them at the same time.
-   *
-   * This class is a thin wrapper around `std::mutex`. The only difference
-   * is that this class is copyable when `std::mutex` is not.  Indeed, when
-   * copied, the receiving object does not copy any state from the object
-   * being copied, i.e. an entirely new mutex is created. These semantics
-   * are consistent with the common use case if a mutex is used as a member
-   * variable to lock the other member variables of a class: in that case,
-   * the mutex of the copied-to object should only guard the members of the
-   * copied-to object, not the members of both the copied-to and
-   * copied-from object. Since at the time when the class is copied, the
-   * destination's member variable is not used yet, its corresponding mutex
-   * should also remain in its original state.
-   */
-  class Mutex : public std::mutex
-  {
-  public:
-    /**
-     * Default constructor.
-     */
-    Mutex() = default;
-
-    /**
-     * Copy constructor. As discussed in this class's documentation, no state
-     * is copied from the object given as argument.
-     */
-    Mutex(const Mutex &)
-      : std::mutex()
-    {}
-
-    /**
-     * Copy operators. As discussed in this class's documentation, no state
-     * is copied from the object given as argument.
-     */
-    Mutex &
-    operator=(const Mutex &)
-    {
-      return *this;
-    }
-  };
-} // namespace Threads
-
-
 namespace Threads
 {
   /**
@@ -186,7 +139,7 @@ namespace Threads
 } // namespace Threads
 
 /* ----------- implementation of functions in namespace Threads ---------- */
-#  ifndef DOXYGEN
+#ifndef DOXYGEN
 namespace Threads
 {
   template <typename ForwardIterator>
@@ -237,7 +190,7 @@ namespace Threads
   }
 } // namespace Threads
 
-#  endif // DOXYGEN
+#endif // DOXYGEN
 
 namespace Threads
 {
@@ -761,7 +714,13 @@ namespace Threads
   DEAL_II_DEPRECATED inline Thread<RT>
   new_thread(const std::function<RT()> &function)
   {
+    // Here and below we need to disable deprecation warnings for calling the
+    // constructor in this function - as this function itself is deprecated
+    // these warnings are not helpful. This problem only appears in some
+    // configurations (e.g., Debian 11 with GCC-10).
+    DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
     return Thread<RT>(function);
+    DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
   }
 
 
@@ -831,14 +790,19 @@ namespace Threads
    * @deprecated Use std::thread or std::jthread instead.
    *
    * @ingroup CPP11
+   *
+   * @dealiiConceptRequires{(std::invocable<FunctionObjectType>)}
    */
   template <typename FunctionObjectType>
-  DEAL_II_DEPRECATED inline auto
-  new_thread(FunctionObjectType function_object)
+  DEAL_II_CXX20_REQUIRES((std::invocable<FunctionObjectType>))
+  DEAL_II_DEPRECATED inline auto new_thread(FunctionObjectType function_object)
     -> Thread<decltype(function_object())>
   {
+    // See the comment in the first new_thread() implementation
+    DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
     using return_type = decltype(function_object());
     return Thread<return_type>(std::function<return_type()>(function_object));
+    DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
   }
 
 
@@ -853,11 +817,14 @@ namespace Threads
    */
   template <typename RT, typename... Args>
   DEAL_II_DEPRECATED inline Thread<RT>
-  new_thread(RT (*fun_ptr)(Args...), typename identity<Args>::type... args)
+  new_thread(RT (*fun_ptr)(Args...), std_cxx20::type_identity_t<Args>... args)
   {
+    // See the comment in the first new_thread() implementation
+    DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
     auto dummy = std::make_tuple(internal::maybe_make_ref<Args>::act(args)...);
     return new_thread(
       [dummy, fun_ptr]() -> RT { return std_cxx17::apply(fun_ptr, dummy); });
+    DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
   }
 
 
@@ -872,8 +839,8 @@ namespace Threads
   template <typename RT, typename C, typename... Args>
   DEAL_II_DEPRECATED inline Thread<RT>
   new_thread(RT (C::*fun_ptr)(Args...),
-             typename identity<C>::type &c,
-             typename identity<Args>::type... args)
+             std_cxx20::type_identity_t<C> &c,
+             std_cxx20::type_identity_t<Args>... args)
   {
     // NOLINTNEXTLINE(modernize-avoid-bind) silence clang-tidy
     return new_thread(std::function<RT()>(std::bind(
@@ -890,12 +857,15 @@ namespace Threads
   template <typename RT, typename C, typename... Args>
   DEAL_II_DEPRECATED inline Thread<RT>
   new_thread(RT (C::*fun_ptr)(Args...) const,
-             typename identity<const C>::type &c,
-             typename identity<Args>::type... args)
+             std_cxx20::type_identity_t<const C> &c,
+             std_cxx20::type_identity_t<Args>... args)
   {
+    // See the comment in the first new_thread() implementation
+    DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
     // NOLINTNEXTLINE(modernize-avoid-bind) silence clang-tidy
     return new_thread(std::function<RT()>(std::bind(
       fun_ptr, std::cref(c), internal::maybe_make_ref<Args>::act(args)...)));
+    DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
   }
 
   // ------------------------ ThreadGroup -------------------------------------
@@ -948,10 +918,15 @@ namespace Threads
   {
     /**
      * Set the value of a std::promise object by evaluating the action.
+     *
+     * @dealiiConceptRequires{(std::invocable<Function> &&
+     *    std::convertible_to<std::invoke_result_t<Function>, RT>)}
      */
     template <typename RT, typename Function>
-    void
-    evaluate_and_set_promise(Function &function, std::promise<RT> &promise)
+    DEAL_II_CXX20_REQUIRES(
+      (std::invocable<Function> &&
+       std::convertible_to<std::invoke_result_t<Function>, RT>))
+    void evaluate_and_set_promise(Function &function, std::promise<RT> &promise)
     {
       promise.set_value(function());
     }
@@ -963,10 +938,13 @@ namespace Threads
      * for the case where the return type is `void`. Consequently, we
      * can't set a value. But we do evaluate the function object and
      * call `std::promise::set_value()` without argument.
+     *
+     * @dealiiConceptRequires{(std::invocable<Function>)}
      */
     template <typename Function>
-    void
-    evaluate_and_set_promise(Function &function, std::promise<void> &promise)
+    DEAL_II_CXX20_REQUIRES((std::invocable<Function>))
+    void evaluate_and_set_promise(Function &          function,
+                                  std::promise<void> &promise)
     {
       function();
       promise.set_value();
@@ -1020,7 +998,7 @@ namespace Threads
     {
       if (MultithreadInfo::n_threads() > 1)
         {
-#  ifdef DEAL_II_WITH_TBB
+#ifdef DEAL_II_WITH_TBB
           // Create a promise object and from it extract a future that
           // we can use to refer to the outcome of the task. For reasons
           // explained below, we can't just create a std::promise object,
@@ -1088,7 +1066,7 @@ namespace Threads
                 }
             });
 
-#  else
+#else
           // If no threading library is supported, just fall back onto C++11
           // facilities. The problem with this is that the standard does
           // not actually say what std::async should do. The first
@@ -1109,7 +1087,7 @@ namespace Threads
           task_data = std::make_shared<TaskData>(
             std::async(std::launch::async | std::launch::deferred,
                        function_object));
-#  endif
+#endif
         }
       else
         {
@@ -1287,7 +1265,7 @@ namespace Threads
                      "The current object is not associated with a task that "
                      "can be joined. It may have been detached, or you "
                      "may have already joined it in the past.");
-    //@}
+    /** @} */
   private:
     /**
      * A data structure that holds a std::future into which the task deposits
@@ -1396,7 +1374,7 @@ namespace Threads
           return;
         else
           {
-#  ifdef DEAL_II_WITH_TBB
+#ifdef DEAL_II_WITH_TBB
             // If we build on the TBB, then we can't just wait for the
             // std::future object to get ready. Apparently the TBB happily
             // enqueues a task into an arena and then just sits on it without
@@ -1405,7 +1383,7 @@ namespace Threads
             // tbb::task_group, and then here wait for the single task
             // associated with that task group.
             task_group.wait();
-#  endif
+#endif
 
             // Wait for the task to finish and then move its
             // result. (We could have made the set_from() function
@@ -1474,14 +1452,14 @@ namespace Threads
        */
       internal::return_value<RT> returned_object;
 
-#  ifdef DEAL_II_WITH_TBB
+#ifdef DEAL_II_WITH_TBB
       /**
        * A task group object we can wait for.
        */
       tbb::task_group task_group;
 
       friend class Task<RT>;
-#  endif
+#endif
     };
 
     /**
@@ -1595,10 +1573,12 @@ namespace Threads
    *   for more information.
    *
    * @ingroup CPP11
+   *
+   * @dealiiConceptRequires{(std::invocable<FunctionObjectType>)}
    */
   template <typename FunctionObjectType>
-  inline auto
-  new_task(FunctionObjectType function_object)
+  DEAL_II_CXX20_REQUIRES((std::invocable<FunctionObjectType>))
+  inline auto new_task(FunctionObjectType function_object)
     -> Task<decltype(function_object())>
   {
     using return_type = decltype(function_object());
@@ -1616,7 +1596,7 @@ namespace Threads
    */
   template <typename RT, typename... Args>
   inline Task<RT>
-  new_task(RT (*fun_ptr)(Args...), typename identity<Args>::type... args)
+  new_task(RT (*fun_ptr)(Args...), std_cxx20::type_identity_t<Args>... args)
   {
     auto dummy = std::make_tuple(internal::maybe_make_ref<Args>::act(args)...);
     return new_task(
@@ -1634,8 +1614,8 @@ namespace Threads
   template <typename RT, typename C, typename... Args>
   inline Task<RT>
   new_task(RT (C::*fun_ptr)(Args...),
-           typename identity<C>::type &c,
-           typename identity<Args>::type... args)
+           std_cxx20::type_identity_t<C> &c,
+           std_cxx20::type_identity_t<Args>... args)
   {
     // NOLINTNEXTLINE(modernize-avoid-bind) silence clang-tidy
     return new_task(std::function<RT()>(std::bind(
@@ -1651,8 +1631,8 @@ namespace Threads
   template <typename RT, typename C, typename... Args>
   inline Task<RT>
   new_task(RT (C::*fun_ptr)(Args...) const,
-           typename identity<const C>::type &c,
-           typename identity<Args>::type... args)
+           std_cxx20::type_identity_t<const C> &c,
+           std_cxx20::type_identity_t<Args>... args)
   {
     // NOLINTNEXTLINE(modernize-avoid-bind) silence clang-tidy
     return new_task(std::function<RT()>(std::bind(
@@ -1702,6 +1682,30 @@ namespace Threads
       return tasks.size();
     }
 
+    /**
+     * Return a vector of objects that contain the return values of
+     * the tasks contained in this group. This function can obviously
+     * only return once all tasks are completed.
+     *
+     * The returned vector contains the returned values of tasks in
+     * the same order in which these tasks were added to the task
+     * group.
+     *
+     * @note This function only makes sense if `RT` is an actual data
+     *   type, rather than `void`. If the TaskGroup stores tasks that have
+     *   no return value, then you should simply call `join_all()`, which
+     *   also waits for all tasks to finish.
+     */
+    std::vector<RT>
+    return_values()
+    {
+      std::vector<RT> results;
+      results.reserve(size());
+      for (auto &t : tasks)
+        results.emplace_back(std::move(t.return_value()));
+      return results;
+    }
+
 
     /**
      * Wait for all tasks in the collection to finish. It is not a problem if
@@ -1730,8 +1734,5 @@ namespace Threads
  */
 
 
-//---------------------------------------------------------------------------
 DEAL_II_NAMESPACE_CLOSE
-// end of #ifndef dealii_thread_management_h
 #endif
-//---------------------------------------------------------------------------

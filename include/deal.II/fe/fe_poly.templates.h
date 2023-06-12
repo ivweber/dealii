@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2021 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -193,19 +193,19 @@ FE_Poly<dim, spacedim>::requires_update_flags(const UpdateFlags flags) const
 {
   UpdateFlags out = update_default;
 
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     out |= update_values;
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     out |= update_gradients | update_covariant_transformation;
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     out |= update_hessians | update_covariant_transformation |
            update_gradients | update_jacobian_pushed_forward_grads;
-  if ((flags & update_3rd_derivatives) != 0u)
+  if (flags & update_3rd_derivatives)
     out |= update_3rd_derivatives | update_covariant_transformation |
            update_hessians | update_gradients |
            update_jacobian_pushed_forward_grads |
            update_jacobian_pushed_forward_2nd_derivatives;
-  if ((flags & update_normal_vectors) != 0u)
+  if (flags & update_normal_vectors)
     out |= update_normal_vectors | update_JxW_values;
 
   return out;
@@ -266,8 +266,7 @@ FE_Poly<dim, spacedim>::fill_fe_values(
   const Quadrature<dim> &                                  quadrature,
   const Mapping<dim, spacedim> &                           mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -293,7 +292,7 @@ FE_Poly<dim, spacedim>::fill_fe_values(
   // transform gradients and higher derivatives. there is nothing to do
   // for values since we already emplaced them into output_data when
   // we were in get_data()
-  if (((flags & update_gradients) != 0u) &&
+  if ((flags & update_gradients) &&
       (cell_similarity != CellSimilarity::translation))
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       mapping.transform(make_array_view(fe_data.shape_gradients, k),
@@ -301,7 +300,7 @@ FE_Poly<dim, spacedim>::fill_fe_values(
                         mapping_internal,
                         make_array_view(output_data.shape_gradients, k));
 
-  if (((flags & update_hessians) != 0u) &&
+  if ((flags & update_hessians) &&
       (cell_similarity != CellSimilarity::translation))
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
@@ -314,7 +313,7 @@ FE_Poly<dim, spacedim>::fill_fe_values(
         correct_hessians(output_data, mapping_data, quadrature.size());
     }
 
-  if (((flags & update_3rd_derivatives) != 0u) &&
+  if ((flags & update_3rd_derivatives) &&
       (cell_similarity != CellSimilarity::translation))
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
@@ -339,8 +338,7 @@ FE_Poly<dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &                            quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -381,12 +379,12 @@ FE_Poly<dim, spacedim>::fill_fe_face_values(
   // transform gradients and higher derivatives. we also have to copy
   // the values (unlike in the case of fill_fe_values()) since
   // we need to take into account the offsets
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       for (unsigned int i = 0; i < n_q_points; ++i)
         output_data.shape_values(k, i) = fe_data.shape_values[k][i + offset];
 
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       mapping.transform(
         make_array_view(fe_data.shape_gradients, k, offset, n_q_points),
@@ -394,7 +392,7 @@ FE_Poly<dim, spacedim>::fill_fe_face_values(
         mapping_internal,
         make_array_view(output_data.shape_gradients, k));
 
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
         mapping.transform(
@@ -407,7 +405,7 @@ FE_Poly<dim, spacedim>::fill_fe_face_values(
         correct_hessians(output_data, mapping_data, n_q_points);
     }
 
-  if ((flags & update_3rd_derivatives) != 0u)
+  if (flags & update_3rd_derivatives)
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
         mapping.transform(
@@ -432,8 +430,7 @@ FE_Poly<dim, spacedim>::fill_fe_subface_values(
   const Quadrature<dim - 1> &                                 quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -473,12 +470,12 @@ FE_Poly<dim, spacedim>::fill_fe_subface_values(
   // transform gradients and higher derivatives. we also have to copy
   // the values (unlike in the case of fill_fe_values()) since
   // we need to take into account the offsets
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       for (unsigned int i = 0; i < quadrature.size(); ++i)
         output_data.shape_values(k, i) = fe_data.shape_values[k][i + offset];
 
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       mapping.transform(
         make_array_view(fe_data.shape_gradients, k, offset, quadrature.size()),
@@ -486,7 +483,7 @@ FE_Poly<dim, spacedim>::fill_fe_subface_values(
         mapping_internal,
         make_array_view(output_data.shape_gradients, k));
 
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
         mapping.transform(
@@ -499,7 +496,7 @@ FE_Poly<dim, spacedim>::fill_fe_subface_values(
         correct_hessians(output_data, mapping_data, quadrature.size());
     }
 
-  if ((flags & update_3rd_derivatives) != 0u)
+  if (flags & update_3rd_derivatives)
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
         mapping.transform(make_array_view(fe_data.shape_3rd_derivatives,

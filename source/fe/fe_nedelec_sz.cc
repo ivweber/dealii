@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2021 by the deal.II authors
+// Copyright (C) 2015 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -165,20 +165,20 @@ FE_NedelecSZ<dim, spacedim>::get_data(
                                 vertices_per_cell, std::vector<double>(dim)));
 
   // Resize shape function arrays according to update flags:
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     {
       data.shape_values.resize(this->n_dofs_per_cell(),
                                std::vector<Tensor<1, dim>>(n_q_points));
     }
 
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     {
       data.shape_grads.resize(this->n_dofs_per_cell(),
                               std::vector<DerivativeForm<1, dim, dim>>(
                                 n_q_points));
     }
 
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     {
       data.shape_hessians.resize(this->n_dofs_per_cell(),
                                  std::vector<DerivativeForm<2, dim, dim>>(
@@ -331,8 +331,8 @@ FE_NedelecSZ<dim, spacedim>::get_data(
           // For a given cell we have:
           //      n_line_dofs = dofs_per_line*lines_per_cell.
           //      n_face_dofs = dofs_per_face*faces_per_cell.
-          //      n_cell_dofs = dofs_per_quad (2D)
-          //                  = dofs_per_hex (3D)
+          //      n_cell_dofs = dofs_per_quad (2d)
+          //                  = dofs_per_hex (3d)
           //
           // i.e. For the local dof numbering:
           //      the first line dof is 0,
@@ -353,7 +353,7 @@ FE_NedelecSZ<dim, spacedim>::get_data(
           //      This is simple enough as there is only 1 lowest order and
           //      degree higher orders DoFs per line.
           //
-          // On a 2D cell, we have 3 types: Type 1/2/3:
+          // On a 2d cell, we have 3 types: Type 1/2/3:
           //    - The ordering done by type:
           //      - Type 1: 0 <= i1,j1 < degree. degree^2 in total.
           //        Numbered: ij1 = i1 + j1*(degree).        i.e. cell_dof_index
@@ -403,8 +403,7 @@ FE_NedelecSZ<dim, spacedim>::get_data(
             cell_type2_offset + degree * degree;
           const unsigned int cell_type3_offset2 = cell_type3_offset1 + degree;
 
-          if ((flags & (update_values | update_gradients | update_hessians)) !=
-              0u)
+          if (flags & (update_values | update_gradients | update_hessians))
             {
               // compute all points we must evaluate the 1d polynomials at:
               std::vector<Point<dim>> cell_points(n_q_points);
@@ -429,10 +428,10 @@ FE_NedelecSZ<dim, spacedim>::get_data(
                   // update_values, but need the 2nd derivative too for
                   // update_gradients. For update_hessians we also need the 3rd
                   // derivatives.
-                  const unsigned int poly_length(
-                    (flags & update_hessians) != 0u ?
+                  const unsigned int poly_length =
+                    (flags & update_hessians) ?
                       4 :
-                      ((flags & update_gradients) != 0u ? 3 : 2));
+                      ((flags & update_gradients) ? 3 : 2);
 
                   std::vector<std::vector<double>> polyx(
                     degree, std::vector<double>(poly_length));
@@ -449,7 +448,7 @@ FE_NedelecSZ<dim, spacedim>::get_data(
                         cell_points[q][1], polyy[i]);
                     }
                   // Now use these to compute the shape functions:
-                  if ((flags & update_values) != 0u)
+                  if (flags & update_values)
                     {
                       for (unsigned int j = 0; j < degree; ++j)
                         {
@@ -486,7 +485,7 @@ FE_NedelecSZ<dim, spacedim>::get_data(
                           data.shape_values[dof_index3_2][q][1] = polyx[j][0];
                         }
                     }
-                  if ((flags & update_gradients) != 0u)
+                  if (flags & update_gradients)
                     {
                       for (unsigned int j = 0; j < degree; ++j)
                         {
@@ -679,7 +678,7 @@ FE_NedelecSZ<dim, spacedim>::get_data(
           //   sigma_imj_sign[i][j].
           //
           // Note that not every i,j combination is a valid edge (there are only
-          // 12 valid edges in 3D), but we compute them all as it simplifies
+          // 12 valid edges in 3d), but we compute them all as it simplifies
           // things.
 
           // store the sign of each component x, y, z in the sigma list.
@@ -879,8 +878,7 @@ FE_NedelecSZ<dim, spacedim>::get_data(
 
               // for cell-based shape functions:
               // these don't depend on the cell, so can precompute all here:
-              if ((flags &
-                   (update_values | update_gradients | update_hessians)) != 0u)
+              if (flags & (update_values | update_gradients | update_hessians))
                 {
                   // Cell-based shape functions:
                   //
@@ -936,10 +934,10 @@ FE_NedelecSZ<dim, spacedim>::get_data(
                   // update_values, but need the 2nd derivative too for
                   // update_gradients. For update_hessians we also need 3rd
                   // derivative.
-                  const unsigned int poly_length(
-                    (flags & update_hessians) != 0u ?
+                  const unsigned int poly_length =
+                    (flags & update_hessians) ?
                       4 :
-                      ((flags & update_gradients) != 0u ? 3 : 2));
+                      ((flags & update_gradients) ? 3 : 2);
 
                   // Loop through quad points:
                   for (unsigned int q = 0; q < n_q_points; ++q)
@@ -967,7 +965,7 @@ FE_NedelecSZ<dim, spacedim>::get_data(
                             cell_points[q][2], polyz[i]);
                         }
                       // Now use these to compute the shape functions:
-                      if ((flags & update_values) != 0u)
+                      if (flags & update_values)
                         {
                           for (unsigned int k = 0; k < degree; ++k)
                             {
@@ -1050,7 +1048,7 @@ FE_NedelecSZ<dim, spacedim>::get_data(
                                 }
                             }
                         }
-                      if ((flags & update_gradients) != 0u)
+                      if (flags & update_gradients)
                         {
                           for (unsigned int k = 0; k < degree; ++k)
                             {
@@ -1479,7 +1477,7 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
   // This function handles the cell-dependent construction of the EDGE-based
   // shape functions.
   //
-  // Note it will handle both 2D and 3D, in 2D, the edges are faces, but we
+  // Note it will handle both 2d and 3d, in 2d, the edges are faces, but we
   // handle them here.
   //
   // It will fill in the missing parts of fe_data which were not possible to
@@ -1518,8 +1516,7 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
     {
       case 2:
         {
-          if ((flags & (update_values | update_gradients | update_hessians)) !=
-              0u)
+          if (flags & (update_values | update_gradients | update_hessians))
             {
               // Define an edge numbering so that each edge, E_{m} = [e^{m}_{1},
               // e^{m}_{2}] e1 = higher global numbering of the two local
@@ -1612,10 +1609,11 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
               // If we want to generate shape gradients then we need second
               // derivatives of the 1d polynomials, but only first derivatives
               // for the shape values.
-              const unsigned int poly_length(
-                (flags & update_hessians) != 0u ?
+              const unsigned int poly_length =
+                (flags & update_hessians) ?
                   4 :
-                  ((flags & update_gradients) != 0u ? 3 : 2));
+                  ((flags & update_gradients) ? 3 : 2);
+
 
               for (unsigned int m = 0; m < lines_per_cell; ++m)
                 {
@@ -1633,7 +1631,7 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
                           IntegratedLegendrePolynomials[i + 1].value(
                             edge_sigma_values[m][q], poly[i - 1]);
                         }
-                      if ((flags & update_values) != 0u)
+                      if (flags & update_values)
                         {
                           // Lowest order edge shape functions:
                           for (unsigned int d = 0; d < dim; ++d)
@@ -1658,7 +1656,7 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
                                 }
                             }
                         }
-                      if ((flags & update_gradients) != 0u)
+                      if (flags & update_gradients)
                         {
                           // Lowest order edge shape functions:
                           for (unsigned int d1 = 0; d1 < dim; ++d1)
@@ -1754,8 +1752,7 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
         }
       case 3:
         {
-          if ((flags & (update_values | update_gradients | update_hessians)) !=
-              0u)
+          if (flags & (update_values | update_gradients | update_hessians))
             {
               // Define an edge numbering so that each edge, E_{m} = [e^{m}_{1},
               // e^{m}_{2}] e1 = higher global numbering of the two local
@@ -1851,10 +1848,10 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
               // If we want to generate shape gradients then we need second
               // derivatives of the 1d polynomials, but only first derivatives
               // for the shape values.
-              const unsigned int poly_length(
-                (flags & update_hessians) != 0u ?
+              const unsigned int poly_length =
+                (flags & update_hessians) ?
                   4 :
-                  ((flags & update_gradients) != 0u ? 3 : 2));
+                  ((flags & update_gradients) ? 3 : 2);
 
               std::vector<std::vector<double>> poly(
                 degree, std::vector<double>(poly_length));
@@ -1873,7 +1870,7 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
                                 edge_sigma_values[m][q], poly[i]);
                             }
                         }
-                      if ((flags & update_values) != 0u)
+                      if (flags & update_values)
                         {
                           // Lowest order edge shape functions:
                           for (unsigned int d = 0; d < dim; ++d)
@@ -1898,7 +1895,7 @@ FE_NedelecSZ<dim, spacedim>::fill_edge_values(
                                 }
                             }
                         }
-                      if ((flags & update_gradients) != 0u)
+                      if (flags & update_gradients)
                         {
                           // Lowest order edge shape functions:
                           for (unsigned int d1 = 0; d1 < dim; ++d1)
@@ -2032,7 +2029,7 @@ FE_NedelecSZ<dim, spacedim>::fill_face_values(
   // This function handles the cell-dependent construction of the FACE-based
   // shape functions.
   //
-  // Note that it should only be called in 3D.
+  // Note that it should only be called in 3d.
   Assert(dim == 3, ExcDimensionMismatch(dim, 3));
   //
   // It will fill in the missing parts of fe_data which were not possible to
@@ -2051,7 +2048,7 @@ FE_NedelecSZ<dim, spacedim>::fill_face_values(
     {
       const UpdateFlags flags(fe_data.update_each);
 
-      if ((flags & (update_values | update_gradients | update_hessians)) != 0u)
+      if (flags & (update_values | update_gradients | update_hessians))
         {
           const unsigned int n_q_points = quadrature.size();
 
@@ -2177,9 +2174,10 @@ FE_NedelecSZ<dim, spacedim>::fill_face_values(
                 }
             }
           // Now can generate the basis
-          const unsigned int poly_length((flags & update_hessians) != 0u  ? 4 :
-                                         (flags & update_gradients) != 0u ? 3 :
-                                                                            2);
+          const unsigned int poly_length =
+            (flags & update_hessians) ? 4 :
+                                        ((flags & update_gradients) ? 3 : 2);
+
 
           std::vector<std::vector<double>> polyxi(
             degree, std::vector<double>(poly_length));
@@ -2244,7 +2242,7 @@ FE_NedelecSZ<dim, spacedim>::fill_face_values(
                         face_eta_values[m][q], polyeta[i]);
                     }
                   // Now use these to compute the shape functions:
-                  if ((flags & update_values) != 0u)
+                  if (flags & update_values)
                     {
                       for (unsigned int j = 0; j < degree; ++j)
                         {
@@ -2296,7 +2294,7 @@ FE_NedelecSZ<dim, spacedim>::fill_face_values(
                             }
                         }
                     }
-                  if ((flags & update_gradients) != 0u)
+                  if (flags & update_gradients)
                     {
                       for (unsigned int j = 0; j < degree; ++j)
                         {
@@ -2390,7 +2388,7 @@ FE_NedelecSZ<dim, spacedim>::fill_face_values(
                             }
                         }
                     }
-                  if ((flags & update_hessians) != 0u)
+                  if (flags & update_hessians)
                     {
                       for (unsigned int j = 0; j < degree; ++j)
                         {
@@ -2607,7 +2605,7 @@ FE_NedelecSZ<dim, spacedim>::fill_fe_values(
   const Quadrature<dim> &                             quadrature,
   const Mapping<dim, dim> &                           mapping,
   const typename Mapping<dim, dim>::InternalDataBase &mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim, dim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, dim>
     &                                                       mapping_data,
   const typename FiniteElement<dim, dim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim, dim>
@@ -2638,7 +2636,7 @@ FE_NedelecSZ<dim, spacedim>::fill_fe_values(
            fe_data.shape_values[0].size() == n_q_points,
          ExcDimensionMismatch(fe_data.shape_values[0].size(), n_q_points));
 
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     {
       // Now have all shape_values stored on the reference cell.
       // Must now transform to the physical cell.
@@ -2665,7 +2663,7 @@ FE_NedelecSZ<dim, spacedim>::fill_fe_values(
         }
     }
 
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     {
       // Now have all shape_grads stored on the reference cell.
       // Must now transform to the physical cell.
@@ -2788,7 +2786,7 @@ FE_NedelecSZ<dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &                       quadrature,
   const Mapping<dim, dim> &                              mapping,
   const typename Mapping<dim, dim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim, dim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, dim>
     &                                                       mapping_data,
   const typename FiniteElement<dim, dim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim, dim>
@@ -2797,7 +2795,7 @@ FE_NedelecSZ<dim, spacedim>::fill_fe_face_values(
   AssertDimension(quadrature.size(), 1);
 
   // Note for future improvement:
-  // We don't have the full quadrature - should use QProjector to create the 2D
+  // We don't have the full quadrature - should use QProjector to create the 2d
   // quadrature.
   //
   // For now I am effectively generating all of the shape function vals/grads,
@@ -2838,7 +2836,7 @@ FE_NedelecSZ<dim, spacedim>::fill_fe_face_values(
                                              cell->face_rotation(face_no),
                                              n_q_points);
 
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     {
       // Now have all shape_values stored on the reference cell.
       // Must now transform to the physical cell.
@@ -2867,7 +2865,7 @@ FE_NedelecSZ<dim, spacedim>::fill_fe_face_values(
             }
         }
     }
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     {
       // Now have all shape_grads stored on the reference cell.
       // Must now transform to the physical cell.
@@ -2989,7 +2987,7 @@ FE_NedelecSZ<dim, spacedim>::fill_fe_subface_values(
   const Quadrature<dim - 1> & /*quadrature*/,
   const Mapping<dim, dim> & /*mapping*/,
   const typename Mapping<dim, dim>::InternalDataBase & /*mapping_internal*/,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim, dim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, dim>
     & /*mapping_data*/,
   const typename FiniteElement<dim, dim>::InternalDataBase & /*fe_internal*/,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim, dim>
@@ -3007,16 +3005,15 @@ FE_NedelecSZ<dim, spacedim>::requires_update_flags(
 {
   UpdateFlags out = update_default;
 
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     out |= update_values | update_covariant_transformation;
 
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     out |= update_gradients | update_values |
            update_jacobian_pushed_forward_grads |
            update_covariant_transformation;
 
-  if ((flags & update_hessians) != 0u)
-    //     Assert (false, ExcNotImplemented());
+  if (flags & update_hessians)
     out |= update_hessians | update_values | update_gradients |
            update_jacobian_pushed_forward_grads |
            update_jacobian_pushed_forward_2nd_derivatives |
@@ -3058,7 +3055,7 @@ FE_NedelecSZ<dim, spacedim>::get_dpo_vector(const unsigned int degree)
   // where the objects inside the vector refer to:
   // 0 = vertex
   // 1 = edge
-  // 2 = face (which is a cell in 2D)
+  // 2 = face (which is a cell in 2d)
   // 3 = cell
   std::vector<unsigned int> dpo;
 

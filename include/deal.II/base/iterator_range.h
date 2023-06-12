@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,9 +20,6 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/template_constraints.h>
-
-#include <iterator>
-
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -293,8 +290,8 @@ private:
  */
 template <typename BaseIterator>
 IteratorRange<BaseIterator>
-make_iterator_range(const BaseIterator &                         begin,
-                    const typename identity<BaseIterator>::type &end)
+make_iterator_range(const BaseIterator &                            begin,
+                    const std_cxx20::type_identity_t<BaseIterator> &end)
 {
   IteratorRange<BaseIterator> ir(begin, end);
   return ir;

@@ -34,7 +34,8 @@ DEAL_II_NAMESPACE_OPEN
 
 // Forward declarations
 #ifndef DOXYGEN
-template <int, int>
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class Triangulation;
 #endif
 
@@ -73,7 +74,7 @@ public:
   /**
    * A type that is used to encode the CellId data in a compact and fast way
    * (e.g. for MPI transfer to other processes). Note that it limits the
-   * number of children that can be transferred to 20 in 3D and 30 in 2D
+   * number of children that can be transferred to 20 in 3d and 30 in 2d
    * (using 2 times 32 bit for storage), a limitation that is identical to
    * the one used by p4est.
    */
@@ -145,15 +146,6 @@ public:
   template <int dim>
   binary_type
   to_binary() const;
-
-  /**
-   * Return a cell_iterator to the cell represented by this CellId.
-   *
-   * @deprecated Use Triangulation::create_cell_iterator() instead.
-   */
-  template <int dim, int spacedim>
-  DEAL_II_DEPRECATED typename Triangulation<dim, spacedim>::cell_iterator
-  to_cell(const Triangulation<dim, spacedim> &tria) const;
 
   /**
    * Compare two CellId objects for equality.

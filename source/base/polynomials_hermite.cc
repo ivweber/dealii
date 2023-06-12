@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2021 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,148 +14,112 @@
 // ---------------------------------------------------------------------
 
 #include <deal.II/base/polynomials_hermite.h>
-
-/* Note:
- * Several functions in this code file are sensitive to underflow error
- * when using unsigned ints for arithmetic. At present static casts to
- * int are used to fix the issue. If this bug occurs it usually affects
- * FE_Hermite(2) and higher, with shape values taking large magnitude
- * values in the interval (0,1).
- *  - Ivy Weber
- */
+#include <deal.II/base/utilities.h>
 
 DEAL_II_NAMESPACE_OPEN
 
 namespace Polynomials
 {
-    namespace internal 
+  namespace
+  {
+    std::vector<double>
+    hermite_poly_coeffs(const unsigned int regularity, const unsigned int index)
     {
-        static inline unsigned int
-        factorial(const unsigned int n)
+      AssertIndexRange(index, 2 * regularity + 2);
+
+      const unsigned int curr_index = index % (regularity + 1);
+      const unsigned int side       = (index > regularity) ? 1 : 0;
+
+      // Signed ints are used here to protect against underflow errors
+      const int loop_control_1 = static_cast<int>(regularity + 1 - curr_index);
+      const int loop_control_2 = (side == 1) ?
+                                   static_cast<int>(curr_index + 1) :
+                                   static_cast<int>(regularity + 2);
+
+      std::vector<double> poly_coeffs(2 * regularity + 2, 0.0);
+
+      if (side == 1) // right side: g polynomials
         {
-        unsigned int result = 1;
-        for (unsigned int i = n; i > 0; i--)
-        result *= i;
-        return result;
+          int binomial_1 = (curr_index % 2) ? -1 : 1;
+
+          for (int i = 0; i < loop_control_2; ++i)
+            {
+              int inv_binomial = 1;
+
+              for (int j = 0; j < loop_control_1; ++j)
+                {
+                  int binomial_2 = 1;
+
+                  for (int k = 0; k < j + 1; ++k)
+                    {
+                      poly_coeffs[regularity + i + k + 1] +=
+                        binomial_1 * inv_binomial * binomial_2;
+                      binomial_2 *= k - j;
+                      binomial_2 /= k + 1;
+                    }
+                  inv_binomial *= regularity + j + 1;
+                  inv_binomial /= j + 1;
+                }
+              // ints used here to protect against underflow errors
+              binomial_1 *= -static_cast<int>(curr_index - i);
+              binomial_1 /= i + 1;
+            }
         }
-    }   //internal
+      else // left side: f polynomials
+        {
+          int binomial = 1;
 
-  FullMatrix<double>
-  HermitePoly::hermite_to_bernstein_matrix(const unsigned int regularity)
+          for (int i = 0; i < loop_control_2; ++i)
+            {
+              int inv_binomial = 1;
+
+              for (int j = 0; j < loop_control_1; ++j)
+                {
+                  poly_coeffs[curr_index + i + j] += binomial * inv_binomial;
+                  inv_binomial *= regularity + j + 1;
+                  inv_binomial /= j + 1;
+                }
+              // Protection needed here against underflow errors
+              binomial *= -static_cast<int>(regularity + 1 - i);
+              binomial /= i + 1;
+            }
+        }
+
+      // rescale coefficients by a factor of 4^curr_index to account for reduced
+      // L2-norms
+      double precond_factor = Utilities::pow(4, curr_index);
+      for (auto &it : poly_coeffs)
+        it *= precond_factor;
+
+      return poly_coeffs;
+    }
+  } // namespace
+
+
+
+  PolynomialsHermite::PolynomialsHermite(const unsigned int regularity,
+                                         const unsigned int index)
+    : Polynomial<double>(hermite_poly_coeffs(regularity, index))
+    , degree(2 * regularity + 1)
+    , regularity(regularity)
+    , side_index(index % (regularity + 1))
+    , side((index >= regularity + 1) ? 1 : 0)
   {
-    Assert(
-      regularity < 8,
-      ExcMessage(
-        "The value passed to regularity is too high, this may be due to the requested value being too high for numerical stability, or due to a bug in the code."));
-    
-    const unsigned int sz = regularity + 1;
-    std::vector<int>   coeffs(sz);
-    FullMatrix<double> B(sz);
-    int                mult;
-    
-    coeffs[0] = 1;
-    for (unsigned int i = 1; i < sz; ++i)
-      {
-        mult      = -static_cast<int>(sz - i + 1);
-        coeffs[i] = (mult * coeffs[i - 1]) / static_cast<int>(i);
-      }
-
-    for (unsigned int i = 0; i < sz; ++i)
-      {
-        B(i, i) = 1;
-        for (unsigned int j = i + 1; j < sz; ++j)
-          {
-            B(i, j) = 0;
-            B(j, i) = coeffs[j - i];
-          }
-      }
-      
-    return B;
+    AssertIndexRange(index, 2 * (regularity + 1));
   }
-  
-  
 
-  std::vector<double>
-  HermitePoly::hermite_poly_coeffs(const unsigned int regularity,
-                                            const unsigned int index)
-  {
-    Assert(index < (2 * regularity + 2),
-           ExcMessage("The provided function index is out of range."));
-    
-    FullMatrix<double> B            = hermite_to_bernstein_matrix(regularity);
-    unsigned int       curr_index   = index % (regularity + 1);
-    bool               at_next_node = (index > regularity);
-    
-    // Next node needs corrections based on g_k(x) = (-1)^{k} f_k(1-x)
-    std::vector<double> bern_coeffs(regularity + 1, 0.0);
-    
-    bern_coeffs[curr_index] = 1.0;
-    for (unsigned int i = curr_index + 1; i <= regularity; ++i)
-      {
-        double temp = 0;
-        for (unsigned int j = 0; j < i; ++j)
-          temp -= B(i, j) * bern_coeffs[j];
-        bern_coeffs[i] = temp;
-      }
-      
-    std::vector<double> poly_coeffs(2 * regularity + 2);
-    double              curr_coeff;
-    
-    if (!at_next_node)
-      {
-        int                 temp_int = 1;
-        std::vector<double> binom(regularity + 2);
-        
-        for (unsigned int i = 0; i < regularity + 2; ++i)
-          {
-            binom[i] = temp_int;
-            temp_int *= -static_cast<int>(regularity + 1 - i);
-            temp_int /= static_cast<int>(i + 1);
-          }
-          
-        for (unsigned int i = 0; i <= regularity; ++i)
-          for (unsigned int j = 0; j < regularity + 2; ++j)
-            poly_coeffs[i + j] += bern_coeffs[i] * binom[j];
-      }
-    else
-      {
-        int sign = (curr_index % 2 == 0) ? 1 : -1;
-        
-        for (unsigned int i = 0; i <= regularity; ++i)
-          {
-            poly_coeffs[i] = 0.0;
-            curr_coeff     = bern_coeffs[i] * sign;
-            poly_coeffs[regularity + 1] += curr_coeff;
-            int temp_int = 1;
-            for (unsigned int j = 1; j <= i; ++j)
-              {
-                temp_int *= -static_cast<int>(i - j + 1);
-                temp_int /= static_cast<int>(j);
-                poly_coeffs[j + regularity + 1] += temp_int * curr_coeff;
-              }
-          }
-      }
-      
-    // rescale coefficients by a factor of 4^curr_index to account for reduced
-    // L2-norms
-    double precond_factor = Utilities::pow(4, curr_index);
-    for (auto &it : poly_coeffs)
-      it *= precond_factor;
-    
-    return poly_coeffs;
-  }
-  
-  
+
 
   std::vector<Polynomial<double>>
-  HermitePoly::generate_complete_basis(const unsigned int regularity)
+  PolynomialsHermite::generate_complete_basis(const unsigned int regularity)
   {
     std::vector<Polynomial<double>> polys;
     const unsigned int              sz = 2 * regularity + 2;
-    
+    polys.reserve(sz);
+
     for (unsigned int i = 0; i < sz; ++i)
-      polys.push_back(HermitePoly(regularity, i));
-    
+      polys.emplace_back(PolynomialsHermite(regularity, i));
+
     return polys;
   }
 } // namespace Polynomials

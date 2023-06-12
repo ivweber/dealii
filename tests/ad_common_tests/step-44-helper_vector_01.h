@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,7 +32,7 @@
 #include <deal.II/dofs/dof_renumbering.h>
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/fe/fe_dgp_monomial.h>
+#include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_tools.h>
@@ -476,7 +476,7 @@ namespace Step44
     {
       const NumberType                    det_F = determinant(F);
       SymmetricTensor<2, dim, NumberType> b_bar = symmetrize(F * transpose(F));
-      b_bar *= std::pow(det_F, -2.0 / dim);
+      b_bar *= pow(det_F, -2.0 / dim);
       return 2.0 * c_1 * b_bar;
     }
   };
@@ -655,9 +655,9 @@ namespace Step44
     , degree(parameters.poly_degree)
     , fe(FE_Q<dim>(parameters.poly_degree),
          dim, // displacement
-         FE_DGPMonomial<dim>(parameters.poly_degree - 1),
+         FE_DGP<dim>(parameters.poly_degree - 1),
          1, // pressure
-         FE_DGPMonomial<dim>(parameters.poly_degree - 1),
+         FE_DGP<dim>(parameters.poly_degree - 1),
          1)
     , // dilatation
     dof_handler_ref(triangulation)
@@ -1072,9 +1072,8 @@ namespace Step44
             const double det_F_qp = determinant(
               StandardTensors<dim>::I + solution_grads_u_total[q_point]);
             const double J_tilde_qp = solution_values_J_total[q_point];
-            const double the_error_qp_squared =
-              std::pow((det_F_qp - J_tilde_qp), 2);
-            const double JxW = fe_values_ref.JxW(q_point);
+            const double the_error_qp_squared = pow((det_F_qp - J_tilde_qp), 2);
+            const double JxW                  = fe_values_ref.JxW(q_point);
             dil_L2_error += the_error_qp_squared * JxW;
             vol_current += det_F_qp * JxW;
           }

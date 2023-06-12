@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,6 +15,7 @@
 
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/quadrature.h>
+#include <deal.II/base/thread_management.h>
 
 #include <deal.II/dofs/dof_accessor.h>
 
@@ -26,6 +27,7 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
 
+#include <limits>
 #include <memory>
 #include <sstream>
 
@@ -42,8 +44,194 @@ namespace
     });
   }
 } // namespace
-/* ----------------------- FESystem::InternalData ------------------- */
 
+namespace internal
+{
+  /**
+   * Setup a table of offsets for a primitive FE. Unlike the nonprimitive
+   * case, here the number of nonzero components per shape function is always
+   * 1 and the number of components in the FE is always the multiplicity.
+   */
+  template <int dim, int spacedim = dim>
+  Table<2, unsigned int>
+  setup_primitive_offset_table(const FESystem<dim, spacedim> &fe,
+                               const unsigned int             base_no)
+  {
+    Assert(fe.base_element(base_no).is_primitive(), ExcInternalError());
+    Table<2, unsigned int> table(fe.element_multiplicity(base_no),
+                                 fe.base_element(base_no).n_dofs_per_cell());
+    // 0 is a bad default value since it is a valid index
+    table.fill(numbers::invalid_unsigned_int);
+
+    unsigned int out_index = 0;
+    for (unsigned int system_index = 0; system_index < fe.n_dofs_per_cell();
+         ++system_index)
+      {
+        if (fe.system_to_base_index(system_index).first.first == base_no)
+          {
+            Assert(fe.n_nonzero_components(system_index) == 1,
+                   ExcInternalError());
+            const unsigned int base_component =
+              fe.system_to_base_index(system_index).first.second;
+            const unsigned int base_index =
+              fe.system_to_base_index(system_index).second;
+            Assert(base_index < fe.base_element(base_no).n_dofs_per_cell(),
+                   ExcInternalError());
+
+            table[base_component][base_index] = out_index;
+          }
+        out_index += fe.n_nonzero_components(system_index);
+      }
+
+    return table;
+  }
+
+  /**
+   * Setup a table of offsets for a nonprimitive FE.
+   */
+  template <int dim, int spacedim = dim>
+  std::vector<typename FESystem<dim, spacedim>::BaseOffsets>
+  setup_nonprimitive_offset_table(const FESystem<dim, spacedim> &fe,
+                                  const unsigned int             base_no)
+  {
+    std::vector<typename FESystem<dim, spacedim>::BaseOffsets> table;
+    const FiniteElement<dim, spacedim> &base_fe = fe.base_element(base_no);
+
+    unsigned int out_index = 0;
+    for (unsigned int system_index = 0; system_index < fe.n_dofs_per_cell();
+         ++system_index)
+      {
+        if (fe.system_to_base_index(system_index).first.first == base_no)
+          {
+            const unsigned int base_index =
+              fe.system_to_base_index(system_index).second;
+            Assert(base_index < base_fe.n_dofs_per_cell(), ExcInternalError());
+            table.emplace_back();
+
+            table.back().n_nonzero_components =
+              fe.n_nonzero_components(system_index);
+            unsigned int in_index = 0;
+            for (unsigned int i = 0; i < base_index; ++i)
+              in_index += base_fe.n_nonzero_components(i);
+
+            table.back().in_index  = in_index;
+            table.back().out_index = out_index;
+          }
+        out_index += fe.n_nonzero_components(system_index);
+      }
+
+    Assert(table.size() ==
+             base_fe.n_dofs_per_cell() * fe.element_multiplicity(base_no),
+           ExcInternalError());
+    return table;
+  }
+
+  /**
+   * Copy data between internal FEValues objects from a primitive FE to the
+   * current FE.
+   */
+  template <int dim, int spacedim = dim>
+  void
+  copy_primitive_base_element_values(
+    const FESystem<dim, spacedim> &fe,
+    const unsigned int             base_no,
+    const UpdateFlags              base_flags,
+    const Table<2, unsigned int> & base_to_system_table,
+    const FEValuesImplementation::FiniteElementRelatedData<dim, spacedim>
+      &base_data,
+    FEValuesImplementation::FiniteElementRelatedData<dim, spacedim>
+      &output_data)
+  {
+    Assert(fe.base_element(base_no).is_primitive(), ExcInternalError());
+    const unsigned int n_components = fe.element_multiplicity(base_no);
+    const unsigned int n_dofs_per_cell =
+      fe.base_element(base_no).n_dofs_per_cell();
+
+    auto copy_row = [](const auto row_in, auto row_out) {
+      std::copy(row_in.begin(), row_in.end(), row_out.begin());
+    };
+
+    if (base_flags & update_values)
+      for (unsigned int component = 0; component < n_components; ++component)
+        for (unsigned int b = 0; b < n_dofs_per_cell; ++b)
+          copy_row(
+            base_data.shape_values[b],
+            output_data.shape_values[base_to_system_table[component][b]]);
+
+    if (base_flags & update_gradients)
+      for (unsigned int component = 0; component < n_components; ++component)
+        for (unsigned int b = 0; b < n_dofs_per_cell; ++b)
+          copy_row(
+            base_data.shape_gradients[b],
+            output_data.shape_gradients[base_to_system_table[component][b]]);
+
+    if (base_flags & update_hessians)
+      for (unsigned int component = 0; component < n_components; ++component)
+        for (unsigned int b = 0; b < n_dofs_per_cell; ++b)
+          copy_row(
+            base_data.shape_hessians[b],
+            output_data.shape_hessians[base_to_system_table[component][b]]);
+
+    if (base_flags & update_3rd_derivatives)
+      for (unsigned int component = 0; component < n_components; ++component)
+        for (unsigned int b = 0; b < n_dofs_per_cell; ++b)
+          copy_row(
+            base_data.shape_3rd_derivatives[b],
+            output_data
+              .shape_3rd_derivatives[base_to_system_table[component][b]]);
+  }
+
+  /**
+   * Copy data between internal FEValues objects from a nonprimitive FE to the
+   * current FE.
+   */
+  template <int dim, int spacedim = dim>
+  void
+  copy_nonprimitive_base_element_values(
+    const FESystem<dim, spacedim> &fe,
+    const unsigned int             base_no,
+    const unsigned int             n_q_points,
+    const UpdateFlags              base_flags,
+    const std::vector<typename FESystem<dim, spacedim>::BaseOffsets> &offsets,
+    const FEValuesImplementation::FiniteElementRelatedData<dim, spacedim>
+      &base_data,
+    FEValuesImplementation::FiniteElementRelatedData<dim, spacedim>
+      &output_data)
+  {
+    (void)fe;
+    (void)base_no;
+    Assert(!fe.base_element(base_no).is_primitive(), ExcInternalError());
+
+    for (const auto &offset : offsets)
+      {
+        if (base_flags & update_values)
+          for (unsigned int s = 0; s < offset.n_nonzero_components; ++s)
+            for (unsigned int q = 0; q < n_q_points; ++q)
+              output_data.shape_values[offset.out_index + s][q] =
+                base_data.shape_values[offset.in_index + s][q];
+
+        if (base_flags & update_gradients)
+          for (unsigned int s = 0; s < offset.n_nonzero_components; ++s)
+            for (unsigned int q = 0; q < n_q_points; ++q)
+              output_data.shape_gradients[offset.out_index + s][q] =
+                base_data.shape_gradients[offset.in_index + s][q];
+
+        if (base_flags & update_hessians)
+          for (unsigned int s = 0; s < offset.n_nonzero_components; ++s)
+            for (unsigned int q = 0; q < n_q_points; ++q)
+              output_data.shape_hessians[offset.out_index + s][q] =
+                base_data.shape_hessians[offset.in_index + s][q];
+
+        if (base_flags & update_3rd_derivatives)
+          for (unsigned int s = 0; s < offset.n_nonzero_components; ++s)
+            for (unsigned int q = 0; q < n_q_points; ++q)
+              output_data.shape_3rd_derivatives[offset.out_index + s][q] =
+                base_data.shape_3rd_derivatives[offset.in_index + s][q];
+      }
+  }
+} // namespace internal
+
+/* ----------------------- FESystem::InternalData ------------------- */
 
 template <int dim, int spacedim>
 FESystem<dim, spacedim>::InternalData::InternalData(
@@ -1104,8 +1292,7 @@ FESystem<dim, spacedim>::fill_fe_values(
   const Quadrature<dim> &                                     quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -1134,8 +1321,7 @@ FESystem<dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &                            quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -1165,8 +1351,7 @@ FESystem<dim, spacedim>::fill_fe_subface_values(
   const Quadrature<dim - 1> &                                 quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -1320,86 +1505,32 @@ FESystem<dim, spacedim>::compute_fill(
                                          base_fe_data,
                                          base_data);
 
-        // now data has been generated, so copy it. we used to work by
-        // looping over all base elements (i.e. this outer loop), then over
-        // multiplicity, then over the shape functions from that base
-        // element, but that requires that we can infer the global number of
-        // a shape function from its number in the base element. for that we
-        // had the component_to_system_table.
-        //
-        // however, this does of course no longer work since we have
-        // non-primitive elements. so we go the other way round: loop over
-        // all shape functions of the composed element, and here only treat
-        // those shape functions that belong to a given base element
-        // TODO: Introduce the needed table and loop only over base element
-        // shape functions. This here is not efficient at all AND very bad style
+        // now data has been generated, so copy it. This procedure is different
+        // for primitive and non-primitive base elements, so at this point we
+        // dispatch to helper functions.
         const UpdateFlags base_flags = base_fe_data.update_each;
 
-        // some base element might involve values that depend on the shape
-        // of the geometry, so we always need to copy the shape values around
-        // also in case we detected a cell similarity (but no heavy work will
-        // be done inside the individual elements in case we have a
-        // translation and simple elements).
-        for (unsigned int system_index = 0;
-             system_index < this->n_dofs_per_cell();
-             ++system_index)
-          if (this->system_to_base_table[system_index].first.first == base_no)
-            {
-              const unsigned int base_index =
-                this->system_to_base_table[system_index].second;
-              Assert(base_index < base_fe.n_dofs_per_cell(),
-                     ExcInternalError());
-
-              // now copy. if the shape function is primitive, then there
-              // is only one value to be copied, but for non-primitive
-              // elements, there might be more values to be copied
-              //
-              // so, find out from which index to take this one value, and
-              // to which index to put
-              unsigned int out_index = 0;
-              for (unsigned int i = 0; i < system_index; ++i)
-                out_index += this->n_nonzero_components(i);
-              unsigned int in_index = 0;
-              for (unsigned int i = 0; i < base_index; ++i)
-                in_index += base_fe.n_nonzero_components(i);
-
-              // then loop over the number of components to be copied
-              Assert(this->n_nonzero_components(system_index) ==
-                       base_fe.n_nonzero_components(base_index),
-                     ExcInternalError());
-
-              if (base_flags & update_values)
-                for (unsigned int s = 0;
-                     s < this->n_nonzero_components(system_index);
-                     ++s)
-                  for (unsigned int q = 0; q < n_q_points; ++q)
-                    output_data.shape_values[out_index + s][q] =
-                      base_data.shape_values(in_index + s, q);
-
-              if (base_flags & update_gradients)
-                for (unsigned int s = 0;
-                     s < this->n_nonzero_components(system_index);
-                     ++s)
-                  for (unsigned int q = 0; q < n_q_points; ++q)
-                    output_data.shape_gradients[out_index + s][q] =
-                      base_data.shape_gradients[in_index + s][q];
-
-              if (base_flags & update_hessians)
-                for (unsigned int s = 0;
-                     s < this->n_nonzero_components(system_index);
-                     ++s)
-                  for (unsigned int q = 0; q < n_q_points; ++q)
-                    output_data.shape_hessians[out_index + s][q] =
-                      base_data.shape_hessians[in_index + s][q];
-
-              if (base_flags & update_3rd_derivatives)
-                for (unsigned int s = 0;
-                     s < this->n_nonzero_components(system_index);
-                     ++s)
-                  for (unsigned int q = 0; q < n_q_points; ++q)
-                    output_data.shape_3rd_derivatives[out_index + s][q] =
-                      base_data.shape_3rd_derivatives[in_index + s][q];
-            }
+        if (base_fe.is_primitive())
+          {
+            internal::copy_primitive_base_element_values(
+              *this,
+              base_no,
+              base_flags,
+              primitive_offset_tables[base_no],
+              base_data,
+              output_data);
+          }
+        else
+          {
+            internal::copy_nonprimitive_base_element_values(
+              *this,
+              base_no,
+              n_q_points,
+              base_flags,
+              nonprimitive_offset_tables[base_no],
+              base_data,
+              output_data);
+          }
       }
 }
 
@@ -1408,18 +1539,18 @@ template <int dim, int spacedim>
 void
 FESystem<dim, spacedim>::build_interface_constraints()
 {
-  // TODO: the implementation makes the assumption that all faces have the
-  // same number of dofs
-  AssertDimension(this->n_unique_faces(), 1);
-  const unsigned int face_no = 0;
-
   // check whether all base elements implement their interface constraint
-  // matrices. if this is not the case, then leave the interface costraints of
+  // matrices. if this is not the case, then leave the interface constraints of
   // this composed element empty as well; however, the rest of the element is
   // usable
   for (unsigned int base = 0; base < this->n_base_elements(); ++base)
     if (base_element(base).constraints_are_implemented() == false)
       return;
+
+  // TODO: the implementation makes the assumption that all faces have the
+  // same number of dofs
+  AssertDimension(this->n_unique_faces(), 1);
+  const unsigned int face_no = 0;
 
   this->interface_constraints.TableBase<2, double>::reinit(
     this->interface_constraints_size());
@@ -1683,7 +1814,7 @@ FESystem<dim, spacedim>::initialize(
 
     for (unsigned int face_no = 0; face_no < this->n_unique_faces(); ++face_no)
       {
-        this->face_system_to_component_table[0].resize(
+        this->face_system_to_component_table[face_no].resize(
           this->n_dofs_per_face(face_no));
 
         FETools::Compositing::build_face_tables(
@@ -1730,6 +1861,24 @@ FESystem<dim, spacedim>::initialize(
         this->unit_support_points[i] =
           base_element(base).unit_support_points[base_index];
       }
+  });
+
+  init_tasks += Threads::new_task([&]() {
+    primitive_offset_tables.resize(this->n_base_elements());
+
+    for (unsigned int base_no = 0; base_no < this->n_base_elements(); ++base_no)
+      if (base_element(base_no).is_primitive())
+        primitive_offset_tables[base_no] =
+          internal::setup_primitive_offset_table(*this, base_no);
+  });
+
+  init_tasks += Threads::new_task([&]() {
+    nonprimitive_offset_tables.resize(this->n_base_elements());
+
+    for (unsigned int base_no = 0; base_no < this->n_base_elements(); ++base_no)
+      if (!base_element(base_no).is_primitive())
+        nonprimitive_offset_tables[base_no] =
+          internal::setup_nonprimitive_offset_table(*this, base_no);
   });
 
   // initialize face support points (for dim==2,3). same procedure as above
@@ -1865,7 +2014,9 @@ FESystem<dim, spacedim>::initialize(
           // the array into which we want to write should have the correct size
           // already.
           Assert(this->adjust_quad_dof_index_for_face_orientation_table[face_no]
-                     .n_elements() == 8 * this->n_dofs_per_quad(face_no),
+                     .n_elements() ==
+                   this->reference_cell().n_face_orientations(face_no) *
+                     this->n_dofs_per_quad(face_no),
                  ExcInternalError());
 
           // to obtain the shifts for this composed element, copy the shift
@@ -1879,7 +2030,10 @@ FESystem<dim, spacedim>::initialize(
               for (unsigned int c = 0; c < this->element_multiplicity(b); ++c)
                 {
                   for (unsigned int i = 0; i < temp.size(0); ++i)
-                    for (unsigned int j = 0; j < 8; ++j)
+                    for (unsigned int j = 0;
+                         j <
+                         this->reference_cell().n_face_orientations(face_no);
+                         ++j)
                       this->adjust_quad_dof_index_for_face_orientation_table
                         [face_no](index + i, j) = temp(i, j);
                   index += temp.size(0);

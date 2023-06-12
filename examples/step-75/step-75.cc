@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2021 by the deal.II authors
+ * Copyright (C) 2021 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -41,6 +41,7 @@
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_series.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/hp/fe_collection.h>
 #include <deal.II/hp/refinement.h>
@@ -191,7 +192,7 @@ namespace Step75
     double p_refine_fraction  = 0.9;
     double p_coarsen_fraction = 0.9;
 
-    double weighting_factor   = 1e6;
+    double weighting_factor   = 1.;
     double weighting_exponent = 1.;
   };
 
@@ -207,7 +208,7 @@ namespace Step75
   // We will use the FEEvaluation class to evaluate the solution vector
   // at the quadrature points and to perform the integration. In contrast to
   // other tutorials, the template arguments `degree` is set to $-1$ and
-  // `number of quadrature in 1D` to $0$. In this case, FEEvaluation selects
+  // `number of quadrature in 1d` to $0$. In this case, FEEvaluation selects
   // dynamically the correct polynomial degree and number of quadrature
   // points. Here, we introduce an alias to FEEvaluation with the correct
   // template parameters so that we do not have to worry about them later on.
@@ -669,8 +670,7 @@ namespace Step75
           dof_handler.get_triangulation());
     else
       coarse_grid_triangulations.emplace_back(
-        const_cast<Triangulation<dim> *>(&(dof_handler.get_triangulation())),
-        [](auto &) {});
+        &(dof_handler.get_triangulation()), [](auto *) {});
 
     // Determine the total number of levels for the multigrid operation and
     // allocate sufficient memory for all levels.
@@ -980,16 +980,13 @@ namespace Step75
     // for hp-adaptation and right before repartitioning for load balancing is
     // about to happen. Functions can be registered that will attach weights in
     // the form that $a (n_\text{dofs})^b$ with a provided pair of parameters
-    // $(a,b)$. We register such a function in the following. Every cell will be
-    // charged with a constant weight at creation, which is a value of 1000 (see
-    // Triangulation::Signals::cell_weight).
+    // $(a,b)$. We register such a function in the following.
     //
     // For load balancing, efficient solvers like the one we use should scale
-    // linearly with the number of degrees of freedom owned. Further, to
-    // increase the impact of the weights we would like to attach, make sure
-    // that the individual weight will exceed this base weight by orders of
-    // magnitude. We set the parameters for cell weighting correspondingly: A
-    // large weighting factor of $10^6$ and an exponent of $1$.
+    // linearly with the number of degrees of freedom owned. We set the
+    // parameters for cell weighting correspondingly: A weighting factor of $1$
+    // and an exponent of $1$ (see the definitions of the `weighting_factor` and
+    // `weighting_exponent` above).
     cell_weights = std::make_unique<parallel::CellWeights<dim>>(
       dof_handler,
       parallel::CellWeights<dim>::ndofs_weighting(
@@ -1031,12 +1028,12 @@ namespace Step75
   // @sect4{LaplaceProblem::initialize_grid}
 
   // For a L-shaped domain, we could use the function GridGenerator::hyper_L()
-  // as demonstrated in step-50. However in the 2D case, that particular
+  // as demonstrated in step-50. However in the 2d case, that particular
   // function removes the first quadrant, while we need the fourth quadrant
   // removed in our scenario. Thus, we will use a different function
   // GridGenerator::subdivided_hyper_L() which gives us more options to create
   // the mesh. Furthermore, we formulate that function in a way that it also
-  // generates a 3D mesh: the 2D L-shaped domain will basically elongated by 1
+  // generates a 3d mesh: the 2d L-shaped domain will basically elongated by 1
   // in the positive z-direction.
   //
   // We first pretend to build a GridGenerator::subdivided_hyper_rectangle().
@@ -1050,9 +1047,12 @@ namespace Step75
   // remove one cell in every cell from the negative direction, but remove one
   // from the positive x-direction.
   //
-  // In the end, we supply the number of initial refinements that corresponds to
-  // the supplied minimal grid refinement level. Further, we set the initial
-  // active FE indices accordingly.
+  // On the coarse grid, we set the initial active FE indices and distribute the
+  // degrees of freedom once. We do that in order to assign the hp::FECollection
+  // to the DoFHandler, so that all cells know how many DoFs they are going to
+  // have. This step is mandatory for the weighted load balancing algorithm,
+  // which will be called implicitly in
+  // parallel::distributed::Triangulation::refine_global().
   template <int dim>
   void LaplaceProblem<dim>::initialize_grid()
   {
@@ -1080,12 +1080,14 @@ namespace Step75
     GridGenerator::subdivided_hyper_L(
       triangulation, repetitions, bottom_left, top_right, cells_to_remove);
 
-    triangulation.refine_global(prm.min_h_level);
-
     const unsigned int min_fe_index = prm.min_p_degree - 1;
     for (const auto &cell : dof_handler.active_cell_iterators())
       if (cell->is_locally_owned())
         cell->set_active_fe_index(min_fe_index);
+
+    dof_handler.distribute_dofs(fe_collection);
+
+    triangulation.refine_global(prm.min_h_level);
   }
 
 
@@ -1349,15 +1351,6 @@ namespace Step75
                                               prm.p_refine_fraction,
                                               prm.p_coarsen_fraction);
 
-    // At this stage, we have both the future FE indices and the classic refine
-    // and coarsen flags set, from which the latter will be interpreted by
-    // Triangulation::execute_coarsening_and_refinement() for h-adaptation.
-    // We would like to only impose one type of adaptation on cells, which is
-    // what the next function will sort out for us. In short, on cells which
-    // have both types of indicators assigned, we will favor the p-adaptation
-    // one and remove the h-adaptation one.
-    hp::Refinement::choose_p_over_h(dof_handler);
-
     // After setting all indicators, we will remove those that exceed the
     // specified limits of the provided level ranges in the Parameters struct.
     // This limitation naturally arises for p-adaptation as the number of
@@ -1381,6 +1374,18 @@ namespace Step75
     for (const auto &cell :
          triangulation.active_cell_iterators_on_level(prm.min_h_level))
       cell->clear_coarsen_flag();
+
+    // At this stage, we have both the future FE indices and the classic refine
+    // and coarsen flags set. The latter will be interpreted by
+    // Triangulation::execute_coarsening_and_refinement() for h-adaptation, and
+    // our previous modification ensures that the resulting Triangulation stays
+    // within the specified level range.
+    //
+    // Now, we would like to only impose one type of adaptation on cells, which
+    // is what the next function will sort out for us. In short, on cells which
+    // have both types of indicators assigned, we will favor the p-adaptation
+    // one and remove the h-adaptation one.
+    hp::Refinement::choose_p_over_h(dof_handler);
 
     // In the end, we are left to execute coarsening and refinement. Here, not
     // only the grid will be updated, but also all previous future FE indices

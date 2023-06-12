@@ -44,9 +44,9 @@ namespace internal
      * These classes are similar to the DoFLevel classes. We here store
      * information that is associated with faces, rather than cells, as this
      * information is independent of the hierarchical structure of cells,
-     * which are organized in levels. In 2D we store information on degrees of
-     * freedom located on lines whereas in 3D we store information on degrees
-     * of freedom located on quads and lines. In 1D we do nothing, as the
+     * which are organized in levels. In 2d we store information on degrees of
+     * freedom located on lines whereas in 3d we store information on degrees
+     * of freedom located on quads and lines. In 1d we do nothing, as the
      * faces of lines are vertices which are treated separately.
      *
      * Apart from the DoFObjects object containing the data to store (degree
@@ -62,7 +62,7 @@ namespace internal
      * variables using the DoFHandler::get_dof_index() and corresponding
      * setter functions. Knowledge of the actual data format is therefore
      * encapsulated to the present hierarchy of classes as well as the
-     * dealii::DoFHandler class.
+     * DoFHandler class.
      */
     template <int dim>
     class DoFFaces
@@ -76,7 +76,7 @@ namespace internal
     };
 
     /**
-     * Store the indices of degrees of freedom on faces in 1D. As these would
+     * Store the indices of degrees of freedom on faces in 1d. As these would
      * be vertices, which are treated separately, don't do anything.
      */
     template <>
@@ -102,7 +102,7 @@ namespace internal
     };
 
     /**
-     * Store the indices of degrees of freedom on faces in 2D, which are
+     * Store the indices of degrees of freedom on faces in 2d, which are
      * lines.
      */
     template <>
@@ -132,7 +132,7 @@ namespace internal
     };
 
     /**
-     * Store the indices of degrees of freedom on faces in 3D, which are
+     * Store the indices of degrees of freedom on faces in 3d, which are
      * quads, additionally also on lines.
      */
     template <>

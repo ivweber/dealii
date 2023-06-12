@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2021 by the deal.II authors
+// Copyright (C) 2015 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,6 +17,7 @@
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/mpi.templates.h>
+#include <deal.II/base/mpi_large_count.h>
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/distributed/shared_tria.h>
@@ -28,14 +29,13 @@
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/lac/sparsity_pattern.h>
-#include <deal.II/lac/sparsity_tools.h>
 #include <deal.II/lac/vector_memory.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <numeric>
 
 
@@ -44,8 +44,9 @@ DEAL_II_NAMESPACE_OPEN
 namespace parallel
 {
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   TriangulationBase<dim, spacedim>::TriangulationBase(
-    const MPI_Comm &mpi_communicator,
+    const MPI_Comm mpi_communicator,
     const typename dealii::Triangulation<dim, spacedim>::MeshSmoothing
                smooth_grid,
     const bool check_for_distorted_cells)
@@ -63,8 +64,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  TriangulationBase<dim, spacedim>::copy_triangulation(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void TriangulationBase<dim, spacedim>::copy_triangulation(
     const dealii::Triangulation<dim, spacedim> &other_tria)
   {
 #ifndef DEAL_II_WITH_MPI
@@ -88,8 +89,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  std::size_t
-  TriangulationBase<dim, spacedim>::memory_consumption() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  std::size_t TriangulationBase<dim, spacedim>::memory_consumption() const
   {
     std::size_t mem =
       this->dealii::Triangulation<dim, spacedim>::memory_consumption() +
@@ -101,7 +102,10 @@ namespace parallel
     return mem;
   }
 
+
+
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   TriangulationBase<dim, spacedim>::~TriangulationBase()
   {
     // release unused vector memory because the vector layout is going to look
@@ -110,45 +114,60 @@ namespace parallel
       release_all_unused_memory();
   }
 
+
+
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   TriangulationBase<dim, spacedim>::NumberCache::NumberCache()
     : n_locally_owned_active_cells(0)
     , number_of_global_coarse_cells(0)
     , n_global_levels(0)
   {}
 
+
+
   template <int dim, int spacedim>
-  unsigned int
-  TriangulationBase<dim, spacedim>::n_locally_owned_active_cells() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  unsigned int TriangulationBase<dim, spacedim>::n_locally_owned_active_cells()
+    const
   {
     return number_cache.n_locally_owned_active_cells;
   }
 
+
+
   template <int dim, int spacedim>
-  unsigned int
-  TriangulationBase<dim, spacedim>::n_global_levels() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  unsigned int TriangulationBase<dim, spacedim>::n_global_levels() const
   {
     return number_cache.n_global_levels;
   }
 
+
+
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   types::global_cell_index
-  TriangulationBase<dim, spacedim>::n_global_active_cells() const
+    TriangulationBase<dim, spacedim>::n_global_active_cells() const
   {
     return number_cache.n_global_active_cells;
   }
 
+
+
   template <int dim, int spacedim>
-  MPI_Comm
-  TriangulationBase<dim, spacedim>::get_communicator() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  MPI_Comm TriangulationBase<dim, spacedim>::get_communicator() const
   {
     return mpi_communicator;
   }
 
+
+
 #ifdef DEAL_II_WITH_MPI
   template <int dim, int spacedim>
-  void
-  TriangulationBase<dim, spacedim>::update_number_cache()
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void TriangulationBase<dim, spacedim>::update_number_cache()
   {
     number_cache.ghost_owners.clear();
     number_cache.level_ghost_owners.clear();
@@ -283,8 +302,8 @@ namespace parallel
 #else
 
   template <int dim, int spacedim>
-  void
-  TriangulationBase<dim, spacedim>::update_number_cache()
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void TriangulationBase<dim, spacedim>::update_number_cache()
   {
     Assert(false, ExcNeedsMPI());
   }
@@ -292,8 +311,8 @@ namespace parallel
 #endif
 
   template <int dim, int spacedim>
-  void
-  TriangulationBase<dim, spacedim>::update_reference_cells()
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void TriangulationBase<dim, spacedim>::update_reference_cells()
   {
     // run algorithm for locally-owned cells
     dealii::Triangulation<dim, spacedim>::update_reference_cells();
@@ -302,6 +321,7 @@ namespace parallel
     // Utilities::MPI::compute_set_union)
     std::vector<unsigned int> reference_cells_ui;
 
+    reference_cells_ui.reserve(this->reference_cells.size());
     for (const auto &i : this->reference_cells)
       reference_cells_ui.push_back(static_cast<unsigned int>(i));
 
@@ -314,14 +334,15 @@ namespace parallel
     this->reference_cells.clear();
     for (const auto &i : reference_cells_ui)
       this->reference_cells.emplace_back(
-        dealii::internal::ReferenceCell::make_reference_cell_from_int(i));
+        dealii::internal::make_reference_cell_from_int(i));
   }
 
 
 
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   types::subdomain_id
-  TriangulationBase<dim, spacedim>::locally_owned_subdomain() const
+    TriangulationBase<dim, spacedim>::locally_owned_subdomain() const
   {
     return my_subdomain;
   }
@@ -329,8 +350,9 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  const std::set<types::subdomain_id> &
-  TriangulationBase<dim, spacedim>::ghost_owners() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  const std::set<types::subdomain_id>
+    &TriangulationBase<dim, spacedim>::ghost_owners() const
   {
     return number_cache.ghost_owners;
   }
@@ -338,8 +360,9 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  const std::set<types::subdomain_id> &
-  TriangulationBase<dim, spacedim>::level_ghost_owners() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  const std::set<types::subdomain_id>
+    &TriangulationBase<dim, spacedim>::level_ghost_owners() const
   {
     return number_cache.level_ghost_owners;
   }
@@ -347,8 +370,9 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  std::vector<types::boundary_id>
-  TriangulationBase<dim, spacedim>::get_boundary_ids() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  std::vector<types::boundary_id> TriangulationBase<dim, spacedim>::
+    get_boundary_ids() const
   {
     return Utilities::MPI::compute_set_union(
       dealii::Triangulation<dim, spacedim>::get_boundary_ids(),
@@ -358,8 +382,9 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  std::vector<types::manifold_id>
-  TriangulationBase<dim, spacedim>::get_manifold_ids() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  std::vector<types::manifold_id> TriangulationBase<dim, spacedim>::
+    get_manifold_ids() const
   {
     return Utilities::MPI::compute_set_union(
       dealii::Triangulation<dim, spacedim>::get_manifold_ids(),
@@ -369,8 +394,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  TriangulationBase<dim, spacedim>::reset_global_cell_indices()
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void TriangulationBase<dim, spacedim>::reset_global_cell_indices()
   {
 #ifndef DEAL_II_WITH_MPI
     Assert(false, ExcNeedsMPI());
@@ -435,41 +460,30 @@ namespace parallel
 
     // 3) give global indices to locally-owned cells and mark all other cells as
     //    invalid
+    std::pair<types::global_cell_index, types::global_cell_index> my_range;
+    my_range.first = cell_index;
+
     for (const auto &cell : this->active_cell_iterators())
       if (cell->is_locally_owned())
         cell->set_global_active_cell_index(cell_index++);
       else
         cell->set_global_active_cell_index(numbers::invalid_dof_index);
 
+    my_range.second = cell_index;
+
     // 4) determine the global indices of ghost cells
+    std::vector<types::global_dof_index> is_ghost_vector;
     GridTools::exchange_cell_data_to_ghosts<types::global_cell_index>(
-      *this,
+      static_cast<dealii::Triangulation<dim, spacedim> &>(*this),
       [](const auto &cell) { return cell->global_active_cell_index(); },
-      [](const auto &cell, const auto &id) {
+      [&is_ghost_vector](const auto &cell, const auto &id) {
         cell->set_global_active_cell_index(id);
+        is_ghost_vector.push_back(id);
       });
 
     // 5) set up new partitioner
-    std::vector<types::global_dof_index> is_local_vector;
-    std::vector<types::global_dof_index> is_ghost_vector;
-
-    for (const auto &cell : this->active_cell_iterators())
-      if (!cell->is_artificial())
-        {
-          const auto index = cell->global_active_cell_index();
-
-          if (index == numbers::invalid_dof_index)
-            continue;
-
-          if (cell->is_locally_owned())
-            is_local_vector.push_back(index);
-          else
-            is_ghost_vector.push_back(index);
-        }
-
-    std::sort(is_local_vector.begin(), is_local_vector.end());
     IndexSet is_local(this->n_global_active_cells());
-    is_local.add_indices(is_local_vector.begin(), is_local_vector.end());
+    is_local.add_range(my_range.first, my_range.second);
 
     std::sort(is_ghost_vector.begin(), is_ghost_vector.end());
     IndexSet is_ghost(this->n_global_active_cells());
@@ -483,57 +497,59 @@ namespace parallel
     if (this->is_multilevel_hierarchy_constructed() == true)
       {
         // 1) determine number of locally-owned cells on levels
-        std::vector<types::global_cell_index> n_locally_owned_cells(
+        std::vector<types::global_cell_index> n_cells_level(
           this->n_global_levels(), 0);
 
         for (auto cell : this->cell_iterators())
           if (cell->level_subdomain_id() == this->locally_owned_subdomain())
-            n_locally_owned_cells[cell->level()]++;
+            n_cells_level[cell->level()]++;
 
         // 2) determine the offset of each process
         std::vector<types::global_cell_index> cell_index(
           this->n_global_levels(), 0);
 
-        int ierr = MPI_Exscan(n_locally_owned_cells.data(),
-                              cell_index.data(),
-                              this->n_global_levels(),
-                              Utilities::MPI::mpi_type_id_for_type<decltype(
-                                *n_locally_owned_cells.data())>,
-                              MPI_SUM,
-                              this->mpi_communicator);
-        AssertThrowMPI(ierr);
-
-        // 3) determine global number of "active" cells on each level
-        std::vector<types::global_cell_index> n_cells_level(
-          this->n_global_levels(), 0);
-
-        for (unsigned int l = 0; l < this->n_global_levels(); ++l)
-          n_cells_level[l] = n_locally_owned_cells[l] + cell_index[l];
-
-        ierr = MPI_Bcast(
+        int ierr = MPI_Exscan(
           n_cells_level.data(),
+          cell_index.data(),
           this->n_global_levels(),
           Utilities::MPI::mpi_type_id_for_type<decltype(*n_cells_level.data())>,
-          this->n_subdomains - 1,
+          MPI_SUM,
           this->mpi_communicator);
         AssertThrowMPI(ierr);
 
+        // 3) determine global number of "active" cells on each level
+        Utilities::MPI::sum(n_cells_level,
+                            this->mpi_communicator,
+                            n_cells_level);
+
         // 4) give global indices to locally-owned cells on level and mark
         //    all other cells as invalid
+        std::vector<
+          std::pair<types::global_cell_index, types::global_cell_index>>
+          my_ranges(this->n_global_levels());
+        for (unsigned int l = 0; l < this->n_global_levels(); ++l)
+          my_ranges[l].first = cell_index[l];
+
         for (auto cell : this->cell_iterators())
           if (cell->level_subdomain_id() == this->locally_owned_subdomain())
             cell->set_global_level_cell_index(cell_index[cell->level()]++);
           else
             cell->set_global_level_cell_index(numbers::invalid_dof_index);
 
+        for (unsigned int l = 0; l < this->n_global_levels(); ++l)
+          my_ranges[l].second = cell_index[l];
+
         // 5) update the numbers of ghost level cells
+        std::vector<std::vector<types::global_dof_index>> is_ghost_vectors(
+          this->n_global_levels());
         GridTools::exchange_cell_data_to_level_ghosts<
           types::global_cell_index,
           dealii::Triangulation<dim, spacedim>>(
           *this,
           [](const auto &cell) { return cell->global_level_cell_index(); },
-          [](const auto &cell, const auto &id) {
-            return cell->set_global_level_cell_index(id);
+          [&is_ghost_vectors](const auto &cell, const auto &id) {
+            cell->set_global_level_cell_index(id);
+            is_ghost_vectors[cell->level()].push_back(id);
           });
 
         number_cache.level_cell_index_partitioners.resize(
@@ -542,35 +558,13 @@ namespace parallel
         // 6) set up cell partitioners for each level
         for (unsigned int l = 0; l < this->n_global_levels(); ++l)
           {
-            std::vector<types::global_dof_index> is_local_vector;
-            std::vector<types::global_dof_index> is_ghost_vector;
-
-            for (const auto &cell : this->cell_iterators_on_level(l))
-              if (cell->level_subdomain_id() !=
-                  dealii::numbers::artificial_subdomain_id)
-                {
-                  const auto index = cell->global_level_cell_index();
-
-                  if (index == numbers::invalid_dof_index)
-                    continue;
-
-                  if (cell->level_subdomain_id() ==
-                      this->locally_owned_subdomain())
-                    is_local_vector.push_back(index);
-                  else
-                    is_ghost_vector.push_back(index);
-                  ;
-                }
-
             IndexSet is_local(n_cells_level[l]);
-            std::sort(is_local_vector.begin(), is_local_vector.end());
-            is_local.add_indices(is_local_vector.begin(),
-                                 is_local_vector.end());
+            is_local.add_range(my_ranges[l].first, my_ranges[l].second);
 
             IndexSet is_ghost(n_cells_level[l]);
-            std::sort(is_ghost_vector.begin(), is_ghost_vector.end());
-            is_ghost.add_indices(is_ghost_vector.begin(),
-                                 is_ghost_vector.end());
+            std::sort(is_ghost_vectors[l].begin(), is_ghost_vectors[l].end());
+            is_ghost.add_indices(is_ghost_vectors[l].begin(),
+                                 is_ghost_vectors[l].end());
 
             number_cache.level_cell_index_partitioners[l] =
               std::make_shared<const Utilities::MPI::Partitioner>(
@@ -584,8 +578,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  TriangulationBase<dim, spacedim>::communicate_locally_moved_vertices(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void TriangulationBase<dim, spacedim>::communicate_locally_moved_vertices(
     const std::vector<bool> &vertex_locally_moved)
   {
     AssertDimension(vertex_locally_moved.size(), this->n_vertices());
@@ -619,23 +613,30 @@ namespace parallel
 
     const auto unpack = [&](const auto &cell, const auto &vertices) {
       for (const auto v : cell->vertex_indices())
-        if (std::isnan(vertices[v][0]) == false)
+        if (numbers::is_nan(vertices[v][0]) == false)
           cell->vertex(v) = vertices[v];
     };
 
     if (this->is_multilevel_hierarchy_constructed())
       GridTools::exchange_cell_data_to_level_ghosts<
-        std::vector<Point<spacedim>>>(*this, pack, unpack);
+        std::vector<Point<spacedim>>>(
+        static_cast<dealii::Triangulation<dim, spacedim> &>(*this),
+        pack,
+        unpack);
     else
       GridTools::exchange_cell_data_to_ghosts<std::vector<Point<spacedim>>>(
-        *this, pack, unpack);
+        static_cast<dealii::Triangulation<dim, spacedim> &>(*this),
+        pack,
+        unpack);
   }
 
 
 
   template <int dim, int spacedim>
-  const std::weak_ptr<const Utilities::MPI::Partitioner>
-  TriangulationBase<dim, spacedim>::global_active_cell_index_partitioner() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  const std::weak_ptr<const Utilities::MPI::Partitioner> TriangulationBase<
+    dim,
+    spacedim>::global_active_cell_index_partitioner() const
   {
     return number_cache.active_cell_index_partitioner;
   }
@@ -643,9 +644,11 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  const std::weak_ptr<const Utilities::MPI::Partitioner>
-  TriangulationBase<dim, spacedim>::global_level_cell_index_partitioner(
-    const unsigned int level) const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  const std::weak_ptr<const Utilities::MPI::Partitioner> TriangulationBase<
+    dim,
+    spacedim>::global_level_cell_index_partitioner(const unsigned int level)
+    const
   {
     Assert(this->is_multilevel_hierarchy_constructed(), ExcNotImplemented());
     AssertIndexRange(level, this->n_global_levels());
@@ -656,8 +659,9 @@ namespace parallel
 
 
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   types::coarse_cell_id
-  TriangulationBase<dim, spacedim>::n_global_coarse_cells() const
+    TriangulationBase<dim, spacedim>::n_global_coarse_cells() const
   {
     return number_cache.number_of_global_coarse_cells;
   }
@@ -665,8 +669,9 @@ namespace parallel
 
 
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   DistributedTriangulationBase<dim, spacedim>::DistributedTriangulationBase(
-    const MPI_Comm &mpi_communicator,
+    const MPI_Comm mpi_communicator,
     const typename dealii::Triangulation<dim, spacedim>::MeshSmoothing
                smooth_grid,
     const bool check_for_distorted_cells)
@@ -681,8 +686,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::clear()
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::clear()
   {
     cell_attached_data = {0, 0, {}, {}};
     data_transfer.clear();
@@ -693,8 +698,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::save_attached_data(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::save_attached_data(
     const unsigned int global_first_cell,
     const unsigned int global_num_cells,
     const std::string &filename) const
@@ -730,8 +735,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  bool
-  DistributedTriangulationBase<dim, spacedim>::has_hanging_nodes() const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  bool DistributedTriangulationBase<dim, spacedim>::has_hanging_nodes() const
   {
     if (this->n_global_levels() <= 1)
       return false; // can not have hanging nodes without refined cells
@@ -757,8 +762,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::load_attached_data(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::load_attached_data(
     const unsigned int global_first_cell,
     const unsigned int global_num_cells,
     const unsigned int local_num_cells,
@@ -794,11 +799,12 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  unsigned int
-  DistributedTriangulationBase<dim, spacedim>::register_data_attach(
-    const std::function<std::vector<char>(const cell_iterator &,
-                                          const CellStatus)> &pack_callback,
-    const bool returns_variable_size_data)
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  unsigned int DistributedTriangulationBase<dim, spacedim>::
+    register_data_attach(
+      const std::function<std::vector<char>(const cell_iterator &,
+                                            const CellStatus)> &pack_callback,
+      const bool returns_variable_size_data)
   {
     unsigned int handle = numbers::invalid_unsigned_int;
 
@@ -824,8 +830,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::notify_ready_to_unpack(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::notify_ready_to_unpack(
     const unsigned int handle,
     const std::function<
       void(const cell_iterator &,
@@ -869,8 +875,9 @@ namespace parallel
 
 
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   DistributedTriangulationBase<dim, spacedim>::DataTransfer::DataTransfer(
-    const MPI_Comm &mpi_communicator)
+    const MPI_Comm mpi_communicator)
     : variable_size_data_stored(false)
     , mpi_communicator(mpi_communicator)
   {}
@@ -878,8 +885,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::DataTransfer::pack_data(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::DataTransfer::pack_data(
     const std::vector<cell_relation_t> &cell_relations,
     const std::vector<typename CellAttachedData::pack_callback_t>
       &pack_callbacks_fixed,
@@ -1214,9 +1221,9 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::DataTransfer::unpack_cell_status(
-    std::vector<cell_relation_t> &cell_relations) const
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::DataTransfer::
+    unpack_cell_status(std::vector<cell_relation_t> &cell_relations) const
   {
     Assert(sizes_fixed_cumulative.size() > 0,
            ExcMessage("No data has been packed!"));
@@ -1250,8 +1257,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::DataTransfer::unpack_data(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::DataTransfer::unpack_data(
     const std::vector<cell_relation_t> &cell_relations,
     const unsigned int                  handle,
     const std::function<
@@ -1421,8 +1428,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::DataTransfer::save(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::DataTransfer::save(
     const unsigned int global_first_cell,
     const unsigned int global_num_cells,
     const std::string &filename) const
@@ -1473,12 +1480,13 @@ namespace parallel
       // this task.
       if (myrank == 0)
         {
-          ierr = MPI_File_write_at(fh,
-                                   0,
-                                   sizes_fixed_cumulative.data(),
-                                   sizes_fixed_cumulative.size(),
-                                   MPI_UNSIGNED,
-                                   MPI_STATUS_IGNORE);
+          ierr = Utilities::MPI::LargeCount::File_write_at_c(
+            fh,
+            0,
+            sizes_fixed_cumulative.data(),
+            sizes_fixed_cumulative.size(),
+            MPI_UNSIGNED,
+            MPI_STATUS_IGNORE);
           AssertThrowMPI(ierr);
         }
 
@@ -1492,30 +1500,14 @@ namespace parallel
         size_header +
         static_cast<MPI_Offset>(global_first_cell) * bytes_per_cell;
 
-      if (src_data_fixed.size() <=
-          static_cast<std::size_t>(std::numeric_limits<int>::max()))
-        {
-          ierr = MPI_File_write_at(fh,
-                                   my_global_file_position,
-                                   src_data_fixed.data(),
-                                   src_data_fixed.size(),
-                                   MPI_BYTE,
-                                   MPI_STATUS_IGNORE);
-          AssertThrowMPI(ierr);
-        }
-      else
-        {
-          // Writes bigger than 2GB require some extra care:
-          ierr =
-            MPI_File_write_at(fh,
-                              my_global_file_position,
-                              src_data_fixed.data(),
-                              1,
-                              *Utilities::MPI::create_mpi_data_type_n_bytes(
-                                src_data_fixed.size()),
-                              MPI_STATUS_IGNORE);
-          AssertThrowMPI(ierr);
-        }
+      ierr =
+        Utilities::MPI::LargeCount::File_write_at_c(fh,
+                                                    my_global_file_position,
+                                                    src_data_fixed.data(),
+                                                    src_data_fixed.size(),
+                                                    MPI_BYTE,
+                                                    MPI_STATUS_IGNORE);
+      AssertThrowMPI(ierr);
 
       ierr = MPI_File_close(&fh);
       AssertThrowMPI(ierr);
@@ -1564,12 +1556,13 @@ namespace parallel
                           std::numeric_limits<int>::max()),
                       ExcNotImplemented());
 
-          ierr = MPI_File_write_at(fh,
-                                   my_global_file_position,
-                                   src_sizes_variable.data(),
-                                   src_sizes_variable.size(),
-                                   MPI_INT,
-                                   MPI_STATUS_IGNORE);
+          ierr = Utilities::MPI::LargeCount::File_write_at_c(
+            fh,
+            my_global_file_position,
+            src_sizes_variable.data(),
+            src_sizes_variable.size(),
+            MPI_INT,
+            MPI_STATUS_IGNORE);
           AssertThrowMPI(ierr);
         }
 
@@ -1591,30 +1584,14 @@ namespace parallel
           prefix_sum;
 
         // Write data consecutively into file.
-        if (src_data_variable.size() <=
-            static_cast<std::size_t>(std::numeric_limits<int>::max()))
-          {
-            ierr = MPI_File_write_at(fh,
-                                     my_global_file_position,
-                                     src_data_variable.data(),
-                                     src_data_variable.size(),
-                                     MPI_BYTE,
-                                     MPI_STATUS_IGNORE);
-            AssertThrowMPI(ierr);
-          }
-        else
-          {
-            // Writes bigger than 2GB require some extra care:
-            ierr =
-              MPI_File_write_at(fh,
-                                my_global_file_position,
-                                src_data_variable.data(),
-                                1,
-                                *Utilities::MPI::create_mpi_data_type_n_bytes(
-                                  src_data_variable.size()),
-                                MPI_STATUS_IGNORE);
-            AssertThrowMPI(ierr);
-          }
+        ierr =
+          Utilities::MPI::LargeCount::File_write_at_c(fh,
+                                                      my_global_file_position,
+                                                      src_data_variable.data(),
+                                                      src_data_variable.size(),
+                                                      MPI_BYTE,
+                                                      MPI_STATUS_IGNORE);
+        AssertThrowMPI(ierr);
 
 
         ierr = MPI_File_close(&fh);
@@ -1632,8 +1609,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::DataTransfer::load(
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::DataTransfer::load(
     const unsigned int global_first_cell,
     const unsigned int global_num_cells,
     const unsigned int local_num_cells,
@@ -1675,12 +1652,13 @@ namespace parallel
       // location in the file.
       sizes_fixed_cumulative.resize(1 + n_attached_deserialize_fixed +
                                     (variable_size_data_stored ? 1 : 0));
-      ierr = MPI_File_read_at(fh,
-                              0,
-                              sizes_fixed_cumulative.data(),
-                              sizes_fixed_cumulative.size(),
-                              MPI_UNSIGNED,
-                              MPI_STATUS_IGNORE);
+      ierr = Utilities::MPI::LargeCount::File_read_at_c(
+        fh,
+        0,
+        sizes_fixed_cumulative.data(),
+        sizes_fixed_cumulative.size(),
+        MPI_UNSIGNED,
+        MPI_STATUS_IGNORE);
       AssertThrowMPI(ierr);
 
       // Allocate sufficient memory.
@@ -1698,29 +1676,14 @@ namespace parallel
         size_header +
         static_cast<MPI_Offset>(global_first_cell) * bytes_per_cell;
 
-      if (dest_data_fixed.size() <=
-          static_cast<std::size_t>(std::numeric_limits<int>::max()))
-        {
-          ierr = MPI_File_read_at(fh,
-                                  my_global_file_position,
-                                  dest_data_fixed.data(),
-                                  dest_data_fixed.size(),
-                                  MPI_BYTE,
-                                  MPI_STATUS_IGNORE);
-          AssertThrowMPI(ierr);
-        }
-      else
-        {
-          // Reads bigger than 2GB require some extra care:
-          ierr = MPI_File_read_at(fh,
-                                  my_global_file_position,
-                                  dest_data_fixed.data(),
-                                  1,
-                                  *Utilities::MPI::create_mpi_data_type_n_bytes(
-                                    dest_data_fixed.size()),
-                                  MPI_STATUS_IGNORE);
-          AssertThrowMPI(ierr);
-        }
+      ierr = Utilities::MPI::LargeCount::File_read_at_c(fh,
+                                                        my_global_file_position,
+                                                        dest_data_fixed.data(),
+                                                        dest_data_fixed.size(),
+                                                        MPI_BYTE,
+                                                        MPI_STATUS_IGNORE);
+      AssertThrowMPI(ierr);
+
 
       ierr = MPI_File_close(&fh);
       AssertThrowMPI(ierr);
@@ -1752,12 +1715,13 @@ namespace parallel
         const MPI_Offset my_global_file_position_sizes =
           static_cast<MPI_Offset>(global_first_cell) * sizeof(unsigned int);
 
-        ierr = MPI_File_read_at(fh,
-                                my_global_file_position_sizes,
-                                dest_sizes_variable.data(),
-                                dest_sizes_variable.size(),
-                                MPI_INT,
-                                MPI_STATUS_IGNORE);
+        ierr = Utilities::MPI::LargeCount::File_read_at_c(
+          fh,
+          my_global_file_position_sizes,
+          dest_sizes_variable.data(),
+          dest_sizes_variable.size(),
+          MPI_INT,
+          MPI_STATUS_IGNORE);
         AssertThrowMPI(ierr);
 
 
@@ -1783,31 +1747,14 @@ namespace parallel
 
         dest_data_variable.resize(size_on_proc);
 
-        if (dest_data_variable.size() <=
-            static_cast<std::size_t>(std::numeric_limits<int>::max()))
-          {
-            ierr = MPI_File_read_at(fh,
-                                    my_global_file_position,
-                                    dest_data_variable.data(),
-                                    dest_data_variable.size(),
-                                    MPI_BYTE,
-                                    MPI_STATUS_IGNORE);
-            AssertThrowMPI(ierr);
-          }
-        else
-          {
-            // Reads bigger than 2GB require some extra care:
-            ierr =
-              MPI_File_read_at(fh,
-                               my_global_file_position,
-                               dest_data_variable.data(),
-                               1,
-                               *Utilities::MPI::create_mpi_data_type_n_bytes(
-                                 src_data_fixed.size()),
-                               MPI_STATUS_IGNORE);
-            AssertThrowMPI(ierr);
-          }
-
+        ierr =
+          Utilities::MPI::LargeCount::File_read_at_c(fh,
+                                                     my_global_file_position,
+                                                     dest_data_variable.data(),
+                                                     dest_data_variable.size(),
+                                                     MPI_BYTE,
+                                                     MPI_STATUS_IGNORE);
+        AssertThrowMPI(ierr);
 
         ierr = MPI_File_close(&fh);
         AssertThrowMPI(ierr);
@@ -1827,8 +1774,8 @@ namespace parallel
 
 
   template <int dim, int spacedim>
-  void
-  DistributedTriangulationBase<dim, spacedim>::DataTransfer::clear()
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void DistributedTriangulationBase<dim, spacedim>::DataTransfer::clear()
   {
     variable_size_data_stored = false;
 

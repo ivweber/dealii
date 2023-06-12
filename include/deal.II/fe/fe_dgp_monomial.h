@@ -24,8 +24,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Discontinuous finite elements based on monomials.
@@ -41,7 +43,7 @@ DEAL_II_NAMESPACE_OPEN
  * The basis functions for this element are chosen to be the monomials listed
  * above. Note that this is the main difference to the FE_DGP class that uses
  * a set of polynomials of complete degree <code>p</code> that form a Legendre
- * basis on the unit square. Thus, there, the mass matrix is diagonal, if the
+ * basis on the unit square. Thus, there, the @ref GlossMassMatrix "mass matrix" is diagonal, if the
  * grid cells are parallelograms. The basis here does not have this property;
  * however, it is simpler to compute. On the other hand, this element has the
  * additional disadvantage that the local cell matrices usually have a worse
@@ -452,7 +454,7 @@ private:
   initialize_restriction();
 };
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

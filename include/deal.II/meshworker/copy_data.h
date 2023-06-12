@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,10 +44,13 @@ namespace MeshWorker
    * - @tparam n_matrices: Size of the array of matrices
    * - @tparam n_vectors: size of the array of vectors
    * - @tparam n_dof_indices: size of the array of local dof indices
+   * - @tparam ScalarType: The data type stored by the vectors and matrices.
+   *           This must be a real or complex floating point number.
    */
-  template <int n_matrices    = 1,
-            int n_vectors     = n_matrices,
-            int n_dof_indices = n_matrices>
+  template <int n_matrices      = 1,
+            int n_vectors       = n_matrices,
+            int n_dof_indices   = n_matrices,
+            typename ScalarType = double>
   struct CopyData
   {
     /**
@@ -72,10 +75,15 @@ namespace MeshWorker
       const std::array<unsigned int, n_dof_indices> &dof_indices_sizes);
 
     /**
-     * Deep copy constructor.
+     * Copy constructor.
      */
-    CopyData(const CopyData<n_matrices, n_vectors, n_dof_indices> &other) =
-      default;
+    CopyData(const CopyData &other) = default;
+
+    /**
+     * Copy operator.
+     */
+    CopyData &
+    operator=(const CopyData &other) = default;
 
     /**
      * Reinitialize everything the same @p size. This is usually the number of
@@ -119,12 +127,12 @@ namespace MeshWorker
     /**
      * An array of local matrices.
      */
-    std::array<FullMatrix<double>, n_matrices> matrices;
+    std::array<FullMatrix<ScalarType>, n_matrices> matrices;
 
     /**
      * An array of local vectors.
      */
-    std::array<Vector<double>, n_vectors> vectors;
+    std::array<Vector<ScalarType>, n_vectors> vectors;
 
     /**
      * An array of local degrees of freedom indices.
@@ -138,8 +146,11 @@ namespace MeshWorker
   //
   // Template definitions
   //
-  template <int n_matrices, int n_vectors, int n_dof_indices>
-  CopyData<n_matrices, n_vectors, n_dof_indices>::CopyData(
+  template <int n_matrices,
+            int n_vectors,
+            int n_dof_indices,
+            typename ScalarType>
+  CopyData<n_matrices, n_vectors, n_dof_indices, ScalarType>::CopyData(
     const unsigned int size)
   {
     reinit(size);
@@ -147,8 +158,11 @@ namespace MeshWorker
 
 
 
-  template <int n_matrices, int n_vectors, int n_dof_indices>
-  CopyData<n_matrices, n_vectors, n_dof_indices>::CopyData(
+  template <int n_matrices,
+            int n_vectors,
+            int n_dof_indices,
+            typename ScalarType>
+  CopyData<n_matrices, n_vectors, n_dof_indices, ScalarType>::CopyData(
     const ndarray<unsigned int, n_matrices, 2> &   matrix_sizes,
     const std::array<unsigned int, n_vectors> &    vector_sizes,
     const std::array<unsigned int, n_dof_indices> &dof_indices_sizes)
@@ -165,9 +179,12 @@ namespace MeshWorker
 
 
 
-  template <int n_matrices, int n_vectors, int n_dof_indices>
+  template <int n_matrices,
+            int n_vectors,
+            int n_dof_indices,
+            typename ScalarType>
   void
-  CopyData<n_matrices, n_vectors, n_dof_indices>::reinit(
+  CopyData<n_matrices, n_vectors, n_dof_indices, ScalarType>::reinit(
     const unsigned int size)
   {
     for (auto &m : matrices)
@@ -180,9 +197,12 @@ namespace MeshWorker
 
 
 
-  template <int n_matrices, int n_vectors, int n_dof_indices>
+  template <int n_matrices,
+            int n_vectors,
+            int n_dof_indices,
+            typename ScalarType>
   void
-  CopyData<n_matrices, n_vectors, n_dof_indices>::reinit(
+  CopyData<n_matrices, n_vectors, n_dof_indices, ScalarType>::reinit(
     const unsigned int index,
     const unsigned int size)
   {
@@ -191,9 +211,12 @@ namespace MeshWorker
 
 
 
-  template <int n_matrices, int n_vectors, int n_dof_indices>
+  template <int n_matrices,
+            int n_vectors,
+            int n_dof_indices,
+            typename ScalarType>
   void
-  CopyData<n_matrices, n_vectors, n_dof_indices>::reinit(
+  CopyData<n_matrices, n_vectors, n_dof_indices, ScalarType>::reinit(
     const unsigned int index,
     const unsigned int size_rows,
     const unsigned int size_columns)
@@ -202,6 +225,7 @@ namespace MeshWorker
     // So we have to be a bit permissive here.
     constexpr const int max_index =
       std::max(std::max(n_matrices, n_vectors), n_dof_indices);
+    (void)max_index;
     Assert(index < max_index, ExcIndexRange(index, 0, max_index));
 
     if (index < n_matrices)

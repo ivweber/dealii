@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,8 +28,7 @@ namespace internal
   namespace DoFHandlerImplementation
   {
     NumberCache::NumberCache()
-      : n_global_dofs(0)
-      , n_locally_owned_dofs(0)
+      : NumberCache(0)
     {}
 
 
@@ -85,7 +84,7 @@ namespace internal
 
     std::vector<types::global_dof_index>
     NumberCache::get_n_locally_owned_dofs_per_processor(
-      const MPI_Comm &mpi_communicator) const
+      const MPI_Comm mpi_communicator) const
     {
       if (n_global_dofs == 0)
         return std::vector<types::global_dof_index>();
@@ -108,7 +107,7 @@ namespace internal
 
     std::vector<IndexSet>
     NumberCache::get_locally_owned_dofs_per_processor(
-      const MPI_Comm &mpi_communicator) const
+      const MPI_Comm mpi_communicator) const
     {
       AssertDimension(locally_owned_dofs.size(), n_global_dofs);
       if (n_global_dofs == 0)

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2019 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -77,6 +77,7 @@ namespace NonMatching
   template class ImmersedSurfaceQuadrature<1, 1>;
   template class ImmersedSurfaceQuadrature<2, 2>;
   template class ImmersedSurfaceQuadrature<3, 3>;
+  template class ImmersedSurfaceQuadrature<0, 1>;
   template class ImmersedSurfaceQuadrature<1, 2>;
   template class ImmersedSurfaceQuadrature<2, 3>;
 

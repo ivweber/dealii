@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -99,8 +99,13 @@ main()
       deallog << "(" << i.first << "," << i.second << ") ";
     deallog << std::endl;
 
-    for (const auto i : dof_info.row_starts)
-      deallog << "(" << i.first << "," << i.second << ") ";
+    // make sure to filter out contributions that only get filled up to make
+    // all SIMD lanes populated
+    for (unsigned int i = 0; i < dof_info.row_starts.size(); ++i)
+      if (i == 0 ||
+          (dof_info.row_starts[i].first > dof_info.row_starts[i - 1].first))
+        deallog << "(" << dof_info.row_starts[i].first << ","
+                << dof_info.row_starts[i].second << ") ";
     deallog << std::endl;
 
     deallog << std::endl;
@@ -128,8 +133,13 @@ main()
                                    const unsigned int n_cells,
                                    const unsigned int n_dofs_per_cell) {
     internal::VectorReader<Number, VectorizedArrayType> reader;
-    constraint_info.read_write_operation(
-      reader, src, local_vector, first_cell, n_cells, n_dofs_per_cell, true);
+    constraint_info.read_write_operation(reader,
+                                         src,
+                                         local_vector.data(),
+                                         first_cell,
+                                         n_cells,
+                                         n_dofs_per_cell,
+                                         true);
     constraint_info.apply_hanging_node_constraints(first_cell,
                                                    n_cells,
                                                    false,
@@ -146,24 +156,39 @@ main()
                                                      n_cells,
                                                      true,
                                                      local_vector);
-      constraint_info.read_write_operation(
-        writer, dst, local_vector, first_cell, n_cells, n_dofs_per_cell, true);
+      constraint_info.read_write_operation(writer,
+                                           dst,
+                                           local_vector.data(),
+                                           first_cell,
+                                           n_cells,
+                                           n_dofs_per_cell,
+                                           true);
     };
 
   const auto read_dof_values_plain = [&](const unsigned int first_cell,
                                          const unsigned int n_cells,
                                          const unsigned int n_dofs_per_cell) {
     internal::VectorReader<Number, VectorizedArrayType> reader;
-    constraint_info.read_write_operation(
-      reader, src, local_vector, first_cell, n_cells, n_dofs_per_cell, false);
+    constraint_info.read_write_operation(reader,
+                                         src,
+                                         local_vector.data(),
+                                         first_cell,
+                                         n_cells,
+                                         n_dofs_per_cell,
+                                         false);
   };
 
   const auto set_dof_values_plain = [&](const unsigned int first_cell,
                                         const unsigned int n_cells,
                                         const unsigned int n_dofs_per_cell) {
     internal::VectorSetter<Number, VectorizedArrayType> writer;
-    constraint_info.read_write_operation(
-      writer, dst, local_vector, first_cell, n_cells, n_dofs_per_cell, false);
+    constraint_info.read_write_operation(writer,
+                                         dst,
+                                         local_vector.data(),
+                                         first_cell,
+                                         n_cells,
+                                         n_dofs_per_cell,
+                                         false);
   };
 
   unsigned int       first_cell      = 0;

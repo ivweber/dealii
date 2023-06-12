@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,8 +20,8 @@
 
 #ifdef DEAL_II_WITH_GSL
 #  include <deal.II/base/function.h>
+#  include <deal.II/base/mutex.h>
 #  include <deal.II/base/point.h>
-#  include <deal.II/base/thread_management.h>
 
 #  include <gsl/gsl_spline.h>
 

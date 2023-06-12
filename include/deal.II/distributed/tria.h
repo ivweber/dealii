@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2021 by the deal.II authors
+// Copyright (C) 2008 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,6 +19,7 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mpi_stub.h>
 #include <deal.II/base/smartpointer.h>
 #include <deal.II/base/subscriptor.h>
 #include <deal.II/base/template_constraints.h>
@@ -36,10 +37,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-#ifdef DEAL_II_WITH_MPI
-#  include <mpi.h>
-#endif
 
 #ifdef DEAL_II_WITH_P4EST
 #  include <p4est.h>
@@ -243,8 +240,11 @@ namespace parallel
      *
      *
      * @ingroup distributed
+     *
+     * @dealiiConceptRequires{(concepts::is_valid_dim_spacedim<dim, spacedim>)}
      */
     template <int dim, int spacedim = dim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     class Triangulation
       : public dealii::parallel::DistributedTriangulationBase<dim, spacedim>
     {
@@ -367,7 +367,7 @@ namespace parallel
        * triangulation is partitioned.
        */
       explicit Triangulation(
-        const MPI_Comm &mpi_communicator,
+        const MPI_Comm mpi_communicator,
         const typename dealii::Triangulation<dim, spacedim>::MeshSmoothing
           smooth_grid           = (dealii::Triangulation<dim, spacedim>::none),
         const Settings settings = default_setting);
@@ -499,7 +499,7 @@ namespace parallel
        * @note This function by default partitions the mesh in such a way that
        * the number of cells on all processors is roughly equal. If you want
        * to set weights for partitioning, e.g. because some cells are more
-       * expensive to compute than others, you can use the signal cell_weight
+       * expensive to compute than others, you can use the signal `weight`
        * as documented in the dealii::Triangulation class. This function will
        * check whether a function is connected to the signal and if so use it.
        * If you prefer to repartition the mesh yourself at user-defined
@@ -508,7 +508,7 @@ namespace parallel
        * flag to the constructor, which ensures that calling the current
        * function only refines and coarsens the triangulation, but doesn't
        * partition it. You can then call the repartition() function manually.
-       * The usage of the cell_weights signal is identical in both cases, if a
+       * The usage of the `weight` signal is identical in both cases, if a
        * function is connected to the signal it will be used to balance the
        * calculated weights, otherwise the number of cells is balanced.
        */
@@ -542,7 +542,7 @@ namespace parallel
        * the same way as execute_coarsening_and_refinement() with respect to
        * dealing with data movement (SolutionTransfer, etc.).
        *
-       * @note If no function is connected to the cell_weight signal described
+       * @note If no function is connected to the `weight` signal described
        * in the dealii::Triangulation class, this function will balance the
        * number of cells on each processor. If one or more functions are
        * connected, it will calculate the sum of the weights and balance the
@@ -639,7 +639,7 @@ namespace parallel
        *
        * @deprecated The autopartition parameter has been removed.
        */
-      DEAL_II_DEPRECATED_EARLY
+      DEAL_II_DEPRECATED
       virtual void
       load(const std::string &filename, const bool autopartition) override;
 
@@ -853,8 +853,11 @@ namespace parallel
      * Specialization of the general template for the 1d case. There is
      * currently no support for distributing 1d triangulations. Consequently,
      * all this class does is throw an exception.
+     *
+     * @dealiiConceptRequires{(concepts::is_valid_dim_spacedim<1, spacedim>)}
      */
     template <int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<1, spacedim>))
     class Triangulation<1, spacedim>
       : public dealii::parallel::DistributedTriangulationBase<1, spacedim>
     {
@@ -876,7 +879,7 @@ namespace parallel
        * the triangulation.
        */
       Triangulation(
-        const MPI_Comm &mpi_communicator,
+        const MPI_Comm mpi_communicator,
         const typename dealii::Triangulation<1, spacedim>::MeshSmoothing
                        smooth_grid = (dealii::Triangulation<1, spacedim>::none),
         const Settings settings    = default_setting);
@@ -906,7 +909,7 @@ namespace parallel
        * This function is not implemented, but needs to be present for the
        * compiler.
        */
-      DEAL_II_DEPRECATED_EARLY
+      DEAL_II_DEPRECATED
       virtual void
       load(const std::string &filename, const bool autopartition) override;
 
@@ -993,8 +996,11 @@ namespace parallel
      * Since the constructor of this class is deleted, no such objects
      * can actually be created as this would be pointless given that
      * p4est is not available.
+     *
+     * @dealiiConceptRequires{(concepts::is_valid_dim_spacedim<dim, spacedim>)}
      */
     template <int dim, int spacedim = dim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     class Triangulation
       : public dealii::parallel::DistributedTriangulationBase<dim, spacedim>
     {
@@ -1016,7 +1022,7 @@ namespace parallel
        * constructed (see also the class documentation).
        */
       explicit Triangulation(
-        const MPI_Comm & /*mpi_communicator*/,
+        const MPI_Comm /*mpi_communicator*/,
         const typename dealii::Triangulation<dim, spacedim>::MeshSmoothing
         /*smooth_grid*/
         = (dealii::Triangulation<dim, spacedim>::none),
@@ -1062,7 +1068,7 @@ namespace parallel
        * Dummy replacement to allow for better error messages when compiling
        * this class.
        */
-      DEAL_II_DEPRECATED_EARLY
+      DEAL_II_DEPRECATED
       virtual void
       load(const std::string & /*filename*/,
            const bool /*autopartition*/) override
@@ -1099,7 +1105,7 @@ namespace parallel
      * combination with the Triangulation::Signals::post_p4est_refinement
      * signal. At this stage, the p4est oracle already has been refined, but
      * the triangulation is still unchanged. After the modification, all
-     * refine and coarsen flags describe how the traingulation will actually
+     * refine and coarsen flags describe how the triangulation will actually
      * be refined.
      *
      * The use of this class is demonstrated in step-75.

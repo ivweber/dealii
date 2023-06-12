@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -198,6 +198,21 @@ class MultipleParameterLoop;
  * word with a capital letter and use lowercase letters further on. The same
  * applies to the possible entry values to the right of the <tt>=</tt> sign.
  *
+ * The class can also handle json-files and XML-files. The json input file might
+ * look like the following for the previous example:
+ *   @code
+ *     {
+ *       "Nonlinear solver" : {
+ *         "Nonlinear method" : "Gradient",
+ *         "Linear solver" : {
+ *           "Solver" : "CG",
+ *           "Maximum number of iterations" : 30
+ *         }
+ *       }
+ *     }
+ *   @endcode
+ * The advantage of using json-files is that this format is natively supported
+ * by Python, simplifying the running of paramter studies tremendously.
  *
  * <h3>Including other input files</h3>
  *
@@ -1122,10 +1137,14 @@ public:
    *
    * The action is executed in three different circumstances:
    * - With the default value of the parameter with name @p name, at
-   *   the end of the current function. This is useful because it allows
-   *   for the action to execute whatever it needs to do at least once
-   *   for each parameter, even those that are not actually specified in
-   *   the input file (and thus remain at their default values).
+   *   the end of the current function if @p execute_action is set to
+   *   true. This is useful because it allows for the action to execute
+   *   whatever it needs to do at least once for each parameter, even
+   *   those that are not actually specified in the input file (and
+   *   thus remain at their default values). Note that if the action
+   *   is executed, it converts the default value to a string and back
+   *   afterwards. This can lead to round-off errors so that the default
+   *   values might change in the case of floating-point numbers.
    * - Within the ParameterHandler::set() functions that explicitly
    *   set a value for a parameter.
    * - Within the parse_input() function and similar functions such
@@ -1158,7 +1177,8 @@ public:
    */
   void
   add_action(const std::string &                                  entry,
-             const std::function<void(const std::string &value)> &action);
+             const std::function<void(const std::string &value)> &action,
+             const bool execute_action = true);
 
   /**
    * Declare a new entry name @p entry, set its default value to the content of
@@ -1716,7 +1736,7 @@ public:
        "file to include <"
     << arg3 << "> cannot be opened.");
 
-  //@}
+  /** @} */
 
 private:
   /**
@@ -2284,6 +2304,7 @@ ParameterHandler::save(Archive &ar, const unsigned int) const
 
   std::vector<std::string> descriptions;
 
+  descriptions.reserve(patterns.size());
   for (const auto &pattern : patterns)
     descriptions.push_back(pattern->description());
 
@@ -2337,7 +2358,7 @@ ParameterHandler::add_parameter(const std::string &          entry,
     parameter = Patterns::Tools::Convert<ParameterType>::to_value(
       val, *patterns[pattern_index]);
   };
-  add_action(entry, action);
+  add_action(entry, action, false);
 }
 
 DEAL_II_NAMESPACE_CLOSE

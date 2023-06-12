@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,7 @@
 
 #include <iomanip>
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
 #  include <deal.II/base/cuda.h>
 
 #  include <deal.II/lac/cuda_vector.h>
@@ -67,7 +67,7 @@ namespace CUDAWrappers
     /**
      * @name Constructors and initialization
      */
-    //@{
+    /** @{ */
     /**
      * Constructor. Initialize the matrix to be empty, without any structure,
      * i.e., the matrix is not usable at all. This constructor is therefore
@@ -79,7 +79,7 @@ namespace CUDAWrappers
 
     /**
      * Constructor. Takes a Utilities::CUDA::Handle and a sparse matrix on the
-     * host. The sparse matrix on the host is copied on the device and the
+     * host. The sparse matrix on the host is copied on the @ref GlossDevice "device" and the
      * elements are reordered according to the format supported by cuSPARSE.
      */
     SparseMatrix(Utilities::CUDA::Handle &             handle,
@@ -115,18 +115,18 @@ namespace CUDAWrappers
 
     /**
      * Reinitialize the sparse matrix. The sparse matrix on the host is copied
-     * to the device and the elementes are reordered according to the format
+     * to the @ref GlossDevice "device" and the elementes are reordered according to the format
      * supported by cuSPARSE.
      */
     void
     reinit(Utilities::CUDA::Handle &             handle,
            const ::dealii::SparseMatrix<Number> &sparse_matrix_host);
-    //@}
+    /** @} */
 
     /**
      * @name Information on the matrix
      */
-    //@{
+    /** @{ */
     /**
      * Return the dimension of the codomain (or range) space. Note that the
      * matrix is of dimension $m \times n$.
@@ -192,12 +192,12 @@ namespace CUDAWrappers
                     const unsigned int width       = 0,
                     const char *       zero_string = " ",
                     const double       denominator = 1.) const;
-    //@}
+    /** @} */
 
     /**
      * @name Modifying entries
      */
-    //@{
+    /** @{ */
     /**
      * Multiply the entire matrix by a fixed factor.
      */
@@ -209,12 +209,12 @@ namespace CUDAWrappers
      */
     SparseMatrix &
     operator/=(const Number factor);
-    //@}
+    /** @} */
 
     /**
      * @name Multiplications
      */
-    //@{
+    /** @{ */
     /**
      * Matrix-vector multiplication: let $dst = M \cdot src$ with $M$
      * being this matrix.
@@ -253,7 +253,7 @@ namespace CUDAWrappers
      * Return the square of the norm of the vector $v$ with respect to the
      * norm induced by this matrix, i.e., $\left(v,Mv\right)$. This is useful,
      * e.g., in the finite context, where the $L_2$ norm of a function equals
-     * the matrix norm with respect to the mass matrix of the vector
+     * the matrix norm with respect to the @ref GlossMassMatrix "mass matrix" of the vector
      * representing the nodal values of the finite element function.
      *
      * Obviously, the matrix needs to be quadratic for this operation.
@@ -281,12 +281,12 @@ namespace CUDAWrappers
     residual(LinearAlgebra::CUDAWrappers::Vector<Number> &      dst,
              const LinearAlgebra::CUDAWrappers::Vector<Number> &x,
              const LinearAlgebra::CUDAWrappers::Vector<Number> &b) const;
-    //@}
+    /** @} */
 
     /**
      * @name Matrix norms
      */
-    //@{
+    /** @{ */
     /**
      * Return the $l_1$-norm of the matrix, that is $|M|_1=\max_{\mathrm{all\
      * columns\ }j}\sum_{\mathrm{all\ rows\ }i} |M_{ij}|$, (max. sum of
@@ -312,12 +312,12 @@ namespace CUDAWrappers
      */
     Number
     frobenius_norm() const;
-    //@}
+    /** @} */
 
     /**
-     *@name Access to underlying CUDA data
+     * @name Access to underlying CUDA data
      */
-    //@{
+    /** @{ */
     /**
      * Return a tuple containing the pointer to the values of matrix, the
      * pointer to the columns indices, the pointer to the rows pointer,
@@ -325,7 +325,7 @@ namespace CUDAWrappers
      */
     std::tuple<Number *, int *, int *, cusparseMatDescr_t, cusparseSpMatDescr_t>
     get_cusparse_matrix() const;
-    //@}
+    /** @} */
 
   private:
     /**
@@ -349,17 +349,17 @@ namespace CUDAWrappers
     int n_cols;
 
     /**
-     * Pointer to the values (on the device) of the sparse matrix.
+     * Pointer to the values (on the @ref GlossDevice "device") of the sparse matrix.
      */
     std::unique_ptr<Number[], void (*)(Number *)> val_dev;
 
     /**
-     * Pointer to the column indices (on the device) of the sparse matrix.
+     * Pointer to the column indices (on the @ref GlossDevice "device") of the sparse matrix.
      */
     std::unique_ptr<int[], void (*)(int *)> column_index_dev;
 
     /**
-     * Pointer to the row pointer (on the device) of the sparse matrix.
+     * Pointer to the row pointer (on the @ref GlossDevice "device") of the sparse matrix.
      */
     std::unique_ptr<int[], void (*)(int *)> row_ptr_dev;
 
@@ -377,7 +377,7 @@ namespace CUDAWrappers
 
 
   template <typename Number>
-  inline SparseMatrix<Number>::size_type
+  inline typename SparseMatrix<Number>::size_type
   SparseMatrix<Number>::m() const
   {
     return n_rows;
@@ -386,7 +386,7 @@ namespace CUDAWrappers
 
 
   template <typename Number>
-  inline SparseMatrix<Number>::size_type
+  inline typename SparseMatrix<Number>::size_type
   SparseMatrix<Number>::n() const
   {
     return n_cols;

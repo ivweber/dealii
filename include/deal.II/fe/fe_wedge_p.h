@@ -27,9 +27,10 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * Base class of FE_WedgeP and FE_WedgeDGP.
  *
- * @note Only implemented for 3D.
+ * @note Only implemented for 3d.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_WedgePoly : public dealii::FE_Poly<dim, spacedim>
@@ -60,7 +61,8 @@ public:
  *   (degree=2) are implemented. See also the documentation of
  *   ScalarLagrangePolynomialWedge.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_WedgeP : public FE_WedgePoly<dim, spacedim>
@@ -123,7 +125,8 @@ public:
  *   (degree=2) are implemented. See also the documentation of
  *   ScalarLagrangePolynomialWedge.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_WedgeDGP : public FE_WedgePoly<dim, spacedim>

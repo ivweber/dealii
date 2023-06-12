@@ -25,9 +25,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup mapping */
-/*@{*/
-
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * Implementation of a $d$-linear mapping from the reference cell to a general
@@ -35,7 +36,7 @@ DEAL_II_NAMESPACE_OPEN
  *
  * The mapping implemented by this class maps the reference (unit) cell to a
  * general grid cell with straight lines in $d$ dimensions. (Note, however,
- * that in 3D the <i>faces</i> of a general, trilinearly mapped cell may be
+ * that in 3d the <i>faces</i> of a general, trilinearly mapped cell may be
  * curved, even if the edges are not). This is the standard mapping used for
  * polyhedral domains. It is also the mapping used throughout deal.II for many
  * functions that come in two variants, one that allows to pass a mapping
@@ -98,8 +99,11 @@ struct StaticMappingQ1
 };
 
 
-/*@}*/
+/** @} */
 
+template <int dim, int spacedim>
+MappingQ<dim, spacedim> StaticMappingQ1<dim, spacedim>::mapping =
+  MappingQ1<dim, spacedim>{};
 
 DEAL_II_NAMESPACE_CLOSE
 

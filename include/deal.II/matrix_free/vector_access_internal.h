@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -25,7 +25,7 @@
 #include <deal.II/matrix_free/matrix_free.h>
 #include <deal.II/matrix_free/type_traits.h>
 
-#if DEBUG
+#ifdef DEBUG
 #  include <boost/algorithm/string/join.hpp>
 #endif
 
@@ -37,11 +37,11 @@ namespace internal
   // below we use type-traits from matrix-free/type_traits.h
 
   // access to generic const vectors that have operator ().
-  // FIXME: this is wrong for Trilinos/Petsc MPI vectors
+  // FIXME: this is wrong for Trilinos/PETSc MPI vectors
   // where we should first do Partitioner::local_to_global()
-  template <typename VectorType,
-            typename std::enable_if<!has_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+  template <
+    typename VectorType,
+    std::enable_if_t<!has_local_element<VectorType>, VectorType> * = nullptr>
   inline typename VectorType::value_type
   vector_access(const VectorType &vec, const unsigned int entry)
   {
@@ -51,11 +51,11 @@ namespace internal
 
 
   // access to generic non-const vectors that have operator ().
-  // FIXME: this is wrong for Trilinos/Petsc MPI vectors
+  // FIXME: this is wrong for Trilinos/PETSc MPI vectors
   // where we should first do Partitioner::local_to_global()
-  template <typename VectorType,
-            typename std::enable_if<!has_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+  template <
+    typename VectorType,
+    std::enable_if_t<!has_local_element<VectorType>, VectorType> * = nullptr>
   inline typename VectorType::value_type &
   vector_access(VectorType &vec, const unsigned int entry)
   {
@@ -67,9 +67,9 @@ namespace internal
   // access to distributed MPI vectors that have a local_element(uint)
   // method to access data in local index space, which is what we use in
   // DoFInfo and hence in read_dof_values etc.
-  template <typename VectorType,
-            typename std::enable_if<has_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+  template <
+    typename VectorType,
+    std::enable_if_t<has_local_element<VectorType>, VectorType> * = nullptr>
   inline typename VectorType::value_type &
   vector_access(VectorType &vec, const unsigned int entry)
   {
@@ -79,9 +79,9 @@ namespace internal
 
 
   // same for const access
-  template <typename VectorType,
-            typename std::enable_if<has_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+  template <
+    typename VectorType,
+    std::enable_if_t<has_local_element<VectorType>, VectorType> * = nullptr>
   inline typename VectorType::value_type
   vector_access(const VectorType &vec, const unsigned int entry)
   {
@@ -90,9 +90,9 @@ namespace internal
 
 
 
-  template <typename VectorType,
-            typename std::enable_if<has_add_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+  template <
+    typename VectorType,
+    std::enable_if_t<has_add_local_element<VectorType>, VectorType> * = nullptr>
   inline void
   vector_access_add(VectorType &                           vec,
                     const unsigned int                     entry,
@@ -104,8 +104,8 @@ namespace internal
 
 
   template <typename VectorType,
-            typename std::enable_if<!has_add_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+            std::enable_if_t<!has_add_local_element<VectorType>, VectorType> * =
+              nullptr>
   inline void
   vector_access_add(VectorType &                           vec,
                     const unsigned int                     entry,
@@ -116,9 +116,9 @@ namespace internal
 
 
 
-  template <typename VectorType,
-            typename std::enable_if<has_add_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+  template <
+    typename VectorType,
+    std::enable_if_t<has_add_local_element<VectorType>, VectorType> * = nullptr>
   inline void
   vector_access_add_global(VectorType &                           vec,
                            const types::global_dof_index          entry,
@@ -130,8 +130,8 @@ namespace internal
 
 
   template <typename VectorType,
-            typename std::enable_if<!has_add_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+            std::enable_if_t<!has_add_local_element<VectorType>, VectorType> * =
+              nullptr>
   inline void
   vector_access_add_global(VectorType &                           vec,
                            const types::global_dof_index          entry,
@@ -142,9 +142,9 @@ namespace internal
 
 
 
-  template <typename VectorType,
-            typename std::enable_if<has_set_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+  template <
+    typename VectorType,
+    std::enable_if_t<has_set_local_element<VectorType>, VectorType> * = nullptr>
   inline void
   vector_access_set(VectorType &                           vec,
                     const unsigned int                     entry,
@@ -156,8 +156,8 @@ namespace internal
 
 
   template <typename VectorType,
-            typename std::enable_if<!has_set_local_element<VectorType>,
-                                    VectorType>::type * = nullptr>
+            std::enable_if_t<!has_set_local_element<VectorType>, VectorType> * =
+              nullptr>
   inline void
   vector_access_set(VectorType &                           vec,
                     const unsigned int                     entry,
@@ -172,13 +172,12 @@ namespace internal
   // is really the same as stored in MatrixFree.
   // version below is when has_partitioners_are_compatible == false
   // FIXME: this is incorrect for PETSc/Trilinos MPI vectors
-  template <
-    int dim,
-    typename Number,
-    typename VectorizedArrayType,
-    typename VectorType,
-    typename std::enable_if<!has_partitioners_are_compatible<VectorType>,
-                            VectorType>::type * = nullptr>
+  template <int dim,
+            typename Number,
+            typename VectorizedArrayType,
+            typename VectorType,
+            std::enable_if_t<!has_partitioners_are_compatible<VectorType>,
+                             VectorType> * = nullptr>
   inline void
   check_vector_compatibility(
     const VectorType &                                  vec,
@@ -199,8 +198,8 @@ namespace internal
             typename Number,
             typename VectorizedArrayType,
             typename VectorType,
-            typename std::enable_if<has_partitioners_are_compatible<VectorType>,
-                                    VectorType>::type * = nullptr>
+            std::enable_if_t<has_partitioners_are_compatible<VectorType>,
+                             VectorType> * = nullptr>
   inline void
   check_vector_compatibility(
     const VectorType &                                  vec,
@@ -211,7 +210,7 @@ namespace internal
     (void)matrix_free;
     (void)dof_info;
 
-#if DEBUG
+#ifdef DEBUG
     if (vec.partitioners_are_compatible(*dof_info.vector_partitioner) == false)
       {
         unsigned int dof_index = numbers::invalid_unsigned_int;
@@ -349,11 +348,12 @@ namespace internal
     process_dofs_vectorized_transpose(const unsigned int   dofs_per_cell,
                                       const unsigned int * dof_indices,
                                       VectorType &         vec,
+                                      const unsigned int   constant_offset,
                                       VectorizedArrayType *dof_values,
                                       std::integral_constant<bool, true>) const
     {
       dealii::vectorized_load_and_transpose(dofs_per_cell,
-                                            vec.begin(),
+                                            vec.begin() + constant_offset,
                                             dof_indices,
                                             dof_values);
     }
@@ -365,12 +365,44 @@ namespace internal
     process_dofs_vectorized_transpose(const unsigned int   dofs_per_cell,
                                       const unsigned int * dof_indices,
                                       const VectorType &   vec,
+                                      const unsigned int   constant_offset,
                                       VectorizedArrayType *dof_values,
                                       std::integral_constant<bool, false>) const
     {
       for (unsigned int d = 0; d < dofs_per_cell; ++d)
         for (unsigned int v = 0; v < VectorizedArrayType::size(); ++v)
-          dof_values[d][v] = vector_access(vec, dof_indices[v] + d);
+          dof_values[d][v] =
+            vector_access(vec, dof_indices[v] + constant_offset + d);
+    }
+
+
+
+    template <typename VectorType>
+    void
+    process_dofs_vectorized_transpose(
+      const unsigned int                 dofs_per_cell,
+      const unsigned int *               dof_indices,
+      VectorType &                       vec,
+      VectorizedArrayType *              dof_values,
+      std::integral_constant<bool, true> type) const
+    {
+      process_dofs_vectorized_transpose(
+        dofs_per_cell, dof_indices, vec, 0, dof_values, type);
+    }
+
+
+
+    template <typename VectorType>
+    void
+    process_dofs_vectorized_transpose(
+      const unsigned int                  dofs_per_cell,
+      const unsigned int *                dof_indices,
+      const VectorType &                  vec,
+      VectorizedArrayType *               dof_values,
+      std::integral_constant<bool, false> type) const
+    {
+      process_dofs_vectorized_transpose(
+        dofs_per_cell, dof_indices, vec, 0, dof_values, type);
     }
 
 
@@ -557,11 +589,15 @@ namespace internal
     process_dofs_vectorized_transpose(const unsigned int   dofs_per_cell,
                                       const unsigned int * dof_indices,
                                       VectorType &         vec,
+                                      const unsigned int   constant_offset,
                                       VectorizedArrayType *dof_values,
                                       std::integral_constant<bool, true>) const
     {
-      vectorized_transpose_and_store(
-        true, dofs_per_cell, dof_values, dof_indices, vec.begin());
+      vectorized_transpose_and_store(true,
+                                     dofs_per_cell,
+                                     dof_values,
+                                     dof_indices,
+                                     vec.begin() + constant_offset);
     }
 
 
@@ -571,12 +607,45 @@ namespace internal
     process_dofs_vectorized_transpose(const unsigned int   dofs_per_cell,
                                       const unsigned int * dof_indices,
                                       VectorType &         vec,
+                                      const unsigned int   constant_offset,
                                       VectorizedArrayType *dof_values,
                                       std::integral_constant<bool, false>) const
     {
       for (unsigned int d = 0; d < dofs_per_cell; ++d)
         for (unsigned int v = 0; v < VectorizedArrayType::size(); ++v)
-          vector_access_add(vec, dof_indices[v] + d, dof_values[d][v]);
+          vector_access_add(vec,
+                            dof_indices[v] + constant_offset + d,
+                            dof_values[d][v]);
+    }
+
+
+
+    template <typename VectorType>
+    void
+    process_dofs_vectorized_transpose(
+      const unsigned int                 dofs_per_cell,
+      const unsigned int *               dof_indices,
+      VectorType &                       vec,
+      VectorizedArrayType *              dof_values,
+      std::integral_constant<bool, true> type) const
+    {
+      process_dofs_vectorized_transpose(
+        dofs_per_cell, dof_indices, vec, 0, dof_values, type);
+    }
+
+
+
+    template <typename VectorType>
+    void
+    process_dofs_vectorized_transpose(
+      const unsigned int                  dofs_per_cell,
+      const unsigned int *                dof_indices,
+      VectorType &                        vec,
+      VectorizedArrayType *               dof_values,
+      std::integral_constant<bool, false> type) const
+    {
+      process_dofs_vectorized_transpose(
+        dofs_per_cell, dof_indices, vec, 0, dof_values, type);
     }
 
 
@@ -753,11 +822,15 @@ namespace internal
     process_dofs_vectorized_transpose(const unsigned int   dofs_per_cell,
                                       const unsigned int * dof_indices,
                                       VectorType &         vec,
+                                      const unsigned int   constant_offset,
                                       VectorizedArrayType *dof_values,
                                       std::integral_constant<bool, true>) const
     {
-      vectorized_transpose_and_store(
-        false, dofs_per_cell, dof_values, dof_indices, vec.begin());
+      vectorized_transpose_and_store(false,
+                                     dofs_per_cell,
+                                     dof_values,
+                                     dof_indices,
+                                     vec.begin() + constant_offset);
     }
 
 
@@ -767,12 +840,44 @@ namespace internal
     process_dofs_vectorized_transpose(const unsigned int   dofs_per_cell,
                                       const unsigned int * dof_indices,
                                       VectorType &         vec,
+                                      const unsigned int   constant_offset,
                                       VectorizedArrayType *dof_values,
                                       std::integral_constant<bool, false>) const
     {
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
         for (unsigned int v = 0; v < VectorizedArrayType::size(); ++v)
-          vector_access(vec, dof_indices[v] + i) = dof_values[i][v];
+          vector_access(vec, constant_offset + dof_indices[v] + i) =
+            dof_values[i][v];
+    }
+
+
+
+    template <typename VectorType>
+    void
+    process_dofs_vectorized_transpose(
+      const unsigned int                 dofs_per_cell,
+      const unsigned int *               dof_indices,
+      VectorType &                       vec,
+      VectorizedArrayType *              dof_values,
+      std::integral_constant<bool, true> type) const
+    {
+      process_dofs_vectorized_transpose(
+        dofs_per_cell, dof_indices, vec, 0, dof_values, type);
+    }
+
+
+
+    template <typename VectorType, bool booltype>
+    void
+    process_dofs_vectorized_transpose(
+      const unsigned int                  dofs_per_cell,
+      const unsigned int *                dof_indices,
+      VectorType &                        vec,
+      VectorizedArrayType *               dof_values,
+      std::integral_constant<bool, false> type) const
+    {
+      process_dofs_vectorized_transpose(
+        dofs_per_cell, dof_indices, vec, 0, dof_values, type);
     }
 
 

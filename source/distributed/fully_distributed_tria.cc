@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,6 +16,7 @@
 
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/mpi.h>
+#include <deal.II/base/mpi_large_count.h>
 
 #include <deal.II/distributed/fully_distributed_tria.h>
 #include <deal.II/distributed/repartitioning_policy_tools.h>
@@ -43,8 +44,8 @@ namespace parallel
   namespace fullydistributed
   {
     template <int dim, int spacedim>
-    Triangulation<dim, spacedim>::Triangulation(
-      const MPI_Comm &mpi_communicator)
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    Triangulation<dim, spacedim>::Triangulation(const MPI_Comm mpi_communicator)
       : parallel::DistributedTriangulationBase<dim, spacedim>(mpi_communicator)
       , settings(TriangulationDescription::Settings::default_setting)
       , partitioner([](dealii::Triangulation<dim, spacedim> &tria,
@@ -59,8 +60,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::create_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::create_triangulation(
       const TriangulationDescription::Description<dim, spacedim>
         &construction_data)
     {
@@ -73,9 +74,8 @@ namespace parallel
       settings = construction_data.settings;
 
       // set the smoothing properties
-      if ((settings &
-           TriangulationDescription::Settings::construct_multigrid_hierarchy) !=
-          0)
+      if (settings &
+          TriangulationDescription::Settings::construct_multigrid_hierarchy)
         this->set_mesh_smoothing(
           static_cast<
             typename dealii::Triangulation<dim, spacedim>::MeshSmoothing>(
@@ -203,8 +203,8 @@ namespace parallel
                     cell->set_subdomain_id(cell_info->subdomain_id);
 
                   // level subdomain id
-                  if ((settings & TriangulationDescription::Settings::
-                                    construct_multigrid_hierarchy) != 0)
+                  if (settings & TriangulationDescription::Settings::
+                                   construct_multigrid_hierarchy)
                     cell->set_level_subdomain_id(cell_info->level_subdomain_id);
                 }
             }
@@ -217,8 +217,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::create_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::create_triangulation(
       const std::vector<Point<spacedim>> &      vertices,
       const std::vector<dealii::CellData<dim>> &cells,
       const SubCellData &                       subcelldata)
@@ -246,8 +246,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::copy_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::copy_triangulation(
       const dealii::Triangulation<dim, spacedim> &other_tria)
     {
       // pointer to the triangulation for which the construction data
@@ -257,34 +257,29 @@ namespace parallel
       const dealii::Triangulation<dim, spacedim> *other_tria_ptr = &other_tria;
 
       // temporary serial triangulation (since the input triangulation is const
-      // and we might modify its subdomain_ids
-      // and level_subdomain_ids during partitioning); this pointer only points
-      // to anything if the source triangulation is serial, and ensures that our
-      // copy is eventually deleted
-      std::unique_ptr<dealii::Triangulation<dim, spacedim>> serial_tria;
+      // and we might modify its subdomain_ids and level_subdomain_ids during
+      // partitioning)
+      dealii::Triangulation<dim, spacedim> serial_tria;
 
       // check if other triangulation is not a parallel one, which needs to be
       // partitioned
       if (dynamic_cast<const dealii::parallel::TriangulationBase<dim, spacedim>
                          *>(&other_tria) == nullptr)
         {
-          serial_tria =
-            std::make_unique<dealii::Triangulation<dim, spacedim>>();
-
           // actually copy the serial triangulation
-          serial_tria->copy_triangulation(other_tria);
+          serial_tria.copy_triangulation(other_tria);
 
           // partition triangulation
-          this->partitioner(*serial_tria,
+          this->partitioner(serial_tria,
                             dealii::Utilities::MPI::n_mpi_processes(
                               this->mpi_communicator));
 
           // partition multigrid levels
           if (this->is_multilevel_hierarchy_constructed())
-            GridTools::partition_multigrid_levels(*serial_tria);
+            GridTools::partition_multigrid_levels(serial_tria);
 
           // use the new serial triangulation to create the construction data
-          other_tria_ptr = serial_tria.get();
+          other_tria_ptr = &serial_tria;
         }
 
       // create construction data
@@ -300,8 +295,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::set_partitioner(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::set_partitioner(
       const std::function<void(dealii::Triangulation<dim, spacedim> &,
                                const unsigned int)> &partitioner,
       const TriangulationDescription::Settings &     settings)
@@ -313,8 +308,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::set_partitioner(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::set_partitioner(
       const RepartitioningPolicyTools::Base<dim, spacedim> &partitioner,
       const TriangulationDescription::Settings &            settings)
     {
@@ -325,8 +320,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::repartition()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::repartition()
     {
       // signal that repartitioning has started
       this->signals.pre_distributed_repartition();
@@ -353,8 +348,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::execute_coarsening_and_refinement()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::execute_coarsening_and_refinement()
     {
       Assert(false, ExcNotImplemented());
     }
@@ -362,8 +357,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
     {
       Assert(
         currently_processing_prepare_coarsening_and_refinement_for_internal_usage,
@@ -376,8 +371,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    std::size_t
-    Triangulation<dim, spacedim>::memory_consumption() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    std::size_t Triangulation<dim, spacedim>::memory_consumption() const
     {
       const std::size_t mem =
         this->dealii::parallel::TriangulationBase<dim, spacedim>::
@@ -392,19 +387,22 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::is_multilevel_hierarchy_constructed() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::is_multilevel_hierarchy_constructed()
+      const
     {
-      return (settings & TriangulationDescription::Settings::
-                           construct_multigrid_hierarchy) != 0;
+      return (
+        settings &
+        TriangulationDescription::Settings::construct_multigrid_hierarchy);
     }
 
 
 
     template <int dim, int spacedim>
-    unsigned int
-    Triangulation<dim, spacedim>::coarse_cell_id_to_coarse_cell_index(
-      const types::coarse_cell_id coarse_cell_id) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    unsigned int Triangulation<dim, spacedim>::
+      coarse_cell_id_to_coarse_cell_index(
+        const types::coarse_cell_id coarse_cell_id) const
     {
       const auto coarse_cell_index = std::lower_bound(
         coarse_cell_id_to_coarse_cell_index_vector.begin(),
@@ -421,9 +419,10 @@ namespace parallel
 
 
     template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     types::coarse_cell_id
-    Triangulation<dim, spacedim>::coarse_cell_index_to_coarse_cell_id(
-      const unsigned int coarse_cell_index) const
+      Triangulation<dim, spacedim>::coarse_cell_index_to_coarse_cell_id(
+        const unsigned int coarse_cell_index) const
     {
       AssertIndexRange(coarse_cell_index,
                        coarse_cell_index_to_coarse_cell_id_vector.size());
@@ -437,8 +436,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::update_cell_relations()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::update_cell_relations()
     {
       // Reorganize memory for local_cell_relations.
       this->local_cell_relations.clear();
@@ -453,8 +452,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::save(const std::string &filename) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::save(const std::string &filename) const
     {
 #ifdef DEAL_II_WITH_MPI
       AssertThrow(this->cell_attached_data.pack_callbacks_variable.size() == 0,
@@ -544,35 +543,41 @@ namespace parallel
         dealii::Utilities::pack(construction_data, buffer, false);
 
         // Write offsets to file.
-        unsigned int buffer_size = buffer.size();
+        const std::uint64_t buffer_size = buffer.size();
 
-        unsigned int offset = 0;
+        std::uint64_t offset = 0;
 
-        ierr = MPI_Exscan(&buffer_size,
-                          &offset,
-                          1,
-                          MPI_UNSIGNED,
-                          MPI_SUM,
-                          this->mpi_communicator);
+        ierr = MPI_Exscan(
+          &buffer_size,
+          &offset,
+          1,
+          Utilities::MPI::mpi_type_id_for_type<decltype(buffer_size)>,
+          MPI_SUM,
+          this->mpi_communicator);
         AssertThrowMPI(ierr);
 
         // Write offsets to file.
-        ierr = MPI_File_write_at(fh,
-                                 myrank * sizeof(unsigned int),
-                                 &buffer_size,
-                                 1,
-                                 MPI_UNSIGNED,
-                                 MPI_STATUS_IGNORE);
+        ierr = MPI_File_write_at(
+          fh,
+          myrank * sizeof(std::uint64_t),
+          &buffer_size,
+          1,
+          Utilities::MPI::mpi_type_id_for_type<decltype(buffer_size)>,
+          MPI_STATUS_IGNORE);
         AssertThrowMPI(ierr);
 
+        // global position in file
+        const std::uint64_t global_position =
+          mpisize * sizeof(std::uint64_t) + offset;
+
         // Write buffers to file.
-        ierr = MPI_File_write_at(fh,
-                                 mpisize * sizeof(unsigned int) +
-                                   offset, // global position in file
-                                 buffer.data(),
-                                 buffer.size(), // local buffer
-                                 MPI_CHAR,
-                                 MPI_STATUS_IGNORE);
+        ierr = dealii::Utilities::MPI::LargeCount::File_write_at_c(
+          fh,
+          global_position,
+          buffer.data(),
+          buffer.size(), // local buffer
+          MPI_CHAR,
+          MPI_STATUS_IGNORE);
         AssertThrowMPI(ierr);
 
         ierr = MPI_File_close(&fh);
@@ -588,8 +593,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::load(const std::string &filename)
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::load(const std::string &filename)
     {
 #ifdef DEAL_II_WITH_MPI
       Assert(this->n_cells() == 0,
@@ -656,35 +661,41 @@ namespace parallel
         AssertThrowMPI(ierr);
 
         // Read offsets from file.
-        unsigned int buffer_size;
+        std::uint64_t buffer_size;
 
-        ierr = MPI_File_read_at(fh,
-                                myrank * sizeof(unsigned int),
-                                &buffer_size,
-                                1,
-                                MPI_UNSIGNED,
-                                MPI_STATUS_IGNORE);
+        ierr = MPI_File_read_at(
+          fh,
+          myrank * sizeof(std::uint64_t),
+          &buffer_size,
+          1,
+          Utilities::MPI::mpi_type_id_for_type<decltype(buffer_size)>,
+          MPI_STATUS_IGNORE);
         AssertThrowMPI(ierr);
 
-        unsigned int offset = 0;
+        std::uint64_t offset = 0;
 
-        ierr = MPI_Exscan(&buffer_size,
-                          &offset,
-                          1,
-                          MPI_UNSIGNED,
-                          MPI_SUM,
-                          this->mpi_communicator);
+        ierr = MPI_Exscan(
+          &buffer_size,
+          &offset,
+          1,
+          Utilities::MPI::mpi_type_id_for_type<decltype(buffer_size)>,
+          MPI_SUM,
+          this->mpi_communicator);
         AssertThrowMPI(ierr);
+
+        // global position in file
+        const std::uint64_t global_position =
+          mpisize * sizeof(std::uint64_t) + offset;
 
         // Read buffers from file.
         std::vector<char> buffer(buffer_size);
-        ierr = MPI_File_read_at(fh,
-                                mpisize * sizeof(unsigned int) +
-                                  offset, // global position in file
-                                buffer.data(),
-                                buffer.size(), // local buffer
-                                MPI_CHAR,
-                                MPI_STATUS_IGNORE);
+        ierr = dealii::Utilities::MPI::LargeCount::File_read_at_c(
+          fh,
+          global_position,
+          buffer.data(),
+          buffer.size(), // local buffer
+          MPI_CHAR,
+          MPI_STATUS_IGNORE);
         AssertThrowMPI(ierr);
 
         ierr = MPI_File_close(&fh);
@@ -727,9 +738,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::load(const std::string &filename,
-                                       const bool         autopartition)
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::load(const std::string &filename,
+                                            const bool         autopartition)
     {
       (void)autopartition;
       load(filename);

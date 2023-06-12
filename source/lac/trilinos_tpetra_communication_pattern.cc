@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,7 +32,7 @@ namespace LinearAlgebra
     CommunicationPattern::CommunicationPattern(
       const IndexSet &vector_space_vector_index_set,
       const IndexSet &read_write_vector_index_set,
-      const MPI_Comm &communicator)
+      const MPI_Comm  communicator)
     {
       // virtual functions called in constructors and destructors never use the
       // override in a derived class
@@ -47,31 +47,31 @@ namespace LinearAlgebra
     void
     CommunicationPattern::reinit(const IndexSet &vector_space_vector_index_set,
                                  const IndexSet &read_write_vector_index_set,
-                                 const MPI_Comm &communicator)
+                                 const MPI_Comm  communicator)
     {
       comm = std::make_shared<const MPI_Comm>(communicator);
 
       auto vector_space_vector_map =
-        Teuchos::rcp(new Tpetra::Map<int, types::global_dof_index>(
+        Teuchos::rcp(new Tpetra::Map<int, types::signed_global_dof_index>(
           vector_space_vector_index_set.make_tpetra_map(*comm, false)));
       auto read_write_vector_map =
-        Teuchos::rcp(new Tpetra::Map<int, types::global_dof_index>(
+        Teuchos::rcp(new Tpetra::Map<int, types::signed_global_dof_index>(
           read_write_vector_index_set.make_tpetra_map(*comm, true)));
 
       // Target map is read_write_vector_map
       // Source map is vector_space_vector_map. This map must have uniquely
       // owned GID.
       tpetra_import =
-        std::make_unique<Tpetra::Import<int, types::global_dof_index>>(
+        std::make_unique<Tpetra::Import<int, types::signed_global_dof_index>>(
           read_write_vector_map, vector_space_vector_map);
       tpetra_export =
-        std::make_unique<Tpetra::Export<int, types::global_dof_index>>(
+        std::make_unique<Tpetra::Export<int, types::signed_global_dof_index>>(
           read_write_vector_map, vector_space_vector_map);
     }
 
 
 
-    const MPI_Comm &
+    MPI_Comm
     CommunicationPattern::get_mpi_communicator() const
     {
       return *comm;
@@ -79,7 +79,7 @@ namespace LinearAlgebra
 
 
 
-    const Tpetra::Import<int, types::global_dof_index> &
+    const Tpetra::Import<int, types::signed_global_dof_index> &
     CommunicationPattern::get_tpetra_import() const
     {
       return *tpetra_import;
@@ -87,7 +87,7 @@ namespace LinearAlgebra
 
 
 
-    const Tpetra::Export<int, types::global_dof_index> &
+    const Tpetra::Export<int, types::signed_global_dof_index> &
     CommunicationPattern::get_tpetra_export() const
     {
       return *tpetra_export;

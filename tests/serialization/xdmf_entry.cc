@@ -32,8 +32,14 @@ test()
   const unsigned int dim      = 2;
   const unsigned int spacedim = 3;
 
-  XDMFEntry entry1(
-    mesh_filename, solution_filename, time, nodes, cells, dim, spacedim);
+  XDMFEntry entry1(mesh_filename,
+                   solution_filename,
+                   time,
+                   nodes,
+                   cells,
+                   dim,
+                   spacedim,
+                   ReferenceCells::Quadrilateral);
   XDMFEntry entry2;
 
   // save data to archive
@@ -43,7 +49,6 @@ test()
     oa << entry1;
     // archive and stream closed when destructors are called
   }
-  deallog << oss.str() << std::endl;
 
   // verify correctness of the serialization
   {

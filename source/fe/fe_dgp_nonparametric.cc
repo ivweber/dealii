@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -262,7 +262,7 @@ FE_DGPNonparametric<dim, spacedim>::requires_update_flags(
 {
   UpdateFlags out = flags;
 
-  if ((flags & (update_values | update_gradients | update_hessians)) != 0u)
+  if (flags & (update_values | update_gradients | update_hessians))
     out |= update_quadrature_points;
 
   return out;
@@ -309,8 +309,7 @@ FE_DGPNonparametric<dim, spacedim>::fill_fe_values(
   const Quadrature<dim> &,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -365,8 +364,7 @@ FE_DGPNonparametric<dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -422,8 +420,7 @@ FE_DGPNonparametric<dim, spacedim>::fill_fe_subface_values(
   const Quadrature<dim - 1> &,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,

@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2020 by the deal.II authors
+ * Copyright (C) 2018 - 2021 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -299,7 +299,8 @@ namespace Step60
     void setup_embedded_dofs();
 
     // The only unconventional function we have here is the `setup_coupling()`
-    // method, used to generate the sparsity patter for the coupling matrix $C$.
+    // method, used to generate the sparsity pattern for the coupling matrix
+    // $C$.
 
     void setup_coupling();
 
@@ -708,7 +709,7 @@ namespace Step60
     //
     // With the mapping in place, it is now possible to query what is the
     // location of all support points associated with the `embedded_dh`, by
-    // calling the method DoFTools::map_dofs_to_support_points.
+    // calling the method DoFTools::map_dofs_to_support_points().
     //
     // This method has two variants. One that does *not* take a Mapping, and
     // one that takes a Mapping. If you use the second type, like we are doing
@@ -856,7 +857,7 @@ namespace Step60
     space_dh->distribute_dofs(*space_fe);
 
     DoFTools::make_hanging_node_constraints(*space_dh, constraints);
-    for (auto id : parameters.dirichlet_ids)
+    for (const types::boundary_id id : parameters.dirichlet_ids)
       {
         VectorTools::interpolate_boundary_values(
           *space_dh, id, embedding_dirichlet_boundary_function, constraints);

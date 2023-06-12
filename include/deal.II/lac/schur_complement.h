@@ -30,7 +30,7 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * @name Creation of a LinearOperator related to the Schur Complement
  */
-//@{
+/** @{ */
 
 /**
  * @relatesalso LinearOperator
@@ -176,7 +176,7 @@ DEAL_II_NAMESPACE_OPEN
  * A better preconditioner in such a case would be one that provides a more
  * representative approximation for $ S^{-1} $. One approach is shown in
  * step-22, where $ D $ is the null matrix and the preconditioner for $ S^{-1}
- * $ is derived from the mass matrix over this space.
+ * $ is derived from the @ref GlossMassMatrix "mass matrix" over this space.
  *
  * From another viewpoint, a similar result can be achieved by first
  * constructing an object that represents an approximation for $ S $ wherein
@@ -261,13 +261,13 @@ schur_complement(const LinearOperator<Domain_1, Range_1, Payload> &A_inv,
     return -1.0 * C * A_inv * B;
 }
 
-//@}
+/** @} */
 
 
 /**
  * @name Creation of PackagedOperation objects related to the Schur Complement
  */
-//@{
+/** @{ */
 
 /**
  * @relatesalso PackagedOperation
@@ -347,7 +347,7 @@ postprocess_schur_solution(
   return A_inv * (f - B * y);
 }
 
-//@}
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

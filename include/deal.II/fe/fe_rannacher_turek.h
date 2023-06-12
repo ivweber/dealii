@@ -21,7 +21,7 @@
 
 #include <deal.II/base/polynomials_rannacher_turek.h>
 
-#include <deal.II/fe/fe_base.h>
+#include <deal.II/fe/fe_data.h>
 #include <deal.II/fe/fe_poly.h>
 
 #include <string>
@@ -87,7 +87,7 @@ public:
    * n_face_support_points quadrature points on each face for interpolation.
    * Notice that the element of order 0 contains polynomials of degree 2.
    *
-   * The element is currently only implemented for order 0 in 2D.
+   * The element is currently only implemented for order 0 in 2d.
    */
   FE_RannacherTurek(const unsigned int order                 = 0,
                     const unsigned int n_face_support_points = 2);

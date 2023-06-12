@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,6 +19,7 @@
 #include <deal.II/hp/fe_collection.h>
 #include <deal.II/hp/mapping_collection.h>
 
+#include <limits>
 #include <set>
 
 
@@ -233,7 +234,7 @@ namespace hp
       }
 
     // If we couldn't find the dominating object, return an invalid one.
-    return numbers::invalid_unsigned_int;
+    return numbers::invalid_fe_index;
   }
 
 
@@ -280,7 +281,7 @@ namespace hp
       }
 
     // If we couldn't find the dominated object, return an invalid one.
-    return numbers::invalid_unsigned_int;
+    return numbers::invalid_fe_index;
   }
 
 
@@ -293,7 +294,7 @@ namespace hp
   {
     unsigned int fe_index = find_dominating_fe(fes, codim);
 
-    if (fe_index == numbers::invalid_unsigned_int)
+    if (fe_index == numbers::invalid_fe_index)
       {
         const std::set<unsigned int> dominating_fes =
           find_common_fes(fes, codim);
@@ -313,7 +314,7 @@ namespace hp
   {
     unsigned int fe_index = find_dominated_fe(fes, codim);
 
-    if (fe_index == numbers::invalid_unsigned_int)
+    if (fe_index == numbers::invalid_fe_index)
       {
         const std::set<unsigned int> dominated_fes =
           find_enclosing_fes(fes, codim);
@@ -387,8 +388,8 @@ namespace hp
           if (fe_index_1 != fe_index_2)
             for (const auto &identity :
                  query_identities(fe_index_1, fe_index_2))
-              identities_graph.emplace(Edge(Node(fe_index_1, identity.first),
-                                            Node(fe_index_2, identity.second)));
+              identities_graph.emplace(Node(fe_index_1, identity.first),
+                                       Node(fe_index_2, identity.second));
 
 #ifdef DEBUG
       // Now verify that indeed the graph is symmetric: If one element
@@ -474,7 +475,7 @@ namespace hp
           for (const Edge &e : sub_graph)
             identities_graph.erase(e);
 
-#if DEBUG
+#ifdef DEBUG
           // There are three checks we ought to perform:
           // - That the sub-graph is undirected, i.e. that every edge appears
           //   in both directions

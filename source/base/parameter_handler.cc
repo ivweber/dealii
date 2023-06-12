@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,7 +20,6 @@
 #include <deal.II/base/path_search.h>
 #include <deal.II/base/utilities.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 #include <boost/algorithm/string.hpp>
 #include <boost/io/ios_state.hpp>
@@ -28,7 +27,6 @@ DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 #undef BOOST_BIND_GLOBAL_PLACEHOLDERS
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #include <algorithm>
 #include <cctype>
@@ -304,7 +302,7 @@ namespace
           (is_parameter_node(b.second) || is_alias_node(b.second));
 
         // If a is a parameter/alias and b is a subsection,
-        // a should go first, and viceversa.
+        // a should go first, and vice-versa.
         if (a_is_param && !b_is_param)
           return true;
 
@@ -329,6 +327,39 @@ namespace
             subsection_path.emplace_back(subsection);
 
             recursively_sort_parameters(separator, subsection_path, tree);
+          }
+      }
+  }
+
+  /**
+   * Demangle all parameters recursively and attach them to @p tree_out.
+   * @p is_parameter_or_alias_node indicates, whether a given node
+   * @p tree_in is a parameter node or an alias node (as opposed to being
+   * a subsection).
+   */
+  void
+  recursively_demangle(const boost::property_tree::ptree &tree_in,
+                       boost::property_tree::ptree &      tree_out,
+                       const bool is_parameter_or_alias_node = false)
+  {
+    for (const auto &p : tree_in)
+      {
+        if (is_parameter_or_alias_node)
+          {
+            tree_out.put_child(p.first, p.second);
+          }
+        else
+          {
+            boost::property_tree::ptree temp;
+
+            if (const auto val = p.second.get_value_optional<std::string>())
+              temp.put_value<std::string>(*val);
+
+            recursively_demangle(p.second,
+                                 temp,
+                                 is_parameter_node(p.second) ||
+                                   is_alias_node(p.second));
+            tree_out.put_child(demangle(p.first), temp);
           }
       }
   }
@@ -841,7 +872,8 @@ ParameterHandler::declare_entry(const std::string &          entry,
 void
 ParameterHandler::add_action(
   const std::string &                             entry,
-  const std::function<void(const std::string &)> &action)
+  const std::function<void(const std::string &)> &action,
+  const bool                                      execute_action)
 {
   actions.push_back(action);
 
@@ -865,11 +897,12 @@ ParameterHandler::add_action(
     entries->put(get_current_full_path(entry) + path_separator + "actions",
                  Utilities::int_to_string(actions.size() - 1));
 
-
-  // as documented, run the action on the default value at the very end
-  const std::string default_value = entries->get<std::string>(
-    get_current_full_path(entry) + path_separator + "default_value");
-  action(default_value);
+  if (execute_action)
+    {
+      const std::string default_value = entries->get<std::string>(
+        get_current_full_path(entry) + path_separator + "default_value");
+      action(default_value);
+    }
 }
 
 
@@ -1308,7 +1341,9 @@ ParameterHandler::print_parameters(std::ostream &    out,
 
   if ((style & JSON) != 0)
     {
-      write_json(out, current_entries);
+      boost::property_tree::ptree current_entries_damangled;
+      recursively_demangle(current_entries, current_entries_damangled);
+      write_json(out, current_entries_damangled);
       return out;
     }
 

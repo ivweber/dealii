@@ -227,6 +227,14 @@ namespace internal
        * Contains two fields for access from both sides for interior faces,
        * but the default case (cell integrals or boundary integrals) only
        * fills the zeroth component and ignores the first one.
+       *
+       * If the cell is Cartesian/affine then the Jacobian is stored at index 1
+       * of the AlignedVector. For faces on hypercube elements, the derivatives
+       * are reorder s.t the derivative orthogonal to the face is stored last,
+       * i.e for dim = 3 and face_no = 0 or 1, the derivatives are ordered as
+       * [dy, dz, dx], face_no = 2 or 3: [dz, dx, dy], and face_no = 5 or 6:
+       * [dx, dy, dz]. If the Jacobian also is stored, the components are
+       * instead reordered in the same way.
        */
       std::array<AlignedVector<Tensor<2, spacedim, Number>>, 2> jacobians;
 
@@ -250,6 +258,27 @@ namespace internal
           Tensor<1, spacedim *(spacedim + 1) / 2, Tensor<1, spacedim, Number>>>,
         2>
         jacobian_gradients;
+
+      /**
+       * The storage of the gradients of the Jacobian transformation. Because of
+       * symmetry, only the upper diagonal and diagonal part are needed. The
+       * first index runs through the derivatives, starting with the diagonal
+       * and then continuing row-wise, i.e., $\partial^2/\partial x_1 \partial
+       * x_2$ first, then
+       * $\partial^2/\partial x_1 \partial x_3$, and so on. The second index
+       * is the spatial coordinate.
+       *
+       * Indexed by @p data_index_offsets.
+       *
+       * Contains two fields for access from both sides for interior faces,
+       * but the default case (cell integrals or boundary integrals) only
+       * fills the zeroth component and ignores the first one.
+       */
+      std::array<
+        AlignedVector<
+          Tensor<1, spacedim *(spacedim + 1) / 2, Tensor<1, spacedim, Number>>>,
+        2>
+        jacobian_gradients_non_inverse;
 
       /**
        * Stores the Jacobian transformations times the normal vector (this
@@ -301,7 +330,8 @@ namespace internal
       compute_update_flags(
         const UpdateFlags                                     update_flags,
         const std::vector<dealii::hp::QCollection<spacedim>> &quads =
-          std::vector<dealii::hp::QCollection<spacedim>>());
+          std::vector<dealii::hp::QCollection<spacedim>>(),
+        const bool piola_transform = false);
 
       /**
        * Prints a detailed summary of memory consumption in the different

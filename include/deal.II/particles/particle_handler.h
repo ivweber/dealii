@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,6 @@
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/bounding_box.h>
 #include <deal.II/base/function.h>
-#include <deal.II/base/mpi.h>
 #include <deal.II/base/smartpointer.h>
 #include <deal.II/base/subscriptor.h>
 
@@ -166,7 +165,7 @@ namespace Particles
      * particles to be newly inserted.
      */
     void
-    reserve(std::size_t n_particles);
+    reserve(const std::size_t n_particles);
 
     /**
      * Update all internally cached numbers. Note that all functions that
@@ -482,9 +481,8 @@ namespace Particles
      * positions.
      */
     template <class VectorType>
-    typename std::enable_if<
-      std::is_convertible<VectorType *, Function<spacedim> *>::value ==
-      false>::type
+    std::enable_if_t<
+      std::is_convertible<VectorType *, Function<spacedim> *>::value == false>
     set_particle_positions(const VectorType &input_vector,
                            const bool        displace_particles = true);
 
@@ -669,27 +667,6 @@ namespace Particles
      *
      * @return An IndexSet of size get_next_free_particle_index(), containing
      * n_locally_owned_particle() indices.
-     *
-     * @deprecated Use locally_owned_particle_ids() instead.
-     */
-    DEAL_II_DEPRECATED IndexSet
-    locally_relevant_ids() const;
-
-    /**
-     * Extract an IndexSet with global dimensions equal to
-     * get_next_free_particle_index(), containing the locally owned
-     * particle indices.
-     *
-     * This function can be used to construct distributed vectors and matrices
-     * to manipulate particles using linear algebra operations.
-     *
-     * Notice that it is the user's responsibility to guarantee that particle
-     * indices are unique, and no check is performed to verify that this is the
-     * case, nor that the union of all IndexSet objects on each mpi process is
-     * complete.
-     *
-     * @return An IndexSet of size get_next_free_particle_index(), containing
-     * n_locally_owned_particle() indices.
      */
     IndexSet
     locally_owned_particle_ids() const;
@@ -826,7 +803,7 @@ namespace Particles
      * prepare_for_serialization() instead. See there for further information
      * about the purpose of this function.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     register_store_callback_function();
 
@@ -840,7 +817,7 @@ namespace Particles
      * deserialize() instead. See there for further information about the
      * purpose of this function.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     register_load_callback_function(const bool serialization);
 
@@ -1354,9 +1331,8 @@ namespace Particles
 
   template <int dim, int spacedim>
   template <class VectorType>
-  inline typename std::enable_if<
-    std::is_convertible<VectorType *, Function<spacedim> *>::value ==
-    false>::type
+  inline std::enable_if_t<
+    std::is_convertible<VectorType *, Function<spacedim> *>::value == false>
   ParticleHandler<dim, spacedim>::set_particle_positions(
     const VectorType &input_vector,
     const bool        displace_particles)
@@ -1365,9 +1341,9 @@ namespace Particles
                     get_next_free_particle_index() * spacedim);
     for (auto &p : *this)
       {
-        auto       new_point(displace_particles ? p.get_location() :
-                                                  Point<spacedim>());
-        const auto id = p.get_id();
+        Point<spacedim> new_point(displace_particles ? p.get_location() :
+                                                       Point<spacedim>());
+        const auto      id = p.get_id();
         for (unsigned int i = 0; i < spacedim; ++i)
           new_point[i] += input_vector[id * spacedim + i];
         p.set_location(new_point);
@@ -1401,15 +1377,6 @@ namespace Particles
       output_vector.compress(VectorOperation::add);
     else
       output_vector.compress(VectorOperation::insert);
-  }
-
-
-
-  template <int dim, int spacedim>
-  inline IndexSet
-  ParticleHandler<dim, spacedim>::locally_relevant_ids() const
-  {
-    return this->locally_owned_particle_ids();
   }
 
 } // namespace Particles

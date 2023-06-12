@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -81,6 +81,14 @@ namespace deal_II_exceptions
   disable_abort_on_exception()
   {
     internals::allow_abort_on_exception = false;
+  }
+
+
+
+  void
+  enable_abort_on_exception()
+  {
+    internals::allow_abort_on_exception = true;
   }
 } // namespace deal_II_exceptions
 

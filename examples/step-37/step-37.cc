@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2021 by the deal.II authors
+ * Copyright (C) 2009 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -30,6 +30,7 @@
 #include <deal.II/lac/precondition.h>
 
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
@@ -190,7 +191,7 @@ namespace Step37
   // parameter as is done in the MatrixFreeOperators::LaplaceOperator class.
   //
   // As a sidenote, if we implemented several different operations on the same
-  // grid and degrees of freedom (like a mass matrix and a Laplace matrix), we
+  // grid and degrees of freedom (like a @ref GlossMassMatrix "mass matrix" and a Laplace matrix), we
   // would define two classes like the current one for each of the operators
   // (derived from the MatrixFreeOperators::Base class), and let both of them
   // refer to the same MatrixFree data cache from the general problem
@@ -472,13 +473,14 @@ namespace Step37
   // appearing on locally owned cells (plus those referenced via hanging node
   // constraints) are necessary. However, in deal.II we often set all the
   // degrees of freedom on ghosted elements as ghosted vector entries, called
-  // the @ref GlossLocallyRelevantDof "locally relevant DoFs described in the
-  // glossary". In that case, the MPI-local index of a ghosted vector entry
-  // can in general be different in the two possible ghost sets, despite
-  // referring to the same global index. To avoid problems, FEEvaluation
-  // checks that the partitioning of the vector used for the matrix-vector
-  // product does indeed match with the partitioning of the indices in
-  // MatrixFree by a check called
+  // the
+  // @ref GlossLocallyRelevantDof "locally relevant DoFs described in the glossary".
+  // In that case, the MPI-local index of a ghosted vector entry can in
+  // general be different in the two possible ghost sets, despite referring
+  // to the same global index. To avoid problems, FEEvaluation checks that
+  // the partitioning of the vector used for the matrix-vector product does
+  // indeed match with the partitioning of the indices in MatrixFree by a
+  // check called
   // LinearAlgebra::distributed::Vector::partitioners_are_compatible. To
   // facilitate things, the MatrixFreeOperators::Base class includes a
   // mechanism to fit the ghost set to the correct layout. This happens in the
@@ -841,11 +843,10 @@ namespace Step37
     const unsigned int nlevels = triangulation.n_global_levels();
     mg_matrices.resize(0, nlevels - 1);
 
-    std::set<types::boundary_id> dirichlet_boundary;
-    dirichlet_boundary.insert(0);
+    const std::set<types::boundary_id> dirichlet_boundary_ids = {0};
     mg_constrained_dofs.initialize(dof_handler);
     mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
-                                                       dirichlet_boundary);
+                                                       dirichlet_boundary_ids);
 
     for (unsigned int level = 0; level < nlevels; ++level)
       {
@@ -1103,8 +1104,8 @@ namespace Step37
   // optimized for speed rather than disk usage. The default setting (which
   // optimizes for disk usage) makes saving the output take about 4 times as
   // long as running the linear solver, while setting
-  // DataOutBase::VtkFlags::compression_level to
-  // DataOutBase::VtkFlags::best_speed lowers this to only one fourth the time
+  // DataOutBase::CompressionLevel to
+  // best_speed lowers this to only one fourth the time
   // of the linear solve.
   //
   // We disable the output when the mesh gets too large. A variant of this
@@ -1126,7 +1127,7 @@ namespace Step37
     data_out.build_patches(mapping);
 
     DataOutBase::VtkFlags flags;
-    flags.compression_level = DataOutBase::VtkFlags::best_speed;
+    flags.compression_level = DataOutBase::CompressionLevel::best_speed;
     data_out.set_flags(flags);
     data_out.write_vtu_with_pvtu_record(
       "./", "solution", cycle, MPI_COMM_WORLD, 3);
@@ -1140,7 +1141,7 @@ namespace Step37
   // @sect4{LaplaceProblem::run}
 
   // The function that runs the program is very similar to the one in
-  // step-16. We do few refinement steps in 3D compared to 2D, but that's
+  // step-16. We do few refinement steps in 3d compared to 2d, but that's
   // it.
   //
   // Before we run the program, we output some information about the detected

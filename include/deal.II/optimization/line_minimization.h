@@ -1,6 +1,6 @@
 //-----------------------------------------------------------
 //
-//    Copyright (C) 2018 - 2020 by the deal.II authors
+//    Copyright (C) 2018 - 2022 by the deal.II authors
 //
 //    This file is part of the deal.II library.
 //
@@ -26,7 +26,10 @@
 
 #include <deal.II/numerics/history.h>
 
+#include <algorithm>
 #include <fstream>
+#include <functional>
+#include <limits>
 #include <string>
 
 
@@ -251,7 +254,7 @@ namespace LineMinimization
    *
    *   // Next we can write a function to determine if taking the full Newton
    *   // step is a good idea or not (i.e. if it offers good convergence
-   *   // characterisics). This function calls the one we defined above,
+   *   // characteristics). This function calls the one we defined above,
    *   // and actually only performs the line search if an early exit
    *   // criterion is not met.
    *   auto perform_linesearch = [&]()
@@ -417,14 +420,16 @@ namespace LineMinimization
     const NumberType r1       = f2 - f1 - g1 * x2_shift;
     const NumberType r2       = f3 - f1 - g1 * x3_shift;
     const NumberType denom =
-      std::pow(x2_shift * x3_shift, 2) * (x2_shift - x3_shift);
+      Utilities::fixed_power<2>(x2_shift * x3_shift) * (x2_shift - x3_shift);
     if (denom == 0.)
       return {};
 
-    const NumberType A =
-      (r1 * std::pow(x3_shift, 2) - r2 * std::pow(x2_shift, 2)) / denom;
-    const NumberType B =
-      (r2 * std::pow(x2_shift, 3) - r1 * std::pow(x3_shift, 3)) / denom;
+    const NumberType A = (r1 * Utilities::fixed_power<2>(x3_shift) -
+                          r2 * Utilities::fixed_power<2>(x2_shift)) /
+                         denom;
+    const NumberType B = (r2 * Utilities::fixed_power<3>(x2_shift) -
+                          r1 * Utilities::fixed_power<3>(x3_shift)) /
+                         denom;
     const NumberType &C = g1;
 
     // now get the minimizer:
@@ -475,12 +480,12 @@ namespace LineMinimization
 
   template <typename NumberType>
   NumberType
-  poly_fit_three_points(const NumberType                     x1,
-                        const NumberType                     f1,
-                        const NumberType                     g1,
-                        const NumberType                     x2,
-                        const NumberType                     f2,
-                        const NumberType                     g2,
+  poly_fit_three_points(const NumberType x1,
+                        const NumberType f1,
+                        const NumberType g1,
+                        const NumberType x2,
+                        const NumberType f2,
+                        const NumberType /*g2*/,
                         const FiniteSizeHistory<NumberType> &x_rec,
                         const FiniteSizeHistory<NumberType> &f_rec,
                         const FiniteSizeHistory<NumberType> & /*g_rec*/,
