@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2021 by the deal.II authors
+// Copyright (C) 2012 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,8 +26,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Implementation of a scalar Lagrange finite element @p Qp+DG0 that yields
@@ -44,9 +46,7 @@ DEAL_II_NAMESPACE_OPEN
  * For more information about the <tt>spacedim</tt> template parameter check
  * the documentation of FiniteElement or the one of Triangulation.
  *
- * For more information regarding this element see: Boffi, D., et al. "Local
- * Mass Conservation of Stokes Finite Elements." Journal of Scientific
- * Computing (2012): 1-18.
+ * For more information regarding this element see @cite Boffi2012 .
  *
  * <h3>Implementation</h3>
  *
@@ -74,12 +74,12 @@ DEAL_II_NAMESPACE_OPEN
  *
  * <h4>Q1 elements</h4>
  * <ul>
- * <li> 1D case:
+ * <li> 1d case:
  *   @verbatim
  *      0---2---1
  *   @endverbatim
  *
- * <li> 2D case:
+ * <li> 2d case:
  *   @verbatim
  *      2-------3
  *      |       |
@@ -88,7 +88,7 @@ DEAL_II_NAMESPACE_OPEN
  *      0-------1
  *   @endverbatim
  *
- * <li> 3D case:
+ * <li> 3d case:
  *   @verbatim
  *         6-------7        6-------7
  *        /|       |       /       /|
@@ -118,13 +118,13 @@ DEAL_II_NAMESPACE_OPEN
  * </ul>
  * <h4>Q2 elements</h4>
  * <ul>
- * <li> 1D case:
+ * <li> 1d case:
  *   @verbatim
  *      0---2---1
  *   @endverbatim
  * Index 3 has the same coordinates as index 2
  *
- * <li> 2D case:
+ * <li> 2d case:
  *   @verbatim
  *      2---7---3
  *      |       |
@@ -134,7 +134,7 @@ DEAL_II_NAMESPACE_OPEN
  *   @endverbatim
  * Index 9 has the same coordinates as index 2
  *
- * <li> 3D case:
+ * <li> 3d case:
  *   @verbatim
  *         6--15---7        6--15---7
  *        /|       |       /       /|
@@ -195,12 +195,12 @@ DEAL_II_NAMESPACE_OPEN
  * </ul>
  * <h4>Q3 elements</h4>
  * <ul>
- * <li> 1D case:
+ * <li> 1d case:
  *   @verbatim
  *      0--2-4-3--1
  *   @endverbatim
  *
- * <li> 2D case:
+ * <li> 2d case:
  *   @verbatim
  *      2--10-11-3
  *      |        |
@@ -213,13 +213,13 @@ DEAL_II_NAMESPACE_OPEN
  * </ul>
  * <h4>Q4 elements</h4>
  * <ul>
- * <li> 1D case:
+ * <li> 1d case:
  *   @verbatim
  *      0--2--3--4--1
  *   @endverbatim
  * Index 5 has the same coordinates as index 3
  *
- * <li> 2D case:
+ * <li> 2d case:
  *   @verbatim
  *      2--13-14-15-3
  *      |           |
@@ -327,7 +327,7 @@ private:
 
 
 
-/*@}*/
+/** @} */
 
 
 DEAL_II_NAMESPACE_CLOSE

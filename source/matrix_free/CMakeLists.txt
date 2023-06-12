@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2013 - 2020 by the deal.II authors
+## Copyright (C) 2013 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,9 +13,8 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
+  cuda_matrix_free.cc
   dof_info.cc
   evaluation_template_factory.cc
   evaluation_template_factory_inst2.cc
@@ -24,6 +23,12 @@ SET(_src
   evaluation_template_factory_inst5.cc
   evaluation_template_factory_inst6.cc
   evaluation_template_factory_hanging_nodes.cc
+  evaluation_template_face_factory.cc
+  evaluation_template_face_factory_inst2.cc
+  evaluation_template_face_factory_inst3.cc
+  evaluation_template_face_factory_inst4.cc
+  evaluation_template_face_factory_inst5.cc
+  evaluation_template_face_factory_inst6.cc
   fe_point_evaluation.cc
   mapping_info.cc
   mapping_info_inst2.cc
@@ -34,8 +39,9 @@ SET(_src
   vector_data_exchange.cc
   )
 
-SET(_inst
+set(_inst
   evaluation_template_factory.inst.in
+  evaluation_template_face_factory.inst.in
   evaluation_template_factory_hanging_nodes.inst.in
   fe_point_evaluation.inst.in
   mapping_info.inst.in
@@ -43,19 +49,9 @@ SET(_inst
   shape_info.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/matrix_free/*.h
   )
 
-IF(DEAL_II_WITH_CUDA)
-  SET(_src
-    cuda_matrix_free.cu
-    ${_src}
-    )
-  SET(_inst
-    ${_inst}
-    )
-ENDIF()
-
-DEAL_II_ADD_LIBRARY(obj_matrix_free OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_matrix_free "${_inst}")
+define_object_library(object_matrix_free OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_matrix_free "${_inst}")

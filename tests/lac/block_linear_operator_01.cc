@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2020 by the deal.II authors
+// Copyright (C) 2015 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -169,7 +169,7 @@ main()
   PRINTME("Tvmult_add", x);
 
 
-  // Test vector reinitalization:
+  // Test vector reinitialization:
 
   op_x = op_b * op_b * op_b;
   op_x.vmult(x, u);

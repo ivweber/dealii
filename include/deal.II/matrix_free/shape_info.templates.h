@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2021 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,6 +22,7 @@
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/polynomials_piecewise.h>
+#include <deal.II/base/polynomials_raviart_thomas.h>
 #include <deal.II/base/qprojector.h>
 #include <deal.II/base/tensor_product_polynomials.h>
 #include <deal.II/base/utilities.h>
@@ -29,10 +30,13 @@
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_poly.h>
 #include <deal.II/fe/fe_pyramid_p.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_q_dg0.h>
+#include <deal.II/fe/fe_q_iso_q1.h>
+#include <deal.II/fe/fe_raviart_thomas.h>
 #include <deal.II/fe/fe_simplex_p.h>
 #include <deal.II/fe/fe_simplex_p_bubbles.h>
 #include <deal.II/fe/fe_tools.h>
@@ -78,6 +82,7 @@ namespace internal
     {
       return a[0];
     }
+
 
 
     template <int dim>
@@ -130,15 +135,13 @@ namespace internal
       else
         Assert(false, ExcNotImplemented());
 
-      // Finally store the renumbering into the member variable of this
-      // class
+      // Finally store the renumbering into the respective field
       if (fe_in.n_components() == 1)
         lexicographic_numbering = scalar_lexicographic;
       else
         {
-          // have more than one component, get the inverse
-          // permutation, invert it, sort the components one after one,
-          // and invert back
+          // have more than one component, get the inverse permutation, invert
+          // it, sort the components one by one, and invert back
           std::vector<unsigned int> scalar_inv =
             Utilities::invert_permutation(scalar_lexicographic);
           std::vector<unsigned int> lexicographic(
@@ -194,7 +197,6 @@ namespace internal
     }
 
 
-
     // ----------------- actual ShapeInfo implementation --------------------
 
     template <typename Number>
@@ -238,15 +240,170 @@ namespace internal
     {
       static_assert(dim == spacedim,
                     "Currently, only the case dim=spacedim is implemented");
-      if (quad_in.is_tensor_product() == false ||
-          dynamic_cast<const FE_SimplexP<dim> *>(
-            &fe_in.base_element(base_element_number)) ||
-          dynamic_cast<const FE_SimplexDGP<dim> *>(
-            &fe_in.base_element(base_element_number)) ||
-          dynamic_cast<const FE_WedgeP<dim> *>(
-            &fe_in.base_element(base_element_number)) ||
-          dynamic_cast<const FE_PyramidP<dim> *>(
+
+      // ShapeInfo for RT elements. Here, data is of size 2 instead of 1.
+      // data[0] is univariate_shape_data in normal direction and
+      // data[1] is univariate_shape_data in tangential direction
+      //
+      if (dynamic_cast<const FE_RaviartThomasNodal<dim> *>(
             &fe_in.base_element(base_element_number)))
+        {
+          element_type = tensor_raviart_thomas;
+
+          const auto quad = quad_in.get_tensor_basis()[0];
+
+          const FiniteElement<dim> &fe =
+            fe_in.base_element(base_element_number);
+          n_dimensions = dim;
+          n_components = fe_in.n_components();
+
+          data.resize(2);
+          const unsigned int n_q_points_1d = quad.size();
+
+          n_q_points      = Utilities::fixed_power<dim>(n_q_points_1d);
+          n_q_points_face = Utilities::fixed_power<dim - 1>(n_q_points_1d);
+
+          dofs_per_component_on_cell = fe_in.n_dofs_per_cell() / n_components;
+
+          // NOTE dofs_per_component_on_face is in tangential direction!
+          dofs_per_component_on_face =
+            fe_in.n_dofs_per_face() + Utilities::pow(fe_in.degree, dim - 2);
+          const unsigned int dofs_per_face_normal = fe_in.n_dofs_per_face();
+
+          lexicographic_numbering =
+            PolynomialsRaviartThomas<dim>::get_lexicographic_numbering(
+              fe_in.degree, fe_in.degree - 1);
+
+          // To get the right shape_values of the RT element
+          std::vector<unsigned int> lex_normal, lex_tangent;
+          for (unsigned int i = 0; i < fe.degree; ++i)
+            lex_tangent.push_back(i);
+
+          lex_normal.push_back(0);
+          for (unsigned int i = dofs_per_face_normal * 2 * dim;
+               i < dofs_per_face_normal * 2 * dim + fe.degree - 1;
+               ++i)
+            lex_normal.push_back(i);
+          lex_normal.push_back(dofs_per_face_normal);
+
+          // 'direction' distingusishes between normal and tangential direction
+          for (unsigned int direction = 0; direction < 2; ++direction)
+            {
+              UnivariateShapeData<Number> &univariate_shape_data =
+                (direction == 0) ? data.front() : data.back();
+
+              univariate_shape_data.element_type  = tensor_raviart_thomas;
+              univariate_shape_data.quadrature    = quad;
+              univariate_shape_data.n_q_points_1d = n_q_points_1d;
+              univariate_shape_data.fe_degree     = fe.degree - direction;
+
+              // grant write access to common univariate shape data
+              auto &shape_values    = univariate_shape_data.shape_values;
+              auto &shape_gradients = univariate_shape_data.shape_gradients;
+              auto &shape_hessians  = univariate_shape_data.shape_hessians;
+
+              auto &values_within_subface =
+                univariate_shape_data.values_within_subface;
+              auto &gradients_within_subface =
+                univariate_shape_data.gradients_within_subface;
+              auto &hessians_within_subface =
+                univariate_shape_data.hessians_within_subface;
+
+              auto &shape_data_on_face =
+                univariate_shape_data.shape_data_on_face;
+
+              const unsigned int n_dofs_1d  = fe.degree + 1 - direction;
+              const unsigned int array_size = n_dofs_1d * n_q_points_1d;
+
+              shape_gradients.resize_fast(array_size);
+              shape_values.resize_fast(array_size);
+              shape_hessians.resize_fast(array_size);
+
+              values_within_subface[0].resize(array_size);
+              values_within_subface[1].resize(array_size);
+              gradients_within_subface[0].resize(array_size);
+              gradients_within_subface[1].resize(array_size);
+              hessians_within_subface[0].resize(array_size);
+              hessians_within_subface[1].resize(array_size);
+
+              shape_data_on_face[0].resize(3 * n_dofs_1d);
+              shape_data_on_face[1].resize(3 * n_dofs_1d);
+
+              Point<dim> unit_point;
+              for (unsigned int i = 0; i < n_dofs_1d; ++i)
+                {
+                  // need to reorder from hierarchical to lexicographic to get
+                  // the DoFs correct
+                  const unsigned int my_i =
+                    (direction == 0) ? lex_normal[i] : lex_tangent[i];
+                  for (unsigned int q = 0; q < n_q_points_1d; ++q)
+                    {
+                      Point<dim> q_point = unit_point;
+                      q_point[direction] = quad.get_points()[q][0];
+
+                      shape_values[i * n_q_points_1d + q] =
+                        fe.shape_value_component(my_i, q_point, 0);
+                      shape_gradients[i * n_q_points_1d + q] =
+                        fe.shape_grad_component(my_i, q_point, 0)[direction];
+                      shape_hessians[i * n_q_points_1d + q] =
+                        fe.shape_grad_grad_component(my_i,
+                                                     q_point,
+                                                     0)[direction][direction];
+
+                      // evaluate basis functions on the two 1d subfaces (i.e.,
+                      // at the positions divided by one half and shifted by one
+                      // half, respectively) for hanging nodes
+                      q_point[direction] *= 0.5;
+                      values_within_subface[0][i * n_q_points_1d + q] =
+                        fe.shape_value_component(my_i, q_point, 0);
+                      gradients_within_subface[0][i * n_q_points_1d + q] =
+                        fe.shape_grad_component(my_i, q_point, 0)[direction];
+                      hessians_within_subface[0][i * n_q_points_1d + q] =
+                        fe.shape_grad_grad_component(my_i,
+                                                     q_point,
+                                                     0)[direction][direction];
+                      q_point[direction] += 0.5;
+                      values_within_subface[1][i * n_q_points_1d + q] =
+                        fe.shape_value_component(my_i, q_point, 0);
+                      gradients_within_subface[1][i * n_q_points_1d + q] =
+                        fe.shape_grad_component(my_i, q_point, 0)[direction];
+                      hessians_within_subface[1][i * n_q_points_1d + q] =
+                        fe.shape_grad_grad_component(my_i,
+                                                     q_point,
+                                                     0)[direction][direction];
+                    }
+                  // evaluate basis functions on the 1d faces, i.e., in zero and
+                  // one
+                  Point<dim> q_point = unit_point;
+                  q_point[direction] = 0;
+                  shape_data_on_face[0][i] =
+                    fe.shape_value_component(my_i, q_point, 0);
+                  shape_data_on_face[0][i + n_dofs_1d] =
+                    fe.shape_grad_component(my_i, q_point, 0)[direction];
+                  shape_data_on_face[0][i + 2 * n_dofs_1d] =
+                    fe.shape_grad_grad_component(my_i,
+                                                 q_point,
+                                                 0)[direction][direction];
+                  q_point[direction] = 1;
+                  shape_data_on_face[1][i] =
+                    fe.shape_value_component(my_i, q_point, 0);
+                  shape_data_on_face[1][i + n_dofs_1d] =
+                    fe.shape_grad_component(my_i, q_point, 0)[direction];
+                  shape_data_on_face[1][i + 2 * n_dofs_1d] =
+                    fe.shape_grad_grad_component(my_i,
+                                                 q_point,
+                                                 0)[direction][direction];
+                }
+            }
+          return;
+        }
+      else if (quad_in.is_tensor_product() == false ||
+               dynamic_cast<const FE_SimplexPoly<dim, dim> *>(
+                 &fe_in.base_element(base_element_number)) != nullptr ||
+               dynamic_cast<const FE_WedgePoly<dim, dim> *>(
+                 &fe_in.base_element(base_element_number)) != nullptr ||
+               dynamic_cast<const FE_PyramidPoly<dim, dim> *>(
+                 &fe_in.base_element(base_element_number)) != nullptr)
         {
           // specialization for arbitrary finite elements and quadrature rules
           // as needed in the context, e.g., of simplices
@@ -273,7 +430,7 @@ namespace internal
 
           // note: we cannot write `univariate_shape_data.quadrature = quad`,
           // since the quadrature rule within UnivariateShapeData expects
-          // a 1D quadrature rule. However, in this case we are not able to
+          // a 1d quadrature rule. However, in this case we are not able to
           // define that rule anyway so other code cannot use this information.
 
           univariate_shape_data.fe_degree     = fe.degree;
@@ -493,16 +650,16 @@ namespace internal
                                               scalar_lexicographic,
                                               lexicographic_numbering);
 
-        // to evaluate 1D polynomials, evaluate along the line with the first
+        // to evaluate 1d polynomials, evaluate along the line with the first
         // unit support point, assuming that fe.shape_value(0,unit_point) ==
-        // 1. otherwise, need other entry point (e.g. generating a 1D element
+        // 1. otherwise, need other entry point (e.g. generating a 1d element
         // by reading the name, as done before r29356)
         if (fe.has_support_points())
           unit_point = fe.get_unit_support_points()[scalar_lexicographic[0]];
         Assert(fe.n_dofs_per_cell() == 0 ||
                  std::abs(fe.shape_value(scalar_lexicographic[0], unit_point) -
                           1) < 1e-13,
-               ExcInternalError("Could not decode 1D shape functions for the "
+               ExcInternalError("Could not decode 1d shape functions for the "
                                 "element " +
                                 fe.get_name()));
       }
@@ -545,7 +702,7 @@ namespace internal
               shape_hessians[i * n_q_points_1d + q] =
                 fe.shape_grad_grad(my_i, q_point)[0][0];
 
-              // evaluate basis functions on the two 1D subfaces (i.e., at the
+              // evaluate basis functions on the two 1d subfaces (i.e., at the
               // positions divided by one half and shifted by one half,
               // respectively)
               q_point[0] *= 0.5;
@@ -564,7 +721,7 @@ namespace internal
                 fe.shape_grad_grad(my_i, q_point)[0][0];
             }
 
-          // evaluate basis functions on the 1D faces, i.e., in zero and one
+          // evaluate basis functions on the 1d faces, i.e., in zero and one
           Point<dim> q_point       = unit_point;
           q_point[0]               = 0;
           shape_data_on_face[0][i] = fe.shape_value(my_i, q_point);
@@ -585,19 +742,23 @@ namespace internal
           quadrature_data_on_face[0].resize(quad.size() * 3);
           quadrature_data_on_face[1].resize(quad.size() * 3);
 
-          dealii::FE_DGQArbitraryNodes<1> fe_quad(quad);
+          const std::vector<Polynomials::Polynomial<double>> poly_coll =
+            Polynomials::generate_complete_Lagrange_basis(quad.get_points());
 
           for (unsigned int i = 0; i < quad.size(); ++i)
             {
-              Point<1> q_point;
-              q_point[0]                    = 0;
-              quadrature_data_on_face[0][i] = fe_quad.shape_value(i, q_point);
-              q_point[0]                    = 1;
-              quadrature_data_on_face[1][i] = fe_quad.shape_value(i, q_point);
+              std::array<double, 3> values;
+              poly_coll[i].value(0.0, 2, values.data());
+              for (unsigned int d = 0; d < 3; ++d)
+                quadrature_data_on_face[0][i + d * quad.size()] = values[d];
+              poly_coll[i].value(1.0, 2, values.data());
+              for (unsigned int d = 0; d < 3; ++d)
+                quadrature_data_on_face[1][i + d * quad.size()] = values[d];
             }
         }
 
-      if (dim > 1 && dynamic_cast<const FE_Q<dim> *>(&fe))
+      if (dim > 1 && (dynamic_cast<const FE_Q<dim> *>(&fe) ||
+                      dynamic_cast<const FE_Q_iso_Q1<dim> *>(&fe)))
         {
           auto &subface_interpolation_matrix_0 =
             univariate_shape_data.subface_interpolation_matrices[0];
@@ -608,81 +769,65 @@ namespace internal
           auto &subface_interpolation_matrix_scalar_1 =
             univariate_shape_data.subface_interpolation_matrices_scalar[1];
 
-          const auto fe_1d = create_fe<1>(fe);
-          const auto fe_2d = create_fe<2>(fe);
+          const unsigned int nn = fe_degree + 1;
+          subface_interpolation_matrix_0.resize(nn * nn);
+          subface_interpolation_matrix_1.resize(nn * nn);
+          subface_interpolation_matrix_scalar_0.resize(nn * nn);
+          subface_interpolation_matrix_scalar_1.resize(nn * nn);
 
-          FullMatrix<double> interpolation_matrix_0(fe_2d->n_dofs_per_face(0),
-                                                    fe_2d->n_dofs_per_face(0));
-          FullMatrix<double> interpolation_matrix_1(fe_2d->n_dofs_per_face(0),
-                                                    fe_2d->n_dofs_per_face(0));
+          const bool is_feq = dynamic_cast<const FE_Q<dim> *>(&fe) != nullptr;
 
-          fe_2d->get_subface_interpolation_matrix(*fe_2d,
-                                                  0,
-                                                  interpolation_matrix_0,
-                                                  0);
+          std::vector<Point<1>> fe_q_points =
+            is_feq ? QGaussLobatto<1>(nn).get_points() :
+                     QIterated<1>(QTrapezoid<1>(), nn - 1).get_points();
 
-          fe_2d->get_subface_interpolation_matrix(*fe_2d,
-                                                  1,
-                                                  interpolation_matrix_1,
-                                                  0);
+          const std::vector<Polynomials::Polynomial<double>> poly_feq =
+            Polynomials::generate_complete_Lagrange_basis(fe_q_points);
 
-          ElementType               element_type;
-          std::vector<unsigned int> scalar_lexicographic;
-          std::vector<unsigned int> lexicographic_numbering;
+          const std::vector<Polynomials::PiecewisePolynomial<double>>
+            poly_feq_iso_q1 =
+              Polynomials::generate_complete_Lagrange_basis_on_subdivisions(nn -
+                                                                              1,
+                                                                            1);
 
-          get_element_type_specific_information(*fe_1d,
-                                                *fe_1d,
-                                                0,
-                                                element_type,
-                                                scalar_lexicographic,
-                                                lexicographic_numbering);
-
-          subface_interpolation_matrix_0.resize(fe_1d->n_dofs_per_cell() *
-                                                fe_1d->n_dofs_per_cell());
-          subface_interpolation_matrix_1.resize(fe_1d->n_dofs_per_cell() *
-                                                fe_1d->n_dofs_per_cell());
-
-          subface_interpolation_matrix_scalar_0.resize(
-            fe_1d->n_dofs_per_cell() * fe_1d->n_dofs_per_cell());
-          subface_interpolation_matrix_scalar_1.resize(
-            fe_1d->n_dofs_per_cell() * fe_1d->n_dofs_per_cell());
-
-          for (unsigned int i = 0, c = 0; i < fe_1d->n_dofs_per_cell(); ++i)
-            for (unsigned int j = 0; j < fe_1d->n_dofs_per_cell(); ++j, ++c)
+          for (unsigned int i = 0, c = 0; i < nn; ++i)
+            for (unsigned int j = 0; j < nn; ++j, ++c)
               {
-                subface_interpolation_matrix_0[c] =
-                  interpolation_matrix_0(scalar_lexicographic[i],
-                                         scalar_lexicographic[j]);
-                subface_interpolation_matrix_1[c] =
-                  interpolation_matrix_1(scalar_lexicographic[i],
-                                         scalar_lexicographic[j]);
-
                 subface_interpolation_matrix_scalar_0[c] =
-                  interpolation_matrix_0(scalar_lexicographic[i],
-                                         scalar_lexicographic[j]);
+                  is_feq ? poly_feq[j].value(0.5 * fe_q_points[i][0]) :
+                           poly_feq_iso_q1[j].value(0.5 * fe_q_points[i][0]);
+                subface_interpolation_matrix_0[c] =
+                  subface_interpolation_matrix_scalar_0[c];
                 subface_interpolation_matrix_scalar_1[c] =
-                  interpolation_matrix_1(scalar_lexicographic[i],
-                                         scalar_lexicographic[j]);
+                  is_feq ?
+                    poly_feq[j].value(0.5 + 0.5 * fe_q_points[i][0]) :
+                    poly_feq_iso_q1[j].value(0.5 + 0.5 * fe_q_points[i][0]);
+                subface_interpolation_matrix_1[c] =
+                  subface_interpolation_matrix_scalar_1[c];
               }
         }
 
       // get gradient and Hessian transformation matrix for the polynomial
       // space associated with the quadrature rule (collocation space). We
       // need to avoid the case with more than a few hundreds of quadrature
-      // points when the Lagrange polynomials constructed in
-      // FE_DGQArbitraryNodes underflow.
+      // points when the Lagrange polynomials might underflow. Note that 200
+      // is not an exact value, as different quadrature formulas behave
+      // slightly differently, but 200 has been observed to be low enough for
+      // all common quadrature formula types. For QGauss, the actual limit is
+      // 517 points, for example.
       if (n_q_points_1d < 200)
         {
           shape_gradients_collocation.resize(n_q_points_1d * n_q_points_1d);
           shape_hessians_collocation.resize(n_q_points_1d * n_q_points_1d);
-          FE_DGQArbitraryNodes<1> fe_coll(quad.get_points());
+          const std::vector<Polynomials::Polynomial<double>> poly_coll =
+            Polynomials::generate_complete_Lagrange_basis(quad.get_points());
+          std::array<double, 3> values;
           for (unsigned int i = 0; i < n_q_points_1d; ++i)
             for (unsigned int q = 0; q < n_q_points_1d; ++q)
               {
-                shape_gradients_collocation[i * n_q_points_1d + q] =
-                  fe_coll.shape_grad(i, quad.get_points()[q])[0];
-                shape_hessians_collocation[i * n_q_points_1d + q] =
-                  fe_coll.shape_grad_grad(i, quad.get_points()[q])[0][0];
+                poly_coll[i].value(quad.get_points()[q][0], 2, values.data());
+                shape_gradients_collocation[i * n_q_points_1d + q] = values[1];
+                shape_hessians_collocation[i * n_q_points_1d + q]  = values[2];
               }
 
           // compute the inverse shape functions in three steps: we first
@@ -705,7 +850,7 @@ namespace internal
           for (unsigned int i = 0; i < n_q_points_1d; ++i)
             for (unsigned int j = 0; j < n_q_points_1d; ++j)
               transform_to_gauss(i, j) =
-                fe_coll.shape_value(j, quad_gauss.point(i));
+                poly_coll[j].value(quad_gauss.point(i)[0]);
 
           // step 2: computation for the projection (in reference coordinates)
           // from higher to lower polynomial degree
@@ -718,15 +863,17 @@ namespace internal
           // polynomials where most of the interpolation matrices are unit
           // matrices when applying the inverse mass matrix, so we do not need
           // to compute much.
-          QGauss<1>               quad_project(n_dofs_1d);
-          FE_DGQArbitraryNodes<1> fe_project(quad_project.get_points());
+          QGauss<1> quad_project(n_dofs_1d);
+          const std::vector<Polynomials::Polynomial<double>> poly_project =
+            Polynomials::generate_complete_Lagrange_basis(
+              quad_project.get_points());
 
           FullMatrix<double> project_gauss(n_dofs_1d, n_q_points_1d);
 
           for (unsigned int i = 0; i < n_dofs_1d; ++i)
             for (unsigned int q = 0; q < n_q_points_1d; ++q)
               project_gauss(i, q) =
-                fe_project.shape_value(i, quad_gauss.get_points()[q]) *
+                poly_project[i].value(quad_gauss.get_points()[q][0]) *
                 (quad_gauss.weight(q) / quad_project.weight(i));
           FullMatrix<double> project_to_dof_space(n_dofs_1d, n_q_points_1d);
           project_gauss.mmult(project_to_dof_space, transform_to_gauss);
@@ -745,11 +892,8 @@ namespace internal
             {
               for (unsigned int i = 0; i < n_dofs_1d; ++i)
                 for (unsigned int j = 0; j < n_dofs_1d; ++j)
-                  transform_from_gauss(i, j) = fe_project.shape_value(
-                    j,
-                    Point<1>(
-                      fe.get_unit_support_points()[scalar_lexicographic[i]]
-                                                  [0]));
+                  transform_from_gauss(i, j) = poly_project[j].value(
+                    fe.get_unit_support_points()[scalar_lexicographic[i]][0]);
               FullMatrix<double> result(n_dofs_1d, n_q_points_1d);
               transform_from_gauss.mmult(result, project_to_dof_space);
 
@@ -789,10 +933,14 @@ namespace internal
       if (element_type == tensor_general &&
           check_1d_shapes_symmetric(univariate_shape_data))
         {
-          if (check_1d_shapes_collocation(univariate_shape_data))
+          if (dynamic_cast<const FE_Q_iso_Q1<dim> *>(&fe) &&
+              fe.tensor_degree() > 1)
+            element_type = tensor_symmetric_no_collocation;
+          else if (check_1d_shapes_collocation(univariate_shape_data))
             element_type = tensor_symmetric_collocation;
           else
             element_type = tensor_symmetric;
+
           if (n_dofs_1d > 2 && element_type == tensor_symmetric)
             {
               // check if we are a Hermite type
@@ -822,7 +970,7 @@ namespace internal
         {
           face_to_cell_index_nodal.reinit(GeometryInfo<dim>::faces_per_cell,
                                           dofs_per_component_on_face);
-          for (auto f : GeometryInfo<dim>::face_indices())
+          for (const auto f : GeometryInfo<dim>::face_indices())
             {
               const unsigned int direction = f / 2;
               const unsigned int stride =
@@ -850,7 +998,7 @@ namespace internal
                     }
             }
 
-          // face orientation for faces in 3D
+          // face orientation for faces in 3d
           // (similar to MappingInfoStorage::QuadratureDescriptor::initialize)
           if (dim == 3)
             {
@@ -868,7 +1016,7 @@ namespace internal
         {
           face_to_cell_index_hermite.reinit(GeometryInfo<dim>::faces_per_cell,
                                             2 * dofs_per_component_on_face);
-          for (auto f : GeometryInfo<dim>::face_indices())
+          for (const auto f : GeometryInfo<dim>::face_indices())
             {
               const unsigned int direction = f / 2;
               const unsigned int stride =
@@ -1024,8 +1172,9 @@ namespace internal
       shape_hessians_eo =
         convert_to_eo(shape_hessians, fe_degree + 1, n_q_points_1d);
 
-      // FE_DGQArbitraryNodes underflow (see also above where
-      // shape_gradients_collocation and shape_hessians_collocation is set up).
+      // Avoid underflow of Lagrange polynomials on typical quadrature
+      // formulas (see also above where shape_gradients_collocation and
+      // shape_hessians_collocation is set up).
       if (n_q_points_1d < 200)
         {
           shape_gradients_collocation_eo =
@@ -1088,6 +1237,9 @@ namespace internal
       if (dim != spacedim)
         return false;
 
+      if (dynamic_cast<const FE_RaviartThomasNodal<dim> *>(&fe))
+        return true;
+
       for (unsigned int base = 0; base < fe.n_base_elements(); ++base)
         {
           const FiniteElement<dim, spacedim> *fe_ptr = &(fe.base_element(base));
@@ -1101,13 +1253,17 @@ namespace internal
                 dynamic_cast<const FE_Poly<dim, spacedim> *>(fe_ptr);
               // Simplices are a special case since the polynomial family is not
               // indicative of their support
-              if (dynamic_cast<const FE_SimplexP<dim> *>(fe_poly_ptr) ||
-                  dynamic_cast<const FE_SimplexDGP<dim> *>(fe_poly_ptr) ||
-                  dynamic_cast<const FE_WedgeP<dim> *>(fe_poly_ptr) ||
-                  dynamic_cast<const FE_PyramidP<dim> *>(fe_poly_ptr))
+              if (dynamic_cast<const FE_SimplexPoly<dim, dim> *>(fe_poly_ptr) !=
+                    nullptr ||
+                  dynamic_cast<const FE_WedgePoly<dim, dim> *>(fe_poly_ptr) !=
+                    nullptr ||
+                  dynamic_cast<const FE_PyramidPoly<dim, dim> *>(fe_poly_ptr) !=
+                    nullptr)
                 return true;
 
-              if (dynamic_cast<const TensorProductPolynomials<dim> *>(
+              if (dynamic_cast<const TensorProductPolynomials<
+                      dim,
+                      Polynomials::Polynomial<double>> *>(
                     &fe_poly_ptr->get_poly_space()) == nullptr &&
                   dynamic_cast<const TensorProductPolynomials<
                       dim,
@@ -1119,6 +1275,9 @@ namespace internal
                     nullptr)
                 return false;
             }
+          else if (dynamic_cast<const FE_Nothing<dim, spacedim> *>(fe_ptr) !=
+                   nullptr)
+            return true;
           else
             return false;
         }

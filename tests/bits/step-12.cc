@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,9 +17,6 @@
 
 // a un-hp-ified version of hp/step-12
 
-
-#include "../tests.h"
-std::ofstream logfile("output");
 
 #include <deal.II/base/function.h>
 #include <deal.II/base/quadrature_lib.h>
@@ -47,6 +44,8 @@ std::ofstream logfile("output");
 
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/derivative_approximation.h>
+
+#include "../tests.h"
 
 
 
@@ -877,12 +876,12 @@ DGMethod<dim>::run()
 int
 main()
 {
+  initlog();
   try
     {
       deallog << std::setprecision(2);
-      logfile << std::setprecision(2);
+      deallog.get_file_stream() << std::setprecision(2);
 
-      deallog.attach(logfile);
 
       DGMethod<2> dgmethod;
       dgmethod.run();

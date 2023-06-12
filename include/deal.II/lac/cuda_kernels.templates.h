@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,7 +20,7 @@
 
 #include <deal.II/lac/cuda_kernels.h>
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -196,8 +196,8 @@ namespace LinearAlgebra
       reduce(Number *         result,
              volatile Number *result_buffer,
              const size_type  local_idx,
-             const size_type  global_idx,
-             const size_type  N)
+             const size_type /*global_idx*/,
+             const size_type /*N*/)
       {
         for (size_type s = block_size / 2; s > warp_size; s = s >> 1)
           {

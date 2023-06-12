@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2020 by the deal.II authors
+// Copyright (C) 2007 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,8 +20,8 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/function.h>
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/point.h>
-#include <deal.II/base/thread_management.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -174,7 +174,7 @@ namespace Functions
                       std::vector<std::vector<double>> &values) const override;
 
   private:
-    const double radius;
+    const double inv_sqr_radius;
     const double Reynolds;
   };
 
@@ -183,7 +183,7 @@ namespace Functions
    * Artificial divergence free function with homogeneous boundary conditions
    * on the cube [-1,1]<sup>dim</sup>.
    *
-   * The function in 2D is
+   * The function in 2d is
    * @f[
    * \left(\begin{array}{c}u\\v\\p\end{array}\right)
    * \left(\begin{array}{c}\cos^2x \sin y\cos y\\-\sin x\cos x\cos^2y\\
@@ -290,7 +290,7 @@ namespace Functions
   };
 
   /**
-   * Flow solution in 2D by Kovasznay (1947).
+   * Flow solution in 2d by Kovasznay (1947).
    *
    * This function is valid on the half plane right of the line <i>x=1/2</i>.
    *

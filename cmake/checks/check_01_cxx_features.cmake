@@ -44,21 +44,21 @@
 # We need compiler flags specified in ${DEAL_II_CXX_FLAGS} for all the
 # tests. Create a small macro to easily set CMAKE_REQUIRED_FLAGS
 #
-MACRO(_set_up_cmake_required)
-  RESET_CMAKE_REQUIRED()
-  SET(CMAKE_REQUIRED_FLAGS "")
-  ADD_FLAGS(CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_FLAGS_SAVED}")
-  ADD_FLAGS(CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_FLAGS}")
-ENDMACRO()
+macro(_set_up_cmake_required)
+  reset_cmake_required()
+  set(CMAKE_REQUIRED_FLAGS "")
+  add_flags(CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_WARNING_FLAGS}")
+  add_flags(CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_FLAGS}")
+  add_flags(CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_FLAGS_SAVED}")
+endmacro()
 
 
 #
 # Wrap the following checks into a macro to make it easier to rerun them.
 #
-MACRO(_test_cxx20_support)
-
-  UNSET_IF_CHANGED(CHECK_CXX20_FEATURES_FLAGS_SAVED
-    "${CMAKE_REQUIRED_FLAGS}"
+macro(_test_cxx20_support)
+  unset_if_changed(CHECK_CXX20_FEATURES_FLAGS_SAVED
+    "${CMAKE_REQUIRED_FLAGS}${CMAKE_CXX_STANDARD}"
     DEAL_II_HAVE_CXX20_FEATURES
     )
 
@@ -66,10 +66,11 @@ MACRO(_test_cxx20_support)
   # of the C++20 standard (which will have "202002L" when finalized). gcc-10
   # exports this version number when configured with C++20 support.
   # clang-10 exports the final "202002L" version instead, as does gcc-11.
+  #
+  # Beyond this, check for some features we actually need.
   CHECK_CXX_SOURCE_COMPILES(
     "
-    #include <cmath>
-    #include <ranges>
+    #include <version>
 
     #if __cplusplus < 201709L && !defined(_MSC_VER) && !defined(__INTEL_COMPILER)
     #  error \"insufficient support for C++20\"
@@ -79,29 +80,50 @@ MACRO(_test_cxx20_support)
     #  error \"insufficient support for C++20\"
     #endif
 
+    #if !(defined __cpp_lib_type_identity)
+    #  error \"insufficient support for C++20: __cpp_lib_type_identity not defined\"
+    #endif
+
+    #if !(defined __cpp_lib_type_identity) || (__cpp_lib_type_identity < 201806)
+    #  error \"insufficient support for C++20: __cpp_lib_type_identity is too old \"
+    #endif
+
+    // Test concepts and requires clauses
+    template <int dim, int spacedim>
+    concept is_valid_dim_spacedim = (dim >= 1 && spacedim <= 3 &&
+                                     dim <= spacedim);
+
+    template <int dim, int spacedim>
+    requires is_valid_dim_spacedim<dim,spacedim>
+    class Triangulation
+    {};
+
+    Triangulation<1,3> t;
+
+
     int main()
     {
     }
     "
     DEAL_II_HAVE_CXX20_FEATURES)
 
-  IF(DEAL_II_HAVE_CXX20_FEATURES)
-    MESSAGE(STATUS "C++20 support is enabled.")
-    SET(DEAL_II_HAVE_CXX20 TRUE)
-  ELSE()
-    MESSAGE(STATUS "C++20 support is disabled.")
-    SET(DEAL_II_HAVE_CXX20 FALSE)
-  ENDIF()
-ENDMACRO()
+  if(DEAL_II_HAVE_CXX20_FEATURES)
+    message(STATUS "C++20 support is enabled.")
+    set(DEAL_II_HAVE_CXX20 TRUE)
+    set(_cxx_standard 20)
+  else()
+    message(STATUS "C++20 support is disabled.")
+    set(DEAL_II_HAVE_CXX20 FALSE)
+  endif()
+endmacro()
 
 
 #
 # Wrap the following checks into a macro to make it easier to rerun them.
 #
-MACRO(_test_cxx17_support)
-
-  UNSET_IF_CHANGED(CHECK_CXX17_FEATURES_FLAGS_SAVED
-    "${CMAKE_REQUIRED_FLAGS}"
+macro(_test_cxx17_support)
+  unset_if_changed(CHECK_CXX17_FEATURES_FLAGS_SAVED
+    "${CMAKE_REQUIRED_FLAGS}${CMAKE_CXX_STANDARD}"
     DEAL_II_HAVE_CXX17_FEATURES
     DEAL_II_HAVE_CXX17_CONSTEXPR_LAMBDA_BUG_OK
     )
@@ -174,23 +196,24 @@ MACRO(_test_cxx17_support)
     "
     DEAL_II_HAVE_CXX17_CONSTEXPR_LAMBDA_BUG_OK)
 
-  IF(DEAL_II_HAVE_CXX17_FEATURES AND
+  if(DEAL_II_HAVE_CXX17_FEATURES AND
      DEAL_II_HAVE_CXX17_CONSTEXPR_LAMBDA_BUG_OK)
-    MESSAGE(STATUS "C++17 support is enabled.")
-    SET(DEAL_II_HAVE_CXX17 TRUE)
-  ELSE()
-    MESSAGE(STATUS "C++17 support is disabled.")
-    SET(DEAL_II_HAVE_CXX17 FALSE)
-  ENDIF()
-ENDMACRO()
+    message(STATUS "C++17 support is enabled.")
+    set(DEAL_II_HAVE_CXX17 TRUE)
+    set(_cxx_standard 17)
+  else()
+    message(STATUS "C++17 support is disabled.")
+    set(DEAL_II_HAVE_CXX17 FALSE)
+  endif()
+endmacro()
 
 
 #
 # Wrap the following checks into a macro to make it easier to rerun them.
 #
-MACRO(_test_cxx14_support)
-  UNSET_IF_CHANGED(CHECK_CXX14_FEATURES_FLAGS_SAVED
-    "${CMAKE_REQUIRED_FLAGS}"
+macro(_test_cxx14_support)
+  unset_if_changed(CHECK_CXX14_FEATURES_FLAGS_SAVED
+    "${CMAKE_REQUIRED_FLAGS}${CMAKE_CXX_STANDARD}"
     DEAL_II_HAVE_CXX14_FEATURES
     DEAL_II_HAVE_CXX14_CLANGAUTODEBUG_BUG_OK
     DEAL_II_HAVE_CXX11_FEATURES
@@ -224,9 +247,9 @@ MACRO(_test_cxx14_support)
   # of an undeduced auto return type.
   #
   # https://llvm.org/bugs/show_bug.cgi?id=16876
-  SET(_flags "${DEAL_II_CXX_FLAGS_DEBUG}")
-  STRIP_FLAG(_flags "-Wa,--compress-debug-sections")
-  ADD_FLAGS(CMAKE_REQUIRED_FLAGS "${_flags}")
+  set(_flags "${DEAL_II_CXX_FLAGS_DEBUG}")
+  strip_flag(_flags "-Wa,--compress-debug-sections")
+  add_flags(CMAKE_REQUIRED_FLAGS "${_flags}")
   CHECK_CXX_SOURCE_COMPILES(
     "
     struct foo
@@ -269,8 +292,6 @@ MACRO(_test_cxx14_support)
      (void) m0;
      constexpr auto m1 = std::is_standard_layout<double>::value;
      (void) m1;
-     constexpr auto m2 = std::is_pod<double>::value;
-     (void) m2;
     }
     "
     DEAL_II_HAVE_CXX11_FEATURES)
@@ -284,17 +305,18 @@ MACRO(_test_cxx14_support)
     "
     DEAL_II_HAVE_CXX11_FUNCTIONAL_LLVMBUG20084_OK)
 
-  IF(DEAL_II_HAVE_CXX14_FEATURES AND
+  if(DEAL_II_HAVE_CXX14_FEATURES AND
      DEAL_II_HAVE_CXX14_CLANGAUTODEBUG_BUG_OK AND
      DEAL_II_HAVE_CXX11_FEATURES AND
      DEAL_II_HAVE_CXX11_FUNCTIONAL_LLVMBUG20084_OK)
-    MESSAGE(STATUS "C++14 support is enabled.")
-    SET(DEAL_II_HAVE_CXX14 TRUE)
-  ELSE()
-    MESSAGE(STATUS "C++14 support is disabled.")
-    SET(DEAL_II_HAVE_CXX14 FALSE)
-  ENDIF()
-ENDMACRO()
+    message(STATUS "C++14 support is enabled.")
+    set(DEAL_II_HAVE_CXX14 TRUE)
+    set(_cxx_standard 14)
+  else()
+    message(STATUS "C++14 support is disabled.")
+    set(DEAL_II_HAVE_CXX14 FALSE)
+  endif()
+endmacro()
 
 
 #
@@ -304,32 +326,47 @@ ENDMACRO()
 _set_up_cmake_required()
 _test_cxx14_support()
 
-IF(NOT DEAL_II_HAVE_CXX14)
+if(NOT DEAL_II_HAVE_CXX14)
   #
   # We failed to detect C++14 support. Let's make an attempt to set the
   # -std= compiler flag. (But in order to minimize confusion let's not
-  # override any manually specified -std= variable set by the user.)
+  # override any manually specified -std= flag or CMAKE_CXX_STANDARD
+  # variable set by the user.)
   #
-  IF(NOT "${DEAL_II_CXX_FLAGS_SAVED}" MATCHES "-std=")
-    MESSAGE(STATUS "C++14 support not available. Try to set -std=c++14 explicitly")
-    ENABLE_IF_SUPPORTED(DEAL_II_CXX_FLAGS_SAVED "-std=c++14")
+  if(NOT "${DEAL_II_CXX_FLAGS_SAVED}" MATCHES "-std=" AND "${CMAKE_CXX_STANDARD}" STREQUAL "")
+    message(STATUS "C++14 support not available. Try to set -std=c++14 explicitly")
+    set(CMAKE_CXX_STANDARD 14) # manually set the C++ standard
     _set_up_cmake_required()
     _test_cxx14_support()
-  ENDIF()
-ENDIF()
+  endif()
+endif()
 
-IF(NOT DEAL_II_HAVE_CXX14)
-  MESSAGE(FATAL_ERROR
+if(NOT DEAL_II_HAVE_CXX14)
+  message(FATAL_ERROR
     "\nThe current version of deal.II requires a compiler with enabled "
     "C++14 support. Make sure to use a modern enough compiler (GCC version "
     "5 onwards, Clang version 4 onwards, or Microsoft MS VS 2015 onwards) "
     "and check that the compiler flag \"-std=\" is either unset, or set to "
-    "at least c++14.\n\n"
+    "at least c++14. Similarly, please make sure that the CMake variable "
+    "CMAKE_CXX_STANDARD is either unset, or set at least to 14.\n\n"
     )
-ENDIF()
+endif()
 
 _test_cxx17_support()
 _test_cxx20_support()
+
+set_if_empty(CMAKE_CXX_STANDARD "${_cxx_standard}")
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(NOT "${CMAKE_CXX_STANDARD}" STREQUAL "${_cxx_standard}")
+  message(FATAL_ERROR
+    "\nThe current version of deal.II was configured with CMAKE_CXX_STANDARD "
+    "set to »${CMAKE_CXX_STANDARD}«, but we detected only support for standard "
+    "version »${_cxx_standard}«. Either unset the CMake variable "
+    "CMAKE_CXX_STANDARD, or ensure that it is at most set to »${_cxx_standard}«.\n\n"
+    )
+endif()
 
 
 ########################################################################
@@ -342,19 +379,20 @@ _test_cxx20_support()
 #
 # Some compilers are too generous in accepting some of the language
 # features that we test below and do not issue an error but a warning. Set
-# -Werror to make the feature detection more reliable.
+# -pedantic -Werror to make the feature detection more reliable.
 #
-SET(_werror_flag "")
-IF(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  ENABLE_IF_SUPPORTED(_werror_flag "/WX /EHsc")
-ELSE()
-  ENABLE_IF_SUPPORTED(_werror_flag "-Werror")
-  ENABLE_IF_SUPPORTED(_werror_flag "-Wno-unused-command-line-argument")
-ENDIF()
-ADD_FLAGS(CMAKE_REQUIRED_FLAGS "${_werror_flag}")
+set(_werror_flag "")
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  enable_if_supported(_werror_flag "/WX /EHsc")
+else()
+  enable_if_supported(_werror_flag "-pedantic")
+  enable_if_supported(_werror_flag "-Werror")
+  enable_if_supported(_werror_flag "-Wno-unused-command-line-argument")
+endif()
+add_flags(CMAKE_REQUIRED_FLAGS "${_werror_flag}")
 
-UNSET_IF_CHANGED(CHECK_CXX_FEATURES_FLAGS_SAVED
-  "${CMAKE_REQUIRED_FLAGS}"
+unset_if_changed(CHECK_CXX_FEATURES_FLAGS_SAVED
+  "${CMAKE_REQUIRED_FLAGS}${CMAKE_CXX_STANDARD}"
   DEAL_II_HAVE_FP_EXCEPTIONS
   DEAL_II_HAVE_COMPLEX_OPERATOR_OVERLOADS
   DEAL_II_HAVE_CXX17_ATTRIBUTE_DEPRECATED
@@ -376,7 +414,7 @@ UNSET_IF_CHANGED(CHECK_CXX_FEATURES_FLAGS_SAVED
 #
 # - Timo Heister, 2015
 #
-SET(_snippet
+set(_snippet
   "
   #include <cfenv>
   #include <limits>
@@ -394,15 +432,15 @@ SET(_snippet
   }
   "
   )
-IF(DEAL_II_ALLOW_PLATFORM_INTROSPECTION)
+if(DEAL_II_ALLOW_PLATFORM_INTROSPECTION)
   CHECK_CXX_SOURCE_RUNS("${_snippet}" DEAL_II_HAVE_FP_EXCEPTIONS)
-ELSE()
+else()
   #
   # If we are not allowed to do platform introspection, just test whether
   # we can compile above code.
   #
   CHECK_CXX_SOURCE_COMPILES("${_snippet}" DEAL_II_HAVE_FP_EXCEPTIONS)
-ENDIF()
+endif()
 
 
 #
@@ -432,7 +470,7 @@ CHECK_CXX_SOURCE_COMPILES(
 
 #
 # Even though [[deprecated]] is a C++14 feature we have to check
-# wether we can actually use the [[deprecated]] attribute in all
+# whether we can actually use the [[deprecated]] attribute in all
 # cases we care about; some of the following are C++17 features.
 #
 CHECK_CXX_SOURCE_COMPILES(
@@ -488,18 +526,18 @@ CHECK_CXX_SOURCE_COMPILES(
   DEAL_II_HAVE_ATTRIBUTE_DEPRECATED
   )
 
-IF(DEAL_II_HAVE_CXX17_ATTRIBUTE_DEPRECATED)
-  SET(DEAL_II_DEPRECATED "[[deprecated]]")
-ELSEIF(DEAL_II_HAVE_ATTRIBUTE_DEPRECATED AND NOT DEAL_II_WITH_CUDA)
-  SET(DEAL_II_DEPRECATED "__attribute__((deprecated))")
-ELSE()
-  SET(DEAL_II_DEPRECATED " ")
-ENDIF()
-IF(DEAL_II_EARLY_DEPRECATIONS)
-  SET(DEAL_II_DEPRECATED_EARLY ${DEAL_II_DEPRECATED})
-ELSE()
-  SET(DEAL_II_DEPRECATED_EARLY " ")
-ENDIF()
+if(DEAL_II_HAVE_CXX17_ATTRIBUTE_DEPRECATED)
+  set(DEAL_II_DEPRECATED "[[deprecated]]")
+elseif(DEAL_II_HAVE_ATTRIBUTE_DEPRECATED AND NOT DEAL_II_WITH_CUDA)
+  set(DEAL_II_DEPRECATED "__attribute__((deprecated))")
+else()
+  set(DEAL_II_DEPRECATED " ")
+endif()
+if(DEAL_II_EARLY_DEPRECATIONS)
+  set(DEAL_II_DEPRECATED_EARLY ${DEAL_II_DEPRECATED})
+else()
+  set(DEAL_II_DEPRECATED_EARLY " ")
+endif()
 
 
 #
@@ -554,13 +592,13 @@ CHECK_CXX_SOURCE_COMPILES(
   DEAL_II_HAVE_ATTRIBUTE_FALLTHROUGH
   )
 
-IF(DEAL_II_HAVE_CXX17_ATTRIBUTE_FALLTHROUGH)
-  SET(DEAL_II_FALLTHROUGH "[[fallthrough]]")
-ELSEIF(DEAL_II_HAVE_ATTRIBUTE_FALLTHROUGH)
-  SET(DEAL_II_FALLTHROUGH "__attribute__((fallthrough))")
-ELSE()
-  SET(DEAL_II_FALLTHROUGH " ")
-ENDIF()
+if(DEAL_II_HAVE_CXX17_ATTRIBUTE_FALLTHROUGH)
+  set(DEAL_II_FALLTHROUGH "[[fallthrough]]")
+elseif(DEAL_II_HAVE_ATTRIBUTE_FALLTHROUGH)
+  set(DEAL_II_FALLTHROUGH "__attribute__((fallthrough))")
+else()
+  set(DEAL_II_FALLTHROUGH " ")
+endif()
 
 
 #
@@ -619,10 +657,10 @@ CHECK_CXX_SOURCE_COMPILES(
 
 # MSVC has considerable problems with "constexpr", disable unconditionally
 # for now
-IF(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  SET(DEAL_II_CXX14_CONSTEXPR_BUG true)
-ELSE()
-  CHECK_CXX_COMPILER_BUG(
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  set(DEAL_II_CXX14_CONSTEXPR_BUG true)
+else()
+  check_cxx_compiler_bug(
     "
     #define Assert(x,y) if (!(x)) throw y;
     void bar()
@@ -644,12 +682,12 @@ ELSE()
     }
     "
     DEAL_II_CXX14_CONSTEXPR_BUG)
-ENDIF()
+endif()
 
-SET(DEAL_II_CONSTEXPR "constexpr")
-IF(DEAL_II_CXX14_CONSTEXPR_BUG)
-  SET(DEAL_II_CONSTEXPR " ")
-ENDIF()
+set(DEAL_II_CONSTEXPR "constexpr")
+if(DEAL_II_CXX14_CONSTEXPR_BUG)
+  set(DEAL_II_CONSTEXPR " ")
+endif()
 
 
-RESET_CMAKE_REQUIRED()
+reset_cmake_required()

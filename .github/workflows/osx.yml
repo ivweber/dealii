@@ -6,6 +6,9 @@ concurrency:
   group: ${ {github.event_name }}-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{github.event_name == 'pull_request'}}
 
+permissions:
+  contents: read
+
 jobs:
   osx-serial:
     # simple serial build using apple clang
@@ -14,7 +17,7 @@ jobs:
     runs-on: [macos-latest]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: info
       run: |
         g++ -v
@@ -22,24 +25,21 @@ jobs:
     - name: configure
       run: |
         cmake -D CMAKE_BUILD_TYPE=Debug -D DEAL_II_CXX_FLAGS='-Werror' -D DEAL_II_EARLY_DEPRECATIONS=ON .
-    - name: archive
-      uses: actions/upload-artifact@v1
-      with:
-        name: serial-detailed.log
-        path: detailed.log
+    - name: print detailed.log
+      run: cat detailed.log
     - name: build
       run: |
-        make -j 2
-        make -j 2 test # quicktests
+        make VERBOSE=1 -j2
+        make -j2 test # quicktests
     - name: archive error 1
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       if: always()
       continue-on-error: true
       with:
         name: osx-serial-CMakeOutput.log
         path: CMakeFiles/CMakeOutput.log
     - name: archive error 2
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       if: always()
       continue-on-error: true
       with:
@@ -53,7 +53,7 @@ jobs:
     runs-on: [macos-latest]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: setup
       run: |
         brew install openmpi
@@ -68,24 +68,21 @@ jobs:
     - name: configure
       run: |
         CC=mpicc CXX=mpic++ cmake -D CMAKE_BUILD_TYPE=Debug -D DEAL_II_WITH_64BIT_INDICES=ON -D DEAL_II_CXX_FLAGS='-Werror' -D DEAL_II_EARLY_DEPRECATIONS=ON -D DEAL_II_WITH_MPI=on .
-    - name: archive
-      uses: actions/upload-artifact@v1
-      with:
-        name: parallel-detailed.log
-        path: detailed.log
+    - name: print detailed.log
+      run: cat detailed.log
     - name: build
       run: |
-        make -j 2
-        make -j 2 test #quicktests
+        make VERBOSE=1 -j2
+        make -j2 test #quicktests
     - name: archive error 1
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       if: always()
       continue-on-error: true
       with:
         name: osx-parallel64-CMakeOutput.log
         path: CMakeFiles/CMakeOutput.log
     - name: archive error 2
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       if: always()
       continue-on-error: true
       with:

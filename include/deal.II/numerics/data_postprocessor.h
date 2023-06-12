@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2020 by the deal.II authors
+// Copyright (C) 2007 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -162,7 +162,7 @@ namespace DataPostprocessorInputs
    * {
    * public:
    *   BoundaryIds()
-   *     : DataPostprocessorScalar<dim>("boundary_id", update_quadrature_points)
+   *     : DataPostprocessorScalar<dim>("boundary_id", update_default)
    *   {}
    *
    *
@@ -222,10 +222,18 @@ namespace DataPostprocessorInputs
      * This array is only filled if a user-derived class overloads the
      * DataPostprocessor::get_needed_update_flags(), and the function
      * returns (possibly among other flags)
-     * UpdateFlags::update_quadrature_points.  Alternatively, a class
+     * UpdateFlags::update_quadrature_points. Alternatively, a class
      * derived from DataPostprocessorScalar, DataPostprocessorVector,
      * or DataPostprocessorTensor may pass this flag to the constructor of
      * these three classes.
+     *
+     * @note In the current context, the flag UpdateFlags::update_quadrature_points
+     *   is misnamed because we are not actually performing any quadrature.
+     *   Rather, we are *evaluating* the solution at specific evaluation
+     *   points, but these points are unrelated to quadrature (i.e.,
+     *   to computing integrals) and will, in general, not be located
+     *   at Gauss points or the quadrature points of any of the typical
+     *   quadrature rules.)
      */
     std::vector<Point<spacedim>> evaluation_points;
 
@@ -258,39 +266,12 @@ namespace DataPostprocessorInputs
       const unsigned int                                       face_number);
 
     /**
-     * Set the cell that is currently being used in evaluating the data
-     * for which the DataPostprocessor object is being called.
-     *
-     * This function is not usually called from user space, but is instead
-     * called by DataOut and similar classes when creating the object that
-     * is then passed to DataPostprocessor.
-     *
-     * @deprecated Use the equivalent function with the dim template parameter
-     * instead.
-     */
-    template <typename DoFHandlerType>
-    DEAL_II_DEPRECATED void
-    set_cell(const typename DoFHandlerType::cell_iterator &cell);
-
-    /**
      * Query the cell on which we currently produce graphical output.
      * See the documentation of the current class for an example on how
      * to use this function.
      */
     template <int dim>
     typename DoFHandler<dim, spacedim>::cell_iterator
-    get_cell() const;
-
-    /**
-     * Query the cell on which we currently produce graphical output.
-     * See the documentation of the current class for an example on how
-     * to use this function.
-     *
-     * @deprecated Use the equivalent function with the dim template parameter
-     * instead.
-     */
-    template <typename DoFHandlerType>
-    DEAL_II_DEPRECATED typename DoFHandlerType::cell_iterator
     get_cell() const;
 
     /**
@@ -688,6 +669,14 @@ public:
    * DataPostprocessor is to be used in combination with DataOutFaces, you may
    * also ask for a update of normals via the @p update_normal_vectors flag.
    * The description of the flags can be found at dealii::UpdateFlags.
+   *
+   * @note In the current context, the flag UpdateFlags::update_quadrature_points
+   *   is misnamed because we are not actually performing any quadrature.
+   *   Rather, we are *evaluating* the solution at specific evaluation
+   *   points, but these points are unrelated to quadrature (i.e.,
+   *   to computing integrals) and will, in general, not be located
+   *   at Gauss points or the quadrature points of any of the typical
+   *   quadrature rules.)
    */
   virtual UpdateFlags
   get_needed_update_flags() const = 0;
@@ -742,6 +731,14 @@ public:
    * DataPostprocessor is to be used in combination with DataOutFaces, you may
    * also ask for a update of normals via the @p update_normal_vectors flag.
    * The description of the flags can be found at dealii::UpdateFlags.
+   *
+   * @note In the current context, the flag UpdateFlags::update_quadrature_points
+   *   is misnamed because we are not actually performing any quadrature.
+   *   Rather, we are *evaluating* the solution at specific evaluation
+   *   points, but these points are unrelated to quadrature (i.e.,
+   *   to computing integrals) and will, in general, not be located
+   *   at Gauss points or the quadrature points of any of the typical
+   *   quadrature rules.)
    */
   DataPostprocessorScalar(const std::string &name,
                           const UpdateFlags  update_flags);
@@ -950,6 +947,16 @@ private:
  * does not adequately resolve this interface. This, however, is not
  * important to the current discussion.
  *
+ * @note In the current context, the flag UpdateFlags::update_quadrature_points
+ *   is misnamed because we are not actually performing any quadrature.
+ *   Rather, we are *evaluating* the solution at specific evaluation
+ *   points, but these points are unrelated to quadrature (i.e.,
+ *   to computing integrals) and will, in general, not be located
+ *   at Gauss points or the quadrature points of any of the typical
+ *   quadrature rules.) In the example above, we need the location
+ *   of these evaluation points because we need to evaluate the
+ *   coefficients at these points.
+ *
  *
  * <h3> Extension to the gradients of vector-valued problems </h3>
  *
@@ -986,6 +993,14 @@ public:
    * DataPostprocessor is to be used in combination with DataOutFaces, you may
    * also ask for a update of normals via the @p update_normal_vectors flag.
    * The description of the flags can be found at dealii::UpdateFlags.
+   *
+   * @note In the current context, the flag UpdateFlags::update_quadrature_points
+   *   is misnamed because we are not actually performing any quadrature.
+   *   Rather, we are *evaluating* the solution at specific evaluation
+   *   points, but these points are unrelated to quadrature (i.e.,
+   *   to computing integrals) and will, in general, not be located
+   *   at Gauss points or the quadrature points of any of the typical
+   *   quadrature rules.)
    */
   DataPostprocessorVector(const std::string &name,
                           const UpdateFlags  update_flags);
@@ -1147,7 +1162,7 @@ private:
  *                               data_component_interpretation);
  *     data_out.add_data_vector (solution, grad_u);
  *     data_out.build_patches ();
- *     data_out.write_vtk (output);
+ *     data_out.write_vtu (output);
  * @endcode
  *
  * This leads to the following output for the displacement field (i.e., the
@@ -1214,6 +1229,16 @@ private:
  * strain by multiplication with either the strain-stress tensor or,
  * in simple cases, the Lam&eacute; constants.
  *
+ * @note Not all graphical output formats support writing tensor data. For
+ *   example, the VTU file format used above when calling `data_out.write_vtu()`
+ *   does, but the original VTK file format does not (or at least
+ *   deal.II's output function does not support writing tensors at
+ *   the time of writing). If the file format you want to output does not
+ *   support writing tensor data, you will get an error. Since most
+ *   visualization programs today support VTU format, and since the
+ *   VTU writer supports writing tensor data, there should always be
+ *   a way for you to output tensor data that you can visualize.
+ *
  * @ingroup output
  */
 template <int dim>
@@ -1234,6 +1259,14 @@ public:
    * DataPostprocessor is to be used in combination with DataOutFaces, you may
    * also ask for a update of normals via the @p update_normal_vectors flag.
    * The description of the flags can be found at dealii::UpdateFlags.
+   *
+   * @note In the current context, the flag UpdateFlags::update_quadrature_points
+   *   is misnamed because we are not actually performing any quadrature.
+   *   Rather, we are *evaluating* the solution at specific evaluation
+   *   points, but these points are unrelated to quadrature (i.e.,
+   *   to computing integrals) and will, in general, not be located
+   *   at Gauss points or the quadrature points of any of the typical
+   *   quadrature rules.)
    */
   DataPostprocessorTensor(const std::string &name,
                           const UpdateFlags  update_flags);
@@ -1274,22 +1307,62 @@ private:
 
 
 
+/**
+ * A namespace that contains concrete implementations of data
+ * postprocessors, i.e., non-abstract classes based on DataPostprocessor
+ * or on the intermediate classes DataPostprocessorScalar,
+ * DataPostprocessorVector, or DataPostprocessorTensor.
+ */
+namespace DataPostprocessors
+{
+  /**
+   * A concrete data postprocessor class that can be used to output the
+   * boundary ids of all faces. This is often useful to identify bugs in
+   * the assignment of boundary indicators when reading meshes from input
+   * files. See the usage example in the
+   * @ref GlossBoundaryIndicator "glossary entry on boundary ids"
+   * to see how this class can be used.
+   *
+   * @note This class is intended for use with DataOutFaces, not DataOut.
+   *   This is because it provides information about the *faces* of a
+   *   triangulation, not about cell-based information.
+   *
+   * By default, the DataOutFaces class function only generates
+   * output for faces that lie on the boundary of the domain, and on these
+   * faces, boundary indicators are available. But one can also
+   * instruct DataOutFaces to run on internal faces as
+   * well (by providing an argument to the constructor of the class).
+   * At these internal faces, no boundary indicator is available because,
+   * of course, the face is not actually at the boundary. For these
+   * faces, the current class then outputs -1 as an indicator.
+   */
+  template <int dim>
+  class BoundaryIds : public DataPostprocessorScalar<dim>
+  {
+  public:
+    /**
+     * Constructor.
+     */
+    BoundaryIds();
+
+    /**
+     * The principal function of this class. It puts the boundary id
+     * of each face into the appropriate output fields.
+     */
+    virtual void
+    evaluate_scalar_field(
+      const DataPostprocessorInputs::Scalar<dim> &inputs,
+      std::vector<Vector<double>> &computed_quantities) const override;
+  };
+} // namespace DataPostprocessors
+
+
+
 #ifndef DOXYGEN
 // -------------------- template functions ----------------------
 
 namespace DataPostprocessorInputs
 {
-  template <int spacedim>
-  template <typename DoFHandlerType>
-  void
-  CommonInputs<spacedim>::set_cell(
-    const typename DoFHandlerType::cell_iterator &new_cell)
-  {
-    return set_cell<DoFHandlerType::dimension>(new_cell);
-  }
-
-
-
   template <int spacedim>
   template <int dim>
   void
@@ -1324,16 +1397,6 @@ namespace DataPostprocessorInputs
   {
     set_cell<dim>(new_cell);
     face_number = new_face_number;
-  }
-
-
-
-  template <int spacedim>
-  template <typename DoFHandlerType>
-  typename DoFHandlerType::cell_iterator
-  CommonInputs<spacedim>::get_cell() const
-  {
-    return get_cell<DoFHandlerType::dimension>();
   }
 
 

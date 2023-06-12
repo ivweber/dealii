@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2021 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -70,7 +70,7 @@ namespace internal
       /**
        * Symmetric tensor product shape functions fulfilling a Hermite
        * identity with values and first derivatives zero at the element end
-       * points in 1D.
+       * points in 1d.
        */
       tensor_symmetric_hermite = 1,
 
@@ -82,27 +82,42 @@ namespace internal
       tensor_symmetric = 2,
 
       /**
+       * For function spaces that are not equivalent to a polynom of degree p,
+       * which the assumption of collocation is.
+       */
+      tensor_symmetric_no_collocation = 3,
+
+      /**
        * Tensor product shape functions without further particular properties
        */
-      tensor_general = 3,
+      tensor_general = 4,
 
       /**
        * Polynomials of complete degree rather than tensor degree which can be
        * described by a truncated tensor product
        */
-      truncated_tensor = 4,
+      truncated_tensor = 5,
 
       /**
        * Tensor product shape functions that are symmetric about the midpoint
        * of the unit interval 0.5 that additionally add a constant shape
        * function according to FE_Q_DG0.
        */
-      tensor_symmetric_plus_dg0 = 5,
+      tensor_symmetric_plus_dg0 = 6,
 
       /**
-       * Shape functions without an tensor product properties.
+       * Special case of the FE_RaviartThomasNodal element with anisotropic
+       * tensor product shape functions, i.e degree (k + 1) in normal direction,
+       * and k in tangential direction.
        */
-      tensor_none = 6
+      tensor_raviart_thomas = 7,
+
+      /**
+       * Shape functions without a tensor product properties.
+       */
+      tensor_none = 8
+
+
     };
 
 
@@ -137,7 +152,7 @@ namespace internal
       ElementType element_type;
 
       /**
-       * Stores the shape values of the 1D finite element evaluated at all 1D
+       * Stores the shape values of the 1d finite element evaluated at all 1d
        * quadrature points. The length of
        * this array is <tt>n_dofs_1d * n_q_points_1d</tt> and quadrature
        * points are the index running fastest.
@@ -145,16 +160,16 @@ namespace internal
       AlignedVector<Number> shape_values;
 
       /**
-       * Stores the shape gradients of the 1D finite element evaluated at all
-       * 1D quadrature points. The length of
+       * Stores the shape gradients of the 1d finite element evaluated at all
+       * 1d quadrature points. The length of
        * this array is <tt>n_dofs_1d * n_q_points_1d</tt> and quadrature
        * points are the index running fastest.
        */
       AlignedVector<Number> shape_gradients;
 
       /**
-       * Stores the shape Hessians of the 1D finite element evaluated at all
-       * 1D quadrature points. The length of
+       * Stores the shape Hessians of the 1d finite element evaluated at all
+       * 1d quadrature points. The length of
        * this array is <tt>n_dofs_1d * n_q_points_1d</tt> and quadrature
        * points are the index running fastest.
        */
@@ -217,7 +232,7 @@ namespace internal
        * with the `_collocation` fields. The size of the array equals the
        * layout of the `shape_values` array, and it is combined with the shape
        * values array such that this matrix is the pseudo inverse of
-       * shape_values. In case the number of 1D quadrature points equals the
+       * shape_values. In case the number of 1d quadrature points equals the
        * size of the basis, this array is exactly the inverse of the
        * shape_values array. The length of this array is <tt>n_dofs_1d *
        * n_q_points_1d</tt> and quadrature points are the index running
@@ -231,21 +246,20 @@ namespace internal
       AlignedVector<Number> inverse_shape_values_eo;
 
       /**
-       * Collects all data of 1D shape values evaluated at the point 0 and 1
-       * (the vertices) in one data structure. Sorting is first the values,
-       * then gradients, then second derivatives.
+       * Collects all data of 1d shape values evaluated at the point 0 and 1
+       * (the vertices) in one data structure. The sorting of data is to
+       * start with the values, then gradients, then second derivatives.
        */
       std::array<AlignedVector<Number>, 2> shape_data_on_face;
 
       /**
-       * Collects all data of 1D nodal shape values (defined by the Lagrange
+       * Collects all data of 1d nodal shape values (defined by the Lagrange
        * polynomials in the points of the quadrature rule) evaluated at the
        * point 0 and 1 (the vertices) in one data structure.
        *
        * This data structure can be used to interpolate from the cell to the
-       * face quadrature points.
-       *
-       * @note In contrast to shape_data_on_face, only the vales are evaluated.
+       * face quadrature points. The sorting of data is to start with the
+       * values, then gradients, then second derivatives.
        */
       std::array<AlignedVector<Number>, 2> quadrature_data_on_face;
 
@@ -268,7 +282,7 @@ namespace internal
       std::array<AlignedVector<Number>, 2> hessians_within_subface;
 
       /**
-       * A 1D subface interpolation matrices to the first and second quadrant.
+       * A 1d subface interpolation matrices to the first and second quadrant.
        * This data structure is only set up for FE_Q for dim > 1.
        */
       std::array<AlignedVector<Number>, 2> subface_interpolation_matrices;
@@ -369,7 +383,20 @@ namespace internal
              const unsigned int                  base_element = 0);
 
       /**
-       * Return which kinds of elements are supported by MatrixFree.
+       * Return whether an element is supported by MatrixFree.
+       *
+       * The following scalar elements are supported:
+       * - FENothing, FE_DGP, and FE_Q_DG0
+       * - polynomial tensor-product elements based on
+       *   Polynomials::Polynomial (FE_Q, FE_DG_Q, FE_DGQArbitraryNodes,
+       *   FE_DGQHermite, FE_DGQLegendre) or Polynomials::PiecewisePolynomial
+       *   (FE_Q_iso_Q1).
+       * - elements for simplex, pyramids, and wedges (FE_SimplexP,
+       *   FE_SimplexDGP, FE_PyramidP, FE_PyramidDGP, FE_WedgeP, FE_WedgeDGP)
+       *
+       * In the case of vectorial elements, FE_RaviartThomasNodal
+       * and FESystem with base elements from the scalar elements
+       * listed above are supported.
        */
       template <int dim, int spacedim>
       static bool
@@ -377,7 +404,7 @@ namespace internal
 
       /**
        * Compute a table with numbers of re-orientation for all versions of
-       * face flips, orientation, and rotation (relating only to 3D elements).
+       * face flips, orientation, and rotation (relating only to 3d elements).
        */
       static Table<2, unsigned int>
       compute_orientation_table(const unsigned int n_points_per_dim);
@@ -473,7 +500,7 @@ namespace internal
        * @p dofs_per_face entries.
        *
        * The indices stored in this member variable are as follows. Consider
-       * for example a 2D element of degree 3 with the following degrees of
+       * for example a 2d element of degree 3 with the following degrees of
        * freedom in lexicographic numbering:
        * @code
        * 12   13   14   15
@@ -487,7 +514,7 @@ namespace internal
        * <code>3, 7, 11, 15</code> for face 1, the third row holds the indices
        * <code>0, 1, 2, 3</code> for face 2, and the last (fourth) row holds
        * the indices <code>12, 13, 14, 15</code>. Similarly, the indices are
-       * stored in 3D. (Note that the y faces in 3D use indices reversed in
+       * stored in 3d. (Note that the y faces in 3d use indices reversed in
        * terms of the lexicographic numbers due to the orientation of the
        * coordinate system.)
        *
@@ -511,7 +538,7 @@ namespace internal
        * face and the derivatives, using <code>2*dofs_per_face</code> entries.
        *
        * The indices stored in this member variable are as follows. Consider
-       * for example a 2D element of degree 3 with the following degrees of
+       * for example a 2d element of degree 3 with the following degrees of
        * freedom in lexicographic numbering:
        * @code
        * 20   21   22   23   24
@@ -527,8 +554,8 @@ namespace internal
        * 19, 18, 24, 23</code> for face 1, the third row holds the indices
        * <code>0, 5, 1, 6, 2, 7, 3, 8, 4, 9</code> for face 2, and the last
        * (fourth) row holds the indices <code>20, 15, 21, 16, 22, 17, 23, 18,
-       * 24, 19</code>. Similarly, the indices are stored in 3D. (Note that
-       * the y faces in 3D use indices reversed in terms of the lexicographic
+       * 24, 19</code>. Similarly, the indices are stored in 3d. (Note that
+       * the y faces in 3d use indices reversed in terms of the lexicographic
        * numbers due to the orientation of the coordinate system.)
        *
        * @note This object is only filled in case @p element_type evaluates to
@@ -562,7 +589,7 @@ namespace internal
         UnivariateShapeData<Number> &univariate_shape_data);
 
       /**
-       * Check whether symmetric 1D basis functions are such that the shape
+       * Check whether symmetric 1d basis functions are such that the shape
        * values form a diagonal matrix, i.e., the nodal points are collocated
        * with the quadrature points. This allows for specialized algorithms
        * that save some operations in the evaluation.

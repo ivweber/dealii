@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,10 +24,10 @@
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/grid/filtered_iterator.h>
-#include <deal.II/grid/grid_tools.h>
-#include <deal.II/grid/grid_tools_cache.h>
 
 #include <deal.II/particles/generators.h>
+
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -110,8 +110,8 @@ namespace Particles
 
 
       // This function generates a random position in the given cell and
-      // returns the position and its coordinates in the unit cell. It first
-      // tries to generate a random and uniformly distributed point in the
+      // returns the position and its coordinates in the reference cell. It
+      // first tries to generate a random and uniformly distributed point in
       // real space, but if that fails (e.g. because the cell has a bad aspect
       // ratio) it reverts to generating a random point in the unit cell.
       template <int dim, int spacedim>
@@ -121,6 +121,9 @@ namespace Particles
         const Mapping<dim, spacedim> &mapping,
         std::mt19937 &                random_number_generator)
       {
+        Assert(cell->reference_cell().is_hyper_cube() == true,
+               ExcNotImplemented());
+
         // Uniform distribution on the interval [0,1]. This
         // will be used to generate random particle locations.
         std::uniform_real_distribution<double> uniform_distribution_01(0, 1);
@@ -132,10 +135,9 @@ namespace Particles
         // Generate random points in these bounds until one is within the cell
         // or we exceed the maximum number of attempts.
         const unsigned int n_attempts = 100;
-        Point<spacedim>    position;
-        Point<dim>         position_unit;
         for (unsigned int i = 0; i < n_attempts; ++i)
           {
+            Point<spacedim> position;
             for (unsigned int d = 0; d < spacedim; ++d)
               {
                 position[d] = uniform_distribution_01(random_number_generator) *
@@ -145,11 +147,11 @@ namespace Particles
 
             try
               {
-                position_unit =
+                const Point<dim> reference_position =
                   mapping.transform_real_to_unit_cell(cell, position);
 
-                if (GeometryInfo<dim>::is_inside_unit_cell(position_unit))
-                  return std::make_pair(position, position_unit);
+                if (cell->reference_cell().contains_point(reference_position))
+                  return {position, reference_position};
               }
             catch (typename Mapping<dim>::ExcTransformationFailed &)
               {
@@ -159,16 +161,22 @@ namespace Particles
 
         // If the above algorithm has not worked (e.g. because of badly
         // deformed cells), retry generating particles
-        // randomly within the reference cell. This is not generating a
+        // randomly within the reference cell and then mapping it to to
+        // real space. This is not generating a
         // uniform distribution in real space, but will always succeed.
+        Point<dim> reference_position;
         for (unsigned int d = 0; d < dim; ++d)
-          position_unit[d] = uniform_distribution_01(random_number_generator);
+          reference_position[d] =
+            uniform_distribution_01(random_number_generator);
 
-        position = mapping.transform_unit_to_real_cell(cell, position_unit);
+        const Point<spacedim> position =
+          mapping.transform_unit_to_real_cell(cell, reference_position);
 
-        return std::make_pair(position, position_unit);
+        return {position, reference_position};
       }
     } // namespace
+
+
 
     template <int dim, int spacedim>
     void
@@ -353,7 +361,7 @@ namespace Particles
           std::llround(static_cast<double>(n_particles_to_create) *
                        local_start_weight / global_weight_integral);
 
-        // Calcualate number of local particles
+        // Calculate number of local particles
         const types::particle_index end_particle_id =
           std::llround(static_cast<double>(n_particles_to_create) *
                        ((local_start_weight + local_weight_integral) /
@@ -460,12 +468,9 @@ namespace Particles
         (components.size() == 0 ? ComponentMask(fe.n_components(), true) :
                                   components);
 
-      std::map<types::global_dof_index, Point<spacedim>> support_points_map;
-
-      DoFTools::map_dofs_to_support_points(mapping,
-                                           dof_handler,
-                                           support_points_map,
-                                           mask);
+      const std::map<types::global_dof_index, Point<spacedim>>
+        support_points_map =
+          DoFTools::map_dofs_to_support_points(mapping, dof_handler, mask);
 
       // Generate the vector of points from the map
       // Memory is reserved for efficiency reasons

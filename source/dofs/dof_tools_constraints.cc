@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -577,7 +577,7 @@ namespace DoFTools
 
     template <typename number>
     void
-    make_hp_hanging_node_constraints(const dealii::DoFHandler<1> &,
+    make_hp_hanging_node_constraints(const DoFHandler<1> &,
                                      AffineConstraints<number> &)
     {
       // nothing to do for regular dof handlers in 1d
@@ -586,7 +586,7 @@ namespace DoFTools
 
     template <typename number>
     void
-    make_oldstyle_hanging_node_constraints(const dealii::DoFHandler<1> &,
+    make_oldstyle_hanging_node_constraints(const DoFHandler<1> &,
                                            AffineConstraints<number> &,
                                            std::integral_constant<int, 1>)
     {
@@ -596,7 +596,7 @@ namespace DoFTools
 
     template <typename number>
     void
-    make_hp_hanging_node_constraints(const dealii::DoFHandler<1, 2> &,
+    make_hp_hanging_node_constraints(const DoFHandler<1, 2> &,
                                      AffineConstraints<number> &)
     {
       // nothing to do for regular dof handlers in 1d
@@ -605,7 +605,7 @@ namespace DoFTools
 
     template <typename number>
     void
-    make_oldstyle_hanging_node_constraints(const dealii::DoFHandler<1, 2> &,
+    make_oldstyle_hanging_node_constraints(const DoFHandler<1, 2> &,
                                            AffineConstraints<number> &,
                                            std::integral_constant<int, 1>)
     {
@@ -616,7 +616,7 @@ namespace DoFTools
     template <typename number, int spacedim>
     void
     make_hp_hanging_node_constraints(
-      const dealii::DoFHandler<1, spacedim> & /*dof_handler*/,
+      const DoFHandler<1, spacedim> & /*dof_handler*/,
       AffineConstraints<number> & /*constraints*/)
     {
       // nothing to do for dof handlers in 1d
@@ -626,7 +626,7 @@ namespace DoFTools
     template <typename number, int spacedim>
     void
     make_oldstyle_hanging_node_constraints(
-      const dealii::DoFHandler<1, spacedim> & /*dof_handler*/,
+      const DoFHandler<1, spacedim> & /*dof_handler*/,
       AffineConstraints<number> & /*constraints*/,
       std::integral_constant<int, 1>)
     {
@@ -695,7 +695,7 @@ namespace DoFTools
 
                 // ok, start up the work
                 const FiniteElement<dim, spacedim> &fe = cell->get_fe();
-                const unsigned int fe_index = cell->active_fe_index();
+                const types::fe_index fe_index = cell->active_fe_index();
 
                 const unsigned int n_dofs_on_mother =
                                      2 * fe.n_dofs_per_vertex() +
@@ -881,7 +881,7 @@ namespace DoFTools
 
                 // ok, start up the work
                 const FiniteElement<dim> &fe       = cell->get_fe();
-                const unsigned int        fe_index = cell->active_fe_index();
+                const types::fe_index     fe_index = cell->active_fe_index();
 
                 const unsigned int n_dofs_on_mother = fe.n_dofs_per_face(face);
                 const unsigned int n_dofs_on_children =
@@ -1135,7 +1135,7 @@ namespace DoFTools
                 // auxiliary variable which holds FE indices of the mother face
                 // and its subfaces. This knowledge will be needed in hp-case
                 // with neither_element_dominates.
-                std::set<unsigned int> fe_ind_face_subface;
+                std::set<types::fe_index> fe_ind_face_subface;
                 fe_ind_face_subface.insert(cell->active_fe_index());
 
                 if (dof_handler.has_hp_capabilities())
@@ -1193,7 +1193,7 @@ namespace DoFTools
                             Assert(subface->n_active_fe_indices() == 1,
                                    ExcInternalError());
 
-                            const unsigned int subface_fe_index =
+                            const types::fe_index subface_fe_index =
                               subface->nth_active_fe_index(0);
 
                             // we sometime run into the situation where for
@@ -1310,12 +1310,15 @@ namespace DoFTools
                         // Note that the last solution covers the first two
                         // scenarios, thus we stick with it assuming that we
                         // won't lose much time/efficiency.
-                        const unsigned int dominating_fe_index =
+                        // TODO: Change set to types::fe_index
+                        const types::fe_index dominating_fe_index =
                           fe_collection.find_dominating_fe_extended(
-                            fe_ind_face_subface, /*codim=*/1);
+                            {fe_ind_face_subface.begin(),
+                             fe_ind_face_subface.end()},
+                            /*codim=*/1);
 
                         AssertThrow(
-                          dominating_fe_index != numbers::invalid_unsigned_int,
+                          dominating_fe_index != numbers::invalid_fe_index,
                           ExcMessage(
                             "Could not find a least face dominating FE."));
 
@@ -1428,7 +1431,7 @@ namespace DoFTools
                                        ->n_active_fe_indices() == 1,
                                    ExcInternalError());
 
-                            const unsigned int subface_fe_index =
+                            const types::fe_index subface_fe_index =
                               cell->face(face)->child(sf)->nth_active_fe_index(
                                 0);
                             const FiniteElement<dim, spacedim> &subface_fe =
@@ -1609,23 +1612,23 @@ namespace DoFTools
                             // to primary dofs based on the interpolation
                             // matrix.
 
-                            const unsigned int this_fe_index =
+                            const types::fe_index this_fe_index =
                               cell->active_fe_index();
-                            const unsigned int neighbor_fe_index =
+                            const types::fe_index neighbor_fe_index =
                               neighbor->active_fe_index();
-                            std::set<unsigned int> fes;
+                            std::set<types::fe_index> fes;
                             fes.insert(this_fe_index);
                             fes.insert(neighbor_fe_index);
                             const dealii::hp::FECollection<dim, spacedim>
                               &fe_collection = dof_handler.get_fe_collection();
 
-                            const unsigned int dominating_fe_index =
+                            // TODO: Change set to types::fe_index
+                            const types::fe_index dominating_fe_index =
                               fe_collection.find_dominating_fe_extended(
-                                fes, /*codim=*/1);
+                                {fes.begin(), fes.end()}, /*codim=*/1);
 
                             AssertThrow(
-                              dominating_fe_index !=
-                                numbers::invalid_unsigned_int,
+                              dominating_fe_index != numbers::invalid_fe_index,
                               ExcMessage(
                                 "Could not find the dominating FE for " +
                                 cell->get_fe().get_name() + " and " +
@@ -1836,15 +1839,15 @@ namespace DoFTools
     template <typename FaceIterator, typename number>
     void
     set_periodicity_constraints(
-      const FaceIterator &                         face_1,
-      const typename identity<FaceIterator>::type &face_2,
-      const FullMatrix<double> &                   transformation,
-      AffineConstraints<number> &                  affine_constraints,
-      const ComponentMask &                        component_mask,
-      const bool                                   face_orientation,
-      const bool                                   face_flip,
-      const bool                                   face_rotation,
-      const number                                 periodicity_factor)
+      const FaceIterator &                            face_1,
+      const std_cxx20::type_identity_t<FaceIterator> &face_2,
+      const FullMatrix<double> &                      transformation,
+      AffineConstraints<number> &                     affine_constraints,
+      const ComponentMask &                           component_mask,
+      const bool                                      face_orientation,
+      const bool                                      face_flip,
+      const bool                                      face_rotation,
+      const number                                    periodicity_factor)
     {
       static const int dim      = FaceIterator::AccessorType::dimension;
       static const int spacedim = FaceIterator::AccessorType::space_dimension;
@@ -1908,8 +1911,8 @@ namespace DoFTools
       // that is left is to match the corresponding DoFs of both faces.
       //
 
-      const unsigned int face_1_index = face_1->nth_active_fe_index(0);
-      const unsigned int face_2_index = face_2->nth_active_fe_index(0);
+      const types::fe_index face_1_index = face_1->nth_active_fe_index(0);
+      const types::fe_index face_2_index = face_2->nth_active_fe_index(0);
       Assert(face_1->get_fe(face_1_index) == face_2->get_fe(face_2_index),
              ExcMessage(
                "Matching periodic cells need to use the same finite element"));
@@ -2140,7 +2143,7 @@ namespace DoFTools
 
           if (constraints_are_cyclic)
             {
-              if (std::abs(cycle_constraint_factor - 1.) > eps)
+              if (std::abs(cycle_constraint_factor - number(1.)) > eps)
                 affine_constraints.add_line(dof_left);
             }
           else
@@ -2169,10 +2172,10 @@ namespace DoFTools
               // just very small due to roundoff. Of course, constraining x2 in
               // terms of x1 has the same problem. So one chooses x1 = b/a*x2 if
               // |b|<|a|, and x2 = a/b*x1 if |a|<|b|.
-              Assert(
-                std::abs(constraint_factor) < 1e10,
-                ExcMessage(
-                  "The periodicity constraint is too large. The parameter periodicity_factor might be too large or too small."));
+              Assert(std::abs(constraint_factor) < 1e10,
+                     ExcMessage("The periodicity constraint is too large. "
+                                "The parameter periodicity_factor might "
+                                "be too large or too small."));
             }
         } /* for dofs_per_face */
     }
@@ -2287,25 +2290,17 @@ namespace DoFTools
   template <typename FaceIterator, typename number>
   void
   make_periodicity_constraints(
-    const FaceIterator &                         face_1,
-    const typename identity<FaceIterator>::type &face_2,
-    AffineConstraints<number> &                  affine_constraints,
-    const ComponentMask &                        component_mask,
-    const bool                                   face_orientation,
-    const bool                                   face_flip,
-    const bool                                   face_rotation,
-    const FullMatrix<double> &                   matrix,
-    const std::vector<unsigned int> &            first_vector_components,
-    const number                                 periodicity_factor)
+    const FaceIterator &                            face_1,
+    const std_cxx20::type_identity_t<FaceIterator> &face_2,
+    AffineConstraints<number> &                     affine_constraints,
+    const ComponentMask &                           component_mask,
+    const bool                                      face_orientation,
+    const bool                                      face_flip,
+    const bool                                      face_rotation,
+    const FullMatrix<double> &                      matrix,
+    const std::vector<unsigned int> &               first_vector_components,
+    const number                                    periodicity_factor)
   {
-    // TODO: the implementation makes the assumption that all faces have the
-    // same number of dofs
-    AssertDimension(
-      face_1->get_fe(face_1->nth_active_fe_index(0)).n_unique_faces(), 1);
-    AssertDimension(
-      face_2->get_fe(face_2->nth_active_fe_index(0)).n_unique_faces(), 1);
-    const unsigned int face_no = 0;
-
     static const int dim      = FaceIterator::AccessorType::dimension;
     static const int spacedim = FaceIterator::AccessorType::space_dimension;
 
@@ -2313,12 +2308,12 @@ namespace DoFTools
                           face_rotation == false),
            ExcMessage("The supplied orientation "
                       "(face_orientation, face_flip, face_rotation) "
-                      "is invalid for 1D"));
+                      "is invalid for 1d"));
 
     Assert((dim != 2) || (face_orientation == true && face_rotation == false),
            ExcMessage("The supplied orientation "
                       "(face_orientation, face_flip, face_rotation) "
-                      "is invalid for 2D"));
+                      "is invalid for 2d"));
 
     Assert(face_1 != face_2,
            ExcMessage("face_1 and face_2 are equal! Cannot constrain DoFs "
@@ -2339,6 +2334,12 @@ namespace DoFTools
 #ifdef DEBUG
     if (!face_1->has_children())
       {
+        // TODO: the implementation makes the assumption that all faces have the
+        // same number of dofs
+        AssertDimension(
+          face_1->get_fe(face_1->nth_active_fe_index(0)).n_unique_faces(), 1);
+        const unsigned int face_no = 0;
+
         Assert(face_1->n_active_fe_indices() == 1, ExcInternalError());
         const unsigned int n_dofs_per_face =
           face_1->get_fe(face_1->nth_active_fe_index(0))
@@ -2357,6 +2358,12 @@ namespace DoFTools
 
     if (!face_2->has_children())
       {
+        // TODO: the implementation makes the assumption that all faces have the
+        // same number of dofs
+        AssertDimension(
+          face_2->get_fe(face_2->nth_active_fe_index(0)).n_unique_faces(), 1);
+        const unsigned int face_no = 0;
+
         Assert(face_2->n_active_fe_indices() == 1, ExcInternalError());
         const unsigned int n_dofs_per_face =
           face_2->get_fe(face_2->nth_active_fe_index(0))
@@ -2459,6 +2466,11 @@ namespace DoFTools
             face_2->get_fe(face_2->nth_active_fe_index(0)) :
             face_1->get_fe(face_1->nth_active_fe_index(0));
 
+        // TODO: the implementation makes the assumption that all faces have the
+        // same number of dofs
+        AssertDimension(fe.n_unique_faces(), 1);
+        const unsigned int face_no = 0;
+
         const unsigned int n_dofs_per_face = fe.n_dofs_per_face(face_no);
 
         // Sometimes we just have nothing to do (for all finite elements, or
@@ -2506,7 +2518,7 @@ namespace DoFTools
             Assert(!face_1->has_children(), ExcInternalError());
 
             // Important note:
-            // In 3D we have to take care of the fact that face_rotation gives
+            // In 3d we have to take care of the fact that face_rotation gives
             // the relative rotation of face_1 to face_2, i.e. we have to invert
             // the rotation when constraining face_2 to face_1. Therefore
             // face_flip has to be toggled if face_rotation is true: In case of
@@ -2666,15 +2678,13 @@ namespace DoFTools
       template <int dim, int spacedim>
       void
       compute_intergrid_weights_3(
-        const typename dealii::DoFHandler<dim, spacedim>::active_cell_iterator
-          &cell,
+        const typename DoFHandler<dim, spacedim>::active_cell_iterator &cell,
         const Assembler::Scratch &,
-        Assembler::CopyData<dim, spacedim> &copy_data,
-        const unsigned int                  coarse_component,
-        const FiniteElement<dim, spacedim> &coarse_fe,
-        const InterGridMap<dealii::DoFHandler<dim, spacedim>>
-          &                                        coarse_to_fine_grid_map,
-        const std::vector<dealii::Vector<double>> &parameter_dofs)
+        Assembler::CopyData<dim, spacedim> &           copy_data,
+        const unsigned int                             coarse_component,
+        const FiniteElement<dim, spacedim> &           coarse_fe,
+        const InterGridMap<DoFHandler<dim, spacedim>> &coarse_to_fine_grid_map,
+        const std::vector<dealii::Vector<double>> &    parameter_dofs)
       {
         // for each cell on the parameter grid: find out which degrees of
         // freedom on the fine grid correspond in which way to the degrees of
@@ -2835,12 +2845,11 @@ namespace DoFTools
       template <int dim, int spacedim>
       void
       compute_intergrid_weights_2(
-        const dealii::DoFHandler<dim, spacedim> &coarse_grid,
-        const unsigned int                       coarse_component,
-        const InterGridMap<dealii::DoFHandler<dim, spacedim>>
-          &                                         coarse_to_fine_grid_map,
-        const std::vector<dealii::Vector<double>> & parameter_dofs,
-        const std::vector<types::global_dof_index> &weight_mapping,
+        const DoFHandler<dim, spacedim> &              coarse_grid,
+        const unsigned int                             coarse_component,
+        const InterGridMap<DoFHandler<dim, spacedim>> &coarse_to_fine_grid_map,
+        const std::vector<dealii::Vector<double>> &    parameter_dofs,
+        const std::vector<types::global_dof_index> &   weight_mapping,
         std::vector<std::map<types::global_dof_index, float>> &weights)
       {
         Assembler::Scratch                 scratch;
@@ -2900,10 +2909,11 @@ namespace DoFTools
           [coarse_component,
            &coarse_grid,
            &coarse_to_fine_grid_map,
-           &parameter_dofs](const typename dealii::DoFHandler<dim, spacedim>::
-                              active_cell_iterator &            cell,
-                            const Assembler::Scratch &          scratch_data,
-                            Assembler::CopyData<dim, spacedim> &copy_data) {
+           &parameter_dofs](
+            const typename DoFHandler<dim, spacedim>::active_cell_iterator
+              &                                 cell,
+            const Assembler::Scratch &          scratch_data,
+            Assembler::CopyData<dim, spacedim> &copy_data) {
             compute_intergrid_weights_3<dim, spacedim>(cell,
                                                        scratch_data,
                                                        copy_data,
@@ -2952,12 +2962,11 @@ namespace DoFTools
       template <int dim, int spacedim>
       unsigned int
       compute_intergrid_weights_1(
-        const dealii::DoFHandler<dim, spacedim> &coarse_grid,
-        const unsigned int                       coarse_component,
-        const dealii::DoFHandler<dim, spacedim> &fine_grid,
-        const unsigned int                       fine_component,
-        const InterGridMap<dealii::DoFHandler<dim, spacedim>>
-          &coarse_to_fine_grid_map,
+        const DoFHandler<dim, spacedim> &              coarse_grid,
+        const unsigned int                             coarse_component,
+        const DoFHandler<dim, spacedim> &              fine_grid,
+        const unsigned int                             fine_component,
+        const InterGridMap<DoFHandler<dim, spacedim>> &coarse_to_fine_grid_map,
         std::vector<std::map<types::global_dof_index, float>> &weights,
         std::vector<types::global_dof_index> &                 weight_mapping)
       {

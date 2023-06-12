@@ -5,7 +5,7 @@
   <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
   <title>The deal.II Testsuite</title>
   <link href="../screen.css" rel="StyleSheet">
-  <meta name="copyright" content="Copyright (C) 1998 - 2021 by the deal.II Authors">
+  <meta name="copyright" content="Copyright (C) 1998 - 2022 by the deal.II Authors">
   <meta name="keywords" content="deal dealii finite elements fem triangulation">
   <meta http-equiv="content-language" content="en">
 </head>
@@ -30,7 +30,7 @@
       we fix a bug, in both cases to make sure that future changes do not
       break this functionality (again). Machines running the testsuite
       submit the results to our cdash
-      <a href="https://cdash.43-1.org/index.php?project=deal.II">CDash instance</a>,
+      <a href="https://cdash.dealii.org/index.php?project=deal.II">CDash instance</a>,
       a webpage showing the status of our regression tests.
     </p>
 
@@ -328,7 +328,7 @@ xx: ===============================    OUTPUT END   ============================
      <p>
        At the end of all of this, results will be shown in a separate section
        "Dynamic Analysis" at the
-       <a href="https://cdash.43-1.org/index.php?project=deal.II&display=project"
+       <a href="https://cdash.dealii.org/index.php?project=deal.II&display=project"
        target="_top">deal.II cdash site</a>.
      </p>
 
@@ -350,15 +350,15 @@ xx: ===============================    OUTPUT END   ============================
       To run the testsuite in this mode, essentially, you have to do three
       things:
       <ol>
-	<li>
-	  build the library with appropriate profiling flags
-	</li>
-	<li>
-	  run all or some tests (built with the same profiling flags)
-	</li>
-	<li>
-	  gather all information and convert them to a viewable format.
-	</li>
+        <li>
+          build the library with appropriate profiling flags
+        </li>
+        <li>
+          run all or some tests (built with the same profiling flags)
+        </li>
+        <li>
+          gather all information and convert them to a viewable format.
+        </li>
       </ol>
       In order to achieve the first two, configure the library with
 <pre>
@@ -385,7 +385,7 @@ ctest <...> -S ../tests/run_coverage.cmake
     <p>
       At the end of all of this, results will be shown in a separate section
       "Coverage" at the
-      <a href="https://cdash.43-1.org/index.php?project=deal.II&display=project"
+      <a href="https://cdash.dealii.org/index.php?project=deal.II&display=project"
       target="_top">deal.II cdash site</a>.
       In case you download the coverage report uploader for Codecov via
       <code>contrib/utilities/download_codecov</code>, the coverage
@@ -640,7 +640,7 @@ category/test.expect=run.output
 </pre>
     </p>
     <p>
-      The testsuite also suppors the special file ending
+      The testsuite also supports the special file ending
       <code>.run_only</code> that indicates that the diff stage should be
       skipped in order to reach the <code>PASSED</code> stage. You can
       specify the keyword by changing the file ending from
@@ -674,7 +674,7 @@ category/test.run_only
 <pre>
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2021 by the deal.II Authors
+// Copyright (C) 2015 - 2022 by the deal.II Authors
 //
 // This file is part of the deal.II library.
 //
@@ -780,11 +780,11 @@ $ ctest -V -R "category/my_new_test"
       a <code>CMakeLists.txt</code> file into it containing
     </p>
 <pre>
-CMAKE_MINIMUM_REQUIRED(VERSION 3.3.0)
-INCLUDE(../setup_testsubproject.cmake)
-PROJECT(testsuite CXX)
-INCLUDE(${DEAL_II_TARGET_CONFIG})
-DEAL_II_PICKUP_TESTS()
+cmake_minimum_required(VERSION 3.13.4)
+include(../setup_testsubproject.cmake)
+project(testsuite CXX)
+include(${DEAL_II_TARGET_CONFIG})
+deal_ii_pickup_tests()
 </pre>
 
     <a name="submit"></a>
@@ -792,7 +792,7 @@ DEAL_II_PICKUP_TESTS()
 
     <p>
       To submit test results to our <a
-        href="https://cdash.43-1.org/index.php?project=deal.II">CDash</a>
+        href="https://cdash.dealii.org/index.php?project=deal.II">CDash</a>
       instance just invoke ctest within a build directory (or designated
       build directory) with the <code>-S</code> option pointing to the
       <code>run_testsuite.cmake</code> script (assuming here for the
@@ -920,11 +920,11 @@ MAKEOPTS
       different systems and with different compilers as well as
       different configuration options. Results are collected in the "Build
       Tests" track in <a
-      href="https://cdash.43-1.org/index.php?project=deal.II">CDash</a>.<p>
+      href="https://cdash.dealii.org/index.php?project=deal.II">CDash</a>.<p>
 
       <p>Running the build test suite is simple and we encourage deal.II
       users with configurations not found on the <a
-      href="https://cdash.43-1.org/index.php?project=deal.II">CDash page</a> to
+      href="https://cdash.dealii.org/index.php?project=deal.II">CDash page</a> to
       participate. Assuming you checked out deal.II into the directory
       <code>dealii</code>, running it is as simple as:
 <pre>

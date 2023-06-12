@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -158,10 +158,7 @@ FiniteElement<dim, spacedim>::FiniteElement(
         {
           adjust_quad_dof_index_for_face_orientation_table[f] =
             Table<2, int>(this->n_dofs_per_quad(f),
-                          this->reference_cell().face_reference_cell(f) ==
-                              ReferenceCells::Quadrilateral ?
-                            8 :
-                            6);
+                          this->reference_cell().n_face_orientations(f));
           adjust_quad_dof_index_for_face_orientation_table[f].fill(0);
         }
     }
@@ -662,7 +659,7 @@ FiniteElement<dim, spacedim>::adjust_quad_dof_index_for_face_orientation(
   const bool         face_flip,
   const bool         face_rotation) const
 {
-  // general template for 1D and 2D: not
+  // general template for 1d and 2d: not
   // implemented. in fact, the function
   // shouldn't even be called unless we are
   // in 3d, so throw an internal error
@@ -680,20 +677,16 @@ FiniteElement<dim, spacedim>::adjust_quad_dof_index_for_face_orientation(
   // the function should also not have been
   // called
   AssertIndexRange(index, this->n_dofs_per_quad(face));
-  Assert(adjust_quad_dof_index_for_face_orientation_table
-             [this->n_unique_quads() == 1 ? 0 : face]
-               .n_elements() == (this->reference_cell().face_reference_cell(
-                                   face) == ReferenceCells::Quadrilateral ?
-                                   8 :
-                                   6) *
-                                  this->n_dofs_per_quad(face),
-         ExcInternalError());
-  return index +
-         adjust_quad_dof_index_for_face_orientation_table
-           [this->n_unique_quads() == 1 ? 0 : face](index,
-                                                    (face_orientation ? 4 : 0) +
-                                                      (face_flip ? 2 : 0) +
-                                                      (face_rotation ? 1 : 0));
+  const auto table_n = this->n_unique_quads() == 1 ? 0 : face;
+  Assert(
+    adjust_quad_dof_index_for_face_orientation_table[table_n].n_elements() ==
+      (this->reference_cell().n_face_orientations(face)) *
+        this->n_dofs_per_quad(face),
+    ExcInternalError());
+  return index + adjust_quad_dof_index_for_face_orientation_table[table_n](
+                   index,
+                   (face_orientation ? 4 : 0) + (face_flip ? 2 : 0) +
+                     (face_rotation ? 1 : 0));
 }
 
 
@@ -704,10 +697,10 @@ FiniteElement<dim, spacedim>::adjust_line_dof_index_for_line_orientation(
   const unsigned int index,
   const bool         line_orientation) const
 {
-  // general template for 1D and 2D: do
+  // general template for 1d and 2d: do
   // nothing. Do not throw an Assertion,
   // however, in order to allow to call this
-  // function in 2D as well
+  // function in 2d as well
   if (dim < 3)
     return index;
 
@@ -840,14 +833,15 @@ bool
 FiniteElement<dim, spacedim>::constraints_are_implemented(
   const internal::SubfaceCase<dim> &subface_case) const
 {
-  // TODO: the implementation makes the assumption that all faces have the
-  // same number of dofs
-  AssertDimension(this->n_unique_faces(), 1);
-  const unsigned int face_no = 0;
-
   if (subface_case == internal::SubfaceCase<dim>::case_isotropic)
-    return (this->n_dofs_per_face(face_no) == 0) ||
-           (interface_constraints.m() != 0);
+    {
+      unsigned int n_dofs_on_faces = 0;
+
+      for (const auto face_no : this->reference_cell().face_indices())
+        n_dofs_on_faces += this->n_dofs_per_face(face_no);
+
+      return (n_dofs_on_faces == 0) || (interface_constraints.m() != 0);
+    }
   else
     return false;
 }
@@ -1327,8 +1321,7 @@ FiniteElement<dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &                            quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -1357,8 +1350,7 @@ FiniteElement<dim, spacedim>::fill_fe_face_values(
   const Quadrature<dim - 1> &                                 quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -192,7 +192,8 @@ SolutionTransfer<dim, VectorType, spacedim>::refine_interpolate(
               in, (*pointerstruct->second.indices_ptr)[i]);
           cell->set_dof_values_by_interpolation(local_values,
                                                 out,
-                                                this_fe_index);
+                                                this_fe_index,
+                                                true);
         }
     }
 }
@@ -216,7 +217,7 @@ namespace internal
    */
   template <int dim, int spacedim>
   void
-  extract_interpolation_matrices(const dealii::DoFHandler<dim, spacedim> &dof,
+  extract_interpolation_matrices(const DoFHandler<dim, spacedim> &     dof,
                                  dealii::Table<2, FullMatrix<double>> &matrices)
   {
     if (dof.has_hp_capabilities() == false)
@@ -331,6 +332,7 @@ SolutionTransfer<dim, VectorType, spacedim>::
     if (!cell->is_active() && cell->child(0)->coarsen_flag_set())
       ++n_coarsen_fathers;
   Assert(n_cells_to_coarsen >= 2 * n_coarsen_fathers, ExcInternalError());
+  (void)n_cells_to_coarsen;
 
   // allocate the needed memory. initialize
   // the following arrays in an efficient
@@ -520,7 +522,8 @@ SolutionTransfer<dim, VectorType, spacedim>::interpolate(
 
                   cell->set_dof_values_by_interpolation(tmp,
                                                         all_out[j],
-                                                        old_fe_index);
+                                                        old_fe_index,
+                                                        true);
                 }
             }
           else if (valuesptr)

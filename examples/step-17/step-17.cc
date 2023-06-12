@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2000 - 2021 by the deal.II authors
+ * Copyright (C) 2000 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -561,7 +561,7 @@ namespace Step17
     // <i>not</i> want to make the matrix symmetric is because this
     // would require us to write into column entries that actually
     // reside on other processes, i.e., it involves communicating
-    // data. This is always expensive.
+    // data.
     //
     // Experience tells us that CG also works (and works almost as
     // well) if we don't remove the columns associated with boundary
@@ -616,7 +616,7 @@ namespace Step17
   unsigned int ElasticProblem<dim>::solve()
   {
     SolverControl solver_control(solution.size(), 1e-8 * system_rhs.l2_norm());
-    PETScWrappers::SolverCG cg(solver_control, mpi_communicator);
+    PETScWrappers::SolverCG cg(solver_control);
 
     PETScWrappers::PreconditionBlockJacobi preconditioner(system_matrix);
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2018 by the deal.II authors
+// Copyright (C) 2003 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,9 +24,6 @@
 #include "../tests.h"
 
 #define PRECISION 2
-
-
-std::ofstream logfile("output");
 
 
 #include <deal.II/base/function.h>
@@ -312,9 +309,9 @@ EvaluateArea(Mapping<2> &    mapping,
 int
 main(int /*argc*/, char ** /*argv*/)
 {
-  logfile.precision(PRECISION);
-  logfile.setf(std::ios::fixed);
-  deallog.attach(logfile);
+  initlog();
+  deallog.get_file_stream().precision(PRECISION);
+  deallog.get_file_stream().setf(std::ios::fixed);
 
   Triangulation<2> tria_test;
   DoFHandler<2> *  dof_handler, *dof_handler_def;

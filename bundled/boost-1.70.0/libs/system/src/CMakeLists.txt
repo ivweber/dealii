@@ -14,14 +14,9 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(
-  ${BOOST_BUNDLED_INCLUDE_DIRS}
-  ${DEAL_II_INCLUDE_DIRS}
-  )
-
-SET(src_boost_system
+set(src_boost_system
   error_code.cpp
   )
 
-DEAL_II_ADD_LIBRARY(obj_boost_system OBJECT ${src_boost_system})
+define_object_library(bundled_boost_system OBJECT ${src_boost_system})
 

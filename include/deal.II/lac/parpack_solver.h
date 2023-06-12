@@ -145,7 +145,7 @@ extern "C"
  *
  * In this class we make use of the method applied to the generalized
  * eigenspectrum problem $(A-\lambda B)x=0$, for $x\neq0$; where $A$ is a
- * system matrix, $B$ is a mass matrix, and $\lambda, x$ are a set of
+ * system matrix, $B$ is a @ref GlossMassMatrix "mass matrix", and $\lambda, x$ are a set of
  * eigenvalues and eigenvectors respectively.
  *
  * The ArpackSolver can be used in application codes in the following way:
@@ -295,7 +295,7 @@ public:
    * Constructor.
    */
   PArpackSolver(SolverControl &       control,
-                const MPI_Comm &      mpi_communicator,
+                const MPI_Comm        mpi_communicator,
                 const AdditionalData &data = AdditionalData());
 
   /**
@@ -638,7 +638,7 @@ PArpackSolver<VectorType>::AdditionalData::AdditionalData(
 
 template <typename VectorType>
 PArpackSolver<VectorType>::PArpackSolver(SolverControl &       control,
-                                         const MPI_Comm &      mpi_communicator,
+                                         const MPI_Comm        mpi_communicator,
                                          const AdditionalData &data)
   : solver_control(control)
   , additional_data(data)
@@ -686,7 +686,7 @@ void
 PArpackSolver<VectorType>::internal_reinit(const IndexSet &locally_owned_dofs)
 {
   // store local indices to write to vectors
-  locally_owned_dofs.fill_index_vector(local_indices);
+  local_indices = locally_owned_dofs.get_index_vector();
 
   // scalars
   nloc = locally_owned_dofs.n_elements();

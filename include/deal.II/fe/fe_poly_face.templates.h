@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -62,11 +62,11 @@ FE_PolyFace<PolynomialType, dim, spacedim>::requires_update_flags(
   const UpdateFlags flags) const
 {
   UpdateFlags out = flags & update_values;
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     out |= update_gradients | update_covariant_transformation;
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     out |= update_hessians | update_covariant_transformation;
-  if ((flags & update_normal_vectors) != 0u)
+  if (flags & update_normal_vectors)
     out |= update_normal_vectors | update_JxW_values;
 
   return out;
@@ -84,9 +84,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_values(
   const Quadrature<dim> &,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim> &,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -115,9 +113,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &quadrature,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim> &,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -211,9 +207,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_subface_values(
   const Quadrature<dim - 1> &quadrature,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim> &,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>

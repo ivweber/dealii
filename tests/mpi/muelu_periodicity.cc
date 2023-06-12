@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2008 - 2020 by the deal.II authors
+ * Copyright (C) 2008 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -187,7 +187,7 @@ namespace Step22
     InverseMatrix(const Matrix &        m,
                   const Preconditioner &preconditioner,
                   const IndexSet &      locally_owned,
-                  const MPI_Comm &      mpi_communicator);
+                  const MPI_Comm        mpi_communicator);
 
     void
     vmult(TrilinosWrappers::MPI::Vector &      dst,
@@ -197,7 +197,6 @@ namespace Step22
     const SmartPointer<const Matrix>         matrix;
     const SmartPointer<const Preconditioner> preconditioner;
 
-    const MPI_Comm *                      mpi_communicator;
     mutable TrilinosWrappers::MPI::Vector tmp;
   };
 
@@ -207,10 +206,9 @@ namespace Step22
     const Matrix &        m,
     const Preconditioner &preconditioner,
     const IndexSet &      locally_owned,
-    const MPI_Comm &      mpi_communicator)
+    const MPI_Comm        mpi_communicator)
     : matrix(&m)
     , preconditioner(&preconditioner)
-    , mpi_communicator(&mpi_communicator)
     , tmp(locally_owned, mpi_communicator)
   {}
 
@@ -245,7 +243,7 @@ namespace Step22
                                         Preconditioner> &      A_inverse,
                     const IndexSet &                           owned_pres,
                     const IndexSet &                           relevant_pres,
-                    const MPI_Comm &mpi_communicator);
+                    const MPI_Comm mpi_communicator);
 
     void
     vmult(TrilinosWrappers::MPI::Vector &      dst,
@@ -268,7 +266,7 @@ namespace Step22
       &             A_inverse,
     const IndexSet &owned_vel,
     const IndexSet &relevant_vel,
-    const MPI_Comm &mpi_communicator)
+    const MPI_Comm  mpi_communicator)
     : system_matrix(&system_matrix)
     , A_inverse(&A_inverse)
     , tmp1(owned_vel, mpi_communicator)
@@ -382,11 +380,11 @@ namespace Step22
       GridTools::collect_periodic_faces(
         dof_handler, 2, 3, 1, periodicity_vector, Tensor<1, dim>(), matrix);
 
-      DoFTools::make_periodicity_constraints<DoFHandler<dim>>(
-        periodicity_vector,
-        constraints,
-        fe.component_mask(velocities),
-        first_vector_components);
+      DoFTools::make_periodicity_constraints<dim, dim>(periodicity_vector,
+                                                       constraints,
+                                                       fe.component_mask(
+                                                         velocities),
+                                                       first_vector_components);
 #endif
     }
 

@@ -14,18 +14,21 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_petsc_precondition_h
-#  define dealii_petsc_precondition_h
+#define dealii_petsc_precondition_h
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  include <deal.II/base/subscriptor.h>
+#include <deal.II/base/point.h>
+#include <deal.II/base/subscriptor.h>
 
-#  ifdef DEAL_II_WITH_PETSC
+#ifdef DEAL_II_WITH_PETSC
 
-#    include <deal.II/lac/exceptions.h>
+#  include <deal.II/lac/exceptions.h>
 
-#    include <petscpc.h>
+#  include <petscpc.h>
+
+#  include <functional>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -34,11 +37,10 @@ DEAL_II_NAMESPACE_OPEN
 namespace PETScWrappers
 {
   // forward declarations
-#    ifndef DOXYGEN
+#  ifndef DOXYGEN
   class MatrixBase;
   class VectorBase;
-  class SolverBase;
-#    endif
+#  endif
 
   /**
    * Base class for preconditioner classes using the PETSc functionality. The
@@ -61,6 +63,12 @@ namespace PETScWrappers
     /**
      * Constructor.
      */
+    explicit PreconditionBase(const MPI_Comm mpi_communicator);
+
+    /**
+     * Constructor.
+     *
+     */
     PreconditionBase();
 
     /**
@@ -70,7 +78,7 @@ namespace PETScWrappers
 
     /**
      * Destroys the preconditioner, leaving an object like just after having
-     * called the constructor.
+     * called the default constructor.
      */
     void
     clear();
@@ -87,6 +95,12 @@ namespace PETScWrappers
     void
     Tvmult(VectorBase &dst, const VectorBase &src) const;
 
+    /**
+     * Explictly call setup. This is usually not needed since PETSc will
+     * automatically call the setup function when needed.
+     */
+    void
+    setup();
 
     /**
      * Give access to the underlying PETSc object.
@@ -94,34 +108,30 @@ namespace PETScWrappers
     const PC &
     get_pc() const;
 
+    /**
+     * Return the underlying MPI communicator.
+     */
+    MPI_Comm
+    get_mpi_communicator() const;
+
   protected:
     /**
-     * the PETSc preconditioner object
+     * The PETSc preconditioner object
      */
     PC pc;
-
-    /**
-     * A pointer to the matrix that acts as a preconditioner.
-     */
-    Mat matrix;
 
     /**
      * Internal function to create the PETSc preconditioner object. Fails if
      * called twice.
      */
     void
-    create_pc();
+    create_pc_with_mat(const MatrixBase &);
 
     /**
-     * Conversion operator to get a representation of the matrix that
-     * represents this preconditioner. We use this inside the actual solver,
-     * where we need to pass this matrix to the PETSc solvers.
+     * Internal function to create the PETSc preconditioner object.
      */
-    operator Mat() const;
-
-    // Make the solver class a friend, since it needs to call the conversion
-    // operator.
-    friend class SolverBase;
+    void
+    create_pc_with_comm(const MPI_Comm);
   };
 
 
@@ -150,8 +160,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionJacobi() = default;
-
+    PreconditionJacobi();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -166,7 +175,7 @@ namespace PETScWrappers
      * Intended to be used with SLEPc objects.
      */
     PreconditionJacobi(
-      const MPI_Comm &      communicator,
+      const MPI_Comm        communicator,
       const AdditionalData &additional_data = AdditionalData());
 
     /**
@@ -233,7 +242,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionBlockJacobi() = default;
+    PreconditionBlockJacobi();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -248,7 +257,7 @@ namespace PETScWrappers
      * Intended to be used with SLEPc objects.
      */
     PreconditionBlockJacobi(
-      const MPI_Comm &      communicator,
+      const MPI_Comm        communicator,
       const AdditionalData &additional_data = AdditionalData());
 
 
@@ -311,7 +320,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionSOR() = default;
+    PreconditionSOR();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -371,7 +380,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionSSOR() = default;
+    PreconditionSSOR();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -429,7 +438,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionICC() = default;
+    PreconditionICC();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -489,7 +498,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionILU() = default;
+    PreconditionILU();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -571,7 +580,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionLU() = default;
+    PreconditionLU();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -740,7 +749,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionBoomerAMG() = default;
+    PreconditionBoomerAMG();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -755,7 +764,7 @@ namespace PETScWrappers
      * Intended to be used with SLEPc objects.
      */
     PreconditionBoomerAMG(
-      const MPI_Comm &      communicator,
+      const MPI_Comm        communicator,
       const AdditionalData &additional_data = AdditionalData());
 
 
@@ -881,7 +890,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionParaSails() = default;
+    PreconditionParaSails();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -929,7 +938,7 @@ namespace PETScWrappers
      * Empty Constructor. You need to call initialize() before using this
      * object.
      */
-    PreconditionNone() = default;
+    PreconditionNone();
 
     /**
      * Constructor. Take the matrix which is used to form the preconditioner,
@@ -958,6 +967,184 @@ namespace PETScWrappers
   };
 
   /**
+   * A class that implements the interface to use the BDDC preconditioner from
+   * PETSc (<a
+   * href="https://petsc.org/release/docs/manualpages/PC/PCBDDC.html">PCBDDC</a>),
+   * which is a two-level, substructuring, non-overlapping domain decomposition
+   * preconditioner. Details of the implementation can be found in
+   * @cite zampini2016pcbddc. It mainly consists of two elements:
+   *
+   * <ul>
+   *   <li> Local solvers: Solvers for each subdomain. These are performed
+   *     concurrently by each processor</li>
+   *   <li> A coarse solver: Continuity between each subdomain is imposed in a
+   *     small number of DoFs, referred to as <em>primal DoFs</em>. This solver
+   *     solves such problem.</li>
+   * </ul>
+   *
+   * The size of the primal space is determined through the @p AdditionalData
+   * parameters. A thorough study of the performance of this solver in the
+   * context of cardiac mechanics, together with further details on this
+   * interface, is available in @cite Barnafi2022.
+   *
+   * @ingroup PETScWrappers
+   */
+  template <int dim>
+  class PreconditionBDDC : public PreconditionBase
+  {
+  public:
+    /**
+     * Standardized data struct to pipe additional flags to the
+     * preconditioner.
+     */
+    struct AdditionalData
+    {
+      /**
+       * Constructor. Note that BDDC offers a lot more options to set
+       * than what is exposed here.
+       */
+      AdditionalData(const bool                    use_vertices = true,
+                     const bool                    use_edges    = false,
+                     const bool                    use_faces    = false,
+                     const bool                    symmetric    = false,
+                     const std::vector<Point<dim>> coords       = {});
+
+      /**
+       * This flag sets the use of degrees of freedom in the vertices of the
+       * subdomains as primal variables for the creation of the coarse space.
+       */
+      bool use_vertices;
+
+      /**
+       * This flag sets the use of degrees of freedom in the edges of the
+       * subdomain as primal variables for the creation of the coarse space.
+       * Continuity is actually imposed at the edge average.
+       */
+      bool use_edges;
+
+      /**
+       * This flag sets the use of degrees of freedom in the faces of the
+       * subdomain as primal variables for the creation of the coarse space.
+       * Continuity is actually imposed at the face average.
+       */
+      bool use_faces;
+
+      /**
+       * Set whether the matrix is symmetric or not.
+       */
+      bool symmetric;
+
+      /**
+       * Set the location of each DoF. This helps in improving the definition of
+       * the vertices for unstructured meshes.
+       */
+      std::vector<Point<dim>> coords;
+    };
+
+    /**
+     * Empty Constructor. You need to call initialize() before using this
+     * object.
+     */
+    PreconditionBDDC();
+
+    /**
+     * Constructor. Take the matrix which is used to form the preconditioner,
+     * and additional flags if there are any.
+     */
+    PreconditionBDDC(const MatrixBase &    matrix,
+                     const AdditionalData &additional_data = AdditionalData());
+
+    /**
+     * Same as above but without setting a matrix to form the preconditioner.
+     * Intended to be used with SLEPc objects.
+     */
+    PreconditionBDDC(const MPI_Comm        communicator,
+                     const AdditionalData &additional_data = AdditionalData());
+
+    /**
+     * Initialize the preconditioner object and calculate all data that is
+     * necessary for applying it in a solver. This function is automatically
+     * called when calling the constructor with the same arguments and is only
+     * used if you create the preconditioner without arguments.
+     */
+    void
+    initialize(const MatrixBase &    matrix,
+               const AdditionalData &additional_data = AdditionalData());
+
+  protected:
+    /**
+     * Store a copy of the flags for this particular preconditioner.
+     */
+    AdditionalData additional_data;
+
+    /**
+     * Initialize the preconditioner object without knowing a particular
+     * matrix. This function sets up appropriate parameters to the underlying
+     * PETSc object after it has been created.
+     */
+    void
+    initialize();
+  };
+
+  class PreconditionShell : public PreconditionBase
+  {
+  public:
+    /**
+     * Empty Constructor. You need to call initialize() before using this
+     * object.
+     */
+    PreconditionShell() = default;
+
+    /**
+     * Constructor. Take the matrix which is used to form the preconditioner.
+     */
+    PreconditionShell(const MatrixBase &matrix);
+
+    /**
+     * Same as above but without setting a matrix to form the preconditioner.
+     */
+    PreconditionShell(const MPI_Comm communicator);
+
+    /**
+     * The callback for the application of the preconditioner.
+     */
+    std::function<int(VectorBase &dst, const VectorBase &src)> vmult;
+
+    /**
+     * The callback for the application of the transposed preconditioner.
+     */
+    std::function<int(VectorBase &dst, const VectorBase &src)> vmultT;
+
+  protected:
+    /**
+     * Initialize the preconditioner object without knowing a particular
+     * matrix. This function sets up the PCSHELL preconditioner
+     */
+    void
+    initialize(const MPI_Comm comm);
+
+    /**
+     * Initialize the preconditioner object with a particular
+     * matrix. This function sets up the PCSHELL preconditioner
+     */
+    void
+    initialize(const MatrixBase &matrix);
+
+  private:
+    /**
+     * Callback-function invoked by PCApply
+     */
+    static int
+    pcapply(PC pc, Vec src, Vec dst);
+
+    /**
+     * Callback-function invoked by PCApplyTranspose
+     */
+    static int
+    pcapply_transpose(PC pc, Vec src, Vec dst);
+  };
+
+  /**
    * Alias for backwards-compatibility.
    * @deprecated Use PETScWrappers::PreconditionBase instead.
    */
@@ -965,11 +1152,9 @@ namespace PETScWrappers
 } // namespace PETScWrappers
 
 
-
 DEAL_II_NAMESPACE_CLOSE
 
 
-#  endif // DEAL_II_WITH_PETSC
+#endif // DEAL_II_WITH_PETSC
 
 #endif
-/*--------------------------- petsc_precondition.h --------------------------*/

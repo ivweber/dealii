@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2020 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,19 +21,40 @@
 
 #include <deal.II/base/types.h>
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
 #  include <cuComplex.h>
 #endif
+
+#include <Kokkos_Macros.hpp>
 
 #include <cmath>
 #include <complex>
 #include <cstddef>
 #include <type_traits>
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
-#  define DEAL_II_CUDA_HOST_DEV __host__ __device__
+#define DEAL_II_HOST_DEVICE KOKKOS_FUNCTION
+#define DEAL_II_CUDA_HOST_DEV DEAL_II_HOST_DEVICE
+#define DEAL_II_HOST_DEVICE_ALWAYS_INLINE KOKKOS_FORCEINLINE_FUNCTION
+
+// clang++ assumes that all constexpr functions are __host__ __device__ when
+// compiling CUDA code, i.e, when Kokkos was configured with CUDA support.
+// This is problematic when calling non-constexpr functions in constexpr
+// functions. Hence, we need a way to annotate functions explicitly as
+// host-only.
+#if defined(__clang__) && defined(__CUDA__)
+#  define DEAL_II_HOST __host__
 #else
-#  define DEAL_II_CUDA_HOST_DEV
+#  define DEAL_II_HOST
+#endif
+
+// Forward-declare the automatic differentiation types so we can add prototypes
+// for our own wrappers.
+#ifdef DEAL_II_WITH_ADOLC
+class adouble;
+namespace adtl
+{
+  class adouble;
+}
 #endif
 
 DEAL_II_NAMESPACE_OPEN
@@ -128,22 +149,29 @@ template <typename T>
 struct EnableIfScalar;
 #endif
 
-DEAL_II_NAMESPACE_CLOSE
-
-// Declare / Import auto-differentiable math functions in(to) standard
-// namespace before numbers::NumberTraits is defined
 #ifdef DEAL_II_WITH_ADOLC
-#  include <deal.II/differentiation/ad/adolc_math.h>
+#  ifndef DOXYGEN
+// Prototype some inline functions present in adolc_math.h for use in
+// NumberTraits.
+//
+// ADOL-C uses fabs(), but for genericity we want to use abs(). Simultaneously,
+// though, we don't want to include ADOL-C headers in this header since
+// numbers.h is in everything. To get around this: use C++ rules which permit
+// the use of forward-declared classes in function prototypes to declare some
+// functions which are defined in adolc_math.h. This permits us to write "using
+// dealii::abs;" in NumberTraits which will allow us to select the correct
+// overload (the one in dealii::) when instantiating NumberTraits for ADOL-C
+// types.
 
-#  include <adolc/adouble.h> // Taped double
+adouble
+abs(const adouble &x);
+
+adtl::adouble
+abs(const adtl::adouble &x);
+#  endif
 #endif
-// Ideally we'd like to #include <deal.II/differentiation/ad/sacado_math.h>
-// but header indirectly references numbers.h. We therefore simply
-// import the whole Sacado header at this point to get the math
-// functions imported into the standard namespace.
-#ifdef DEAL_II_TRILINOS_WITH_SACADO
-#  include <Sacado.hpp>
-#endif
+
+DEAL_II_NAMESPACE_CLOSE
 
 namespace std
 {
@@ -251,22 +279,6 @@ namespace numbers
   static constexpr double SQRT1_2 = 0.70710678118654752440;
 
   /**
-   * Check whether the given type can be used in CUDA device code.
-   * If not, DEAL_II_CUDA_HOST_DEV needs to be disabled for functions
-   * that use this type.
-   */
-  template <typename Number, typename = void>
-  struct is_cuda_compatible : std::true_type
-  {};
-
-  /**
-   * std::complex cannot be used in CUDA device code.
-   */
-  template <typename Number>
-  struct is_cuda_compatible<std::complex<Number>, void> : std::false_type
-  {};
-
-  /**
    * Return @p true if the given value is a finite floating point number, i.e.
    * is neither plus or minus infinity nor NaN (not a number).
    *
@@ -314,7 +326,7 @@ namespace numbers
    * of @p value_1.
    */
   template <typename Number1, typename Number2>
-  constexpr bool
+  constexpr DEAL_II_HOST_DEVICE bool
   values_are_equal(const Number1 &value_1, const Number2 &value_2);
 
   /**
@@ -339,7 +351,7 @@ namespace numbers
    * by the input arguments.
    */
   template <typename Number>
-  constexpr bool
+  constexpr DEAL_II_HOST_DEVICE bool
   value_is_zero(const Number &value);
 
   /**
@@ -438,32 +450,21 @@ namespace numbers
      * template is selected if number is not a complex data type, this
      * function simply returns the given number.
      *
-     * @note This function can also be used in CUDA device code.
+     * @note This function can also be used in @ref GlossDevice "device" code.
      */
-    static constexpr DEAL_II_CUDA_HOST_DEV const number &
-                                                 conjugate(const number &x);
+    static constexpr DEAL_II_HOST_DEVICE const number &
+                                               conjugate(const number &x);
 
     /**
      * Return the square of the absolute value of the given number. Since the
      * general template is chosen for types not equal to std::complex, this
      * function simply returns the square of the given number.
      *
-     * @note If the template type can be used in CUDA device code, the same holds true
+     * @note If the template type can be used in @ref GlossDevice "device" code, the same holds true
      * for this function.
      */
-    template <typename Dummy = number>
-    static constexpr DEAL_II_CUDA_HOST_DEV
-      typename std::enable_if<std::is_same<Dummy, number>::value &&
-                                is_cuda_compatible<Dummy>::value,
-                              real_type>::type
-      abs_square(const number &x);
-
-    template <typename Dummy = number>
-    static constexpr
-      typename std::enable_if<std::is_same<Dummy, number>::value &&
-                                !is_cuda_compatible<Dummy>::value,
-                              real_type>::type
-      abs_square(const number &x);
+    static constexpr DEAL_II_HOST_DEVICE real_type
+    abs_square(const number &x);
 
     /**
      * Return the absolute value of a number.
@@ -570,7 +571,7 @@ namespace numbers
 
 
   template <typename number>
-  constexpr DEAL_II_CUDA_HOST_DEV const number &
+  constexpr DEAL_II_HOST_DEVICE const number &
   NumberTraits<number>::conjugate(const number &x)
   {
     return x;
@@ -579,25 +580,8 @@ namespace numbers
 
 
   template <typename number>
-  template <typename Dummy>
-  constexpr DEAL_II_CUDA_HOST_DEV
-    typename std::enable_if<std::is_same<Dummy, number>::value &&
-                              is_cuda_compatible<Dummy>::value,
-                            typename NumberTraits<number>::real_type>::type
-    NumberTraits<number>::abs_square(const number &x)
-  {
-    return x * x;
-  }
-
-
-
-  template <typename number>
-  template <typename Dummy>
-  constexpr
-    typename std::enable_if<std::is_same<Dummy, number>::value &&
-                              !is_cuda_compatible<Dummy>::value,
-                            typename NumberTraits<number>::real_type>::type
-    NumberTraits<number>::abs_square(const number &x)
+  constexpr DEAL_II_HOST_DEVICE typename NumberTraits<number>::real_type
+  NumberTraits<number>::abs_square(const number &x)
   {
     return x * x;
   }
@@ -608,7 +592,16 @@ namespace numbers
   typename NumberTraits<number>::real_type
   NumberTraits<number>::abs(const number &x)
   {
-    return std::abs(x);
+    // Make things work with AD types
+    using std::abs;
+#ifdef DEAL_II_WITH_ADOLC
+    // This one is a little tricky - we have our own abs function in dealii::,
+    // prototyped with forward-declared types in this file, but it only exists
+    // if we have ADOL-C: hence we only add this using statement in that
+    // situation
+    using dealii::abs;
+#endif
+    return abs(x);
   }
 
 
@@ -626,7 +619,13 @@ namespace numbers
   typename NumberTraits<std::complex<number>>::real_type
   NumberTraits<std::complex<number>>::abs(const std::complex<number> &x)
   {
-    return std::abs(x);
+    // Make things work with AD types
+    using std::abs;
+#ifdef DEAL_II_WITH_ADOLC
+    // Same comment as the non-complex case holds here
+    using dealii::abs;
+#endif
+    return abs(x);
   }
 
 
@@ -699,8 +698,8 @@ namespace internal
   template <typename T>
   struct NumberType
   {
-    static constexpr DEAL_II_ALWAYS_INLINE DEAL_II_CUDA_HOST_DEV const T &
-    value(const T &t)
+    static constexpr DEAL_II_HOST_DEVICE_ALWAYS_INLINE const T &
+                                                             value(const T &t)
     {
       return t;
     }
@@ -714,25 +713,24 @@ namespace internal
 
     // Type T is constructible from F.
     template <typename F>
-    static constexpr DEAL_II_ALWAYS_INLINE DEAL_II_CUDA_HOST_DEV T
+    static constexpr DEAL_II_HOST_DEVICE_ALWAYS_INLINE T
     value(const F &f,
-          typename std::enable_if<
-            !std::is_same<typename std::decay<T>::type,
-                          typename std::decay<F>::type>::value &&
-            std::is_constructible<T, F>::value>::type * = nullptr)
+          std::enable_if_t<!std::is_same<typename std::decay<T>::type,
+                                         typename std::decay<F>::type>::value &&
+                           std::is_constructible<T, F>::value> * = nullptr)
     {
       return T(f);
     }
 
     // Type T is explicitly convertible (but not constructible) from F.
     template <typename F>
-    static constexpr DEAL_II_ALWAYS_INLINE T
+    static constexpr DEAL_II_HOST_DEVICE_ALWAYS_INLINE T
     value(const F &f,
-          typename std::enable_if<
-            !std::is_same<typename std::decay<T>::type,
-                          typename std::decay<F>::type>::value &&
-            !std::is_constructible<T, F>::value &&
-            is_explicitly_convertible<const F, T>::value>::type * = nullptr)
+          std::enable_if_t<!std::is_same<typename std::decay<T>::type,
+                                         typename std::decay<F>::type>::value &&
+                           !std::is_constructible<T, F>::value &&
+                           is_explicitly_convertible<const F, T>::value> * =
+            nullptr)
     {
       return static_cast<T>(f);
     }
@@ -743,13 +741,13 @@ namespace internal
     // might fall into the same category.
     template <typename F>
     static T
-    value(const F &f,
-          typename std::enable_if<
-            !std::is_same<typename std::decay<T>::type,
-                          typename std::decay<F>::type>::value &&
-            !std::is_constructible<T, F>::value &&
-            !is_explicitly_convertible<const F, T>::value &&
-            Differentiation::AD::is_ad_number<F>::value>::type * = nullptr)
+    value(
+      const F &f,
+      std::enable_if_t<!std::is_same<typename std::decay<T>::type,
+                                     typename std::decay<F>::type>::value &&
+                       !std::is_constructible<T, F>::value &&
+                       !is_explicitly_convertible<const F, T>::value &&
+                       Differentiation::AD::is_ad_number<F>::value> * = nullptr)
     {
       return Differentiation::AD::internal::NumberType<T>::value(f);
     }
@@ -780,7 +778,7 @@ namespace internal
     }
   };
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
   template <>
   struct NumberType<cuComplex>
   {
@@ -837,8 +835,8 @@ namespace numbers
   values_are_equal(const adouble &value_1, const Number &value_2)
   {
     // Use the specialized definition for two ADOL-C taped types
-    return values_are_equal(value_1,
-                            internal::NumberType<adouble>::value(value_2));
+    return values_are_equal(
+      value_1, dealii::internal::NumberType<adouble>::value(value_2));
   }
 
 
@@ -892,8 +890,8 @@ namespace numbers
   value_is_less_than(const adouble &value_1, const Number &value_2)
   {
     // Use the specialized definition for two ADOL-C taped types
-    return value_is_less_than(value_1,
-                              internal::NumberType<adouble>::value(value_2));
+    return value_is_less_than(
+      value_1, dealii::internal::NumberType<adouble>::value(value_2));
   }
 
 
@@ -913,18 +911,18 @@ namespace numbers
   value_is_less_than(const Number &value_1, const adouble &value_2)
   {
     // Use the specialized definition for two ADOL-C taped types
-    return value_is_less_than(internal::NumberType<adouble>::value(value_1),
-                              value_2);
+    return value_is_less_than(
+      dealii::internal::NumberType<adouble>::value(value_1), value_2);
   }
 
 #endif
 
 
   template <typename Number1, typename Number2>
-  constexpr bool
+  constexpr DEAL_II_HOST_DEVICE bool
   values_are_equal(const Number1 &value_1, const Number2 &value_2)
   {
-    return (value_1 == internal::NumberType<Number1>::value(value_2));
+    return (value_1 == dealii::internal::NumberType<Number1>::value(value_2));
   }
 
 
@@ -937,7 +935,7 @@ namespace numbers
 
 
   template <typename Number>
-  constexpr bool
+  constexpr DEAL_II_HOST_DEVICE bool
   value_is_zero(const Number &value)
   {
     return values_are_equal(value, 0.0);
@@ -948,7 +946,7 @@ namespace numbers
   inline bool
   value_is_less_than(const Number1 &value_1, const Number2 &value_2)
   {
-    return (value_1 < internal::NumberType<Number1>::value(value_2));
+    return (value_1 < dealii::internal::NumberType<Number1>::value(value_2));
   }
 
 

@@ -124,10 +124,15 @@ INSTANTIATE_DLTG_VECTOR(TrilinosWrappers::MPI::Vector);
 
 INSTANTIATE_DLTG_VECTORMATRIX(TrilinosWrappers::SparseMatrix, Vector<double>);
 INSTANTIATE_DLTG_VECTORMATRIX(TrilinosWrappers::SparseMatrix,
+                              LinearAlgebra::distributed::Vector<double>);
+INSTANTIATE_DLTG_VECTORMATRIX(TrilinosWrappers::SparseMatrix,
                               TrilinosWrappers::MPI::Vector);
 
 INSTANTIATE_DLTG_BLOCK_VECTORMATRIX(TrilinosWrappers::BlockSparseMatrix,
                                     Vector<double>);
+INSTANTIATE_DLTG_BLOCK_VECTORMATRIX(
+  TrilinosWrappers::BlockSparseMatrix,
+  LinearAlgebra::distributed::BlockVector<double>);
 INSTANTIATE_DLTG_BLOCK_VECTORMATRIX(TrilinosWrappers::BlockSparseMatrix,
                                     TrilinosWrappers::MPI::BlockVector);
 
@@ -135,7 +140,7 @@ INSTANTIATE_DLTG_MATRIX(TrilinosWrappers::SparseMatrix);
 INSTANTIATE_DLTG_MATRIX(TrilinosWrappers::BlockSparseMatrix);
 
 #  ifndef DOXYGEN
-#    ifdef DEAL_II_TRILINOS_WITH_TPETRA
+#    if defined(DEAL_II_TRILINOS_WITH_TPETRA) && defined(HAVE_TPETRA_INST_FLOAT)
 // FIXME: This mixed variant is needed for multigrid and matrix free.
 template void
 dealii::AffineConstraints<double>::distribute<
@@ -143,6 +148,34 @@ dealii::AffineConstraints<double>::distribute<
   dealii::LinearAlgebra::TpetraWrappers::Vector<float> &) const;
 #    endif
 #  endif
+#endif
+
+#ifndef DOXYGEN
+namespace internal
+{
+  namespace AffineConstraintsImplementation
+  {
+    template void
+    set_zero_all(
+      const std::vector<types::global_dof_index> &                     cm,
+      LinearAlgebra::distributed::Vector<float, MemorySpace::Default> &vec);
+
+    template void
+    set_zero_all(
+      const std::vector<types::global_dof_index> &                      cm,
+      LinearAlgebra::distributed::Vector<double, MemorySpace::Default> &vec);
+  } // namespace AffineConstraintsImplementation
+} // namespace internal
+
+template void
+AffineConstraints<float>::set_zero<
+  LinearAlgebra::distributed::Vector<float, MemorySpace::Default>>(
+  LinearAlgebra::distributed::Vector<float, MemorySpace::Default> &) const;
+
+template void
+AffineConstraints<double>::set_zero<
+  LinearAlgebra::distributed::Vector<double, MemorySpace::Default>>(
+  LinearAlgebra::distributed::Vector<double, MemorySpace::Default> &) const;
 #endif
 
 DEAL_II_NAMESPACE_CLOSE

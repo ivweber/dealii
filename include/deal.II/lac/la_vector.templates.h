@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2021 by the deal.II authors
+// Copyright (C) 2015 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,6 +26,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -247,7 +248,7 @@ namespace LinearAlgebra
 
   template <typename Number>
   void
-  Vector<Number>::import(
+  Vector<Number>::import_elements(
     const ReadWriteVector<Number> &,
     VectorOperation::values,
     std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>)
@@ -556,7 +557,7 @@ namespace LinearAlgebra
 
     out.precision(precision);
 
-    const unsigned int n_elements = this->n_elements();
+    const unsigned int n_elements = this->locally_owned_size();
     for (unsigned int i = 0; i < n_elements; ++i)
       out << this->values[i] << ' ';
     out << '\n' << std::flush;

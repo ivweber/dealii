@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,7 +31,8 @@ DEAL_II_NAMESPACE_OPEN
 
 // Forward declarations
 #ifndef DOXYGEN
-template <int dim, int space_dim>
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class Triangulation;
 template <int dim>
 struct CellData;
@@ -174,7 +175,7 @@ struct CellData;
  * A Wikipedia page dedicated to Universal File Format is available here:
  * https://en.wikipedia.org/wiki/Universal_File_Format
  *
- * Note that Salome, let's say in 2D, can only make a quad mesh on an object
+ * Note that Salome, let's say in 2d, can only make a quad mesh on an object
  * that has exactly 4 edges (or 4 pieces of the boundary). That means, that if
  * you have a more complicated object and would like to mesh it with quads,
  * you will need to decompose the object into >= 2 separate objects. Then 1)
@@ -192,7 +193,7 @@ struct CellData;
  *
  * <li> <tt>VTK</tt> format: VTK Unstructured Grid Legacy file reader
  * generator. The reader can handle only Unstructured Grid format of data at
- * present for 2D & 3D geometries. The documentation for the general legacy
+ * present for 2d & 3d geometries. The documentation for the general legacy
  * vtk file, including Unstructured Grid format can be found here:
  * http://www.cacr.caltech.edu/~slombey/asci/vtk/vtk_formats.simple.html
  *
@@ -411,7 +412,8 @@ public:
    * The companion GridOut::write_vtk function can be used to write VTK files
    * compatible with this method.
    *
-   * @ingroup simplex
+   * Also see
+   * @ref simplex "Simplex support".
    */
   void
   read_vtk(std::istream &in);
@@ -516,7 +518,8 @@ public:
    * Read grid data from an msh file. The %Gmsh formats are documented at
    * http://www.gmsh.info/.
    *
-   * @ingroup simplex
+   * Also see
+   * @ref simplex "Simplex support".
    */
   void
   read_msh(std::istream &in);
@@ -575,7 +578,9 @@ public:
    * as a boundary or material id.  Physical surface numbers created in Gmsh,
    * which can be seen in the .geo file, become material IDs.
    *
-   * @ingroup simplex
+   *
+   * Also see
+   * @ref simplex "Simplex support".
    */
   void
   read_msh(const std::string &filename);
@@ -614,7 +619,8 @@ public:
    * @image html "comsol-mesh-boundary-lines.png"
    * @image html "comsol-mesh-boundary-triangles.png"
    *
-   * @ingroup simplex
+   * Also see
+   * @ref simplex "Simplex support".
    */
   void
   read_comsol_mphtxt(std::istream &in);
@@ -634,7 +640,7 @@ public:
    *
    * This function can only be used to read two-dimensional meshes (possibly
    * embedded in three dimensions). This is the standard for graphical software
-   * such as blender, or 3D studio max, and that is what the original Assimp
+   * such as blender, or 3d studio max, and that is what the original Assimp
    * library was built for. We "bend" it to deal.II to support complex
    * co-dimension one meshes and complex two-dimensional meshes.
    *

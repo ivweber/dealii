@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,14 +19,12 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mpi_stub.h>
+
 #include <deal.II/distributed/repartitioning_policy_tools.h>
 #include <deal.II/distributed/tria_base.h>
 
 #include <vector>
-
-#ifdef DEAL_II_WITH_MPI
-#  include <mpi.h>
-#endif
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -96,7 +94,7 @@ namespace parallel
      * been constructed, the triangulation `tria` can be created by calling
      * `tria.create_triangulation(construction_data);`.
      *
-     * @note This triangulation supports: 1D/2D/3D, hanging nodes,
+     * @note This triangulation supports: 1D/2d/3d, hanging nodes,
      *       geometric multigrid, and periodicity.
      *
      * @note You can create a triangulation with hanging nodes and multigrid
@@ -107,8 +105,11 @@ namespace parallel
      * @note Currently only simple periodicity conditions (i.e. without offsets
      *       and rotation matrices - see also the documentation of
      *       GridTools::collect_periodic_faces()) are supported.
+     *
+     * @dealiiConceptRequires{(concepts::is_valid_dim_spacedim<dim, spacedim>)}
      */
     template <int dim, int spacedim = dim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     class Triangulation
       : public parallel::DistributedTriangulationBase<dim, spacedim>
     {
@@ -128,7 +129,7 @@ namespace parallel
        * @param mpi_communicator The MPI communicator to be used for the
        *                         triangulation.
        */
-      explicit Triangulation(const MPI_Comm &mpi_communicator);
+      explicit Triangulation(const MPI_Comm mpi_communicator);
 
       /**
        * Destructor.
@@ -266,7 +267,7 @@ namespace parallel
        *
        * @deprecated The autopartition parameter has been removed.
        */
-      DEAL_II_DEPRECATED_EARLY
+      DEAL_II_DEPRECATED
       virtual void
       load(const std::string &filename, const bool autopartition) override;
 

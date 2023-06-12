@@ -38,19 +38,13 @@ namespace internal
      * Structure for storing degree of freedom information for cells,
      * organized by levels.
      *
-     * We store are cached values for the DoF indices on each cell
-     * in#cell_dof_indices_cache, since this is a frequently requested
-     * operation. The values are set by
-     * DoFCellAccessor::update_cell_dof_indices_cache and are used by
-     * DoFCellAccessor::get_dof_indices.
-     *
-     * Note that vertices are separate from, and in fact have nothing to do
-     * with cells. The indices of degrees of freedom located on vertices
-     * therefore are not stored here, but rather in member variables of the
-     * dealii::DoFHandler class.
+     * Note that vertices use a storage scheme that is entirely separate from
+     * the one used for the cells. The indices of degrees of freedom located
+     * on vertices are therefore not stored here, but rather in member
+     * variables of the DoFHandler class.
      *
      * The indices of degrees of freedom located on lower dimensional objects,
-     * i.e. on lines for 2D and on quads and lines for 3D are treated
+     * i.e. on lines for 2d and on quads and lines for 3d are treated
      * similarly than that on cells. However, these geometrical objects, which
      * are called faces as a generalization, are not organised in a
      * hierarchical structure of levels. Therefore, the degrees of freedom
@@ -63,7 +57,7 @@ namespace internal
      * variables using the DoFHandler::get_dof_index() and corresponding
      * setter functions. Knowledge of the actual data format is therefore
      * encapsulated to the present hierarchy of classes as well as the
-     * dealii::DoFHandler class.
+     * DoFHandler class.
      */
     template <int dim>
     class DoFLevel

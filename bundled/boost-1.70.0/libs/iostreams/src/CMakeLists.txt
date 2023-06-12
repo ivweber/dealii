@@ -14,19 +14,14 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(
-  ${BOOST_BUNDLED_INCLUDE_DIRS}
-  ${DEAL_II_INCLUDE_DIRS}
-  )
-
-SET(src_boost_iostreams
+set(src_boost_iostreams
     file_descriptor.cpp
     gzip.cpp
     mapped_file.cpp
     zlib.cpp
     )
+enable_if_supported(DEAL_II_WARNING_FLAGS -Wno-c11-extensions)
+enable_if_supported(DEAL_II_WARNING_FLAGS -Wno-deprecated-copy)
+enable_if_supported(DEAL_II_WARNING_FLAGS -Wno-uninitialized)
 
-ENABLE_IF_SUPPORTED(DEAL_II_CXX_FLAGS -Wno-deprecated-copy)
-ENABLE_IF_SUPPORTED(DEAL_II_CXX_FLAGS -Wno-c11-extensions)
-
-DEAL_II_ADD_LIBRARY(obj_boost_iostreams OBJECT ${src_boost_iostreams})
+define_object_library(bundled_boost_iostreams OBJECT ${src_boost_iostreams})

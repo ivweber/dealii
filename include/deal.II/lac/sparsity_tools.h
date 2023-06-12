@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2020 by the deal.II authors
+// Copyright (C) 2008 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,6 +20,8 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/exceptions.h>
+#include <deal.II/base/index_set.h>
+#include <deal.II/base/mpi_stub.h>
 
 #include <deal.II/lac/block_sparsity_pattern.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
@@ -28,17 +30,12 @@
 #include <memory>
 #include <vector>
 
-#ifdef DEAL_II_WITH_MPI
-#  include <deal.II/base/index_set.h>
-
-#  include <mpi.h>
-#endif
-
 DEAL_II_NAMESPACE_OPEN
 
 
-/*! @addtogroup Sparsity
- *@{
+/**
+ * @addtogroup Sparsity
+ * @{
  */
 
 /**
@@ -270,7 +267,7 @@ namespace SparsityTools
   void
   distribute_sparsity_pattern(DynamicSparsityPattern &dsp,
                               const IndexSet &        locally_owned_rows,
-                              const MPI_Comm &        mpi_comm,
+                              const MPI_Comm          mpi_comm,
                               const IndexSet &        locally_relevant_rows);
 
   /**
@@ -287,7 +284,7 @@ namespace SparsityTools
   distribute_sparsity_pattern(
     DynamicSparsityPattern &                              dsp,
     const std::vector<DynamicSparsityPattern::size_type> &rows_per_cpu,
-    const MPI_Comm &                                      mpi_comm,
+    const MPI_Comm                                        mpi_comm,
     const IndexSet &                                      myrange);
 
   /**
@@ -307,7 +304,7 @@ namespace SparsityTools
   void
   distribute_sparsity_pattern(BlockDynamicSparsityPattern &dsp,
                               const IndexSet &             locally_owned_rows,
-                              const MPI_Comm &             mpi_comm,
+                              const MPI_Comm               mpi_comm,
                               const IndexSet &locally_relevant_rows);
 
   /**
@@ -317,7 +314,7 @@ namespace SparsityTools
   void
   distribute_sparsity_pattern(BlockDynamicSparsityPattern &dsp,
                               const std::vector<IndexSet> &owned_set_per_cpu,
-                              const MPI_Comm &             mpi_comm,
+                              const MPI_Comm               mpi_comm,
                               const IndexSet &             myrange);
 
   /**
@@ -346,7 +343,7 @@ namespace SparsityTools
   void
   gather_sparsity_pattern(DynamicSparsityPattern &dsp,
                           const IndexSet &        locally_owned_rows,
-                          const MPI_Comm &        mpi_comm,
+                          const MPI_Comm          mpi_comm,
                           const IndexSet &        locally_relevant_rows);
 
 #endif

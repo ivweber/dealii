@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2020 by the deal.II authors
+// Copyright (C) 2015 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,8 +28,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * This class represents an implementation of the
@@ -82,10 +84,12 @@ public:
    * the total polynomial degree may be higher). If `order = 0`, the element is
    * linear and has degrees of freedom only on the edges. If `order >= 1` the
    * element has degrees of freedom on the edges, faces and volume. For example
-   * the 3D version of FE_NedelecSZ has 12 degrees of freedom for `order = 0`
+   * the 3d version of FE_NedelecSZ has 12 degrees of freedom for `order = 0`
    * and 54 for `degree = 1`. It is important to have enough quadrature points
    * in order to perform the quadrature with sufficient accuracy.
-   * For example [QGauss<dim>(order + 2)](@ref QGauss) can be used for the
+   * For example
+   * [QGauss<dim>(order + 2)](@ref QGauss)
+   * can be used for the
    * quadrature formula, where `order` is the order of FE_NedelecSZ.
    */
   FE_NedelecSZ(const unsigned int order);
@@ -173,7 +177,7 @@ protected:
     const Quadrature<dim> &                                quadrature,
     const Mapping<dim, dim> &                              mapping,
     const typename Mapping<dim, dim>::InternalDataBase &   mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim, dim>
+    const internal::FEValuesImplementation::MappingRelatedData<dim, dim>
       &                                                       mapping_data,
     const typename FiniteElement<dim, dim>::InternalDataBase &fedata,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim, dim>
@@ -193,7 +197,7 @@ protected:
     const hp::QCollection<dim - 1> &                       quadrature,
     const Mapping<dim, dim> &                              mapping,
     const typename Mapping<dim, dim>::InternalDataBase &   mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim, dim>
+    const internal::FEValuesImplementation::MappingRelatedData<dim, dim>
       &                                                       mapping_data,
     const typename FiniteElement<dim, dim>::InternalDataBase &fedata,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim, dim>
@@ -210,7 +214,7 @@ protected:
     const Quadrature<dim - 1> &                            quadrature,
     const Mapping<dim, dim> &                              mapping,
     const typename Mapping<dim, dim>::InternalDataBase &   mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim, dim>
+    const internal::FEValuesImplementation::MappingRelatedData<dim, dim>
       &                                                       mapping_data,
     const typename FiniteElement<dim, dim>::InternalDataBase &fedata,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim, dim>
@@ -343,7 +347,7 @@ protected:
     std::vector<std::vector<double>> edge_lambda_values;
 
     /**
-     * Storage for gradients of edge extension parameters in 2D. In this case
+     * Storage for gradients of edge extension parameters in 2d. In this case
      * they are constant. These are stored for the 12 edges such that the global
      * vertex numbering* would follow the order defined by the "standard"
      * deal.II cell.
@@ -354,7 +358,7 @@ protected:
     std::vector<std::vector<double>> edge_lambda_grads_2d;
 
     /**
-     * Storage for gradients of edge extension parameters in 3D. In this case
+     * Storage for gradients of edge extension parameters in 3d. In this case
      * they are non-constant. These are stored for the 12 edges such that the
      * global vertex numbering* would follow the order defined by the
      * "standard" deal.II cell.
@@ -365,7 +369,7 @@ protected:
     std::vector<std::vector<std::vector<double>>> edge_lambda_grads_3d;
 
     /**
-     * Storage for 2nd derivatives of edge extension parameters in 3D, which are
+     * Storage for 2nd derivatives of edge extension parameters in 3d, which are
      * constant across the cell. These are stored for the 12 edges such that the
      * global vertex numbering* would follow the order defined by the
      * "standard" deal.II cell.
@@ -411,7 +415,7 @@ private:
    * where the components of the returned vector refer to:
    * 0 = vertex
    * 1 = edge
-   * 2 = face (which is a cell in 2D)
+   * 2 = face (which is a cell in 2d)
    * 3 = cell
    */
   static std::vector<unsigned int>
@@ -456,7 +460,7 @@ private:
 
 
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

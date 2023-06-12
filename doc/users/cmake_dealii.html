@@ -5,7 +5,7 @@
     <title>deal.II CMake documentation</title>
     <link href="../screen.css" rel="StyleSheet">
     <meta name="author" content="the deal.II authors <authors @ dealii.org>">
-    <meta name="copyright" content="Copyright (C) 2012 - 2020 by the deal.II authors">
+    <meta name="copyright" content="Copyright (C) 2012 - 2022 by the deal.II authors">
     <meta name="keywords" content="deal.II">
   </head>
 
@@ -423,7 +423,7 @@ library        - builds and installs the 'library' component
       you want to override this behavior, please set the C++ standard
       directly for example by configuring with
       <code>-DDEAL_II_CXX_FLAGS="-std=c++17"</code>, or by setting the
-      environement variable <code>CXXFLAGS="-std=c++17"</code>.
+      environment variable <code>CXXFLAGS="-std=c++17"</code>.
 
       Similarly, for enabling SIMD vectorization support, you have to set
       an appropriate target architecture via <code>-march=...</code>, for
@@ -456,6 +456,7 @@ DEAL_II_WITH_ADOLC
 DEAL_II_WITH_ARPACK
 DEAL_II_WITH_ASSIMP
 DEAL_II_WITH_BOOST
+DEAL_II_WITH_CGAL
 DEAL_II_WITH_COMPLEX_VALUES
 DEAL_II_WITH_CUDA
 DEAL_II_WITH_GINKGO
@@ -476,6 +477,7 @@ DEAL_II_WITH_SYMENGINE
 DEAL_II_WITH_TBB
 DEAL_II_WITH_TRILINOS
 DEAL_II_WITH_UMFPACK
+DEAL_II_WITH_VTK
 DEAL_II_WITH_ZLIB
 </pre>
       They all have standard meanings with the exception of one:
@@ -510,7 +512,7 @@ DEAL_II_WITH_ZLIB
           </p>
         <li>
           <p>
-            <code>DEAL_II_FORCE_BUNDLED_(BOOST|MUPARSER|THREADS|UMFPACK)</code>:
+            <code>DEAL_II_FORCE_BUNDLED_(BOOST|KOKKOS|MUPARSER|THREADS|UMFPACK)</code>:
           </p>
           <p>
             Forces the use of the bundled library regardless whether
@@ -786,19 +788,6 @@ cmake -DLAPACK_FOUND=true \
           <acronym>deal.II</acronym> will be linked as a shared library
 
         <li>
-          <code>DEAL_II_PREFER_STATIC_LIBS</code> (defaults to off): If set
-          to true, static archives will be preferred over dynamic libraries when
-          searching for features and corresponding link interface.
-
-        <li>
-          <code>DEAL_II_STATIC_EXECUTABLE</code> (defaults to off):
-          If set to true, <acronym>deal.II</acronym> will be configured in
-          a way to provide a link interface that is suitable for static
-          linkage of executables. Enabling this option forces
-          <code>BUILD_SHARED_LIBS=OFF</code> and
-          <code>DEAL_II_PREFER_STATIC_LIBS=ON</code>.
-
-        <li>
           <code>CMAKE_INSTALL_RPATH_USE_LINK_PATH</code>: If set
           (default), the <acronym>deal.II</acronym> library will be
           installed with rpaths  set for all libraries outside of the
@@ -835,9 +824,9 @@ cmake -DCMAKE_C_COMPILER=my_c_compiler -DCMAKE_CXX_COMPILER=my_cxx_compiler -DCM
       target. There are two options to override this behaviour:
 
       <ol>
-	<li>
-	  Override the default configuration by setting the following
-	  cached variables:
+        <li>
+          Override the default configuration by setting the following
+          cached variables:
 <pre class="cmake">
 DEAL_II_CXX_FLAGS         - used during all builds
 DEAL_II_CXX_FLAGS_DEBUG   - additional flags for the debug library
@@ -848,11 +837,11 @@ DEAL_II_LINKER_FLAGS_DEBUG   - additional flags for the debug library
 DEAL_II_LINKER_FLAGS_RELEASE - additional flags for the release library
 </pre>
 
-	  The content of the cached variables will be preserved
-	  and added <i>to the end</i> of the default compiler flags,
-	  hence providing the possibility for overriding a flag. E.g.:
-	  <code>-Wsign-compare</code>, set by the build system, can be
-	  overwritten by specifying:
+          The content of the cached variables will be preserved
+          and added <i>to the end</i> of the default compiler flags,
+          hence providing the possibility for overriding a flag. E.g.:
+          <code>-Wsign-compare</code>, set by the build system, can be
+          overwritten by specifying:
 <pre class="cmake">
 cmake -DDEAL_II_CXX_FLAGS="-Wno-sign-compare" &lt;...&gt;
 </pre>
@@ -862,12 +851,6 @@ cmake -DDEAL_II_CXX_FLAGS="-Wno-sign-compare" &lt;...&gt;
           <code>CXXFLAGS</code>, or <code>LDFLAGS</code> environment. These
           variables will also be appended after the default compiler flags
           (but before the corresponding cached variables).
-
-	<li>
-	  Disable the configuration completely by adding the flag
-	  <code>-D DEAL_II_SETUP_DEFAULT_COMPILER_FLAGS=OFF</code>.
-	  Beware of the fact that certain features
-	  may still pull in necessary compiler flags.
 
         <li>
           You can setup additional debug compiler flags to provide test

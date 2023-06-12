@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -38,15 +38,29 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*! @addtogroup Vectors
- *@{
+/**
+ * @addtogroup Vectors
+ * @{
  */
 
-// Forward declaration
-#ifndef DOXYGEN
-template <typename>
-class BlockVectorBase;
-#endif
+namespace internal
+{
+  template <typename T>
+  using has_block_t = decltype(std::declval<T const>().block(0));
+
+  template <typename T>
+  constexpr bool has_block = internal::is_supported_operation<has_block_t, T>;
+
+  template <typename T>
+  using has_n_blocks_t = decltype(std::declval<T const>().n_blocks());
+
+  template <typename T>
+  constexpr bool has_n_blocks =
+    internal::is_supported_operation<has_n_blocks_t, T>;
+
+  template <typename T>
+  constexpr bool is_block_vector = has_block<T> &&has_n_blocks<T>;
+} // namespace internal
 
 /**
  * A class that can be used to determine whether a given type is a block
@@ -65,31 +79,13 @@ class BlockVectorBase;
 template <typename VectorType>
 struct IsBlockVector
 {
-private:
-  /**
-   * Overload returning true if the class is derived from BlockVectorBase,
-   * which is what block vectors do.
-   */
-  template <typename T>
-  static std::true_type
-  check_for_block_vector(const BlockVectorBase<T> *);
-
-  /**
-   * Catch all for all other potential vector types that are not block
-   * vectors.
-   */
-  static std::false_type
-  check_for_block_vector(...);
-
 public:
   /**
    * A statically computable value that indicates whether the template
-   * argument to this class is a block vector (in fact whether the type is
-   * derived from BlockVectorBase<T>).
+   * argument to this class is a block vector (in fact whether the type has
+   * the functions `block()` and `n_blocks()`).
    */
-  static const bool value =
-    std::is_same<decltype(check_for_block_vector(std::declval<VectorType *>())),
-                 std::true_type>::value;
+  static const bool value = internal::is_block_vector<VectorType>;
 };
 
 
@@ -145,6 +141,13 @@ namespace internal
        * by algorithms to enquire about the specifics of the iterators they
        * work on. (Example: `std::next()`, which needs to know about a local
        * type named `difference_type`.)
+       *
+       * As for the iterator_category, C++20 has a more specialized
+       * contiguous_iterator_tag, but the elements of block vectors are
+       * not stored in a contiguous manner. They can be accessed in a
+       * random access order, though, with O(1) effort as long as we
+       * assume that the number of blocks of a vector is a constant
+       * (even though the *size* of the vector is not).
        */
       using iterator_category = std::random_access_iterator_tag;
       using difference_type   = std::ptrdiff_t;
@@ -347,7 +350,7 @@ namespace internal
                        "different block vectors. There is no reasonable way "
                        "to do this.");
 
-      //@}
+      /** @} */
     private:
       /**
        * Pointer to the block vector object to which this iterator points.
@@ -502,7 +505,7 @@ public:
   collect_sizes();
 
   /**
-   * Call the compress() function on all the subblocks of the matrix.
+   * Call the compress() function on all the subblocks of the vector.
    *
    * This functionality only needs to be called if using MPI based vectors and
    * exists in other objects for compatibility.
@@ -512,7 +515,7 @@ public:
    * for more information.
    */
   void
-  compress(::dealii::VectorOperation::values operation);
+  compress(VectorOperation::values operation);
 
   /**
    * Access to a single block.
@@ -969,7 +972,7 @@ protected:
 };
 
 
-/*@}*/
+/** @} */
 
 /*----------------------- Inline functions ----------------------------------*/
 
@@ -1531,8 +1534,7 @@ BlockVectorBase<VectorType>::collect_sizes()
 
 template <class VectorType>
 inline void
-BlockVectorBase<VectorType>::compress(
-  ::dealii::VectorOperation::values operation)
+BlockVectorBase<VectorType>::compress(VectorOperation::values operation)
 {
   for (unsigned int i = 0; i < n_blocks(); ++i)
     block(i).compress(operation);

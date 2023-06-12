@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,9 +20,9 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/memory_consumption.h>
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/smartpointer.h>
 #include <deal.II/base/table.h>
-#include <deal.II/base/thread_management.h>
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/lac/block_indices.h>
@@ -33,6 +33,7 @@
 #include <deal.II/lac/vector_operation.h>
 
 #include <cmath>
+#include <mutex>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -44,8 +45,9 @@ class MatrixIterator;
 #endif
 
 
-/*! @addtogroup Matrix1
- *@{
+/**
+ * @addtogroup Matrix1
+ * @{
  */
 
 /**
@@ -651,7 +653,7 @@ public:
    * for more information.
    */
   void
-  compress(::dealii::VectorOperation::values operation);
+  compress(VectorOperation::values operation);
 
   /**
    * Multiply the entire matrix by a fixed factor.
@@ -686,7 +688,7 @@ public:
    * Return the norm of the vector <i>v</i> with respect to the norm induced
    * by this matrix, i.e. <i>v<sup>T</sup>Mv)</i>. This is useful, e.g. in the
    * finite element context, where the <i>L<sup>T</sup></i>-norm of a function
-   * equals the matrix norm with respect to the mass matrix of the vector
+   * equals the matrix norm with respect to the @ref GlossMassMatrix "mass matrix" of the vector
    * representing the nodal values of the finite element function. Note that
    * even though the function's name might suggest something different, for
    * historic reasons not the norm but its square is returned, as defined
@@ -823,7 +825,7 @@ public:
                  int,
                  << "The blocks [" << arg1 << ',' << arg2 << "] and [" << arg3
                  << ',' << arg4 << "] have differing column numbers.");
-  //@}
+  /** @} */
 protected:
   /**
    * Release all memory and return to a state just like after having called
@@ -1037,7 +1039,7 @@ private:
      * A mutex variable used to guard access to the member variables of this
      * structure;
      */
-    std::mutex mutex;
+    Threads::Mutex mutex;
 
     /**
      * Copy operator. This is needed because the default copy operator of this
@@ -1073,7 +1075,7 @@ private:
 };
 
 
-/*@}*/
+/** @} */
 
 #ifndef DOXYGEN
 /* ------------------------- Template functions ---------------------- */
@@ -2142,8 +2144,7 @@ BlockMatrixBase<MatrixType>::diag_element(const size_type i) const
 
 template <class MatrixType>
 inline void
-BlockMatrixBase<MatrixType>::compress(
-  ::dealii::VectorOperation::values operation)
+BlockMatrixBase<MatrixType>::compress(VectorOperation::values operation)
 {
   for (unsigned int r = 0; r < n_block_rows(); ++r)
     for (unsigned int c = 0; c < n_block_cols(); ++c)

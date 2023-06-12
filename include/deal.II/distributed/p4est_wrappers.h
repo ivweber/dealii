@@ -36,9 +36,7 @@
 #  include <p8est_search.h>
 #  include <p8est_vtk.h>
 
-#  include <map>
-#  include <set>
-
+#  include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -49,6 +47,7 @@ namespace parallel
   namespace distributed
   {
     template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     class Triangulation;
   }
 } // namespace parallel
@@ -68,7 +67,7 @@ namespace internal
     template <int>
     struct types;
 
-    // these struct mimics p4est for 1D
+    // these struct mimics p4est for 1d
     template <>
     struct types<1>
     {
@@ -145,7 +144,7 @@ namespace internal
 
       static void (&quadrant_set_morton)(types<2>::quadrant *quadrant,
                                          int                 level,
-                                         uint64_t            id);
+                                         std::uint64_t       id);
 
       static int (&quadrant_is_equal)(const types<2>::quadrant *q1,
                                       const types<2>::quadrant *q2);
@@ -348,7 +347,7 @@ namespace internal
 
       static void (&quadrant_set_morton)(types<3>::quadrant *quadrant,
                                          int                 level,
-                                         uint64_t            id);
+                                         std::uint64_t       id);
 
       static int (&quadrant_is_equal)(const types<3>::quadrant *q1,
                                       const types<3>::quadrant *q2);

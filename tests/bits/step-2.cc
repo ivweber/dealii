@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,9 +34,6 @@
 
 #include "../tests.h"
 
-
-
-std::ofstream logfile("output");
 
 
 void
@@ -111,9 +108,9 @@ renumber_dofs(DoFHandler<2> &dof_handler)
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(2);
 
-  deallog.attach(logfile);
 
   Triangulation<2> triangulation;
   make_grid(triangulation);

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,14 +51,25 @@ template <int dim,
           typename Number              = double,
           typename VectorizedArrayType = VectorizedArray<Number>>
 void
-test(const unsigned int n_refinements = 1,
+test(const unsigned int geometry      = 0,
+     const unsigned int n_refinements = 1,
      const bool         print_vector  = true,
      const MPI_Comm     comm          = MPI_COMM_SELF)
 {
   using VectorType = LinearAlgebra::distributed::Vector<Number>;
 
   parallel::distributed::Triangulation<dim> tria(MPI_COMM_WORLD);
-  GridGenerator::hyper_cube(tria, 0.0, 1.0, true);
+
+  if (geometry == 0)
+    GridGenerator::hyper_cube(tria, 0.0, 1.0, true);
+  else if (geometry == 1)
+    GridGenerator::hyper_shell(tria, Point<dim>(), 0.5, 1.0);
+  else if (geometry == 2)
+    GridGenerator::hyper_ball(tria);
+  else
+    Assert(false, ExcNotImplemented());
+
+  tria.reset_all_manifolds();
 
   if (false)
     {
@@ -156,10 +167,10 @@ test(const unsigned int n_refinements = 1,
           phi_p.read_dof_values(src);
           phi_p.evaluate(true, true);
           VectorizedArrayType sigmaF =
-            (std::abs((phi_m.get_normal_vector(0) *
-                       phi_m.inverse_jacobian(0))[dim - 1]) +
-             std::abs((phi_m.get_normal_vector(0) *
-                       phi_p.inverse_jacobian(0))[dim - 1])) *
+            (std::abs(
+               (phi_m.normal_vector(0) * phi_m.inverse_jacobian(0))[dim - 1]) +
+             std::abs(
+               (phi_m.normal_vector(0) * phi_p.inverse_jacobian(0))[dim - 1])) *
             (Number)(std::max(fe_degree, 1) * (fe_degree + 1.0));
 
           for (unsigned int q = 0; q < phi_m.n_q_points; ++q)
@@ -189,8 +200,8 @@ test(const unsigned int n_refinements = 1,
           phi_m.read_dof_values(src);
           phi_m.evaluate(EvaluationFlags::values | EvaluationFlags::gradients);
           VectorizedArrayType sigmaF =
-            std::abs((phi_m.get_normal_vector(0) *
-                      phi_m.inverse_jacobian(0))[dim - 1]) *
+            std::abs(
+              (phi_m.normal_vector(0) * phi_m.inverse_jacobian(0))[dim - 1]) *
             Number(std::max(fe_degree, 1) * (fe_degree + 1.0)) * 2.0;
 
           for (unsigned int q = 0; q < phi_m.n_q_points; ++q)
@@ -247,7 +258,7 @@ test(const unsigned int n_refinements = 1,
                   phi_m.evaluate(EvaluationFlags::values |
                                  EvaluationFlags::gradients);
                   VectorizedArrayType sigmaF =
-                    std::abs((phi_m.get_normal_vector(0) *
+                    std::abs((phi_m.normal_vector(0) *
                               phi_m.inverse_jacobian(0))[dim - 1]) *
                     Number(std::max(fe_degree, 1) * (fe_degree + 1.0)) * 2.0;
 
@@ -280,9 +291,9 @@ test(const unsigned int n_refinements = 1,
                                  EvaluationFlags::gradients);
 
                   VectorizedArrayType sigmaF =
-                    (std::abs((phi_m.get_normal_vector(0) *
+                    (std::abs((phi_m.normal_vector(0) *
                                phi_m.inverse_jacobian(0))[dim - 1]) +
-                     std::abs((phi_m.get_normal_vector(0) *
+                     std::abs((phi_m.normal_vector(0) *
                                phi_p.inverse_jacobian(0))[dim - 1])) *
                     (Number)(std::max(fe_degree, 1) * (fe_degree + 1.0));
 

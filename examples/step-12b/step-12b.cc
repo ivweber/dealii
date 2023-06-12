@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2021 by the deal.II authors
+ * Copyright (C) 2009 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -30,10 +30,10 @@
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/numerics/data_out.h>
-#include <deal.II/fe/mapping_q1.h>
 // Here the discontinuous finite elements are defined. They are used in the same
 // way as all other finite elements, though -- as you have seen in previous
 // tutorial programs -- there isn't much user interaction with finite element
@@ -640,7 +640,8 @@ int main()
 {
   try
     {
-      dealii::deallog.depth_console(5);
+      using namespace dealii;
+      deallog.depth_console(5);
 
       Step12::AdvectionProblem<2> dgmethod;
       dgmethod.run();

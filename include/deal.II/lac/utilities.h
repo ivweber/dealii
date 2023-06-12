@@ -26,6 +26,7 @@
 
 #include <array>
 #include <complex>
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -393,14 +394,14 @@ namespace Utilities
       std::vector<double>   work;    // ^^
       types::blas_int       info;
       // call lapack_templates.h wrapper:
-      internal::UtilitiesImplementation::call_stev('N',
-                                                   n,
-                                                   diagonal.data(),
-                                                   subdiagonal.data(),
-                                                   Z.data(),
-                                                   ldz,
-                                                   work.data(),
-                                                   &info);
+      dealii::internal::UtilitiesImplementation::call_stev('N',
+                                                           n,
+                                                           diagonal.data(),
+                                                           subdiagonal.data(),
+                                                           Z.data(),
+                                                           ldz,
+                                                           work.data(),
+                                                           &info);
 
       Assert(info == 0, LAPACKSupport::ExcErrorCode("dstev", info));
 
@@ -431,7 +432,7 @@ namespace Utilities
       const double b = unwanted_spectrum.second;
       Assert(degree > 0, ExcMessage("Only positive degrees make sense."));
 
-      const bool scale = (a_L < std::numeric_limits<double>::infinity());
+      const bool scale = numbers::is_finite(a_L);
       Assert(
         a < b,
         ExcMessage(

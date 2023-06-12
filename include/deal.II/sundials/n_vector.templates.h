@@ -1,17 +1,18 @@
-//-----------------------------------------------------------
+// ---------------------------------------------------------------------
 //
-//    Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
-//    This file is part of the deal.II library.
+// This file is part of the deal.II library.
 //
-//    The deal.II library is free software; you can use it, redistribute
-//    it, and/or modify it under the terms of the GNU Lesser General
-//    Public License as published by the Free Software Foundation; either
-//    version 2.1 of the License, or (at your option) any later version.
-//    The full text of the license can be found in the file LICENSE.md at
-//    the top level directory of deal.II.
+// The deal.II library is free software; you can use it, redistribute
+// it, and/or modify it under the terms of the GNU Lesser General
+// Public License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+// The full text of the license can be found in the file LICENSE.md at
+// the top level directory of deal.II.
 //
-//-----------------------------------------------------------
+// ---------------------------------------------------------------------
+
 
 #ifndef dealii_sundials_n_vector_templates_h
 #define dealii_sundials_n_vector_templates_h
@@ -34,9 +35,7 @@
 #  include <deal.II/lac/trilinos_vector.h>
 #  include <deal.II/lac/vector_memory.h>
 
-#  if DEAL_II_SUNDIALS_VERSION_LT(5, 0, 0)
-#    include <deal.II/sundials/sundials_backport.h>
-#  endif
+#  include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -77,7 +76,7 @@ namespace SUNDIALS
        *
        * @note This constructor is intended for the N_VClone() call of SUNDIALS.
        */
-      NVectorContent();
+      NVectorContent(const MPI_Comm comm);
 
       /**
        * Non-const access to the stored vector. Only allowed if a constructor
@@ -93,6 +92,21 @@ namespace SUNDIALS
       const VectorType *
       get() const;
 
+      /**
+       * Return a reference to a copy of the communicator the vector uses.
+       * This function exists because the N_Vector
+       * interface requires a function that returns a `void*` pointing
+       * to the communicator object -- so somewhere, we need to have an
+       * address to point to. The issue is that our vectors typically
+       * return a *copy* of the communicator, rather than a reference to
+       * the communicator they use, and so there is only a temporary
+       * object and no address we can point to. To work around this
+       * requirement, this class stores a copy of the communicator,
+       * and this function here returns a reference to this copy.
+       */
+      const MPI_Comm &
+      get_mpi_communicator() const;
+
     private:
       using PointerType =
         std::unique_ptr<VectorType, std::function<void(VectorType *)>>;
@@ -107,6 +121,18 @@ namespace SUNDIALS
        * Actually stored vector content.
        */
       PointerType vector;
+
+      /**
+       * A copy of the communicator the vector uses, initialized in the
+       * constructor of this class. We store this because the N_Vector
+       * interface requires a function that returns a `void*` pointing
+       * to the communicator object -- so somewhere, we need to have an
+       * address to point to. The issue is that our vectors typically
+       * return a *copy* of the communicator, rather than a reference to
+       * the communicator they use, and so there is only a temporary
+       * object and no address we can point to.
+       */
+      MPI_Comm comm;
 
       /**
        * Flag storing whether the stored pointer is to be treated as const. If
@@ -126,7 +152,7 @@ namespace SUNDIALS
     template <typename VectorType>
     N_Vector
     create_nvector(NVectorContent<VectorType> *content
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
                    ,
                    SUNContext nvector_context
 #  endif
@@ -139,7 +165,7 @@ namespace SUNDIALS
     template <typename VectorType>
     N_Vector
     create_empty_nvector(
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
       SUNContext nvector_context
 #  endif
     );
@@ -189,39 +215,33 @@ namespace SUNDIALS
       void
       elementwise_product(N_Vector x, N_Vector y, N_Vector z);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!IsBlockVector<VectorType>::value, int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<!IsBlockVector<VectorType>::value, int> = 0>
       void
       elementwise_div(N_Vector x, N_Vector y, N_Vector z);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<IsBlockVector<VectorType>::value, int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<IsBlockVector<VectorType>::value, int> = 0>
       void
       elementwise_div(N_Vector x, N_Vector y, N_Vector z);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!IsBlockVector<VectorType>::value, int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<!IsBlockVector<VectorType>::value, int> = 0>
       void
       elementwise_inv(N_Vector x, N_Vector z);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<IsBlockVector<VectorType>::value, int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<IsBlockVector<VectorType>::value, int> = 0>
       void
       elementwise_inv(N_Vector x, N_Vector z);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!IsBlockVector<VectorType>::value, int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<!IsBlockVector<VectorType>::value, int> = 0>
       void
       elementwise_abs(N_Vector x, N_Vector z);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<IsBlockVector<VectorType>::value, int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<IsBlockVector<VectorType>::value, int> = 0>
       void
       elementwise_abs(N_Vector x, N_Vector z);
 
@@ -237,25 +257,22 @@ namespace SUNDIALS
       realtype
       max_norm(N_Vector x);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<is_serial_vector<VectorType>::value, int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<is_serial_vector<VectorType>::value, int> = 0>
       realtype
       min_element(N_Vector x);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!is_serial_vector<VectorType>::value &&
-                                    !IsBlockVector<VectorType>::value,
-                                  int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<!is_serial_vector<VectorType>::value &&
+                                   !IsBlockVector<VectorType>::value,
+                                 int> = 0>
       realtype
       min_element(N_Vector x);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!is_serial_vector<VectorType>::value &&
-                                    IsBlockVector<VectorType>::value,
-                                  int> = 0>
+      template <typename VectorType,
+                std::enable_if_t<!is_serial_vector<VectorType>::value &&
+                                   IsBlockVector<VectorType>::value,
+                                 int> = 0>
       realtype
       min_element(N_Vector x);
 
@@ -271,15 +288,7 @@ namespace SUNDIALS
       void
       add_constant(N_Vector x, realtype b, N_Vector z);
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!IsBlockVector<VectorType>::value, int> = 0>
-      const MPI_Comm &
-      get_communicator(N_Vector v);
-
-      template <
-        typename VectorType,
-        typename std::enable_if_t<IsBlockVector<VectorType>::value, int> = 0>
+      template <typename VectorType>
       const MPI_Comm &
       get_communicator(N_Vector v);
 
@@ -287,18 +296,9 @@ namespace SUNDIALS
        * Sundials likes a void* but we want to use the above functions
        * internally with a safe type.
        */
-      template <
-        typename VectorType,
-        typename std::enable_if_t<is_serial_vector<VectorType>::value, int> = 0>
+      template <typename VectorType>
       inline void *
       get_communicator_as_void_ptr(N_Vector v);
-
-      template <typename VectorType,
-                typename std::enable_if_t<!is_serial_vector<VectorType>::value,
-                                          int> = 0>
-      inline void *
-      get_communicator_as_void_ptr(N_Vector v);
-
     } // namespace NVectorOperations
   }   // namespace internal
 } // namespace SUNDIALS
@@ -311,18 +311,68 @@ namespace SUNDIALS
 {
   namespace internal
   {
+    namespace
+    {
+      template <typename VectorType,
+                std::enable_if_t<is_serial_vector<VectorType>::value, int> = 0>
+      MPI_Comm
+      get_mpi_communicator_from_vector(const VectorType &)
+      {
+        return MPI_COMM_SELF;
+      }
+
+
+
+      template <typename VectorType,
+                std::enable_if_t<!is_serial_vector<VectorType>::value &&
+                                   !IsBlockVector<VectorType>::value,
+                                 int> = 0>
+      MPI_Comm
+      get_mpi_communicator_from_vector(const VectorType &v)
+      {
+#  ifndef DEAL_II_WITH_MPI
+        (void)v;
+        return MPI_COMM_SELF;
+#  else
+        return v.get_mpi_communicator();
+#  endif
+      }
+
+
+
+      template <typename VectorType,
+                std::enable_if_t<!is_serial_vector<VectorType>::value &&
+                                   IsBlockVector<VectorType>::value,
+                                 int> = 0>
+      MPI_Comm
+      get_mpi_communicator_from_vector(const VectorType &v)
+      {
+#  ifndef DEAL_II_WITH_MPI
+        (void)v;
+        return MPI_COMM_SELF;
+#  else
+        Assert(v.n_blocks() > 0,
+               ExcMessage("You cannot ask a block vector without blocks "
+                          "for its MPI communicator."));
+        return v.block(0).get_mpi_communicator();
+#  endif
+      }
+    } // namespace
+
+
     template <typename VectorType>
-    NVectorContent<VectorType>::NVectorContent()
+    NVectorContent<VectorType>::NVectorContent(const MPI_Comm comm)
       : vector(typename VectorMemory<VectorType>::Pointer(mem))
+      , comm(comm)
       , is_const(false)
     {}
-
 
 
     template <typename VectorType>
     NVectorContent<VectorType>::NVectorContent(VectorType *vector)
       : vector(vector,
                [](VectorType *) { /* not owning memory -> don't free*/ })
+      , comm(get_mpi_communicator_from_vector(*vector))
       , is_const(false)
     {}
 
@@ -332,6 +382,7 @@ namespace SUNDIALS
     NVectorContent<VectorType>::NVectorContent(const VectorType *vector)
       : vector(const_cast<VectorType *>(vector),
                [](VectorType *) { /* not owning memory -> don't free*/ })
+      , comm(get_mpi_communicator_from_vector(*vector))
       , is_const(true)
     {}
 
@@ -364,21 +415,28 @@ namespace SUNDIALS
 
 
     template <typename VectorType>
-    NVectorView<VectorType>
-    make_nvector_view(VectorType &vector
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
-                      ,
-                      SUNContext nvector_context
-#  endif
-    )
+    const MPI_Comm &
+    NVectorContent<VectorType>::get_mpi_communicator() const
     {
-      return NVectorView<VectorType>(vector
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
-                                     ,
-                                     nvector_context
-#  endif
-      );
+      return comm;
     }
+
+
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
+    template <typename VectorType>
+    NVectorView<VectorType>
+    make_nvector_view(VectorType &vector, SUNContext nvector_context)
+    {
+      return NVectorView<VectorType>(vector, nvector_context);
+    }
+#  else
+    template <typename VectorType>
+    NVectorView<VectorType>
+    make_nvector_view(VectorType &vector)
+    {
+      return NVectorView<VectorType>(vector);
+    }
+#  endif
 
 
 
@@ -410,7 +468,7 @@ namespace SUNDIALS
 
     template <typename VectorType>
     NVectorView<VectorType>::NVectorView(VectorType &vector
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
                                          ,
                                          SUNContext nvector_context
 #  endif
@@ -419,7 +477,7 @@ namespace SUNDIALS
           create_nvector(
             new NVectorContent<typename std::remove_const<VectorType>::type>(
               &vector)
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
               ,
             nvector_context
 #  endif
@@ -451,7 +509,7 @@ namespace SUNDIALS
     template <typename VectorType>
     N_Vector
     create_nvector(NVectorContent<VectorType> *content
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
                    ,
                    SUNContext nvector_context
 #  endif
@@ -507,14 +565,17 @@ namespace SUNDIALS
       {
         N_Vector v = clone_empty(w);
 
-        // the corresponding delete is called in destroy()
-        auto  cloned   = new NVectorContent<VectorType>();
         auto *w_dealii = unwrap_nvector_const<VectorType>(w);
 
-        // reinit the cloned vector based on the layout of the source vector
-        cloned->get()->reinit(*w_dealii);
-        v->content = cloned;
+        // Create the vector; the corresponding delete is called in destroy()
+        auto cloned = new NVectorContent<VectorType>(
+          get_mpi_communicator_from_vector(*w_dealii));
 
+        // Then also copy the structure and values:
+        *cloned->get() = *w_dealii;
+
+        // Finally set the cloned object in 'v':
+        v->content = cloned;
         return v;
       }
 
@@ -543,43 +604,20 @@ namespace SUNDIALS
 
 
 
-      template <typename VectorType,
-                std::enable_if_t<IsBlockVector<VectorType>::value, int>>
+      template <typename VectorType>
       const MPI_Comm &
       get_communicator(N_Vector v)
       {
-        return unwrap_nvector_const<VectorType>(v)
-          ->block(0)
-          .get_mpi_communicator();
+        Assert(v != nullptr, ExcInternalError());
+        Assert(v->content != nullptr, ExcInternalError());
+        auto *pContent =
+          reinterpret_cast<NVectorContent<VectorType> *>(v->content);
+        return pContent->get_mpi_communicator();
       }
 
 
 
-      template <typename VectorType,
-                std::enable_if_t<!IsBlockVector<VectorType>::value, int>>
-      const MPI_Comm &
-      get_communicator(N_Vector v)
-      {
-        return unwrap_nvector_const<VectorType>(v)->get_mpi_communicator();
-      }
-
-
-
-      template <
-        typename VectorType,
-        typename std::enable_if_t<is_serial_vector<VectorType>::value, int>>
-      void *get_communicator_as_void_ptr(N_Vector)
-      {
-        // required by SUNDIALS: MPI-unaware vectors should return the nullptr
-        // as comm
-        return nullptr;
-      }
-
-
-
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!is_serial_vector<VectorType>::value, int>>
+      template <typename VectorType>
       void *
       get_communicator_as_void_ptr(N_Vector v)
       {
@@ -587,8 +625,12 @@ namespace SUNDIALS
         (void)v;
         return nullptr;
 #  else
-        // We need to cast away const here, as SUNDIALS demands a pure `void *`.
-        return &(const_cast<MPI_Comm &>(get_communicator<VectorType>(v)));
+        if (is_serial_vector<VectorType>::value == false)
+          // We need to cast away const here, as SUNDIALS demands a pure
+          // `void*`.
+          return &(const_cast<MPI_Comm &>(get_communicator<VectorType>(v)));
+        else
+          return nullptr;
 #  endif
       }
 
@@ -743,9 +785,8 @@ namespace SUNDIALS
 
 
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<is_serial_vector<VectorType>::value, int>>
+      template <typename VectorType,
+                std::enable_if_t<is_serial_vector<VectorType>::value, int>>
       realtype
       min_element(N_Vector x)
       {
@@ -755,11 +796,10 @@ namespace SUNDIALS
 
 
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!is_serial_vector<VectorType>::value &&
-                                    !IsBlockVector<VectorType>::value,
-                                  int>>
+      template <typename VectorType,
+                std::enable_if_t<!is_serial_vector<VectorType>::value &&
+                                   !IsBlockVector<VectorType>::value,
+                                 int>>
       realtype
       min_element(N_Vector x)
       {
@@ -782,11 +822,10 @@ namespace SUNDIALS
 
 
 
-      template <
-        typename VectorType,
-        typename std::enable_if_t<!is_serial_vector<VectorType>::value &&
-                                    IsBlockVector<VectorType>::value,
-                                  int>>
+      template <typename VectorType,
+                std::enable_if_t<!is_serial_vector<VectorType>::value &&
+                                   IsBlockVector<VectorType>::value,
+                                 int>>
       realtype
       min_element(N_Vector x)
       {
@@ -983,7 +1022,7 @@ namespace SUNDIALS
     template <typename VectorType>
     N_Vector
     create_empty_nvector(
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
       SUNContext nvector_context
 #  endif
     )
@@ -1001,11 +1040,9 @@ namespace SUNDIALS
       v->ops->nvcloneempty  = &NVectorOperations::clone_empty;
       v->ops->nvdestroy     = &NVectorOperations::destroy<VectorType>;
       //  v->ops->nvspace           = undef;
-#  if DEAL_II_SUNDIALS_VERSION_GTE(5, 0, 0)
       v->ops->nvgetcommunicator =
         &NVectorOperations::get_communicator_as_void_ptr<VectorType>;
       v->ops->nvgetlength = &NVectorOperations::get_global_length<VectorType>;
-#  endif
 
       /* standard vector operations */
       v->ops->nvlinearsum = &NVectorOperations::linear_sum<VectorType>;

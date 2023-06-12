@@ -70,7 +70,8 @@ WARN_IF_DOC_ERROR      = YES
 
 INPUT                  =
 RECURSIVE              = YES
-EXCLUDE_PATTERNS       = *.templates.h
+EXCLUDE_PATTERNS       = *.templates.h \
+                         CMakeLists.txt
 EXAMPLE_PATH           = @CMAKE_BINARY_DIR@/doc/doxygen/tutorial \
                          @CMAKE_SOURCE_DIR@/examples/doxygen
 EXAMPLE_RECURSIVE      = NO
@@ -91,6 +92,8 @@ ALIASES += dealiiExceptionMessage{1}="@note The message that will be printed by 
 ALIASES += dealiiWriggersA{2}="@note For a discussion of the background of this function, see P. Wriggers: \"Nonlinear finite element methods\" (2008), and in particular formula (\2) on p. \1 (or thereabouts). "
 
 ALIASES += dealiiHolzapfelA{2}="@note For a discussion of the background of this function, see G. A. Holzapfel: \"Nonlinear solid mechanics. A Continuum Approach for Engineering\" (2007), and in particular formula (\2) on p. \1 (or thereabouts). "
+
+ALIASES += dealiiConceptRequires{1}="@note This class, function, or variable is a template, and it can only be instantiated if the following condition is true: @code \1 @endcode If your compiler supports the C++20 standard, then this constraint will be enforced by a [C++20 requires clause](https://en.cppreference.com/w/cpp/language/constraints)."
 
 #---------------------------------------------------------------------------
 # configuration options related to source browsing
@@ -180,7 +183,7 @@ PREDEFINED             = DOXYGEN=1 \
                          DEAL_II_ENABLE_EXTRA_DIAGNOSTICS= \
                          DEAL_II_DISABLE_EXTRA_DIAGNOSTICS= \
                          DEAL_II_DEPRECATED= \
-                         DEAL_II_CUDA_HOST_DEV= \
+                         DEAL_II_HOST_DEVICE= \
                          DEAL_II_ALWAYS_INLINE= \
                          __device__= \
                          DEAL_II_WITH_ADOLC=1 \
@@ -194,10 +197,11 @@ PREDEFINED             = DOXYGEN=1 \
                          DEAL_II_ARPACK_WITH_PARPACK=1 \
                          DEAL_II_WITH_ASSIMP=1 \
                          DEAL_II_WITH_BOOST=1 \
+                         DEAL_II_WITH_CGAL=1 \
+                         DEAL_II_CGAL_VERSION_GTE=1 \
                          DEAL_II_WITH_TASKFLOW=1 \
                          DEAL_II_WITH_COMPLEX_VALUES=1 \
                          DEAL_II_WITH_CUDA=1 \
-                         DEAL_II_COMPILER_CUDA_AWARE=1 \
                          DEAL_II_WITH_GINKGO=1 \
                          DEAL_II_WITH_GMSH=1 \
                          DEAL_II_GMSH_WITH_API=1 \
@@ -207,11 +211,15 @@ PREDEFINED             = DOXYGEN=1 \
                          DEAL_II_LAPACK_WITH_MKL=1 \
                          DEAL_II_WITH_METIS=1 \
                          DEAL_II_WITH_MPI=1 \
-                         DEAL_II_MPI_WITH_CUDA_SUPPORT=1 \
+                         DEAL_II_MPI_WITH_DEVICE_SUPPORT=1 \
                          DEAL_II_MPI_VERSION_MAJOR=3 \
                          DEAL_II_MPI_VERSION_MINOR=0 \
                          DEAL_II_WITH_MUPARSER=1 \
                          DEAL_II_WITH_OPENCASCADE=1 \
+                         DEAL_II_OPENCASCADE_VERSION_MAJOR=7 \
+                         DEAL_II_OPENCASCADE_VERSION_MINOR=6 \
+                         DEAL_II_OPENCASCADE_VERSION_SUBMINOR=0 \
+                         DEAL_II_OPENCASCADE_VERSION_GTE=1 \
                          DEAL_II_WITH_P4EST=1 \
                          DEAL_II_P4EST_VERSION_MAJOR=2 \
                          DEAL_II_P4EST_VERSION_MINOR=0 \
@@ -234,12 +242,14 @@ PREDEFINED             = DOXYGEN=1 \
                          DEAL_II_WITH_TRILINOS=1 \
                          DEAL_II_TRILINOS_WITH_EPETRAEXT=1 \
                          DEAL_II_TRILINOS_WITH_MUELU=1 \
+                         DEAL_II_TRILINOS_WITH_NOX=1 \
                          DEAL_II_TRILINOS_WITH_ROL=1 \
                          DEAL_II_TRILINOS_WITH_SACADO=1 \
                          DEAL_II_TRILINOS_WITH_TPETRA=1 \
                          DEAL_II_TRILINOS_WITH_ZOLTAN=1 \
                          DEAL_II_TRILINOS_VERSION_GTE=1 \
                          DEAL_II_WITH_UMFPACK=1 \
+                         DEAL_II_WITH_VTK=1 \
                          DEAL_II_WITH_ZLIB=1
 
 # do not expand exception declarations
@@ -264,7 +274,6 @@ EXTERNAL_GROUPS        = YES
 # Configuration options related to the dot tool
 #---------------------------------------------------------------------------
 
-CLASS_DIAGRAMS         = YES
 HIDE_UNDOC_RELATIONS   = NO
 HAVE_DOT               = YES
 CLASS_GRAPH            = YES
@@ -280,7 +289,6 @@ GRAPHICAL_HIERARCHY    = NO
 DIRECTORY_GRAPH        = YES
 DOT_IMAGE_FORMAT       = svg
 MAX_DOT_GRAPH_DEPTH    = 5
-DOT_TRANSPARENT        = NO
 GENERATE_LEGEND        = YES
 
 DOT_CLEANUP            = YES

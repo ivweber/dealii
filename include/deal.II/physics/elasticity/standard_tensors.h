@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,7 +40,6 @@ namespace Physics
      * Cartesian basis, where the metric tensor is the identity tensor.
      *
      * @relatesalso Tensor
-     * @relatesalso SymmetricTensor
      */
     template <int dim>
     class StandardTensors
@@ -49,7 +48,7 @@ namespace Physics
       /**
        * @name Metric tensors
        */
-      //@{
+      /** @{ */
 
       /**
        * The second-order referential/spatial symmetric identity (metric) tensor
@@ -124,12 +123,12 @@ namespace Physics
 #endif
         ;
 
-      //@}
+      /** @} */
 
       /**
        * @name Projection operators
        */
-      //@{
+      /** @{ */
 
       /**
        * The fourth-order spatial deviatoric tensor. Also known as the
@@ -232,8 +231,8 @@ namespace Physics
        * @dealiiHolzapfelA{229,6.83}
        */
       template <typename Number>
-      static DEAL_II_CONSTEXPR SymmetricTensor<4, dim, Number>
-                               Dev_P(const Tensor<2, dim, Number> &F);
+      static DEAL_II_HOST DEAL_II_CONSTEXPR SymmetricTensor<4, dim, Number>
+      Dev_P(const Tensor<2, dim, Number> &F);
 
       /**
        * Return the transpose of the fourth-order referential deviatoric tensor,
@@ -247,15 +246,15 @@ namespace Physics
        * @f]
        */
       template <typename Number>
-      static DEAL_II_CONSTEXPR SymmetricTensor<4, dim, Number>
-                               Dev_P_T(const Tensor<2, dim, Number> &F);
+      static DEAL_II_HOST DEAL_II_CONSTEXPR SymmetricTensor<4, dim, Number>
+      Dev_P_T(const Tensor<2, dim, Number> &F);
 
-      //@}
+      /** @} */
 
       /**
        * @name Scalar derivatives
        */
-      //@{
+      /** @{ */
       /**
        * Return the derivative of the volumetric Jacobian
        * $J = \text{det} \mathbf{F}$ with respect to the right Cauchy-Green
@@ -274,15 +273,15 @@ namespace Physics
        * @dealiiHolzapfelA{228,6.82}
        */
       template <typename Number>
-      static DEAL_II_CONSTEXPR SymmetricTensor<2, dim, Number>
-                               ddet_F_dC(const Tensor<2, dim, Number> &F);
+      static DEAL_II_HOST DEAL_II_CONSTEXPR SymmetricTensor<2, dim, Number>
+      ddet_F_dC(const Tensor<2, dim, Number> &F);
 
-      //@}
+      /** @} */
 
       /**
        * @name Tensor derivatives
        */
-      //@{
+      /** @{ */
 
       /**
        * Return the derivative of the inverse of the right Cauchy-Green
@@ -299,10 +298,10 @@ namespace Physics
        * @dealiiWriggersA{76,3.255}
        */
       template <typename Number>
-      static DEAL_II_CONSTEXPR SymmetricTensor<4, dim, Number>
-                               dC_inv_dC(const Tensor<2, dim, Number> &F);
+      static DEAL_II_HOST DEAL_II_CONSTEXPR SymmetricTensor<4, dim, Number>
+      dC_inv_dC(const Tensor<2, dim, Number> &F);
 
-      //@}
+      /** @} */
     };
 
   } // namespace Elasticity
@@ -317,10 +316,12 @@ namespace Physics
 
 template <int dim>
 template <typename Number>
-DEAL_II_CONSTEXPR inline SymmetricTensor<4, dim, Number>
-Physics::Elasticity::StandardTensors<dim>::Dev_P(
+DEAL_II_HOST DEAL_II_CONSTEXPR inline SymmetricTensor<4, dim, Number>
+             Physics::Elasticity::StandardTensors<dim>::Dev_P(
   const Tensor<2, dim, Number> &F)
 {
+  // Make things work with AD types
+  using std::pow;
   const Number det_F = determinant(F);
   Assert(numbers::value_is_greater_than(det_F, 0.0),
          ExcMessage("Deformation gradient has a negative determinant."));
@@ -333,8 +334,7 @@ Physics::Elasticity::StandardTensors<dim>::Dev_P(
     outer_product(C, C_inv);                   // Dev_P = C_x_C_inv
   Dev_P /= -dim;                               // Dev_P = -[1/dim]C_x_C_inv
   Dev_P += SymmetricTensor<4, dim, Number>(S); // Dev_P = S - [1/dim]C_x_C_inv
-  Dev_P *=
-    std::pow(det_F, -2.0 / dim); // Dev_P = J^{-2/dim} [S - [1/dim]C_x_C_inv]
+  Dev_P *= pow(det_F, -2.0 / dim); // Dev_P = J^{-2/dim} [S - [1/dim]C_x_C_inv]
 
   return Dev_P;
 }
@@ -343,10 +343,12 @@ Physics::Elasticity::StandardTensors<dim>::Dev_P(
 
 template <int dim>
 template <typename Number>
-DEAL_II_CONSTEXPR inline SymmetricTensor<4, dim, Number>
-Physics::Elasticity::StandardTensors<dim>::Dev_P_T(
+DEAL_II_HOST DEAL_II_CONSTEXPR inline SymmetricTensor<4, dim, Number>
+             Physics::Elasticity::StandardTensors<dim>::Dev_P_T(
   const Tensor<2, dim, Number> &F)
 {
+  // Make things work with AD types
+  using std::pow;
   const Number det_F = determinant(F);
   Assert(numbers::value_is_greater_than(det_F, 0.0),
          ExcMessage("Deformation gradient has a negative determinant."));
@@ -360,7 +362,7 @@ Physics::Elasticity::StandardTensors<dim>::Dev_P_T(
   Dev_P_T /= -dim;                               // Dev_P = -[1/dim]C_inv_x_C
   Dev_P_T += SymmetricTensor<4, dim, Number>(S); // Dev_P = S - [1/dim]C_inv_x_C
   Dev_P_T *=
-    std::pow(det_F, -2.0 / dim); // Dev_P = J^{-2/dim} [S - [1/dim]C_inv_x_C]
+    pow(det_F, -2.0 / dim); // Dev_P = J^{-2/dim} [S - [1/dim]C_inv_x_C]
 
   return Dev_P_T;
 }
@@ -369,8 +371,8 @@ Physics::Elasticity::StandardTensors<dim>::Dev_P_T(
 
 template <int dim>
 template <typename Number>
-DEAL_II_CONSTEXPR SymmetricTensor<2, dim, Number>
-                  Physics::Elasticity::StandardTensors<dim>::ddet_F_dC(
+DEAL_II_HOST DEAL_II_CONSTEXPR SymmetricTensor<2, dim, Number>
+Physics::Elasticity::StandardTensors<dim>::ddet_F_dC(
   const Tensor<2, dim, Number> &F)
 {
   return internal::NumberType<Number>::value(0.5 * determinant(F)) *
@@ -381,8 +383,8 @@ DEAL_II_CONSTEXPR SymmetricTensor<2, dim, Number>
 
 template <int dim>
 template <typename Number>
-DEAL_II_CONSTEXPR inline SymmetricTensor<4, dim, Number>
-Physics::Elasticity::StandardTensors<dim>::dC_inv_dC(
+DEAL_II_HOST DEAL_II_CONSTEXPR inline SymmetricTensor<4, dim, Number>
+             Physics::Elasticity::StandardTensors<dim>::dC_inv_dC(
   const Tensor<2, dim, Number> &F)
 {
   const SymmetricTensor<2, dim, Number> C_inv =

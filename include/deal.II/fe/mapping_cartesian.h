@@ -28,8 +28,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup mapping */
-/*@{*/
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * A class providing a mapping from the reference cell to cells that are
@@ -178,7 +180,7 @@ public:
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const ArrayView<const Point<dim>> &                         unit_points,
     const UpdateFlags                                           update_flags,
-    dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const;
 
   /**
@@ -293,7 +295,7 @@ private:
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const NonMatching::ImmersedSurfaceQuadrature<dim> &         quadrature,
     const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-    dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
   /**
@@ -415,7 +417,7 @@ private:
       &output_data) const;
 };
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

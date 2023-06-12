@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,13 +18,12 @@
 #include <deal.II/base/mpi.templates.h>
 #include <deal.II/base/mpi_compute_index_owner_internal.h>
 #include <deal.II/base/mpi_consensus_algorithms.h>
+#include <deal.II/base/partitioner.h>
 #include <deal.II/base/timer.h>
 
 #include <deal.II/matrix_free/vector_data_exchange.h>
 
-#ifdef DEAL_II_WITH_64BIT_INDICES
-#  include <deal.II/base/mpi_consensus_algorithms.templates.h>
-#endif
+#include <boost/serialization/utility.hpp>
 
 #include <map>
 #include <vector>
@@ -372,7 +371,7 @@ namespace internal
 
       Full::Full(
         const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
-        const MPI_Comm &communicator_sm)
+        const MPI_Comm communicator_sm)
         : comm(partitioner->get_mpi_communicator())
         , comm_sm(communicator_sm)
         , n_local_elements(partitioner->locally_owned_range().n_elements())
@@ -441,10 +440,11 @@ namespace internal
                   /*track_index_requests = */ true);
 
         Utilities::MPI::ConsensusAlgorithms::Selector<
-          std::pair<types::global_dof_index, types::global_dof_index>,
-          unsigned int>
-          consensus_algorithm(process, comm);
-        consensus_algorithm.run();
+          std::vector<
+            std::pair<types::global_dof_index, types::global_dof_index>>,
+          std::vector<unsigned int>>
+          consensus_algorithm;
+        consensus_algorithm.run(process, comm);
 
         // decompress ghost_indices_within_larger_ghost_set for simpler
         // data access during setup
@@ -1100,7 +1100,7 @@ namespace internal
         (void)data_others;
         (void)operation;
 
-        Assert(operation == dealii::VectorOperation::add, ExcNotImplemented());
+        Assert(operation == VectorOperation::add, ExcNotImplemented());
 
         requests.resize(sm_ghost_ranks.size() + sm_import_ranks.size() +
                         ghost_targets_data.size() + import_targets_data.size());
@@ -1224,7 +1224,7 @@ namespace internal
 
         (void)operation;
 
-        Assert(operation == dealii::VectorOperation::add, ExcNotImplemented());
+        Assert(operation == VectorOperation::add, ExcNotImplemented());
 
         AssertDimension(requests.size(),
                         sm_ghost_ranks.size() + sm_import_ranks.size() +
@@ -1368,7 +1368,7 @@ namespace internal
 
 
 
-      const MPI_Comm &
+      MPI_Comm
       Full::get_sm_mpi_communicator() const
       {
         return this->comm_sm;

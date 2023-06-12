@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2021 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,17 +21,14 @@
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/communication_pattern_base.h>
 #include <deal.II/base/index_set.h>
-#include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/memory_space.h>
-#include <deal.II/base/mpi.h>
+#include <deal.II/base/mpi_stub.h>
 #include <deal.II/base/types.h>
-#include <deal.II/base/utilities.h>
 
-#include <deal.II/lac/vector.h>
 #include <deal.II/lac/vector_operation.h>
 
 #include <limits>
-
+#include <memory>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -44,7 +41,13 @@ namespace Utilities
      * fact, any linear data structure) among processors using MPI.
      *
      * The partitioner stores the global vector size and the locally owned
-     * range as a half-open interval [@p lower, @p upper) on each process.
+     * range as a half-open interval [@p lower, @p upper) on each process. In
+     * other words, it assumes that every process stores a contiguous subset
+     * of the array mentioned in the documentation of the base class
+     * Utilities::MPI::CommunicationPatternBase. (If you want to store
+     * non-contiguous parts of these arrays on each process, take a look
+     * at Utilities::MPI::NoncontiguousPartitioner.)
+     *
      * Furthermore, it includes a structure for the point-to-point communication
      * patterns. It allows the inclusion of ghost indices (i.e. indices that a
      * current processor needs to have access to, but are owned by another
@@ -221,7 +224,7 @@ namespace Utilities
        */
       Partitioner(const types::global_dof_index local_size,
                   const types::global_dof_index ghost_size,
-                  const MPI_Comm &              communicator);
+                  const MPI_Comm                communicator);
 
       /**
        * Constructor with index set arguments. This constructor creates a
@@ -232,7 +235,7 @@ namespace Utilities
        */
       Partitioner(const IndexSet &locally_owned_indices,
                   const IndexSet &ghost_indices_in,
-                  const MPI_Comm &communicator_in);
+                  const MPI_Comm  communicator_in);
 
       /**
        * Constructor with one index set argument. This constructor creates a
@@ -242,7 +245,7 @@ namespace Utilities
        * constructor with two index sets.
        */
       Partitioner(const IndexSet &locally_owned_indices,
-                  const MPI_Comm &communicator_in);
+                  const MPI_Comm  communicator_in);
 
       /**
        * Reinitialize the communication pattern. The first argument
@@ -254,7 +257,7 @@ namespace Utilities
       virtual void
       reinit(const IndexSet &vector_space_vector_index_set,
              const IndexSet &read_write_vector_index_set,
-             const MPI_Comm &communicator) override;
+             const MPI_Comm  communicator) override;
 
       /**
        * Set the locally owned indices. Used in the constructor.
@@ -471,9 +474,9 @@ namespace Utilities
       n_mpi_processes() const;
 
       /**
-       * Return the MPI communicator underlying the partitioner object.
+       * Return the underlying MPI communicator.
        */
-      virtual const MPI_Comm &
+      virtual MPI_Comm
       get_mpi_communicator() const override;
 
       /**
@@ -674,7 +677,7 @@ namespace Utilities
     private:
       /**
        * Initialize import_indices_plain_dev from import_indices_data. This
-       * function is only used when using CUDA-aware MPI.
+       * function is only used when using @ref GlossDevice "device"-aware MPI.
        */
       void
       initialize_import_indices_plain_dev() const;
@@ -725,15 +728,13 @@ namespace Utilities
       /**
        * The set of (local) indices that we are importing during compress(),
        * i.e., others' ghosts that belong to the local range. The data stored is
-       * the same than in import_indices_data but the data is expanded in plain
-       * arrays. This variable is only used when using CUDA-aware MPI.
+       * the same as in import_indices_data but the data is expanded in plain
+       * arrays. This variable is only used when using @ref GlossDevice "device"-aware MPI.
        */
       // The variable is mutable to enable lazy initialization in
-      // export_to_ghosted_array_start(). This way partitioner does not have to
-      // be templated on the MemorySpaceType.
+      // export_to_ghosted_array_start().
       mutable std::vector<
-        std::pair<std::unique_ptr<unsigned int[], void (*)(unsigned int *)>,
-                  unsigned int>>
+        Kokkos::View<unsigned int *, MemorySpace::Default::kokkos_space>>
         import_indices_plain_dev;
 
       /**
@@ -876,15 +877,19 @@ namespace Utilities
              ExcIndexNotPresent(global_index, my_pid));
       if (in_local_range(global_index))
         return static_cast<unsigned int>(global_index - local_range_data.first);
-      else if (is_ghost_entry(global_index))
-        return (locally_owned_size() +
-                static_cast<unsigned int>(
-                  ghost_indices_data.index_within_set(global_index)));
       else
-        // should only end up here in optimized mode, when we use this large
-        // number to trigger a segfault when using this method for array
-        // access
-        return numbers::invalid_unsigned_int;
+        {
+          // avoid checking the ghost index set via a binary search twice by
+          // querying the index within set, which returns invalid_dof_index
+          // for non-existent entries
+          const types::global_dof_index index_within_ghosts =
+            ghost_indices_data.index_within_set(global_index);
+          if (index_within_ghosts == numbers::invalid_dof_index)
+            return numbers::invalid_unsigned_int;
+          else
+            return locally_owned_size() +
+                   static_cast<unsigned int>(index_within_ghosts);
+        }
     }
 
 
@@ -980,7 +985,7 @@ namespace Utilities
 
 
 
-    inline const MPI_Comm &
+    inline MPI_Comm
     Partitioner::get_mpi_communicator() const
     {
       return communicator;

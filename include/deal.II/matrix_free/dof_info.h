@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2020 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,18 +21,10 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/exceptions.h>
-#include <deal.II/base/partitioner.h>
 #include <deal.II/base/vectorization.h>
 
-#include <deal.II/dofs/dof_handler.h>
-
-#include <deal.II/lac/affine_constraints.h>
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
-
 #include <deal.II/matrix_free/face_info.h>
-#include <deal.II/matrix_free/hanging_nodes_internal.h>
 #include <deal.II/matrix_free/shape_info.h>
-#include <deal.II/matrix_free/task_info.h>
 #include <deal.II/matrix_free/vector_data_exchange.h>
 
 #include <array>
@@ -42,6 +34,9 @@
 DEAL_II_NAMESPACE_OPEN
 
 #ifndef DOXYGEN
+
+// forward declarations
+
 namespace internal
 {
   namespace MatrixFreeFunctions
@@ -49,10 +44,32 @@ namespace internal
     template <int dim>
     class HangingNodes;
 
-    template <typename, typename>
-    struct FPArrayComparator;
+    struct TaskInfo;
+
+    template <typename Number>
+    struct ConstraintValues;
   } // namespace MatrixFreeFunctions
 } // namespace internal
+
+template <typename>
+class AffineConstraints;
+
+class DynamicSparsityPattern;
+
+template <typename>
+class TriaIterator;
+
+template <int, int, bool>
+class DoFCellAccessor;
+
+namespace Utilities
+{
+  namespace MPI
+  {
+    class Partitioner;
+  }
+} // namespace Utilities
+
 #endif
 
 namespace internal
@@ -60,37 +77,10 @@ namespace internal
   namespace MatrixFreeFunctions
   {
     /**
-     * A struct that takes entries describing a constraint and puts them into
-     * a sorted list where duplicates are filtered out
+     * Type of the 8-bit representation of the refinement configuration that
+     * is in hanging_nodes_internal.h.
      */
-    template <typename Number>
-    struct ConstraintValues
-    {
-      ConstraintValues();
-
-      /**
-       * This function inserts some constrained entries to the collection of
-       * all values. It stores the (reordered) numbering of the dofs
-       * (according to the ordering that matches with the function) in
-       * new_indices, and returns the storage position the double array for
-       * access later on.
-       */
-      template <typename number2>
-      unsigned short
-      insert_entries(
-        const std::vector<std::pair<types::global_dof_index, number2>>
-          &entries);
-
-      std::vector<std::pair<types::global_dof_index, double>>
-                                           constraint_entries;
-      std::vector<types::global_dof_index> constraint_indices;
-
-      std::pair<std::vector<Number>, types::global_dof_index> next_constraint;
-      std::map<std::vector<Number>,
-               types::global_dof_index,
-               FPArrayComparator<Number, VectorizedArray<Number>>>
-        constraints;
-    };
+    using compressed_constraint_kind = std::uint8_t;
 
     /**
      * The class that stores the indices of the degrees of freedom for all the
@@ -174,8 +164,8 @@ namespace internal
                            const unsigned int fe_degree) const;
 
       /**
-       * Populate the vector @p locall_indices with locally owned degrees of freedom
-       * stored on the cell block @p cell.
+       * Populate the vector @p local_indices with locally owned degrees of freedom
+       * stored on the cell batch @p cell_batch.
        * If @p with_constraints is `true`, then the returned vector will contain indices
        * required to resolve constraints.
        *
@@ -193,8 +183,8 @@ namespace internal
        * `std::vector::erase()`.
        */
       void
-      get_dof_indices_on_cell_batch(std::vector<unsigned int> &locall_indices,
-                                    const unsigned int         cell,
+      get_dof_indices_on_cell_batch(std::vector<unsigned int> &local_indices,
+                                    const unsigned int         cell_batch,
                                     const bool with_constraints = true) const;
 
       /**
@@ -239,7 +229,7 @@ namespace internal
        */
       void
       assign_ghosts(const std::vector<unsigned int> &boundary_cells,
-                    const MPI_Comm &                 communicator_sm,
+                    const MPI_Comm                   communicator_sm,
                     const bool use_vector_data_exchanger_full);
 
       /**
@@ -294,12 +284,12 @@ namespace internal
         const std::vector<FaceToCellTopology<1>> &inner_faces,
         const std::vector<FaceToCellTopology<1>> &ghosted_faces,
         const bool                                fill_cell_centric,
-        const MPI_Comm &                          communicator_sm,
+        const MPI_Comm                            communicator_sm,
         const bool use_vector_data_exchanger_full);
 
       /**
        * Given @p cell_indices_contiguous_sm containing the local index of
-       * cells of macro faces (inner/outer) and macro faces compute
+       * cells of face batches (inner/outer) and cell batches compute
        * dof_indices_contiguous_sm.
        */
       void
@@ -476,13 +466,6 @@ namespace internal
       };
 
       /**
-       * Stores the dimension of the underlying DoFHandler. Since the indices
-       * are not templated, this is the variable that makes the dimension
-       * accessible in the (rare) cases it is needed inside this class.
-       */
-      unsigned int dimension;
-
-      /**
        * For efficiency reasons, always keep a fixed number of cells with
        * similar properties together. This variable controls the number of
        * cells batched together. As opposed to the other classes which are
@@ -536,7 +519,7 @@ namespace internal
        * Masks indicating for each cell and component if the optimized
        * hanging-node constraint is applicable and if yes which type.
        */
-      std::vector<ConstraintKinds> hanging_node_constraint_masks;
+      std::vector<compressed_constraint_kind> hanging_node_constraint_masks;
 
       /**
        * This variable describes the position of constraints in terms of the

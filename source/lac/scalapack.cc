@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,6 +28,7 @@
 #    include <hdf5.h>
 #  endif
 
+#  include <limits>
 #  include <memory>
 
 DEAL_II_NAMESPACE_OPEN
@@ -665,8 +666,8 @@ template <typename NumberType>
 void
 ScaLAPACKMatrix<NumberType>::copy_to(FullMatrix<NumberType> &matrix) const
 {
-  // FIXME: use PDGEMR2D for copying?
-  // PDGEMR2D copies a submatrix of A on a submatrix of B.
+  // FIXME: use PDGEMR2d for copying?
+  // PDGEMR2d copies a submatrix of A on a submatrix of B.
   // A and B can have different distributions
   // see http://icl.cs.utk.edu/lapack-forum/viewtopic.php?t=50
   Assert(n_rows == int(matrix.m()), ExcDimensionMismatch(n_rows, matrix.m()));
@@ -752,7 +753,7 @@ ScaLAPACKMatrix<NumberType>::copy_to(
    * The routine pgemr2d requires a BLACS context resembling at least the union
    * of process grids described by the BLACS contexts held by the ProcessGrids
    * of matrix A and B. As A and B share the same MPI communicator, there is no
-   * need to create a union MPI communicator to initialise the BLACS context
+   * need to create a union MPI communicator to initialize the BLACS context
    */
   int union_blacs_context = Csys2blacs_handle(this->grid->mpi_communicator);
   const char *order       = "Col";
@@ -2611,7 +2612,7 @@ ScaLAPACKMatrix<NumberType>::save(
 #  ifndef DEAL_II_WITH_HDF5
   (void)filename;
   (void)chunk_size;
-  AssertThrow(false, ExcMessage("HDF5 support is disabled."));
+  AssertThrow(false, ExcNeedsHDF5());
 #  else
 
   std::pair<unsigned int, unsigned int> chunks_size_ = chunk_size;
@@ -3043,7 +3044,7 @@ ScaLAPACKMatrix<NumberType>::load(const std::string &filename)
 {
 #  ifndef DEAL_II_WITH_HDF5
   (void)filename;
-  AssertThrow(false, ExcMessage("HDF5 support is disabled."));
+  AssertThrow(false, ExcNeedsHDF5());
 #  else
 #    ifdef H5_HAVE_PARALLEL
   // implementation for configurations equipped with a parallel file system

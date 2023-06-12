@@ -18,6 +18,7 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/polynomials_barycentric.h>
 
 #include <deal.II/fe/fe_poly.h>
@@ -27,9 +28,10 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * Base class of FE_SimplexP, FE_SimplexDGP, and FE_SimplexP_Bubbles.
  *
- * @note Only implemented for 2D and 3D.
+ * @note Only implemented for 2d and 3d.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_SimplexPoly : public dealii::FE_Poly<dim, spacedim>
@@ -120,7 +122,8 @@ protected:
  * the finite element space of continuous, piecewise polynomials of
  * degree $k$.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_SimplexP : public FE_SimplexPoly<dim, spacedim>
@@ -175,7 +178,8 @@ public:
  * element space of discontinuous, piecewise polynomials of degree
  * $k$.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_SimplexDGP : public FE_SimplexPoly<dim, spacedim>

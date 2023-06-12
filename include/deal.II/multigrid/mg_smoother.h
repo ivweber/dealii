@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,8 +35,10 @@ DEAL_II_NAMESPACE_OPEN
  * MGSmootherBase is defined in mg_base.h
  */
 
-/*!@addtogroup mg */
-/*@{*/
+/**
+ * @addtogroup mg
+ * @{
+ */
 
 /**
  * A base class for smoother handling information on smoothing. While not
@@ -579,7 +581,7 @@ private:
   MGLevelObject<LinearOperator<VectorType>> matrices;
 };
 
-/*@}*/
+/** @} */
 
 /* ------------------------------- Inline functions --------------------------
  */

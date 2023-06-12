@@ -360,7 +360,7 @@ namespace Step61
   // DoFHandler class.
   //
   // We could create a DoFHandler object for the "broken" Raviart-Thomas space
-  // (using the FE_DGRT class), but we really don't want to here: At
+  // (using the FE_DGRaviartThomas class), but we really don't want to here: At
   // least in the current function, we have no need for any globally defined
   // degrees of freedom associated with this broken space, but really only
   // need to reference the shape functions of such a space on the current
@@ -461,7 +461,7 @@ namespace Step61
         coefficient.value_list(fe_values.get_quadrature_points(),
                                coefficient_values);
 
-        // The first cell matrix we will compute is the mass matrix
+        // The first cell matrix we will compute is the @ref GlossMassMatrix "mass matrix"
         // for the Raviart-Thomas space.  Hence, we need to loop over
         // all the quadrature points for the velocity FEValues object.
         cell_matrix_M = 0;

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -96,6 +96,12 @@ public:
    */
   const Object &
   operator[](const unsigned int level) const;
+
+  /**
+   * Return object on level max.
+   */
+  const Object &
+  back() const;
 
   /**
    * Delete all previous contents of this object and reset its size according
@@ -227,6 +233,14 @@ MGLevelObject<Object>::operator[](const unsigned int i) const
   Assert((i >= minlevel) && (i < minlevel + objects.size()),
          ExcIndexRange(i, minlevel, minlevel + objects.size()));
   return *objects[i - minlevel];
+}
+
+
+template <class Object>
+const Object &
+MGLevelObject<Object>::back() const
+{
+  return this->operator[](this->max_level());
 }
 
 

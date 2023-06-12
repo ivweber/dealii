@@ -13,21 +13,19 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
   utilities.cc
   manifold_lib.cc
   )
 
-SET(_inst
+set(_inst
   manifold_lib.inst.in
   utilities.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/opencascade/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_opencascade OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_opencascade "${_inst}")
+define_object_library(object_opencascade OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_opencascade "${_inst}")

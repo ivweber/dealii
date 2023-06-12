@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -117,7 +117,7 @@ template <int dim>
 void
 FE_RT_Bubbles<dim>::initialize_quad_dof_index_permutation_and_sign_change()
 {
-  // for 1D and 2D, do nothing
+  // for 1d and 2d, do nothing
   if (dim < 3)
     return;
 
@@ -208,8 +208,11 @@ FE_RT_Bubbles<dim>::initialize_support_points(const unsigned int deg)
   // one for each direction
   QGaussLobatto<1>      high(deg + 1);
   std::vector<Point<1>> pts = high.get_points();
-  pts.erase(pts.begin());
-  pts.erase(pts.end() - 1);
+  if (pts.size() > 2)
+    {
+      pts.erase(pts.begin());
+      pts.erase(pts.end() - 1);
+    }
 
   std::vector<double> wts(pts.size(), 1);
   Quadrature<1>       low(pts, wts);

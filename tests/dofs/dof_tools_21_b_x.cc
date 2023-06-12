@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,10 +44,6 @@
 #include <utility>
 
 #include "../tests.h"
-
-std::ofstream logfile("output");
-
-
 
 /*
  * Generate a grid consisting of two disjoint cells, colorize the two
@@ -223,9 +219,9 @@ print_matching(DoFHandler<dim, spacedim> &dof_handler)
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(4);
-  logfile << std::setprecision(4);
-  deallog.attach(logfile);
+  deallog.get_file_stream() << std::setprecision(4);
 
   {
     // Generate a triangulation and match:

@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2013 - 2020 by the deal.II authors
+## Copyright (C) 2013 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -70,172 +70,163 @@
 # specified with NUMDIFF_DIR.
 #
 # Usage:
-#     DEAL_II_PICKUP_TESTS()
+#     deal_ii_pickup_tests()
 #
 
 #
-# Two very small macros that are used below:
+# A small helper macro that is used below:
 #
 
-MACRO(SET_IF_EMPTY _variable)
-  IF("${${_variable}}" STREQUAL "")
-    SET(${_variable} ${ARGN})
-  ENDIF()
-ENDMACRO()
-
-MACRO(ITEM_MATCHES _var _regex)
-  SET(${_var})
-  FOREACH (_item ${ARGN})
-    IF("${_item}" MATCHES ${_regex})
-      SET(${_var} TRUE)
-      BREAK()
-    ENDIF()
-  ENDFOREACH()
-ENDMACRO()
+macro(set_if_empty _variable)
+  if("${${_variable}}" STREQUAL "")
+    set(${_variable} ${ARGN})
+  endif()
+endmacro()
 
 
-MACRO(DEAL_II_PICKUP_TESTS)
+macro(deal_ii_pickup_tests)
+  #
+  # Find bash and perl interpreter:
+  #
 
-  IF(NOT DEAL_II_PROJECT_CONFIG_INCLUDED)
-    MESSAGE(FATAL_ERROR
+  find_package(UnixCommands REQUIRED)
+  find_package(Perl REQUIRED)
+
+  #
+  # Ensure that this macro is not called internally:
+  #
+
+  if(NOT DEAL_II_PROJECT_CONFIG_INCLUDED)
+    message(FATAL_ERROR
       "\nDEAL_II_PICKUP_TESTS can only be called in external (test sub-) "
       "projects after the inclusion of deal.IIConfig.cmake. It is not "
       "intended for internal use.\n\n"
       )
-  ENDIF()
+  endif()
 
   #
-  # Necessary external interpreters and programs:
+  # Make sure that we know the MPI launcher executable:
   #
-  IF(${DEAL_II_WITH_MPI})
-    IF("${DEAL_II_MPIEXEC}" STREQUAL "" OR
+
+  if(${DEAL_II_WITH_MPI})
+    if("${DEAL_II_MPIEXEC}" STREQUAL "" OR
        "${DEAL_II_MPIEXEC}" STREQUAL "MPIEXEC_EXECUTABLE-NOTFOUND")
-      MESSAGE(FATAL_ERROR "Could not find an MPI launcher program, which is required "
-"for running the testsuite. Please explicitly specify MPIEXEC_EXECUTABLE to CMake "
-"as a full path to the MPI launcher program.")
-    ENDIF()
-  ENDIF()
+       message(WARNING
+         "\nCould not find an MPI launcher program, which is required for "
+         "running mpi tests within the testsuite. As a consequence all "
+         "tests that require an mpi launcher have been disabled.\n"
+         "If you want to run tests with mpi then please configure deal.II "
+         "by either setting the MPIEXEC environemt variable or the CMake "
+         "variable MPIEXEC_EXECUTABLE to a full path to the MPI launcher "
+         "program.\n\n"
+         )
+       set(DEAL_II_WITH_MPI FALSE)
+    endif()
+  endif()
 
-  IF(DEAL_II_WITH_CUDA)
-    FIND_PACKAGE(CUDA)
-    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -std=c++14 -arch=sm_35 -Xcompiler ${OpenMP_CXX_FLAGS})
-  ENDIF()
+  #
+  # Figure out the category name for the tests:
+  #
 
-  FIND_PACKAGE(Perl REQUIRED)
+  if("${ARGN}" STREQUAL "")
+    get_filename_component(_category ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+  else()
+    set(_category "${ARGN}")
+  endif()
 
-  FIND_PROGRAM(NUMDIFF_EXECUTABLE
-    NAMES numdiff
-    HINTS ${NUMDIFF_DIR}
-    PATH_SUFFIXES bin
+  #
+  # Check that we have the numdiff executable and that it works properly by
+  # running a relative tolerance test:
+  #
+
+  set_if_empty(NUMDIFF_DIR "$ENV{NUMDIFF_DIR}")
+  find_program(NUMDIFF_EXECUTABLE NAMES numdiff
+    HINTS ${NUMDIFF_DIR} PATH_SUFFIXES bin
+    )
+  mark_as_advanced(NUMDIFF_EXECUTABLE)
+
+  set(_file_1 "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/numdiff-1.txt")
+  set(_file_2 "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/numdiff-2.txt")
+  set(_output "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/numdiff-output.txt")
+  file(WRITE "${_file_1}" "0.99999999998\n2.0\n1.0\n")
+  file(WRITE "${_file_2}" "1.00000000001\n2.0\n1.0\n")
+
+  set(_command
+    "${NUMDIFF_EXECUTABLE}" "-r" "1.0e-8" "--" "${_file_1}" "${_file_2}"
     )
 
-  MARK_AS_ADVANCED(NUMDIFF_EXECUTABLE)
-
-  IF( "${NUMDIFF_EXECUTABLE}" MATCHES "NUMDIFF_EXECUTABLE-NOTFOUND")
-    MESSAGE(FATAL_ERROR
-      "Could not find numdiff, which is required for running the testsuite.\n"
-      "Please specify NUMDIFF_DIR to a location containing the binary."
-      )
-  ENDIF()
-
-  #
-  # Check that numdiff can run and terminate successfully:
-  #
-  EXECUTE_PROCESS(COMMAND ${NUMDIFF_EXECUTABLE} "-v"
+  string(REPLACE ";" " " _contents "${_command}")
+  file(WRITE "${_output}" "${_contents}\n")
+  execute_process(COMMAND ${_command}
     TIMEOUT 4 # seconds
-    OUTPUT_QUIET
-    ERROR_QUIET
-    RESULT_VARIABLE _diff_program_status
+    OUTPUT_VARIABLE _contents
+    ERROR_VARIABLE _contents
+    RESULT_VARIABLE _numdiff_tolerance_test_status
     )
+  file(APPEND "${_output}" "${_contents}")
 
-  IF(NOT "${_diff_program_status}" STREQUAL "0")
-    MESSAGE(FATAL_ERROR
-      "\nThe command \"${NUMDIFF_EXECUTABLE} -v\" did not run correctly: it "
-      "either failed to exit after a few seconds or returned a nonzero exit "
-      "code. The test suite cannot be set up without this program, so please "
-      "reinstall it and then run the test suite setup command again.\n")
-  ENDIF()
-
-  #
-  # Also check that numdiff is not a symlink to diff by running a relative
-  # tolerance test.
-  #
-  STRING(FIND "${NUMDIFF_EXECUTABLE}" "numdiff" _found_numdiff_binary)
-  IF(NOT "${_found_numdiff_binary}" STREQUAL "-1")
-    STRING(RANDOM _suffix)
-    SET(_first_test_file_name
-      "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/numdiff-test-${_suffix}-1.txt")
-    SET(_second_test_file_name
-      "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/numdiff-test-${_suffix}-2.txt")
-    FILE(WRITE "${_first_test_file_name}" "0.99999999998\n2.0\n1.0\n")
-    FILE(WRITE "${_second_test_file_name}" "1.00000000001\n2.0\n1.0\n")
-
-    EXECUTE_PROCESS(COMMAND ${NUMDIFF_EXECUTABLE}
-      "-r" "1.0e-8" "--" "${_first_test_file_name}" "${_second_test_file_name}"
-      TIMEOUT 4 # seconds
-      OUTPUT_QUIET
-      ERROR_QUIET
-      RESULT_VARIABLE _numdiff_tolerance_test_status
-      )
-
-    #
-    # Tidy up:
-    #
-    FILE(REMOVE ${_first_test_file_name})
-    FILE(REMOVE ${_second_test_file_name})
-
-    IF(NOT "${_numdiff_tolerance_test_status}" STREQUAL "0")
-      MESSAGE(FATAL_ERROR
-        "\nThe detected numdiff executable was not able to pass a simple "
-        "relative tolerance test. This usually means that either numdiff "
-        "was misconfigured or that it is a symbolic link to diff. "
-        "The test suite needs numdiff to work correctly: please reinstall "
-        "numdiff and run the test suite configuration again.\n")
-    ENDIF()
-  ENDIF()
+  if(NOT "${_numdiff_tolerance_test_status}" STREQUAL "0")
+    if(NOT "${_category}" MATCHES "^(quick_tests|performance)$")
+      message(WARNING
+        "\nCould not find or execute numdiff, which is required for running "
+        "most of the tests within the testsuite; failing output has been "
+        "recorded in ${_output}"
+        "\nAs a consequence all tests that require test output comparison "
+        "have been disabled.\nIf you want to run tests that require output "
+        "comparison then please specify NUMDIFF_DIR (either as environment "
+        "variable or as CMake variable) to a location containing the "
+        "binary.\n"
+        )
+      set(NUMDIFF_EXECUTABLE "")
+    endif()
+  else()
+    file(REMOVE ${_file_1})
+    file(REMOVE ${_file_2})
+    file(REMOVE ${_output})
+  endif()
 
   #
   # Set various limits:
   #
 
-  SET_IF_EMPTY(TEST_TIME_LIMIT "$ENV{TEST_TIME_LIMIT}")
-  SET_IF_EMPTY(TEST_TIME_LIMIT 600)
+  set_if_empty(TEST_TIME_LIMIT "$ENV{TEST_TIME_LIMIT}")
+  set_if_empty(TEST_TIME_LIMIT 600)
 
-  SET_IF_EMPTY(TEST_MPI_RANK_LIMIT "$ENV{TEST_MPI_RANK_LIMIT}")
-  SET_IF_EMPTY(TEST_MPI_RANK_LIMIT 0)
+  set_if_empty(TEST_MPI_RANK_LIMIT "$ENV{TEST_MPI_RANK_LIMIT}")
+  set_if_empty(TEST_MPI_RANK_LIMIT 0)
 
-  SET_IF_EMPTY(TEST_THREAD_LIMIT "$ENV{TEST_THREAD_LIMIT}")
-  SET_IF_EMPTY(TEST_THREAD_LIMIT 0)
+  set_if_empty(TEST_THREAD_LIMIT "$ENV{TEST_THREAD_LIMIT}")
+  set_if_empty(TEST_THREAD_LIMIT 0)
 
   #
   # Other variables:
   #
 
-  SET_IF_EMPTY(TEST_PICKUP_REGEX "$ENV{TEST_PICKUP_REGEX}")
+  set_if_empty(TEST_PICKUP_REGEX "$ENV{TEST_PICKUP_REGEX}")
 
-  SET_IF_EMPTY(ENABLE_PERFORMANCE_TESTS "$ENV{ENABLE_PERFORMANCE_TESTS}")
+  set_if_empty(ENABLE_PERFORMANCE_TESTS "$ENV{ENABLE_PERFORMANCE_TESTS}")
 
-  SET_IF_EMPTY(TESTING_ENVIRONMENT "$ENV{TESTING_ENVIRONMENT}")
-  SET_IF_EMPTY(TESTING_ENVIRONMENT "light")
+  set_if_empty(TESTING_ENVIRONMENT "$ENV{TESTING_ENVIRONMENT}")
+  set_if_empty(TESTING_ENVIRONMENT "light")
 
   #
   # ... and finally pick up tests:
   #
 
-  ENABLE_TESTING()
+  enable_testing()
 
-  IF("${ARGN}" STREQUAL "")
-    GET_FILENAME_COMPONENT(_category ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-  ELSE()
-    SET(_category "${ARGN}")
-  ENDIF()
+  set(DEAL_II_SOURCE_DIR) # avoid a bogus warning
 
-  SET(DEAL_II_SOURCE_DIR) # avoid a bogus warning
+  # Only run "*.output" comparison tests if we have numdiff:
+  set(_globs "*.output" "*.run_only")
+  if("${NUMDIFF_EXECUTABLE}" STREQUAL "")
+    set(_globs "*.run_only")
+  endif()
 
-  FILE(GLOB _tests "*.output" "*.run_only")
-  FOREACH(_test ${_tests})
-    SET(_comparison ${_test})
-    GET_FILENAME_COMPONENT(_test ${_test} NAME)
+  file(GLOB _tests ${_globs})
+  foreach(_test ${_tests})
+    set(_comparison ${_test})
+    get_filename_component(_test ${_test} NAME)
 
     #
     # Respect TEST_PICKUP_REGEX:
@@ -245,85 +236,85 @@ MACRO(DEAL_II_PICKUP_TESTS)
     # Only retain the base name of the test, i.e., remove everything after
     # (and including) the first period ("."):
     #
-    STRING(REGEX REPLACE "\\..*$" "" _regex_name "${_category}/${_test}")
-    IF( NOT ("${TEST_PICKUP_REGEX}" STREQUAL "" OR
+    string(REGEX REPLACE "\\..*$" "" _regex_name "${_category}/${_test}")
+    if( NOT ("${TEST_PICKUP_REGEX}" STREQUAL "" OR
              "${_regex_name}" MATCHES "${TEST_PICKUP_REGEX}" ))
-      CONTINUE()  # next test
-    ENDIF()
+      continue()  # next test
+    endif()
 
     # Disable tests using mpirun if MPI is not enabled
-    STRING(REGEX MATCH "mpirun=" _matches ${_test})
-    IF (_matches AND NOT DEAL_II_WITH_MPI)
-      CONTINUE()  # next test
-    ENDIF()
+    string(REGEX MATCH "mpirun=" _matches ${_test})
+    if (_matches AND NOT DEAL_II_WITH_MPI)
+      continue()  # next test
+    endif()
 
     #
     # Query configuration and check whether we support it. Otherwise
     # skip the test.
     #
 
-    SET(_op_regex "=|\\.geq\\.|\\.leq\\.|\\.ge\\.|\\.le\\.")
+    set(_op_regex "=|\\.geq\\.|\\.leq\\.|\\.ge\\.|\\.le\\.")
 
-    STRING(REGEX MATCHALL
+    string(REGEX MATCHALL
       "with_([0-9]|[a-z]|_)*(${_op_regex})(on|off|yes|no|true|false|[0-9]+(\\.[0-9]+)*)"
       _matches ${_test}
       )
 
-    SET(_skip_test FALSE)
-    FOREACH(_match ${_matches})
+    set(_skip_test FALSE)
+    foreach(_match ${_matches})
       #
       # Extract feature name, comparison operator, (a possible) boolean and
       # (a possible) version number from the feature constraint:
       #
-      STRING(REGEX REPLACE "^with_(([0-9]|[a-z]|_)*)(${_op_regex}).*" "\\1" _feature ${_match})
-      STRING(TOUPPER ${_feature} _feature)
-      STRING(REGEX MATCH "(${_op_regex})" _operator ${_match})
-      STRING(REGEX REPLACE "^with_(([0-9]|[a-z]|_)*)(${_op_regex}).*$" "\\3" _operator ${_match})
-      STRING(REGEX MATCH "(on|off|yes|no|true|false)$" _boolean ${_match})
-      STRING(REGEX MATCH "([0-9]+(\\.[0-9]+)*)$" _version ${_match})
+      string(REGEX REPLACE "^with_(([0-9]|[a-z]|_)*)(${_op_regex}).*" "\\1" _feature ${_match})
+      string(TOUPPER ${_feature} _feature)
+      string(REGEX MATCH "(${_op_regex})" _operator ${_match})
+      string(REGEX REPLACE "^with_(([0-9]|[a-z]|_)*)(${_op_regex}).*$" "\\3" _operator ${_match})
+      string(REGEX MATCH "(on|off|yes|no|true|false)$" _boolean ${_match})
+      string(REGEX MATCH "([0-9]+(\\.[0-9]+)*)$" _version ${_match})
 
       #
       # We support two variables: DEAL_II_WITH_<FEATURE> and DEAL_II_<FEATURE>
       #
-      SET(_variable "DEAL_II_WITH_${_feature}")
-      IF(NOT DEFINED ${_variable})
-        SET(_variable "DEAL_II_${_feature}")
-        IF(NOT DEFINED ${_variable})
+      set(_variable "DEAL_II_WITH_${_feature}")
+      if(NOT DEFINED ${_variable})
+        set(_variable "DEAL_II_${_feature}")
+        if(NOT DEFINED ${_variable})
           #
           # If a variable is undefined, assume that we cannot configure a
           # given test
           #
-          SET(_skip_test TRUE)
-          CONTINUE() # drop out of "FOREACH(_match ${_matches})"
-        ENDIF()
-      ENDIF()
+          set(_skip_test TRUE)
+          continue() # drop out of "foreach(_match ${_matches})"
+        endif()
+      endif()
 
       #
       # First process simple yes/no feature constraints:
       #
-      IF(NOT "${_boolean}" STREQUAL "")
-        IF(NOT "${_operator}" STREQUAL "=")
-          MESSAGE(FATAL_ERROR "
+      if(NOT "${_boolean}" STREQUAL "")
+        if(NOT "${_operator}" STREQUAL "=")
+          message(FATAL_ERROR "
 Invalid syntax in constraint \"${_match}\" in file
 \"${_comparison}\":
 Comparison operator \"=\" expected for boolean match.\n"
             )
-        ENDIF()
+        endif()
 
         # This is why I hate CMake :-/
-        IF( (${_variable} AND NOT ${_boolean}) OR
+        if( (${_variable} AND NOT ${_boolean}) OR
             (NOT ${_variable} AND ${_boolean}) )
-          SET(_skip_test TRUE)
-          CONTINUE() # drop out of "FOREACH(_match ${_matches})"
-        ENDIF()
-      ENDIF()
+          set(_skip_test TRUE)
+          continue() # drop out of "foreach(_match ${_matches})"
+        endif()
+      endif()
 
       #
       # Process version constraints:
       #
-      IF(NOT "${_version}" STREQUAL "")
+      if(NOT "${_version}" STREQUAL "")
 
-        IF( ( NOT ${DEAL_II_WITH_${_feature}} ) OR
+        if( ( NOT ${DEAL_II_WITH_${_feature}} ) OR
             ( "${_operator}" STREQUAL "=" AND
               NOT "${DEAL_II_${_feature}_VERSION}" VERSION_EQUAL "${_version}" ) OR
             ( "${_operator}" STREQUAL ".ge." AND
@@ -334,22 +325,22 @@ Comparison operator \"=\" expected for boolean match.\n"
               "${DEAL_II_${_feature}_VERSION}" VERSION_LESS "${_version}" ) OR
             ( "${_operator}" STREQUAL ".leq." AND
               "${DEAL_II_${_feature}_VERSION}" VERSION_GREATER "${_version}" ) )
-          SET(_skip_test TRUE)
-          CONTINUE() # drop out of "FOREACH(_match ${_matches})"
-        ENDIF()
-      ENDIF()
-    ENDFOREACH()
+          set(_skip_test TRUE)
+          continue() # drop out of "foreach(_match ${_matches})"
+        endif()
+      endif()
+    endforeach()
 
-    IF(_skip_test)
-      CONTINUE() # next test
-    ENDIF()
+    if(_skip_test)
+      continue() # next test
+    endif()
 
     #
     # We've made it all the way to here, which means that we actually
     # want to define the test
     #
-    STRING(REGEX REPLACE "\\..*" "" _test ${_test})
-    DEAL_II_ADD_TEST(${_category} ${_test} ${_comparison})
+    string(REGEX REPLACE "\\..*" "" _test ${_test})
+    deal_ii_add_test(${_category} ${_test} ${_comparison})
 
-  ENDFOREACH()
-ENDMACRO()
+  endforeach()
+endmacro()

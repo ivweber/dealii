@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -242,7 +242,7 @@ namespace TimeStepping
      * problems. The input parameters are the time, $ \tau $, and a vector.
      * The output is the value of function at this point. This function
      * returns the time at the end of the time step. When using Runge-Kutta
-     * methods, @p F and @ J_inverse can only contain one element.
+     * methods, @p F and @p J_inverse can only contain one element.
      */
     double
     evolve_one_time_step(
@@ -767,6 +767,10 @@ namespace TimeStepping
      */
     struct Status : public TimeStepping<VectorType>::Status
     {
+      Status()
+        : method(invalid)
+      {}
+
       runge_kutta_method             method;
       embedded_runge_kutta_time_step exit_delta_t;
       unsigned int                   n_iterations;

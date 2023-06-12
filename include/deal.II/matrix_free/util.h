@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,7 +40,7 @@ namespace internal
      * are defined on each face.
      */
     template <int dim>
-    inline std::pair<dealii::ReferenceCell, dealii::hp::QCollection<dim - 1>>
+    inline std::pair<ReferenceCell, dealii::hp::QCollection<dim - 1>>
     get_face_quadrature_collection(const Quadrature<dim> &quad,
                                    const bool             do_assert = true)
     {
@@ -110,6 +110,13 @@ namespace internal
     inline std::pair<Quadrature<dim - 1>, Quadrature<dim - 1>>
     get_unique_face_quadratures(const Quadrature<dim> &quad)
     {
+      AssertThrow(
+        quad.size() > 0,
+        ExcMessage(
+          "There is nothing useful you can do with a MatrixFree/FEEvaluation "
+          "object when using a quadrature formula with zero "
+          "quadrature points!"));
+
       if (dim == 2 || dim == 3)
         {
           for (unsigned int i = 1; i <= 4; ++i)
@@ -154,6 +161,17 @@ namespace internal
 
       return {Quadrature<dim - 1>(), Quadrature<dim - 1>()};
     }
+
+    inline DEAL_II_ALWAYS_INLINE unsigned int
+    indicate_power_of_two(const unsigned int vectorization_length)
+    {
+      unsigned int vectorization_length_bits = 0;
+      unsigned int my_length                 = vectorization_length;
+      while (my_length >>= 1)
+        ++vectorization_length_bits;
+      return 1 << vectorization_length_bits;
+    }
+
   } // end of namespace MatrixFreeFunctions
 } // end of namespace internal
 

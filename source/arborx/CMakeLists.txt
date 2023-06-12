@@ -13,19 +13,17 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
   access_traits.cc
   )
 
-SET(_inst
+set(_inst
   access_traits.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/arborx/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_arborx OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_arborx "${_inst}")
+define_object_library(object_arborx OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_arborx "${_inst}")

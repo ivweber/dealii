@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -60,7 +60,8 @@ abaqus_grid(const std::string path_and_name,
       // that the last coordinate of all nodes is non-zero.
       std::ofstream     fout_vtk(gridout_name + ".vtk");
       GridOutFlags::Vtk flags_vtk;
-      flags_vtk.compression_level = DataOutBase::VtkFlags::no_compression;
+      flags_vtk.compression_level =
+        DataOutBase::CompressionLevel::no_compression;
       GridOut gridout;
       gridout.set_flags(flags_vtk);
       gridout.write_vtk(tria, fout_vtk);

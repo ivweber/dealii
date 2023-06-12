@@ -19,9 +19,8 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/communication_pattern_base.h>
-#include <deal.II/base/mpi.h>
 #include <deal.II/base/mpi_compute_index_owner_internal.h>
-#include <deal.II/base/mpi_tags.h>
+#include <deal.II/base/mpi_stub.h>
 
 #include <deal.II/lac/vector_space_vector.h>
 
@@ -34,7 +33,16 @@ namespace Utilities
   {
     /**
      * A flexible Partitioner class, which does not impose restrictions
-     * regarding the order of the underlying index sets.
+     * regarding the order of the underlying index sets. In other words,
+     * this class implements the interface of the
+     * Utilities::MPI::CommunicationPatternBase base class with no
+     * assumption that every process stores a contiguous part of the
+     * array of objects, but that indeed the locally owned indices
+     * can be an arbitrary subset of all indices of elements of the array
+     * to which they refer.
+     *
+     * If you want to store only contiguous parts of these arrays on
+     * each process, take a look at Utilities::MPI::Partitioner.
      */
     class NoncontiguousPartitioner
       : public Utilities::MPI::CommunicationPatternBase
@@ -53,7 +61,7 @@ namespace Utilities
        */
       NoncontiguousPartitioner(const IndexSet &indexset_locally_owned,
                                const IndexSet &indexset_ghost,
-                               const MPI_Comm &communicator);
+                               const MPI_Comm  communicator);
 
       /**
        * Constructor. Same as above but for vectors of indices @p indices_locally_owned
@@ -67,7 +75,7 @@ namespace Utilities
       NoncontiguousPartitioner(
         const std::vector<types::global_dof_index> &indices_locally_owned,
         const std::vector<types::global_dof_index> &indices_ghost,
-        const MPI_Comm &                            communicator);
+        const MPI_Comm                              communicator);
 
       /**
        * Fill the vector @p ghost_array according to the precomputed communication
@@ -181,26 +189,25 @@ namespace Utilities
       memory_consumption();
 
       /**
-       * Return the underlying communicator.
+       * Return the underlying MPI communicator.
        */
-      const MPI_Comm &
+      MPI_Comm
       get_mpi_communicator() const override;
 
-      /**
-       * Initialize the inner data structures.
-       */
       void
-      reinit(const IndexSet &indexset_locally_owned,
-             const IndexSet &indexset_ghost,
-             const MPI_Comm &communicator) override;
+      reinit(const IndexSet &locally_owned_indices,
+             const IndexSet &ghost_indices,
+             const MPI_Comm  communicator) override;
 
       /**
-       * Initialize the inner data structures.
+       * Initialize the inner data structures using explicit sets of
+       * indices. See the documentation of the other reinit() function for
+       * what the function does.
        */
       void
-      reinit(const std::vector<types::global_dof_index> &indices_locally_owned,
-             const std::vector<types::global_dof_index> &indices_ghost,
-             const MPI_Comm &                            communicator);
+      reinit(const std::vector<types::global_dof_index> &locally_owned_indices,
+             const std::vector<types::global_dof_index> &ghost_indices,
+             const MPI_Comm                              communicator);
 
     private:
       /**
@@ -257,7 +264,7 @@ namespace Utilities
        *   we use an arbitrary type of size 1 byte. The type is cast to the
        *   requested type in the relevant functions.
        */
-      mutable std::vector<uint8_t> buffers;
+      mutable std::vector<std::uint8_t> buffers;
 
       /**
        * MPI requests for sending and receiving.

@@ -40,7 +40,7 @@ namespace PETScWrappers
   {
     // get rid of old matrix and generate a
     // new one
-    const PetscErrorCode ierr = destroy_matrix(matrix);
+    const PetscErrorCode ierr = MatDestroy(&matrix);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
 
     do_reinit(m, n);
@@ -56,13 +56,6 @@ namespace PETScWrappers
     AssertThrow(ierr == 0, ExcPETScError(ierr));
   }
 
-
-  const MPI_Comm &
-  FullMatrix::get_mpi_communicator() const
-  {
-    static const MPI_Comm communicator = MPI_COMM_SELF;
-    return communicator;
-  }
 } // namespace PETScWrappers
 
 

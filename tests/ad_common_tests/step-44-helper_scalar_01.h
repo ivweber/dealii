@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,7 +32,7 @@
 #include <deal.II/dofs/dof_renumbering.h>
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/fe/fe_dgp_monomial.h>
+#include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_tools.h>
@@ -433,7 +433,7 @@ namespace Step44
                          const double          J_tilde_in)
     {
       det_F   = determinant(F);
-      b_bar   = std::pow(det_F, -2.0 / dim) * symmetrize(F * transpose(F));
+      b_bar   = pow(det_F, -2.0 / dim) * symmetrize(F * transpose(F));
       p_tilde = p_tilde_in;
       J_tilde = J_tilde_in;
       Assert(det_F > 0, ExcInternalError());
@@ -607,7 +607,7 @@ namespace Step44
 
             const ADNumberType det_F_AD = sqrt(determinant(C_AD));
             SymmetricTensor<2, dim, ADNumberType> C_bar_AD(C_AD);
-            C_bar_AD *= std::pow(det_F_AD, -2.0 / dim);
+            C_bar_AD *= pow(det_F_AD, -2.0 / dim);
 
             ADNumberType psi_CpJ = material->get_Psi_iso(C_bar_AD);
             psi_CpJ += p_tilde_AD * (det_F_AD - J_tilde_AD);
@@ -934,9 +934,9 @@ namespace Step44
     , degree(parameters.poly_degree)
     , fe(FE_Q<dim>(parameters.poly_degree),
          dim, // displacement
-         FE_DGPMonomial<dim>(parameters.poly_degree - 1),
+         FE_DGP<dim>(parameters.poly_degree - 1),
          1, // pressure
-         FE_DGPMonomial<dim>(parameters.poly_degree - 1),
+         FE_DGP<dim>(parameters.poly_degree - 1),
          1)
     , // dilatation
     dof_handler_ref(triangulation)
@@ -1553,11 +1553,10 @@ namespace Step44
         Assert(lqph.size() == n_q_points, ExcInternalError());
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
-            const double det_F_qp   = lqph[q_point]->get_det_F();
-            const double J_tilde_qp = lqph[q_point]->get_J_tilde();
-            const double the_error_qp_squared =
-              std::pow((det_F_qp - J_tilde_qp), 2);
-            const double JxW = fe_values_ref.JxW(q_point);
+            const double det_F_qp             = lqph[q_point]->get_det_F();
+            const double J_tilde_qp           = lqph[q_point]->get_J_tilde();
+            const double the_error_qp_squared = pow((det_F_qp - J_tilde_qp), 2);
+            const double JxW                  = fe_values_ref.JxW(q_point);
             dil_L2_error += the_error_qp_squared * JxW;
           }
       }

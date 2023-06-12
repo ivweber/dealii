@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -163,10 +163,10 @@ main(int argc, char **argv)
   deallog.precision(8);
 
   for (unsigned int n_refinements = 2; n_refinements <= 4; ++n_refinements)
-    for (unsigned int degree = 2; degree <= 4; ++degree)
+    for (unsigned int degree = 1; degree <= 4; ++degree)
       test<2>(n_refinements, degree, false /*quadrilateral*/);
 
   for (unsigned int n_refinements = 2; n_refinements <= 4; ++n_refinements)
-    for (unsigned int degree = 2; degree <= 2; ++degree)
+    for (unsigned int degree = 1; degree <= 2; ++degree)
       test<2>(n_refinements, degree, true /*triangle*/);
 }

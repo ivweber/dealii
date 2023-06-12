@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2000 - 2021 by the deal.II authors
+ * Copyright (C) 2000 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -1122,7 +1122,7 @@ namespace Step18
     SolverControl solver_control(dof_handler.n_dofs(),
                                  1e-16 * system_rhs.l2_norm());
 
-    PETScWrappers::SolverCG cg(solver_control, mpi_communicator);
+    PETScWrappers::SolverCG cg(solver_control);
 
     PETScWrappers::PreconditionBlockJacobi preconditioner(system_matrix);
 
@@ -1265,8 +1265,7 @@ namespace Step18
         // times_and_names is declared static, so it will retain the entries
         // from the previous timesteps.
         static std::vector<std::pair<double, std::string>> times_and_names;
-        times_and_names.push_back(
-          std::pair<double, std::string>(present_time, pvtu_filename));
+        times_and_names.emplace_back(present_time, pvtu_filename);
         std::ofstream pvd_output("solution.pvd");
         DataOutBase::write_pvd_record(pvd_output, times_and_names);
       }

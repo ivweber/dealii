@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2021 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -202,6 +202,12 @@
  *       </td></tr>
  *
  *   <tr valign="top">
+ *       <td>step-12b</td>
+ *       <td> A variant of step-12 (for linear advection problems), but
+ *       using the MeshWorker framework for the assembly of linear systems.
+ *       </td></tr>
+ *
+ *   <tr valign="top">
  *       <td>step-13</td>
  *       <td> Software design questions and
  *       how to write a modular, extensible finite element program.
@@ -293,7 +299,8 @@
  *   <tr valign="top">
  *       <td>step-23</td>
  *       <td> Finally a "real" time dependent problem, the wave equation.
- *       Fractional time stepping (explicit, fully implicit and Crank-Nicholson
+ *       Fractional time stepping (explicit, fully implicit and
+ *       [Crank](https://en.wikipedia.org/wiki/John_Crank)-[Nicolson](https://en.wikipedia.org/wiki/Phyllis_Nicolson)
  *       method).
  *       <br/> Keywords: MatrixCreator, VectorTools::project()
  *       </td></tr>
@@ -525,6 +532,7 @@
  *       <td> Solving a Poisson problem discretized with an interior penalty DG
  *       method and a multilevel preconditioner in a matrix-free fashion using
  *       a massively parallel implementation.
+ *       <br/> Keywords: FEFaceEvaluation, FE_DGQHermite
  *       </td></tr>
  *
  *   <tr valign="top">
@@ -560,6 +568,7 @@
  *       <td>step-64</td>
  *       <td> Solving a Helmholtz problem using matrix-free methods on the GPU
  *       with MPI parallelization.
+ *       <br/> Keywords: LinearAlgebra::CUDAWrappers, CUDAWrappers::MatrixFree
  *       </td></tr>
  *
  *   <tr valign="top">
@@ -660,6 +669,11 @@
  *       </td></tr>
  *
  *   <tr valign="top">
+ *       <td>step-81</td>
+ *        <td> Solving the complex-valued time-harmonic Maxwell equations.
+ *       </td></tr>
+ *
+ *   <tr valign="top">
  *       <td>step-82</td>
  *        <td> Solving the fourth-order biharmonic equation using a lifting operator approach.
  *       </td></tr>
@@ -667,6 +681,7 @@
  *   <tr valign="top">
  *       <td>step-85</td>
  *       <td> Solving the Poisson equation using the cut finite element method.
+ *       <br/> Keywords: FEInterfaceValues, NonMatching::FEImmersedSurfaceValues
  *       </td></tr>
  *
  * </table>
@@ -911,6 +926,7 @@
  *     </td>
  *     <td>
  *       step-12,
+ *       step-12b,
  *       step-21,
  *       step-39,
  *       step-46,
@@ -1064,6 +1080,7 @@
  *       step-46,
  *       step-58,
  *       step-62,
+ *       step-81,
  *       step-82
  *     </td>
  *   </tr>
@@ -1313,6 +1330,12 @@
  *     <td> The nonlinear Schr&ouml;dinger equation
  *     </td>
  *     <td>step-58</td>
+ *   </tr>
+ *
+ *   <tr valign="top">
+ *     <td> The time-harmonic Maxwell equations
+ *     </td>
+ *     <td>step-81</td>
  *   </tr>
  *
  *   <tr valign="top">

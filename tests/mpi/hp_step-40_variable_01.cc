@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -267,7 +267,7 @@ namespace Step40
 
     SolverControl solver_control(dof_handler.n_dofs(), 1e-12);
 
-    PETScWrappers::SolverCG solver(solver_control, mpi_communicator);
+    PETScWrappers::SolverCG solver(solver_control);
 
 #ifndef PETSC_USE_COMPLEX
     PETScWrappers::PreconditionBoomerAMG preconditioner(

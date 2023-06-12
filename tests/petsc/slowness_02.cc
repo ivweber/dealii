@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2018 by the deal.II authors
+// Copyright (C) 2005 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -76,6 +76,8 @@ test()
     v2(indices, MPI_COMM_WORLD);
   for (unsigned int i = 0; i < N * N; ++i)
     v1(i) = i;
+  v1.compress(VectorOperation::insert);
+
   matrix.vmult(v2, v1);
 
   deallog << v1 * v2 << std::endl;

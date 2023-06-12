@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -422,7 +422,7 @@ namespace hp
      * If this set consists of exactly one element, we consider it to be
      * the dominating one and return its corresponding index. Further, if the
      * function is not able to find a finite element at all, it returns
-     * numbers::invalid_unsigned_int.
+     * numbers::invalid_fe_index.
      *
      * For example, if a FECollection consists of
      * `{FE_Q(1),FE_Q(2),FE_Q(3),FE_Q(4)}` elements and we are looking for the
@@ -458,7 +458,7 @@ namespace hp
      * If this set consists of exactly one element, we consider it to be
      * the dominated one and return its corresponding index. Further, if the
      * function is not able to find a finite element at all, it returns
-     * numbers::invalid_unsigned_int.
+     * numbers::invalid_fe_index.
      *
      * For example, if a FECollection consists of
      * `{FE_Q(1),FE_Q(2),FE_Q(3),FE_Q(4)}` elements and we are looking for the
@@ -498,7 +498,7 @@ namespace hp
      * If this set consists of exactly one element, we consider it to be
      * the dominated one and return its corresponding index. Further, if the
      * function is not able to find a finite element at all, it returns
-     * numbers::invalid_unsigned_int.
+     * numbers::invalid_fe_index.
      *
      * The @p codim parameter describes the codimension of the investigated
      * subspace and specifies that it is subject to this comparison. See
@@ -524,7 +524,7 @@ namespace hp
      * If this set consists of exactly one element, we consider it to be
      * the dominating one and return its corresponding index. Further, if the
      * function is not able to find a finite element at all, it returns
-     * numbers::invalid_unsigned_int.
+     * numbers::invalid_fe_index.
      *
      * The @p codim parameter describes the codimension of the investigated
      * subspace and specifies that it is subject to this comparison. See
@@ -883,7 +883,7 @@ namespace hp
     static_assert(
       is_base_of_all<FiniteElement<dim, spacedim>, FETypes...>::value,
       "Not all of the input arguments of this function "
-      "are derived from FiniteElement<dim,spacedim>!");
+      "are derived from FiniteElement<dim, spacedim>!");
 
     // loop over all of the given arguments and add the finite elements to
     // this collection. Inlining the definition of fe_pointers causes internal

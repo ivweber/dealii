@@ -15,18 +15,18 @@
 
 #
 # A small wrapper around
-# SET_TARGET_PROPERTY(... PROPERTIES COMPILE_DEFINITIONS ...)
+# set_target_property(... PROPERTIES COMPILE_DEFINITIONS ...)
 # to _add_ compile definitions to every target we have specified.
 #
 
-MACRO(DEAL_II_ADD_DEFINITIONS _name)
+macro(deal_ii_add_definitions _name)
 
-  FOREACH(_build ${DEAL_II_BUILD_TYPES})
-    STRING(TOLOWER ${_build} _build_lowercase)
+  foreach(_build ${DEAL_II_BUILD_TYPES})
+    string(TOLOWER ${_build} _build_lowercase)
 
-    SET_PROPERTY(TARGET ${_name}_${_build_lowercase}
+    set_property(TARGET ${_name}_${_build_lowercase}
       APPEND PROPERTY COMPILE_DEFINITIONS "${ARGN}"
       )
-  ENDFOREACH()
+  endforeach()
 
-ENDMACRO()
+endmacro()

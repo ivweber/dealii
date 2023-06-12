@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,6 +20,8 @@
 #include <deal.II/base/qprojector.h>
 #include <deal.II/base/quadrature.h>
 
+#include <deal.II/distributed/tria_base.h>
+
 #include <deal.II/fe/mapping.h>
 
 #include <deal.II/grid/grid_out.h>
@@ -29,7 +31,6 @@
 
 #include <deal.II/numerics/data_out.h>
 
-#include <boost/algorithm/string.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 
 #ifdef DEAL_II_GMSH_WITH_API
@@ -296,12 +297,12 @@ namespace GridOutFlags
     param.declare_entry("Cell number",
                         "false",
                         Patterns::Bool(),
-                        "(2D only) Write cell numbers"
+                        "(2d only) Write cell numbers"
                         " into the centers of cells");
     param.declare_entry("Level number",
                         "false",
                         Patterns::Bool(),
-                        "(2D only) if \"Cell number\" is true, write "
+                        "(2d only) if \"Cell number\" is true, write "
                         "numbers in the form level.number");
     param.declare_entry("Vertex number",
                         "false",
@@ -923,7 +924,7 @@ GridOut::write_dx(const Triangulation<dim, spacedim> &tria,
       for (const auto &cell : tria.active_cell_iterators())
         {
           // Little trick to get -1 for the interior
-          for (unsigned int f : GeometryInfo<dim>::face_indices())
+          for (const unsigned int f : GeometryInfo<dim>::face_indices())
             {
               out << ' '
                   << static_cast<std::make_signed<types::boundary_id>::type>(
@@ -1068,6 +1069,9 @@ GridOut::write_msh(const Triangulation<dim, spacedim> &tria,
             (msh_flags.write_lines ? n_boundary_lines(tria) : 0))
       << '\n';
 
+  static constexpr std::array<unsigned int, 8> local_vertex_numbering = {
+    {0, 1, 5, 4, 2, 3, 7, 6}};
+
   // write cells. Enumerate cells
   // consecutively, starting with 1
   for (const auto &cell : tria.active_cell_iterators())
@@ -1082,7 +1086,9 @@ GridOut::write_msh(const Triangulation<dim, spacedim> &tria,
       for (const unsigned int vertex : cell->vertex_indices())
         {
           if (cell->reference_cell() == ReferenceCells::get_hypercube<dim>())
-            out << cell->vertex_index(GeometryInfo<dim>::ucd_to_deal[vertex]) +
+            out << cell->vertex_index(
+                     dim == 3 ? local_vertex_numbering[vertex] :
+                                GeometryInfo<dim>::ucd_to_deal[vertex]) +
                      1
                 << ' ';
           else if (cell->reference_cell() == ReferenceCells::get_simplex<dim>())
@@ -3712,9 +3718,9 @@ GridOut::write_mesh_per_processor_as_vtu(
                unsigned int,
                std::string,
                DataComponentInterpretation::DataComponentInterpretation>>
-                        vector_data_ranges;
-  DataOutBase::VtkFlags flags;
-  DataOutBase::write_vtu(patches, data_names, vector_data_ranges, flags, out);
+    vector_data_ranges;
+  DataOutBase::write_vtu(
+    patches, data_names, vector_data_ranges, vtu_flags, out);
 }
 
 
@@ -3907,7 +3913,7 @@ GridOut::write_msh_faces(const Triangulation<dim, spacedim> &tria,
             << static_cast<unsigned int>(face->boundary_id()) << ' '
             << face->n_vertices();
         // note: vertex numbers are 1-base
-        for (unsigned int vertex : face->vertex_indices())
+        for (const unsigned int vertex : face->vertex_indices())
           {
             if (face->reference_cell() == ReferenceCells::Quadrilateral)
               out << ' '
@@ -4233,9 +4239,11 @@ namespace internal
           Quadrature<dim - 1> quadrature(boundary_points, dummy_weights);
 
           q_projector = QProjector<dim>::project_to_all_faces(
-            dealii::ReferenceCells::Quadrilateral, quadrature);
+            ReferenceCells::get_hypercube<dim>(), quadrature);
         }
 
+      static constexpr std::array<unsigned int, 8> local_vertex_numbering = {
+        {0, 1, 5, 4, 2, 3, 7, 6}};
       for (const auto &cell : tria.active_cell_iterators())
         {
           if (gnuplot_flags.write_cell_numbers)
@@ -4252,8 +4260,11 @@ namespace internal
               // points (+ the initial point again) in a row and lifting the
               // drawing pencil at the end
               for (const unsigned int i : GeometryInfo<dim>::vertex_indices())
-                out << cell->vertex(GeometryInfo<dim>::ucd_to_deal[i]) << ' '
-                    << cell->level() << ' ' << cell->material_id() << '\n';
+                out << cell->vertex(dim == 3 ?
+                                      local_vertex_numbering[i] :
+                                      GeometryInfo<dim>::ucd_to_deal[i])
+                    << ' ' << cell->level() << ' ' << cell->material_id()
+                    << '\n';
               out << cell->vertex(0) << ' ' << cell->level() << ' '
                   << cell->material_id() << '\n'
                   << '\n' // double new line for gnuplot 3d plots
@@ -4347,7 +4358,8 @@ namespace internal
           // tensor product of points, only one copy
           QIterated<dim - 1> quadrature(quadrature1d, 1);
           q_projector = std::make_unique<Quadrature<dim>>(
-            QProjector<dim>::project_to_all_faces(quadrature));
+            QProjector<dim>::project_to_all_faces(
+              ReferenceCells::get_hypercube<dim>(), quadrature));
         }
 
       for (const auto &cell : tria.active_cell_iterators())
@@ -4668,7 +4680,7 @@ namespace internal
     {
       using LineList = std::list<LineEntry>;
 
-      // We should never get here in 1D since this function is overloaded for
+      // We should never get here in 1d since this function is overloaded for
       // all dim == 1 cases.
       Assert(dim == 2 || dim == 3, ExcInternalError());
 
@@ -4770,7 +4782,8 @@ namespace internal
 
                   Quadrature<dim - 1> quadrature(boundary_points);
                   Quadrature<dim>     q_projector(
-                    QProjector<dim>::project_to_all_faces(quadrature));
+                    QProjector<dim>::project_to_all_faces(
+                      ReferenceCells::get_hypercube<dim>(), quadrature));
 
                   // next loop over all
                   // boundary faces and

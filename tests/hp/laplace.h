@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -188,7 +188,7 @@ protected:
 
 
 
-// implementatoin
+// implementation
 template <int dim>
 Laplace<dim>::Laplace(const Function<dim> &force_function,
                       const Function<dim> &exact_solution,

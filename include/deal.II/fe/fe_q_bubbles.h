@@ -26,8 +26,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Implementation of a scalar Lagrange finite element $Q_p^+$ that yields the
@@ -52,7 +54,7 @@ DEAL_II_NAMESPACE_OPEN
  * the documentation of the FiniteElement class, or the one of Triangulation.
  *
  * Due to the fact that the enrichments are small almost everywhere for large
- * $p$, the condition number for the mass and stiffness matrix quickly
+ * $p$, the condition number for the mass and @ref GlossStiffnessMatrix "stiffness matrix" quickly
  * increaseses with increasing $p$. Below you see a comparison with
  * FE_Q(QGaussLobatto(p+1)) for dim=1.
  *
@@ -195,7 +197,7 @@ private:
 
 
 
-/*@}*/
+/** @} */
 
 
 DEAL_II_NAMESPACE_CLOSE

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2020 by the deal.II authors
+// Copyright (C) 2001 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,7 +24,6 @@
 
 #include <deal.II/lac/block_sparsity_pattern.h>
 #include <deal.II/lac/block_vector.h>
-#include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/vector_memory.h>
 
 #include <deal.II/multigrid/mg_base.h>
@@ -39,6 +38,7 @@ DEAL_II_NAMESPACE_OPEN
 // Forward declaration
 #ifndef DOXYGEN
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
 #endif
 
@@ -46,8 +46,10 @@ class DoFHandler;
  * MGTransferBase is defined in mg_base.h
  */
 
-/*!@addtogroup mg */
-/*@{*/
+/**
+ * @addtogroup mg
+ * @{
+ */
 
 /**
  * Implementation of matrix generation for MGTransferBlock.
@@ -456,7 +458,7 @@ private:
   unsigned int selected_block;
 };
 
-/*@}*/
+/** @} */
 
 //------------------------- inline function definition ------------------------
 template <typename number>

@@ -46,8 +46,9 @@ namespace TrilinosWrappers
 } // namespace TrilinosWrappers
 #  endif
 
-/*! @addtogroup TrilinosWrappers
- *@{
+/**
+ * @addtogroup TrilinosWrappers
+ * @{
  */
 
 namespace TrilinosWrappers
@@ -108,7 +109,7 @@ namespace TrilinosWrappers
        * the MPI processes.
        */
       explicit BlockVector(const std::vector<IndexSet> &parallel_partitioning,
-                           const MPI_Comm &communicator = MPI_COMM_WORLD);
+                           const MPI_Comm communicator = MPI_COMM_WORLD);
 
       /**
        * Creates a BlockVector with ghost elements. See the respective
@@ -117,7 +118,7 @@ namespace TrilinosWrappers
        */
       BlockVector(const std::vector<IndexSet> &parallel_partitioning,
                   const std::vector<IndexSet> &ghost_values,
-                  const MPI_Comm &             communicator,
+                  const MPI_Comm               communicator,
                   const bool                   vector_writable = false);
 
       /**
@@ -188,7 +189,7 @@ namespace TrilinosWrappers
        */
       void
       reinit(const std::vector<IndexSet> &parallel_partitioning,
-             const MPI_Comm &             communicator         = MPI_COMM_WORLD,
+             const MPI_Comm               communicator         = MPI_COMM_WORLD,
              const bool                   omit_zeroing_entries = false);
 
       /**
@@ -211,7 +212,7 @@ namespace TrilinosWrappers
       void
       reinit(const std::vector<IndexSet> &partitioning,
              const std::vector<IndexSet> &ghost_values,
-             const MPI_Comm &             communicator    = MPI_COMM_WORLD,
+             const MPI_Comm               communicator    = MPI_COMM_WORLD,
              const bool                   vector_writable = false);
 
 
@@ -316,7 +317,7 @@ namespace TrilinosWrappers
     /*-------------------------- Inline functions ---------------------------*/
     inline BlockVector::BlockVector(
       const std::vector<IndexSet> &parallel_partitioning,
-      const MPI_Comm &             communicator)
+      const MPI_Comm               communicator)
     {
       reinit(parallel_partitioning, communicator, false);
     }
@@ -326,7 +327,7 @@ namespace TrilinosWrappers
     inline BlockVector::BlockVector(
       const std::vector<IndexSet> &parallel_partitioning,
       const std::vector<IndexSet> &ghost_values,
-      const MPI_Comm &             communicator,
+      const MPI_Comm               communicator,
       const bool                   vector_writable)
     {
       reinit(parallel_partitioning,
@@ -347,11 +348,13 @@ namespace TrilinosWrappers
     inline BlockVector::BlockVector(const BlockVector &v)
       : dealii::BlockVectorBase<MPI::Vector>()
     {
-      this->components.resize(v.n_blocks());
       this->block_indices = v.block_indices;
 
-      for (size_type i = 0; i < this->n_blocks(); ++i)
+      this->components.resize(this->n_blocks());
+      for (unsigned int i = 0; i < this->n_blocks(); ++i)
         this->components[i] = v.components[i];
+
+      this->collect_sizes();
     }
 
 
@@ -369,18 +372,19 @@ namespace TrilinosWrappers
     BlockVector &
     BlockVector::operator=(const ::dealii::BlockVector<Number> &v)
     {
-      if (n_blocks() != v.n_blocks())
-        {
-          std::vector<size_type> block_sizes(v.n_blocks(), 0);
-          block_indices.reinit(block_sizes);
-          if (components.size() != n_blocks())
-            components.resize(n_blocks());
-        }
+      // we only allow assignment to vectors with the same number of blocks
+      // or to an empty BlockVector
+      Assert(this->n_blocks() == 0 || this->n_blocks() == v.n_blocks(),
+             ExcDimensionMismatch(this->n_blocks(), v.n_blocks()));
 
-      for (size_type i = 0; i < this->n_blocks(); ++i)
+      if (this->n_blocks() != v.n_blocks())
+        this->block_indices = v.get_block_indices();
+
+      this->components.resize(this->n_blocks());
+      for (unsigned int i = 0; i < this->n_blocks(); ++i)
         this->components[i] = v.block(i);
 
-      collect_sizes();
+      this->collect_sizes();
 
       return *this;
     }
@@ -427,7 +431,7 @@ namespace TrilinosWrappers
 
 } /* namespace TrilinosWrappers */
 
-/*@}*/
+/** @} */
 
 
 namespace internal

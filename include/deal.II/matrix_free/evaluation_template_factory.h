@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,6 @@
 
 #include <deal.II/matrix_free/dof_info.h>
 #include <deal.II/matrix_free/evaluation_flags.h>
-#include <deal.II/matrix_free/hanging_nodes_internal.h>
 #include <deal.II/matrix_free/shape_info.h>
 
 
@@ -106,12 +105,12 @@ namespace internal
           Number *                                    out_array);
 
     static void
-    apply(const unsigned int           n_components,
-          const unsigned int           fe_degree,
-          const AlignedVector<Number> &inverse_shape,
-          const AlignedVector<Number> &inverse_coefficients,
-          const Number *               in_array,
-          Number *                     out_array);
+    apply(const unsigned int                          n_components,
+          const FEEvaluationData<dim, Number, false> &fe_eval,
+          const ArrayView<const Number> &             inverse_coefficients,
+          const bool                                  dyadic_coefficients,
+          const Number *                              in_array,
+          Number *                                    out_array);
 
     static void
     transform_from_q_points_to_basis(
@@ -131,7 +130,7 @@ namespace internal
           const unsigned int fe_degree,
           const MatrixFreeFunctions::ShapeInfo<VectorizedArrayType> &shape_info,
           const bool                                                 transpose,
-          const std::array<MatrixFreeFunctions::ConstraintKinds,
+          const std::array<MatrixFreeFunctions::compressed_constraint_kind,
                            VectorizedArrayType::size()> &            c_mask,
           VectorizedArrayType *                                      values);
   };

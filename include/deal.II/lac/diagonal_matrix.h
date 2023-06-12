@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,20 @@
 #include <deal.II/lac/vector_operation.h>
 
 DEAL_II_NAMESPACE_OPEN
+
+// forward declarations
+#ifndef DOXYGEN
+template <typename number>
+class Vector;
+namespace LinearAlgebra
+{
+  namespace distributed
+  {
+    template <typename, typename>
+    class Vector;
+  } // namespace distributed
+} // namespace LinearAlgebra
+#endif
 
 /**
  * This class represents a <i>n x n</i> diagonal matrix based on a vector of
@@ -197,6 +211,29 @@ public:
   Tvmult_add(VectorType &dst, const VectorType &src) const;
 
   /**
+   * Apply the preconditioner to a single vector entry. Note that index of the
+   * unknown needs to be expressed by an MPI-local index as it would be
+   * accessed in the action on a vector.
+   */
+  value_type
+  apply(const unsigned int index, const value_type src) const;
+
+  /**
+   * Apply the preconditioner only to a subrange of elements in an array
+   * `src`, and store the result in another array `dst`, for compatibility
+   * with classes support vector operations on a slice of entries, such as
+   * SolverCG or PreconditionChebyshev. Note that the range indicates
+   * MPI-local indices as they would be accessed in the action on a
+   * vector. The pointers are supposed to point to the beginning of the given
+   * range.
+   */
+  void
+  apply_to_subrange(const unsigned int begin_range,
+                    const unsigned int end_range,
+                    const value_type * src_pointer_to_current_range,
+                    value_type *       dst_pointer_to_current_range) const;
+
+  /**
    * Initialize vector @p dst to have the same size and partition as
    * @p diagonal member of this class.
    *
@@ -363,12 +400,46 @@ DiagonalMatrix<VectorType>::add(const size_type  i,
 
 
 
+namespace internal
+{
+  namespace DiagonalMatrix
+  {
+    template <typename VectorType>
+    void
+    assign_and_scale(VectorType &      dst,
+                     const VectorType &src,
+                     const VectorType &diagonal)
+    {
+      dst = src;
+      dst.scale(diagonal);
+    }
+
+    template <typename Number>
+    void
+    assign_and_scale(
+      LinearAlgebra::distributed::Vector<Number, MemorySpace::Host> &      dst,
+      const LinearAlgebra::distributed::Vector<Number, MemorySpace::Host> &src,
+      const LinearAlgebra::distributed::Vector<Number, MemorySpace::Host>
+        &diagonal)
+    {
+      const auto dst_ptr      = dst.begin();
+      const auto src_ptr      = src.begin();
+      const auto diagonal_ptr = diagonal.begin();
+
+      DEAL_II_OPENMP_SIMD_PRAGMA
+      for (unsigned int i = 0; i < src.locally_owned_size(); ++i)
+        dst_ptr[i] = src_ptr[i] * diagonal_ptr[i];
+    }
+  } // namespace DiagonalMatrix
+} // namespace internal
+
+
+
 template <typename VectorType>
 void
 DiagonalMatrix<VectorType>::vmult(VectorType &dst, const VectorType &src) const
 {
-  dst = src;
-  dst.scale(diagonal);
+  internal::DiagonalMatrix::assign_and_scale(dst, src, diagonal);
 }
 
 
@@ -400,6 +471,41 @@ DiagonalMatrix<VectorType>::Tvmult_add(VectorType &      dst,
                                        const VectorType &src) const
 {
   vmult_add(dst, src);
+}
+
+
+
+template <typename VectorType>
+typename VectorType::value_type
+DiagonalMatrix<VectorType>::apply(const unsigned int index,
+                                  const value_type   src) const
+{
+  AssertIndexRange(index, diagonal.locally_owned_elements().n_elements());
+  return diagonal.local_element(index) * src;
+}
+
+
+
+template <typename VectorType>
+void
+DiagonalMatrix<VectorType>::apply_to_subrange(
+  const unsigned int begin_range,
+  const unsigned int end_range,
+  const value_type * src_pointer_to_current_range,
+  value_type *       dst_pointer_to_current_range) const
+{
+  AssertIndexRange(begin_range,
+                   diagonal.locally_owned_elements().n_elements() + 1);
+  AssertIndexRange(end_range,
+                   diagonal.locally_owned_elements().n_elements() + 1);
+
+  const value_type * diagonal_entry = diagonal.begin() + begin_range;
+  const unsigned int length         = end_range - begin_range;
+
+  DEAL_II_OPENMP_SIMD_PRAGMA
+  for (unsigned int i = 0; i < length; ++i)
+    dst_pointer_to_current_range[i] =
+      diagonal_entry[i] * src_pointer_to_current_range[i];
 }
 
 

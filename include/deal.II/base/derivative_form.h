@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -69,9 +69,12 @@ public:
   DerivativeForm(const Tensor<order + 1, dim, Number> &);
 
   /**
-   * Constructor from a tensor.
+   * Constructor. This constructor initializes the data stored by this
+   * object from a `spacedim x dim^order` array that is represented
+   * by a Tensor with `spacedim` components each of which is a
+   * Tensor of rank `order` and size `dim`.
    */
-  DerivativeForm(const Tensor<order, spacedim, Tensor<1, dim, Number>> &);
+  DerivativeForm(const Tensor<1, spacedim, Tensor<order, dim, Number>> &);
 
   /**
    * Read-Write access operator.
@@ -102,6 +105,13 @@ public:
    */
   DerivativeForm &
   operator=(const Tensor<1, dim, Number> &);
+
+  /**
+   * Number conversion operator.
+   */
+  template <typename OtherNumber>
+  DerivativeForm &
+  operator=(const DerivativeForm<order, dim, spacedim, OtherNumber> &df);
 
   /**
    * Converts a DerivativeForm <order, dim, dim, Number> to Tensor<order+1, dim,
@@ -199,7 +209,7 @@ inline DerivativeForm<order, dim, spacedim, Number>::DerivativeForm(
 
 template <int order, int dim, int spacedim, typename Number>
 inline DerivativeForm<order, dim, spacedim, Number>::DerivativeForm(
-  const Tensor<order, spacedim, Tensor<1, dim, Number>> &T)
+  const Tensor<1, spacedim, Tensor<order, dim, Number>> &T)
 {
   for (unsigned int j = 0; j < spacedim; ++j)
     (*this)[j] = T[j];
@@ -244,6 +254,19 @@ DerivativeForm<order, dim, spacedim, Number>::operator=(
 
   (*this)[0] = T;
 
+  return *this;
+}
+
+
+
+template <int order, int dim, int spacedim, typename Number>
+template <typename OtherNumber>
+inline DerivativeForm<order, dim, spacedim, Number> &
+DerivativeForm<order, dim, spacedim, Number>::operator=(
+  const DerivativeForm<order, dim, spacedim, OtherNumber> &df)
+{
+  for (unsigned int j = 0; j < spacedim; ++j)
+    (*this)[j] = df[j];
   return *this;
 }
 
@@ -458,6 +481,31 @@ apply_transformation(const DerivativeForm<1, dim, spacedim, Number1> &grad_F,
 {
   DerivativeForm<1, spacedim, dim, typename ProductType<Number1, Number2>::type>
     dest;
+  for (unsigned int i = 0; i < dim; ++i)
+    dest[i] = apply_transformation(grad_F, D_X[i]);
+
+  return dest;
+}
+
+
+
+/**
+ * Similar to the previous apply_transformation(), specialized for the case `dim
+ * == spacedim` where we can return a rank-2 tensor instead of the more general
+ * `DerivativeForm`.
+ * Each row of the result corresponds to one of the rows of @p D_X transformed
+ * by @p grad_F, equivalent to $\mathrm{D\_X} \, \mathrm{grad\_F}^T$ in matrix
+ * notation.
+ *
+ * @relatesalso DerivativeForm
+ */
+// rank=2
+template <int dim, typename Number1, typename Number2>
+inline Tensor<2, dim, typename ProductType<Number1, Number2>::type>
+apply_transformation(const DerivativeForm<1, dim, dim, Number1> &grad_F,
+                     const Tensor<2, dim, Number2> &             D_X)
+{
+  Tensor<2, dim, typename ProductType<Number1, Number2>::type> dest;
   for (unsigned int i = 0; i < dim; ++i)
     dest[i] = apply_transformation(grad_F, D_X[i]);
 

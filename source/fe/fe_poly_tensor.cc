@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2021 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -47,13 +47,13 @@ namespace internal
         const std::vector<MappingKind> &,
         std::vector<double> &)
       {
-        // Nothing to do in 1D.
+        // Nothing to do in 1d.
       }
 
 
 
       // TODO: This function is not a consistent fix of the orientation issue
-      // like in 3D. It is rather kept not to break legacy behavior in 2D but
+      // like in 3d. It is rather kept not to break legacy behavior in 2d but
       // should be replaced. See also the implementation of
       // FE_RaviartThomas<dim>::initialize_quad_dof_index_permutation_and_sign_change()
       // or other H(div) conforming elements such as FE_ABF<dim> and
@@ -118,7 +118,7 @@ namespace internal
         const std::vector<MappingKind> & /*mapping_kind*/,
         std::vector<double> & /*face_sign*/)
       {
-        // Nothing to do. In 3D we take care of it through the
+        // Nothing to do. In 3d we take care of it through the
         // adjust_quad_dof_sign_for_face_orientation_table
       }
 
@@ -206,10 +206,7 @@ FE_PolyTensor<dim, spacedim>::FE_PolyTensor(
         {
           adjust_quad_dof_sign_for_face_orientation_table[f] =
             Table<2, bool>(this->n_dofs_per_quad(f),
-                           this->reference_cell().face_reference_cell(f) ==
-                               ReferenceCells::Quadrilateral ?
-                             8 :
-                             6);
+                           this->reference_cell().n_face_orientations(f));
           adjust_quad_dof_sign_for_face_orientation_table[f].fill(false);
         }
     }
@@ -246,7 +243,7 @@ FE_PolyTensor<dim, spacedim>::adjust_quad_dof_sign_for_face_orientation(
   const bool         face_flip,
   const bool         face_rotation) const
 {
-  // do nothing in 1D and 2D
+  // do nothing in 1d and 2d
   if (dim < 3)
     return false;
 
@@ -259,11 +256,9 @@ FE_PolyTensor<dim, spacedim>::adjust_quad_dof_sign_for_face_orientation(
   AssertIndexRange(index, this->n_dofs_per_quad(face));
   Assert(adjust_quad_dof_sign_for_face_orientation_table
              [this->n_unique_quads() == 1 ? 0 : face]
-               .n_elements() == (this->reference_cell().face_reference_cell(
-                                   face) == ReferenceCells::Quadrilateral ?
-                                   8 :
-                                   6) *
-                                  this->n_dofs_per_quad(face),
+               .n_elements() ==
+           this->reference_cell().n_face_orientations(face) *
+             this->n_dofs_per_quad(face),
          ExcInternalError());
 
   return adjust_quad_dof_sign_for_face_orientation_table
@@ -436,8 +431,7 @@ FE_PolyTensor<dim, spacedim>::fill_fe_values(
   const Quadrature<dim> &                                     quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -475,9 +469,9 @@ FE_PolyTensor<dim, spacedim>::fill_fe_values(
                                                        this->mapping_kind,
                                                        fe_data.dof_sign_change);
 
-  // TODO: This, similarly to the Nedelec case, is just a legacy function in 2D
-  // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1D.
-  // Also nothing in 3D since we take care of it by using the
+  // TODO: This, similarly to the Nedelec case, is just a legacy function in 2d
+  // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1d.
+  // Also nothing in 3d since we take care of it by using the
   // adjust_quad_dof_sign_for_face_orientation_table.
   internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
                                                      *this,
@@ -496,7 +490,7 @@ FE_PolyTensor<dim, spacedim>::fill_fe_values(
     {
       /*
        * This assumes that the dofs are ordered by first vertices, lines, quads
-       * and volume dofs. Note that in 2D this always gives false.
+       * and volume dofs. Note that in 2d this always gives false.
        */
       const bool is_quad_dof =
         (dim == 2 ? false :
@@ -1059,8 +1053,7 @@ FE_PolyTensor<dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &                            quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -1105,9 +1098,9 @@ FE_PolyTensor<dim, spacedim>::fill_fe_face_values(
                                                        this->mapping_kind,
                                                        fe_data.dof_sign_change);
 
-  // TODO: This, similarly to the Nedelec case, is just a legacy function in 2D
-  // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1D.
-  // Also nothing in 3D since we take care of it by using the
+  // TODO: This, similarly to the Nedelec case, is just a legacy function in 2d
+  // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1d.
+  // Also nothing in 3d since we take care of it by using the
   // adjust_quad_dof_sign_for_face_orientation_table.
   internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
                                                      *this,
@@ -1126,7 +1119,7 @@ FE_PolyTensor<dim, spacedim>::fill_fe_face_values(
     {
       /*
        * This assumes that the dofs are ordered by first vertices, lines, quads
-       * and volume dofs. Note that in 2D this always gives false.
+       * and volume dofs. Note that in 2d this always gives false.
        */
       const bool is_quad_dof =
         (dim == 2 ? false :
@@ -1745,8 +1738,7 @@ FE_PolyTensor<dim, spacedim>::fill_fe_subface_values(
   const Quadrature<dim - 1> &                                 quadrature,
   const Mapping<dim, spacedim> &                              mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &                                                            mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -1791,9 +1783,9 @@ FE_PolyTensor<dim, spacedim>::fill_fe_subface_values(
                                                        this->mapping_kind,
                                                        fe_data.dof_sign_change);
 
-  // TODO: This, similarly to the Nedelec case, is just a legacy function in 2D
-  // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1D.
-  // Also nothing in 3D since we take care of it by using the
+  // TODO: This, similarly to the Nedelec case, is just a legacy function in 2d
+  // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1d.
+  // Also nothing in 3d since we take care of it by using the
   // adjust_quad_dof_sign_for_face_orientation_table.
   internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
                                                      *this,
@@ -1812,7 +1804,7 @@ FE_PolyTensor<dim, spacedim>::fill_fe_subface_values(
     {
       /*
        * This assumes that the dofs are ordered by first vertices, lines, quads
-       * and volume dofs. Note that in 2D this always gives false.
+       * and volume dofs. Note that in 2d this always gives false.
        */
       const bool is_quad_dof =
         (dim == 2 ? false :
@@ -2425,14 +2417,14 @@ FE_PolyTensor<dim, spacedim>::requires_update_flags(
         {
           case mapping_none:
             {
-              if ((flags & update_values) != 0u)
+              if (flags & update_values)
                 out |= update_values;
 
-              if ((flags & update_gradients) != 0u)
+              if (flags & update_gradients)
                 out |= update_gradients | update_values |
                        update_jacobian_pushed_forward_grads;
 
-              if ((flags & update_hessians) != 0u)
+              if (flags & update_hessians)
                 out |= update_hessians | update_values | update_gradients |
                        update_jacobian_pushed_forward_grads |
                        update_jacobian_pushed_forward_2nd_derivatives;
@@ -2441,16 +2433,16 @@ FE_PolyTensor<dim, spacedim>::requires_update_flags(
           case mapping_raviart_thomas:
           case mapping_piola:
             {
-              if ((flags & update_values) != 0u)
+              if (flags & update_values)
                 out |= update_values | update_piola;
 
-              if ((flags & update_gradients) != 0u)
+              if (flags & update_gradients)
                 out |= update_gradients | update_values | update_piola |
                        update_jacobian_pushed_forward_grads |
                        update_covariant_transformation |
                        update_contravariant_transformation;
 
-              if ((flags & update_hessians) != 0u)
+              if (flags & update_hessians)
                 out |= update_hessians | update_piola | update_values |
                        update_gradients | update_jacobian_pushed_forward_grads |
                        update_jacobian_pushed_forward_2nd_derivatives |
@@ -2462,16 +2454,16 @@ FE_PolyTensor<dim, spacedim>::requires_update_flags(
 
           case mapping_contravariant:
             {
-              if ((flags & update_values) != 0u)
+              if (flags & update_values)
                 out |= update_values | update_piola;
 
-              if ((flags & update_gradients) != 0u)
+              if (flags & update_gradients)
                 out |= update_gradients | update_values |
                        update_jacobian_pushed_forward_grads |
                        update_covariant_transformation |
                        update_contravariant_transformation;
 
-              if ((flags & update_hessians) != 0u)
+              if (flags & update_hessians)
                 out |= update_hessians | update_piola | update_values |
                        update_gradients | update_jacobian_pushed_forward_grads |
                        update_jacobian_pushed_forward_2nd_derivatives |
@@ -2483,15 +2475,15 @@ FE_PolyTensor<dim, spacedim>::requires_update_flags(
           case mapping_nedelec:
           case mapping_covariant:
             {
-              if ((flags & update_values) != 0u)
+              if (flags & update_values)
                 out |= update_values | update_covariant_transformation;
 
-              if ((flags & update_gradients) != 0u)
+              if (flags & update_gradients)
                 out |= update_gradients | update_values |
                        update_jacobian_pushed_forward_grads |
                        update_covariant_transformation;
 
-              if ((flags & update_hessians) != 0u)
+              if (flags & update_hessians)
                 out |= update_hessians | update_values | update_gradients |
                        update_jacobian_pushed_forward_grads |
                        update_jacobian_pushed_forward_2nd_derivatives |

@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2020 by the deal.II authors
+ * Copyright (C) 2006 - 2021 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -120,7 +120,7 @@ namespace Step27
     {}
 
     virtual double
-    value(const Point<dim> &p, const unsigned int component) const;
+    value(const Point<dim> &p, const unsigned int component) const override;
   };
 
 

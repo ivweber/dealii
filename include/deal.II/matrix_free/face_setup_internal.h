@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,7 +20,6 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/memory_consumption.h>
-#include <deal.II/base/utilities.h>
 
 #include <deal.II/distributed/tria_base.h>
 
@@ -380,8 +379,8 @@ namespace internal
               // those faces, a value -1 means that the process with the lower
               // rank gets it, whereas a value 0 means that the decision can
               // be made in an arbitrary way.
-              unsigned int      n_faces_lower_proc = 0, n_faces_higher_proc = 0;
-              std::vector<char> assignment(other_range.size(), 0);
+              unsigned int n_faces_lower_proc = 0, n_faces_higher_proc = 0;
+              std::vector<signed char> assignment(other_range.size(), 0);
               if (inner_face.second.shared_faces.size() > 0)
                 {
                   // identify faces that go to the processor with the higher
@@ -798,7 +797,7 @@ namespace internal
                         info.face_type =
                           is_mixed_mesh ?
                             (dcell->face(f)->reference_cell() !=
-                             dealii::ReferenceCells::get_hypercube<dim - 1>()) :
+                             ReferenceCells::get_hypercube<dim - 1>()) :
                             0;
                         info.subface_index =
                           GeometryInfo<dim>::max_children_per_cell;
@@ -987,7 +986,7 @@ namespace internal
 
       info.face_type = is_mixed_mesh ?
                          (cell->face(face_no)->reference_cell() !=
-                          dealii::ReferenceCells::get_hypercube<dim - 1>()) :
+                          ReferenceCells::get_hypercube<dim - 1>()) :
                          0;
 
       info.subface_index = GeometryInfo<dim>::max_children_per_cell;
@@ -1191,7 +1190,7 @@ namespace internal
       std::vector<FaceToCellTopology<vectorization_width>> &faces_out,
       const std::vector<unsigned int> &                     active_fe_indices)
     {
-      FaceToCellTopology<vectorization_width> macro_face;
+      FaceToCellTopology<vectorization_width> face_batch;
       std::vector<std::vector<unsigned int>>  faces_type;
 
       unsigned int face_start = face_partition_data[0],
@@ -1240,13 +1239,13 @@ namespace internal
             new_faces(face_comparator);
           for (const auto &face_type : faces_type)
             {
-              macro_face.face_type = faces_in[face_type[0]].face_type;
-              macro_face.interior_face_no =
+              face_batch.face_type = faces_in[face_type[0]].face_type;
+              face_batch.interior_face_no =
                 faces_in[face_type[0]].interior_face_no;
-              macro_face.exterior_face_no =
+              face_batch.exterior_face_no =
                 faces_in[face_type[0]].exterior_face_no;
-              macro_face.subface_index = faces_in[face_type[0]].subface_index;
-              macro_face.face_orientation =
+              face_batch.subface_index = faces_in[face_type[0]].subface_index;
+              face_batch.face_orientation =
                 faces_in[face_type[0]].face_orientation;
               unsigned int               no_faces = face_type.size();
               std::vector<unsigned char> touched(no_faces, 0);
@@ -1276,13 +1275,13 @@ namespace internal
                                            vectorization_width + 1);
                         for (unsigned int v = 0; v < vectorization_width; ++v)
                           {
-                            macro_face.cells_interior[v] =
+                            face_batch.cells_interior[v] =
                               faces_in[face_type[f + v]].cells_interior[0];
-                            macro_face.cells_exterior[v] =
+                            face_batch.cells_exterior[v] =
                               faces_in[face_type[f + v]].cells_exterior[0];
                             touched[f + v] = 1;
                           }
-                        new_faces.insert(macro_face);
+                        new_faces.insert(face_batch);
                         f += vectorization_width - 1;
                         n_vectorized += vectorization_width;
                       }
@@ -1296,14 +1295,14 @@ namespace internal
               unsigned int v = 0;
               for (const auto f : untouched)
                 {
-                  macro_face.cells_interior[v] =
+                  face_batch.cells_interior[v] =
                     faces_in[face_type[f]].cells_interior[0];
-                  macro_face.cells_exterior[v] =
+                  face_batch.cells_exterior[v] =
                     faces_in[face_type[f]].cells_exterior[0];
                   ++v;
                   if (v == vectorization_width)
                     {
-                      new_faces.insert(macro_face);
+                      new_faces.insert(face_batch);
                       v = 0;
                     }
                 }
@@ -1316,12 +1315,12 @@ namespace internal
                       for (; v < vectorization_width; ++v)
                         {
                           // Dummy cell, not used
-                          macro_face.cells_interior[v] =
+                          face_batch.cells_interior[v] =
                             numbers::invalid_unsigned_int;
-                          macro_face.cells_exterior[v] =
+                          face_batch.cells_exterior[v] =
                             numbers::invalid_unsigned_int;
                         }
-                      new_faces.insert(macro_face);
+                      new_faces.insert(face_batch);
                     }
                   else
                     {

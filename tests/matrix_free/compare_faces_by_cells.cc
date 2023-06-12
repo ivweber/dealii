@@ -15,7 +15,7 @@
 
 
 
-// compares the computation of the diagonal using a face integration
+// compares the computation of the diagonal using the face integration
 // facilities with the alternative reinit(cell_index, face_number) approach
 
 #include <deal.II/base/function.h>
@@ -82,8 +82,8 @@ public:
   compute_diagonal_by_face(
     LinearAlgebra::distributed::Vector<number> &result) const
   {
-    int dummy;
-    result = 0;
+    int dummy = 0;
+    result    = 0;
     data.loop(&LaplaceOperator::local_diagonal_dummy,
               &LaplaceOperator::local_diagonal_face,
               &LaplaceOperator::local_diagonal_boundary,
@@ -96,7 +96,7 @@ public:
   compute_diagonal_by_cell(
     LinearAlgebra::distributed::Vector<number> &result) const
   {
-    int dummy;
+    int dummy = 0;
     result.zero_out_ghost_values();
     data.cell_loop(&LaplaceOperator::local_diagonal_by_cell,
                    this,
@@ -142,8 +142,7 @@ private:
         // penalty parameter because the cell-based method cannot read the
         // sigma parameter on the neighbor
         VectorizedArray<number> sigmaF =
-          std::abs(
-            (phi.get_normal_vector(0) * phi.inverse_jacobian(0))[dim - 1]) *
+          std::abs((phi.normal_vector(0) * phi.inverse_jacobian(0))[dim - 1]) *
           (number)(std::max(fe_degree, 1) * (fe_degree + 1.0)) * 2.0;
 
         // Compute phi part
@@ -178,7 +177,7 @@ private:
         phi.distribute_local_to_global(dst);
 
         // Compute phi_outer part
-        sigmaF = std::abs((phi.get_normal_vector(0) *
+        sigmaF = std::abs((phi.normal_vector(0) *
                            phi_outer.inverse_jacobian(0))[dim - 1]) *
                  (number)(std::max(fe_degree, 1) * (fe_degree + 1.0)) * 2.0;
         for (unsigned int j = 0; j < phi.dofs_per_cell; ++j)
@@ -229,8 +228,7 @@ private:
 
         VectorizedArray<number> local_diagonal_vector[phi.static_dofs_per_cell];
         VectorizedArray<number> sigmaF =
-          std::abs(
-            (phi.get_normal_vector(0) * phi.inverse_jacobian(0))[dim - 1]) *
+          std::abs((phi.normal_vector(0) * phi.inverse_jacobian(0))[dim - 1]) *
           (number)(std::max(1, fe_degree) * (fe_degree + 1.0)) * 2.;
 
         for (unsigned int i = 0; i < phi.dofs_per_cell; ++i)
@@ -277,8 +275,8 @@ private:
           {
             phif.reinit(cell, face);
             VectorizedArray<number> sigmaF =
-              std::abs((phif.get_normal_vector(0) *
-                        phif.inverse_jacobian(0))[dim - 1]) *
+              std::abs(
+                (phif.normal_vector(0) * phif.inverse_jacobian(0))[dim - 1]) *
               (number)(std::max(1, fe_degree) * (fe_degree + 1.0)) * 2.;
 
             std::array<types::boundary_id, VectorizedArray<number>::size()>

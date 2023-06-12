@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,12 +21,12 @@
 
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/hp/fe_values.h>
+#include <deal.II/hp/fe_collection.h>
 
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/vector.h>
@@ -172,30 +172,30 @@ DataOutFaces<dim, spacedim>::build_one_patch(
                 {
                   // at each point there is only one component of value,
                   // gradient etc.
-                  if ((update_flags & update_values) != 0u)
+                  if (update_flags & update_values)
                     this->dof_data[dataset]->get_function_values(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_scalar.solution_values);
-                  if ((update_flags & update_gradients) != 0u)
+                  if (update_flags & update_gradients)
                     this->dof_data[dataset]->get_function_gradients(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_scalar.solution_gradients);
-                  if ((update_flags & update_hessians) != 0u)
+                  if (update_flags & update_hessians)
                     this->dof_data[dataset]->get_function_hessians(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_scalar.solution_hessians);
 
-                  if ((update_flags & update_quadrature_points) != 0u)
+                  if (update_flags & update_quadrature_points)
                     data.patch_values_scalar.evaluation_points =
                       this_fe_patch_values.get_quadrature_points();
 
-                  if ((update_flags & update_normal_vectors) != 0u)
+                  if (update_flags & update_normal_vectors)
                     data.patch_values_scalar.normals =
                       this_fe_patch_values.get_normal_vectors();
 
@@ -216,30 +216,30 @@ DataOutFaces<dim, spacedim>::build_one_patch(
                   // at each point there is a vector valued function and its
                   // derivative...
                   data.resize_system_vectors(n_components);
-                  if ((update_flags & update_values) != 0u)
+                  if (update_flags & update_values)
                     this->dof_data[dataset]->get_function_values(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_system.solution_values);
-                  if ((update_flags & update_gradients) != 0u)
+                  if (update_flags & update_gradients)
                     this->dof_data[dataset]->get_function_gradients(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_system.solution_gradients);
-                  if ((update_flags & update_hessians) != 0u)
+                  if (update_flags & update_hessians)
                     this->dof_data[dataset]->get_function_hessians(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_system.solution_hessians);
 
-                  if ((update_flags & update_quadrature_points) != 0u)
+                  if (update_flags & update_quadrature_points)
                     data.patch_values_system.evaluation_points =
                       this_fe_patch_values.get_quadrature_points();
 
-                  if ((update_flags & update_normal_vectors) != 0u)
+                  if (update_flags & update_normal_vectors)
                     data.patch_values_system.normals =
                       this_fe_patch_values.get_normal_vectors();
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,6 +20,9 @@
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/la_vector.h>
 
+#include <boost/serialization/utility.hpp>
+
+
 DEAL_II_NAMESPACE_OPEN
 
 namespace Utilities
@@ -29,7 +32,7 @@ namespace Utilities
     NoncontiguousPartitioner::NoncontiguousPartitioner(
       const IndexSet &indexset_has,
       const IndexSet &indexset_want,
-      const MPI_Comm &communicator)
+      const MPI_Comm  communicator)
     {
       this->reinit(indexset_has, indexset_want, communicator);
     }
@@ -39,7 +42,7 @@ namespace Utilities
     NoncontiguousPartitioner::NoncontiguousPartitioner(
       const std::vector<types::global_dof_index> &indices_has,
       const std::vector<types::global_dof_index> &indices_want,
-      const MPI_Comm &                            communicator)
+      const MPI_Comm                              communicator)
     {
       this->reinit(indices_has, indices_want, communicator);
     }
@@ -77,7 +80,7 @@ namespace Utilities
 
 
 
-    const MPI_Comm &
+    MPI_Comm
     NoncontiguousPartitioner::get_mpi_communicator() const
     {
       return communicator;
@@ -88,7 +91,7 @@ namespace Utilities
     void
     NoncontiguousPartitioner::reinit(const IndexSet &indexset_has,
                                      const IndexSet &indexset_want,
-                                     const MPI_Comm &communicator)
+                                     const MPI_Comm  communicator)
     {
       this->communicator = communicator;
 
@@ -115,10 +118,11 @@ namespace Utilities
                 true);
 
       Utilities::MPI::ConsensusAlgorithms::Selector<
-        std::pair<types::global_dof_index, types::global_dof_index>,
-        unsigned int>
-        consensus_algorithm(process, communicator);
-      consensus_algorithm.run();
+        std::vector<
+          std::pair<types::global_dof_index, types::global_dof_index>>,
+        std::vector<unsigned int>>
+        consensus_algorithm;
+      consensus_algorithm.run(process, communicator);
 
       // setup map of processes from where this rank will receive values
       {
@@ -165,7 +169,7 @@ namespace Utilities
     NoncontiguousPartitioner::reinit(
       const std::vector<types::global_dof_index> &indices_has,
       const std::vector<types::global_dof_index> &indices_want,
-      const MPI_Comm &                            communicator)
+      const MPI_Comm                              communicator)
     {
       // step 0) clean vectors from numbers::invalid_dof_index (indicating
       //         padding)
