@@ -13,13 +13,11 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/integrators/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_integrators OBJECT ${_src} ${_header})
+define_object_library(object_integrators OBJECT ${_src} ${_header})

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -48,6 +48,7 @@ class Quadrature;
 template <int dim, int spacedim>
 class FiniteElement;
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
 template <int dim>
 class FiniteElementData;
@@ -56,8 +57,10 @@ class AffineConstraints;
 #endif
 
 
-/*!@addtogroup feall */
-/*@{*/
+/**
+ * @addtogroup feall
+ * @{
+ */
 
 
 /**
@@ -454,7 +457,7 @@ namespace FETools
    * After these quadrature approximations, we end up with a nodal
    * representation <tt>V<sub>h</sub></tt> of <tt>v<sub>h</sub></tt> that
    * satisfies the following system of linear equations: <tt>M V<sub>h</sub> =
-   * Q U</tt>, where <tt>M<sub>ij</sub>=(phi_i,phi_j)</tt> is the mass matrix
+   * Q U</tt>, where <tt>M<sub>ij</sub>=(phi_i,phi_j)</tt> is the @ref GlossMassMatrix "mass matrix"
    * approximated by <tt>lhs_quadrature</tt>, and <tt>Q</tt> is the matrix
    * <tt>Q<sub>iq</sub>=phi<sub>i</sub>(x<sub>q</sub>) w<sub>q</sub></tt>
    * where <tt>w<sub>q</sub></tt> are quadrature weights; <tt>U</tt> is the
@@ -610,11 +613,11 @@ namespace FETools
 
 
 
-  //@}
+  /** @} */
   /**
    * @name Functions which should be in DoFTools
    */
-  //@{
+  /** @{ */
   /**
    * Compute the interpolation of a the @p dof1-function @p u1 to a @p
    * dof2-function @p u2. @p dof1 and @p dof2 need to be DoFHandlers based on
@@ -764,7 +767,7 @@ namespace FETools
    *
    * The global projection can be computed by local matrices if the finite
    * element spaces are discontinuous. With continuous elements, this is
-   * impossible, since a global mass matrix must be inverted.
+   * impossible, since a global @ref GlossMassMatrix "mass matrix" must be inverted.
    */
   template <int dim, class InVector, class OutVector, int spacedim>
   void
@@ -861,7 +864,7 @@ namespace FETools
     const AffineConstraints<typename OutVector::value_type> &constraints,
     OutVector &                                              z2);
 
-  //@}
+  /** @} */
   /**
    * The numbering of the degrees of freedom in continuous finite elements is
    * hierarchic, i.e. in such a way that we first number the vertex dofs, in
@@ -907,8 +910,10 @@ namespace FETools
    * <li> Tensor product construction (<code>do_tensor_product=true</code>):
    * The tensor product construction, in the simplest case, builds a
    * vector-valued element from scalar elements (see
-   * @ref vector_valued "this documentation module" and
-   * @ref GlossComponent "this glossary entry" for more information).
+   * @ref vector_valued "this documentation module"
+   * and
+   * @ref GlossComponent "this glossary entry"
+   * for more information).
    * To give an example, consider creating a vector-valued element with
    * two vector components, where the first should have linear shape
    * functions and the second quadratic shape functions. In 1d, the
@@ -1481,7 +1486,7 @@ namespace FETools
 
 #endif
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2020 by the deal.II authors
+// Copyright (C) 2006 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -506,7 +506,8 @@ LaplaceProblem<dim>::refine_grid()
         {
           cell->clear_refine_flag();
           cell->set_active_fe_index(
-            std::min(cell->active_fe_index() + 1, fe_collection.size() - 1));
+            std::min<types::fe_index>(cell->active_fe_index() + 1,
+                                      fe_collection.size() - 1));
         }
   }
 

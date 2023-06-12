@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------
 
 #include <deal.II/base/bounding_box.h>
-#include <deal.II/base/mpi.h>
+#include <deal.II/base/mpi_stub.h>
 
 #include <deal.II/grid/filtered_iterator.h>
 #include <deal.II/grid/grid_tools.h>
@@ -60,7 +60,7 @@ namespace GridTools
     std::set<typename Triangulation<dim, spacedim>::active_cell_iterator>> &
   Cache<dim, spacedim>::get_vertex_to_cell_map() const
   {
-    if ((update_flags & update_vertex_to_cell_map) != 0)
+    if (update_flags & update_vertex_to_cell_map)
       {
         vertex_to_cells = GridTools::vertex_to_cell_map(*tria);
         update_flags    = update_flags & ~update_vertex_to_cell_map;
@@ -74,7 +74,7 @@ namespace GridTools
   const std::vector<std::vector<Tensor<1, spacedim>>> &
   Cache<dim, spacedim>::get_vertex_to_cell_centers_directions() const
   {
-    if ((update_flags & update_vertex_to_cell_centers_directions) != 0)
+    if (update_flags & update_vertex_to_cell_centers_directions)
       {
         vertex_to_cell_centers = GridTools::vertex_to_cell_centers_directions(
           *tria, get_vertex_to_cell_map());
@@ -89,7 +89,7 @@ namespace GridTools
   const std::map<unsigned int, Point<spacedim>> &
   Cache<dim, spacedim>::get_used_vertices() const
   {
-    if ((update_flags & update_used_vertices) != 0)
+    if (update_flags & update_used_vertices)
       {
         used_vertices = GridTools::extract_used_vertices(*tria, *mapping);
         update_flags  = update_flags & ~update_used_vertices;
@@ -103,7 +103,7 @@ namespace GridTools
   const RTree<std::pair<Point<spacedim>, unsigned int>> &
   Cache<dim, spacedim>::get_used_vertices_rtree() const
   {
-    if ((update_flags & update_used_vertices_rtree) != 0)
+    if (update_flags & update_used_vertices_rtree)
       {
         const auto &used_vertices = get_used_vertices();
         std::vector<std::pair<Point<spacedim>, unsigned int>> vertices(
@@ -125,15 +125,15 @@ namespace GridTools
               typename Triangulation<dim, spacedim>::active_cell_iterator>> &
   Cache<dim, spacedim>::get_cell_bounding_boxes_rtree() const
   {
-    if ((update_flags & update_cell_bounding_boxes_rtree) != 0)
+    if (update_flags & update_cell_bounding_boxes_rtree)
       {
         std::vector<std::pair<
           BoundingBox<spacedim>,
           typename Triangulation<dim, spacedim>::active_cell_iterator>>
-                     boxes(tria->n_active_cells());
-        unsigned int i = 0;
+          boxes;
+        boxes.reserve(tria->n_active_cells());
         for (const auto &cell : tria->active_cell_iterators())
-          boxes[i++] = std::make_pair(mapping->get_bounding_box(cell), cell);
+          boxes.emplace_back(mapping->get_bounding_box(cell), cell);
 
         cell_bounding_boxes_rtree = pack_rtree(boxes);
         update_flags = update_flags & ~update_cell_bounding_boxes_rtree;
@@ -149,13 +149,18 @@ namespace GridTools
               typename Triangulation<dim, spacedim>::active_cell_iterator>> &
   Cache<dim, spacedim>::get_locally_owned_cell_bounding_boxes_rtree() const
   {
-    if ((update_flags & update_locally_owned_cell_bounding_boxes_rtree) != 0)
+    if (update_flags & update_locally_owned_cell_bounding_boxes_rtree)
       {
         std::vector<std::pair<
           BoundingBox<spacedim>,
           typename Triangulation<dim, spacedim>::active_cell_iterator>>
           boxes;
-        boxes.reserve(tria->n_active_cells());
+        if (const parallel::TriangulationBase<dim, spacedim> *parallel_tria =
+              dynamic_cast<const parallel::TriangulationBase<dim, spacedim> *>(
+                &*tria))
+          boxes.reserve(parallel_tria->n_locally_owned_active_cells());
+        else
+          boxes.reserve(tria->n_active_cells());
         for (const auto &cell : tria->active_cell_iterators() |
                                   IteratorFilters::LocallyOwnedCell())
           boxes.emplace_back(mapping->get_bounding_box(cell), cell);
@@ -202,20 +207,35 @@ namespace GridTools
   const std::vector<std::set<unsigned int>> &
   Cache<dim, spacedim>::get_vertex_to_neighbor_subdomain() const
   {
-    if ((update_flags & update_vertex_to_neighbor_subdomain) != 0)
+    if (update_flags & update_vertex_to_neighbor_subdomain)
       {
         vertex_to_neighbor_subdomain.clear();
         vertex_to_neighbor_subdomain.resize(tria->n_vertices());
         for (const auto &cell : tria->active_cell_iterators())
           {
             if (cell->is_ghost())
-              for (const unsigned int v : GeometryInfo<dim>::vertex_indices())
+              for (const unsigned int v : cell->vertex_indices())
                 vertex_to_neighbor_subdomain[cell->vertex_index(v)].insert(
                   cell->subdomain_id());
           }
         update_flags = update_flags & ~update_vertex_to_neighbor_subdomain;
       }
     return vertex_to_neighbor_subdomain;
+  }
+
+  template <int dim, int spacedim>
+  const std::map<unsigned int, std::set<types::subdomain_id>> &
+  Cache<dim, spacedim>::get_vertices_with_ghost_neighbors() const
+  {
+    if (update_flags & update_vertex_with_ghost_neighbors)
+      {
+        vertices_with_ghost_neighbors =
+          GridTools::compute_vertices_with_ghost_neighbors(*tria);
+
+        update_flags = update_flags & ~update_vertex_with_ghost_neighbors;
+      }
+
+    return vertices_with_ghost_neighbors;
   }
 
 #include "grid_tools_cache.inst"

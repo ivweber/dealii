@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -90,17 +90,13 @@ namespace NonMatching
    * See the tutorial program step-60 for an example on how to use this
    * function.
    */
-  template <int dim0,
-            int dim1,
-            int spacedim,
-            typename Sparsity,
-            typename number = double>
+  template <int dim0, int dim1, int spacedim, typename number = double>
   void
   create_coupling_sparsity_pattern(
     const DoFHandler<dim0, spacedim> &space_dh,
     const DoFHandler<dim1, spacedim> &immersed_dh,
     const Quadrature<dim1> &          quad,
-    Sparsity &                        sparsity,
+    SparsityPatternBase &             sparsity,
     const AffineConstraints<number> & constraints = AffineConstraints<number>(),
     const ComponentMask &             space_comps = ComponentMask(),
     const ComponentMask &             immersed_comps = ComponentMask(),
@@ -117,18 +113,14 @@ namespace NonMatching
    * space_mapping cannot be specified, since it is taken from the @p cache
    * parameter.
    */
-  template <int dim0,
-            int dim1,
-            int spacedim,
-            typename Sparsity,
-            typename number = double>
+  template <int dim0, int dim1, int spacedim, typename number = double>
   void
   create_coupling_sparsity_pattern(
     const GridTools::Cache<dim0, spacedim> &cache,
     const DoFHandler<dim0, spacedim> &      space_dh,
     const DoFHandler<dim1, spacedim> &      immersed_dh,
     const Quadrature<dim1> &                quad,
-    Sparsity &                              sparsity,
+    SparsityPatternBase &                   sparsity,
     const AffineConstraints<number> &constraints = AffineConstraints<number>(),
     const ComponentMask &            space_comps = ComponentMask(),
     const ComponentMask &            immersed_comps = ComponentMask(),
@@ -139,7 +131,7 @@ namespace NonMatching
 
 
   /**
-   * Create a coupling mass matrix for non-matching, overlapping grids.
+   * Create a coupling @ref GlossMassMatrix "mass matrix" for non-matching, overlapping grids.
    *
    * Given two non-matching triangulations, representing the domains $\Omega$
    * and $B$, with $B \subseteq \Omega$, and two finite element spaces
@@ -269,11 +261,7 @@ namespace NonMatching
    * restrictive conditions are required on the two spaces. See the
    * documentation of the other create_coupling_sparsity_pattern() function.
    */
-  template <int dim0,
-            int dim1,
-            int spacedim,
-            typename Sparsity,
-            typename Number = double>
+  template <int dim0, int dim1, int spacedim, typename Number = double>
   void
   create_coupling_sparsity_pattern(
     const double &                          epsilon,
@@ -282,13 +270,13 @@ namespace NonMatching
     const DoFHandler<dim0, spacedim> &      dh0,
     const DoFHandler<dim1, spacedim> &      dh1,
     const Quadrature<dim1> &                quad,
-    Sparsity &                              sparsity,
+    SparsityPatternBase &                   sparsity,
     const AffineConstraints<Number> &constraints0 = AffineConstraints<Number>(),
     const ComponentMask &            comps0       = ComponentMask(),
     const ComponentMask &            comps1       = ComponentMask());
 
   /**
-   * Create a coupling mass matrix for non-matching independent grids,
+   * Create a coupling @ref GlossMassMatrix "mass matrix" for non-matching independent grids,
    * using a convolution kernel with compact support.
    *
    * Given two non-matching triangulations, representing the domains

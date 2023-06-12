@@ -1,17 +1,18 @@
-//-----------------------------------------------------------
+// ---------------------------------------------------------------------
 //
-//    Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
-//    This file is part of the deal.II library.
+// This file is part of the deal.II library.
 //
-//    The deal.II library is free software; you can use it, redistribute
-//    it, and/or modify it under the terms of the GNU Lesser General
-//    Public License as published by the Free Software Foundation; either
-//    version 2.1 of the License, or (at your option) any later version.
-//    The full text of the license can be found in the file LICENSE.md at
-//    the top level directory of deal.II.
+// The deal.II library is free software; you can use it, redistribute
+// it, and/or modify it under the terms of the GNU Lesser General
+// Public License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+// The full text of the license can be found in the file LICENSE.md at
+// the top level directory of deal.II.
 //
-//-----------------------------------------------------------
+// ---------------------------------------------------------------------
+
 
 #ifndef dealii_sundials_sunlinsol_wrapper_h
 #define dealii_sundials_sunlinsol_wrapper_h
@@ -19,25 +20,25 @@
 #include <deal.II/base/config.h>
 
 #ifdef DEAL_II_WITH_SUNDIALS
-#  if DEAL_II_SUNDIALS_VERSION_GTE(4, 0, 0)
 
-#    include <sundials/sundials_linearsolver.h>
+#  include <sundials/sundials_linearsolver.h>
 
-#    include <functional>
-#    include <memory>
+#  include <exception>
+#  include <functional>
+#  include <memory>
 
 DEAL_II_NAMESPACE_OPEN
 
 namespace SUNDIALS
 {
-#    ifndef DOXYGEN
+#  ifndef DOXYGEN
   // forward declarations
   namespace internal
   {
     template <typename VectorType>
     struct LinearSolverContent;
   }
-#    endif
+#  endif
 
   /**
    * A linear operator that wraps SUNDIALS functionality.
@@ -51,6 +52,16 @@ namespace SUNDIALS
     void
     vmult(VectorType &dst, const VectorType &src) const;
 
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
+    /**
+     * Constructor.
+     *
+     * @param A_data Data required by @p a_times_fn
+     * @param a_times_fn A function pointer to the function that computes A*v
+     * @param linsol_ctx The context object used to set up the linear solver and all vectors
+     */
+    SundialsOperator(void *A_data, ATimesFn a_times_fn, SUNContext linsol_ctx);
+#  else
     /**
      * Constructor.
      *
@@ -58,6 +69,7 @@ namespace SUNDIALS
      * @param a_times_fn A function pointer to the function that computes A*v
      */
     SundialsOperator(void *A_data, ATimesFn a_times_fn);
+#  endif
 
   private:
     /**
@@ -70,6 +82,13 @@ namespace SUNDIALS
      * product.
      */
     ATimesFn a_times_fn;
+
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
+    /**
+     * Context object used for SUNDIALS logging.
+     */
+    SUNContext linsol_ctx;
+#  endif
   };
 
 
@@ -92,6 +111,25 @@ namespace SUNDIALS
     void
     vmult(VectorType &dst, const VectorType &src) const;
 
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
+    /**
+     * Constructor.
+     *
+     * @param P_data Data required by @p p_solve_fn
+     * @param p_solve_fn A function pointer to the function that computes A*v
+     * @param linsol_ctx The context object used to set up the linear solver and all vectors
+     * @param tol Tolerance, that an iterative solver should use to judge
+     *   convergence
+     *
+     * @note This function is only available with SUNDIALS 6.0.0 and later.
+     * 6.0.0. If you are using an earlier version of SUNDIALS then you need to
+     * use the other constructor.
+     */
+    SundialsPreconditioner(void *     P_data,
+                           PSolveFn   p_solve_fn,
+                           SUNContext linsol_ctx,
+                           double     tol);
+#  else
     /**
      * Constructor.
      *
@@ -99,8 +137,13 @@ namespace SUNDIALS
      * @param p_solve_fn A function pointer to the function that computes A*v
      * @param tol Tolerance, that an iterative solver should use to judge
      *   convergence
+     *
+     * @note This function is only available with versions of SUNDIALS prior to
+     * 6.0.0. If you are using SUNDIALS 6 or later then you need to use the
+     * other constructor.
      */
     SundialsPreconditioner(void *P_data, PSolveFn p_solve_fn, double tol);
+#  endif
 
   private:
     /**
@@ -114,6 +157,13 @@ namespace SUNDIALS
      */
     PSolveFn p_solve_fn;
 
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
+    /**
+     * Context object used for SUNDIALS logging.
+     */
+    SUNContext linsol_ctx;
+#  endif
+
     /**
      * Potential tolerance to use in the internal solve of the preconditioner
      * equation.
@@ -122,7 +172,7 @@ namespace SUNDIALS
   };
 
   /**
-   * Type of function objects to interface with SUNDIALS linear solvers
+   * Type of function objects to interface with SUNDIALS' linear solvers
    *
    * This function type encapsulates the action of solving $P^{-1}Ax=P^{-1}b$.
    * The LinearOperator @p op encapsulates the matrix vector product $Ax$ and
@@ -139,20 +189,21 @@ namespace SUNDIALS
    * @param[in] b The right-hand side
    * @param[in] tol Tolerance for the iterative solver
    *
-   * This function should return:
-   * - 0: Success
-   * - >0: Recoverable error, ARKode will reattempt the solution and call this
-   *       function again.
-   * - <0: Unrecoverable error, the computation will be aborted and an
-   *       assertion will be thrown.
+   *
+   * @note This variable represents a
+   * @ref GlossUserProvidedCallBack "user provided callback".
+   * See there for a description of how to deal with errors and other
+   * requirements and conventions. In particular, ARKode can deal
+   * with "recoverable" errors in some circumstances, so callbacks
+   * can throw exceptions of type RecoverableUserCallbackError.
    */
   template <typename VectorType>
   using LinearSolveFunction =
-    std::function<int(SundialsOperator<VectorType> &      op,
-                      SundialsPreconditioner<VectorType> &prec,
-                      VectorType &                        x,
-                      const VectorType &                  b,
-                      double                              tol)>;
+    std::function<void(SundialsOperator<VectorType> &      op,
+                       SundialsPreconditioner<VectorType> &prec,
+                       VectorType &                        x,
+                       const VectorType &                  b,
+                       double                              tol)>;
 
   namespace internal
   {
@@ -166,11 +217,13 @@ namespace SUNDIALS
     class LinearSolverWrapper
     {
     public:
-      explicit LinearSolverWrapper(LinearSolveFunction<VectorType> lsolve
-#    if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
-                                   ,
-                                   SUNContext &linsol_ctx
-#    endif
+      explicit LinearSolverWrapper(
+        const LinearSolveFunction<VectorType> &lsolve,
+        std::exception_ptr &                   pending_exception
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
+        ,
+        SUNContext linsol_ctx
+#  endif
       );
 
       ~LinearSolverWrapper();
@@ -189,6 +242,5 @@ namespace SUNDIALS
 
 DEAL_II_NAMESPACE_CLOSE
 
-#  endif
 #endif
 #endif

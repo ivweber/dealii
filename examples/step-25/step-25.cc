@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2020 by the deal.II authors
+ * Copyright (C) 2006 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -139,7 +139,7 @@ namespace Step25
   // @sect3{Initial conditions}
 
   // In the following two classes, we first implement the exact solution for
-  // 1D, 2D, and 3D mentioned in the introduction to this program. This
+  // 1D, 2d, and 3d mentioned in the introduction to this program. This
   // space-time solution may be of independent interest if one wanted to test
   // the accuracy of the program by comparing the numerical against the
   // analytic solution (note however that the program uses a finite domain,
@@ -559,8 +559,7 @@ namespace Step25
     const std::string filename =
       "solution-" + Utilities::int_to_string(timestep_number, 3) + ".vtu";
     DataOutBase::VtkFlags vtk_flags;
-    vtk_flags.compression_level =
-      DataOutBase::VtkFlags::ZlibCompressionLevel::best_speed;
+    vtk_flags.compression_level = DataOutBase::CompressionLevel::best_speed;
     data_out.set_flags(vtk_flags);
     std::ofstream output(filename);
     data_out.write_vtu(output);

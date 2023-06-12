@@ -19,6 +19,8 @@
 
 #include <deal.II/base/config.h>
 
+#include <Kokkos_Core.hpp>
+
 DEAL_II_NAMESPACE_OPEN
 
 /**
@@ -29,16 +31,27 @@ namespace MemorySpace
    * Structure describing Host memory space.
    */
   struct Host
-  {};
+  {
+    using kokkos_space = ::Kokkos::HostSpace;
+  };
 
+  /**
+   * Structure describing the default memory space. If Kokkos was configured
+   * with a GPU backend, the default memory space is the one corresponding to
+   * that backend. Otherwise, the default memory space is the the same as the
+   * Host memory space.
+   */
+  struct Default
+  {
+    using kokkos_space = ::Kokkos::DefaultExecutionSpace::memory_space;
+  };
 
-
+#ifdef DEAL_II_WITH_CUDA
   /**
    * Structure describing CUDA memory space.
    */
-  struct CUDA
-  {};
-
+  using CUDA = Default;
+#endif
 } // namespace MemorySpace
 
 DEAL_II_NAMESPACE_CLOSE

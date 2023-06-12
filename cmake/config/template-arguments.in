@@ -73,6 +73,16 @@ MPI_SCALARS     := { int;
                      @DEAL_II_EXPAND_COMPLEX_SCALARS@;
                    }
 
+// complex types and long double are typically not directly supported on GPUs
+MPI_DEVICE_SCALARS := { int;
+                        long int;
+                        unsigned int;
+                        unsigned long int;
+                        unsigned long long int;
+                        float;
+                        double;
+                      }
+
 // template names for serial vectors that we can instantiate as T<S> where
 // S=REAL_SCALARS for example
 DEAL_II_VEC_TEMPLATES := { Vector; BlockVector }
@@ -239,25 +249,6 @@ TRIANGULATIONS := { Triangulation<deal_II_dimension, deal_II_space_dimension>;
                     parallel::shared::Triangulation<deal_II_dimension, deal_II_space_dimension>;
                     parallel::distributed::Triangulation<deal_II_dimension, deal_II_space_dimension>;}
 
-// serial and parallel sparsity pattern types
-SPARSITY_PATTERNS := { SparsityPattern;
-                       DynamicSparsityPattern;
-                       @DEAL_II_EXPAND_TRILINOS_SPARSITY_PATTERN@;
-
-                       BlockSparsityPattern;
-                       BlockDynamicSparsityPattern;
-                       @DEAL_II_EXPAND_TRILINOS_BLOCK_SPARSITY_PATTERN@; }
-
-// Special lists for AffineConstraints:
-AFFINE_CONSTRAINTS_SP := { SparsityPattern;
-                           DynamicSparsityPattern;
-                           @DEAL_II_EXPAND_TRILINOS_SPARSITY_PATTERN@;
-                         }
-AFFINE_CONSTRAINTS_SP_BLOCK := { BlockSparsityPattern;
-                                 BlockDynamicSparsityPattern;
-                                 @DEAL_II_EXPAND_TRILINOS_BLOCK_SPARSITY_PATTERN@;
-                               }
-
 // all supported logical dimensions
 DIMENSIONS := { 1; 2; 3 }
 
@@ -275,5 +266,9 @@ SYM_RANKS := { 2; 4 }
 
 // Flags that are allowed in DataOutInterface::set_flags
 OUTPUT_FLAG_TYPES := { DXFlags; UcdFlags; GnuplotFlags; PovrayFlags; EpsFlags;
-                       GmvFlags; TecplotFlags; VtkFlags; SvgFlags;
+                       GmvFlags; Hdf5Flags; TecplotFlags; VtkFlags; SvgFlags;
                        Deal_II_IntermediateFlags }
+
+// CGAL Kernels
+CGAL_KERNELS := {CGAL::Simple_cartesian<double>; CGAL::Exact_predicates_exact_constructions_kernel; 
+                CGAL::Exact_predicates_inexact_constructions_kernel }

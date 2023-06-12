@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,8 +30,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup Solvers */
-/*@{*/
+/**
+ * @addtogroup Solvers
+ * @{
+ */
 
 /**
  * Minimal residual method for symmetric matrices.
@@ -113,7 +115,7 @@ public:
    * Exception
    */
   DeclException0(ExcPreconditionerNotDefinite);
-  //@}
+  /** @} */
 
 protected:
   /**
@@ -142,7 +144,7 @@ protected:
   double res2;
 };
 
-/*@}*/
+/** @} */
 /*------------------------- Implementation ----------------------------*/
 
 #ifndef DOXYGEN

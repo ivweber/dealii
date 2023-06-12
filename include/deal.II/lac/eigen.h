@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,12 +29,15 @@
 #include <deal.II/lac/vector_memory.h>
 
 #include <cmath>
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup Solvers */
-/*@{*/
+/**
+ * @addtogroup Solvers
+ * @{
+ */
 
 /**
  * Power method (von Mises) for eigenvalue computations.
@@ -186,7 +189,7 @@ protected:
   AdditionalData additional_data;
 };
 
-/*@}*/
+/** @} */
 //---------------------------------------------------------------------------
 
 

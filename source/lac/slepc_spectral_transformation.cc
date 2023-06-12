@@ -29,7 +29,7 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace SLEPcWrappers
 {
-  TransformationBase::TransformationBase(const MPI_Comm &mpi_communicator)
+  TransformationBase::TransformationBase(const MPI_Comm mpi_communicator)
   {
     const PetscErrorCode ierr = STCreate(mpi_communicator, &st);
     AssertThrow(ierr == 0, SolverBase::ExcSLEPcError(ierr));
@@ -55,7 +55,7 @@ namespace SLEPcWrappers
   void
   TransformationBase::set_solver(const PETScWrappers::SolverBase &solver)
   {
-    PetscErrorCode ierr = STSetKSP(st, solver.solver_data->ksp);
+    PetscErrorCode ierr = STSetKSP(st, solver);
     AssertThrow(ierr == 0, SolverBase::ExcSLEPcError(ierr));
   }
 
@@ -66,7 +66,7 @@ namespace SLEPcWrappers
     : shift_parameter(shift_parameter)
   {}
 
-  TransformationShift::TransformationShift(const MPI_Comm &mpi_communicator,
+  TransformationShift::TransformationShift(const MPI_Comm mpi_communicator,
                                            const AdditionalData &data)
     : TransformationBase(mpi_communicator)
     , additional_data(data)
@@ -86,7 +86,7 @@ namespace SLEPcWrappers
   {}
 
   TransformationShiftInvert::TransformationShiftInvert(
-    const MPI_Comm &      mpi_communicator,
+    const MPI_Comm        mpi_communicator,
     const AdditionalData &data)
     : TransformationBase(mpi_communicator)
     , additional_data(data)
@@ -106,25 +106,17 @@ namespace SLEPcWrappers
   {}
 
   TransformationSpectrumFolding::TransformationSpectrumFolding(
-    const MPI_Comm &      mpi_communicator,
+    const MPI_Comm        mpi_communicator,
     const AdditionalData &data)
     : TransformationBase(mpi_communicator)
     , additional_data(data)
   {
-#  if DEAL_II_PETSC_VERSION_LT(3, 5, 0)
-    PetscErrorCode ierr = STSetType(st, const_cast<char *>(STFOLD));
-    AssertThrow(ierr == 0, SolverBase::ExcSLEPcError(ierr));
-
-    ierr = STSetShift(st, additional_data.shift_parameter);
-    AssertThrow(ierr == 0, SolverBase::ExcSLEPcError(ierr));
-#  else
-    // PETSc/SLEPc version must be < 3.5.0.
-    (void)st;
-    Assert((false),
+    // This feature is only in PETSc/SLEPc versions 3.4 or older, which we no
+    // longer support.
+    Assert(false,
            ExcMessage(
              "Folding transformation has been removed in SLEPc 3.5.0 and newer."
              " You cannot use this transformation anymore."));
-#  endif
   }
 
   /* ------------------- TransformationCayley --------------------- */
@@ -136,7 +128,7 @@ namespace SLEPcWrappers
     , antishift_parameter(antishift_parameter)
   {}
 
-  TransformationCayley::TransformationCayley(const MPI_Comm &mpi_communicator,
+  TransformationCayley::TransformationCayley(const MPI_Comm mpi_communicator,
                                              const AdditionalData &data)
     : TransformationBase(mpi_communicator)
     , additional_data(data)

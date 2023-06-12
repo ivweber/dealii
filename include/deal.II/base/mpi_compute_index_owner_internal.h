@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,8 +18,8 @@
 
 #include <deal.II/base/config.h>
 
-#include <deal.II/base/mpi.h>
 #include <deal.II/base/mpi_consensus_algorithms.h>
+#include <deal.II/base/mpi_stub.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -45,7 +45,9 @@ namespace Utilities
           FlexibleIndexStorage(const bool use_vector = true);
 
           void
-          reinit(const bool use_vector, const std::size_t size);
+          reinit(const bool        use_vector,
+                 const bool        index_range_contiguous,
+                 const std::size_t size);
 
           void
           fill(const std::size_t start,
@@ -66,74 +68,6 @@ namespace Utilities
           std::size_t                       size;
           std::vector<index_type>           data;
           std::map<std::size_t, index_type> data_map;
-        };
-
-        /**
-         * Specialization of ConsensusAlgorithms::Process for setting up the
-         * Dictionary even if there are ranges in the IndexSet space not owned
-         * by any processes.
-         *
-         * @note Only for internal usage.
-         */
-        class DictionaryPayLoad
-          : public ConsensusAlgorithms::Process<
-              std::pair<types::global_dof_index, types::global_dof_index>,
-              unsigned int>
-        {
-        public:
-          /**
-           * Constructor.
-           */
-          DictionaryPayLoad(
-            const std::map<unsigned int,
-                           std::vector<std::pair<types::global_dof_index,
-                                                 types::global_dof_index>>>
-              &                   buffers,
-            FlexibleIndexStorage &actually_owning_ranks,
-            const std::pair<types::global_dof_index, types::global_dof_index>
-              &                        local_range,
-            std::vector<unsigned int> &actually_owning_rank_list);
-
-          /**
-           * Implementation of
-           * Utilities::MPI::ConsensusAlgorithms::Process::compute_targets().
-           */
-          virtual std::vector<unsigned int>
-          compute_targets() override;
-
-          /**
-           * Implementation of
-           * Utilities::MPI::ConsensusAlgorithms::Process::create_request().
-           */
-          virtual void
-          create_request(const unsigned int other_rank,
-                         std::vector<std::pair<types::global_dof_index,
-                                               types::global_dof_index>>
-                           &send_buffer) override;
-
-          /**
-           * Implementation of
-           * Utilities::MPI::ConsensusAlgorithms::Process::answer_request().
-           */
-          virtual void
-          answer_request(
-            const unsigned int                                     other_rank,
-            const std::vector<std::pair<types::global_dof_index,
-                                        types::global_dof_index>> &buffer_recv,
-            std::vector<unsigned int> &request_buffer) override;
-
-        private:
-          const std::map<unsigned int,
-                         std::vector<std::pair<types::global_dof_index,
-                                               types::global_dof_index>>>
-            &buffers;
-
-          FlexibleIndexStorage &actually_owning_ranks;
-
-          const std::pair<types::global_dof_index, types::global_dof_index>
-            &local_range;
-
-          std::vector<unsigned int> &actually_owning_rank_list;
         };
 
 
@@ -237,7 +171,7 @@ namespace Utilities
            * ranges to the owner of the dictionary part.
            */
           void
-          reinit(const IndexSet &owned_indices, const MPI_Comm &comm);
+          reinit(const IndexSet &owned_indices, const MPI_Comm comm);
 
           /**
            * Translate a global dof index to the MPI rank in the dictionary
@@ -269,7 +203,7 @@ namespace Utilities
            * the number of ranks.
            */
           void
-          partition(const IndexSet &owned_indices, const MPI_Comm &comm);
+          partition(const IndexSet &owned_indices, const MPI_Comm comm);
         };
 
 
@@ -282,8 +216,9 @@ namespace Utilities
          */
         class ConsensusAlgorithmsPayload
           : public ConsensusAlgorithms::Process<
-              std::pair<types::global_dof_index, types::global_dof_index>,
-              unsigned int>
+              std::vector<
+                std::pair<types::global_dof_index, types::global_dof_index>>,
+              std::vector<unsigned int>>
         {
         public:
           /**
@@ -291,7 +226,7 @@ namespace Utilities
            */
           ConsensusAlgorithmsPayload(const IndexSet &owned_indices,
                                      const IndexSet &indices_to_look_up,
-                                     const MPI_Comm &comm,
+                                     const MPI_Comm  comm,
                                      std::vector<unsigned int> &owning_ranks,
                                      const bool track_index_requests = false);
 
@@ -356,17 +291,14 @@ namespace Utilities
           Dictionary dict;
 
           /**
-           * Array to collect the indices to look up, sorted by the rank in
+           * Array to collect the indices to look up (first vector) and their
+           * local index among indices (second vector), sorted by the rank in
            * the dictionary.
            */
-          std::map<unsigned int, std::vector<types::global_dof_index>>
+          std::map<unsigned int,
+                   std::pair<std::vector<types::global_dof_index>,
+                             std::vector<unsigned int>>>
             indices_to_look_up_by_dict_rank;
-
-          /**
-           * The field where the indices for incoming data from the process
-           * are stored.
-           */
-          std::map<unsigned int, std::vector<unsigned int>> recv_indices;
 
           /**
            * Implementation of
@@ -421,22 +353,23 @@ namespace Utilities
 
         private:
           /**
-           * Stores the index request in the `requesters` field. We first find
-           * out the owner of the index that was requested (using the guess in
-           * `owner_index`, as we typically might look up on the same rank
-           * several times in a row, which avoids the binary search in
-           * Dictionary::get_owning_rank_index(). Once we know the rank of the
-           * owner, we the vector entry with the rank of the request. Here, we
-           * utilize the fact that requests are processed rank-by-rank, so we
-           * can simply look at the end of the vector if there is already some
-           * data stored or not. Finally, we build ranges, again using that
-           * the index list is sorted and we therefore only need to append at
-           * the end.
+           * Stores the index request in the `requesters` field. Given the
+           * rank of the owner, we start with a guess for the index at the
+           * owner's site. This is because we typically might look up on the
+           * same rank several times in a row, hence avoiding the binary
+           * search in Dictionary::get_owning_rank_index()). Once we know the
+           * index at the owner, we fill the vector entry with the rank of the
+           * request. Here, we utilize the fact that requests are processed
+           * rank-by-rank, so we can simply look at the end of the vector
+           * whether there is already some data stored or not. Finally, we
+           * build ranges, again using that the index list is sorted and we
+           * therefore only need to append at the end.
            */
           void
-          append_index_origin(const types::global_dof_index index,
-                              unsigned int &                owner_index,
-                              const unsigned int            rank_of_request);
+          append_index_origin(const unsigned int index_within_dictionary,
+                              const unsigned int rank_of_request,
+                              const unsigned int rank_of_owner,
+                              unsigned int &     owner_index_guess);
         };
 
         /* ------------------------- inline functions ----------------------- */

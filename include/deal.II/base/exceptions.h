@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,8 @@
 
 #include <deal.II/base/config.h>
 
+#include <Kokkos_Core.hpp>
+
 #include <exception>
 #include <ostream>
 #include <string>
@@ -27,7 +29,6 @@
 #  include <cusolverSp.h>
 #  include <cusparse.h>
 #endif
-
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -626,8 +627,8 @@ namespace StandardExceptions
 {
   /**
    * @addtogroup Exceptions
+   * @{
    */
-  //@{
 
   /**
    * Exception denoting a division by zero.
@@ -852,6 +853,29 @@ namespace StandardExceptions
     "implement the missing override in your class.");
 
   /**
+   * This exception is used if some user function is not provided.
+   */
+  DeclException1(ExcFunctionNotProvided,
+                 std::string,
+                 << "Please provide an implementation for the function \""
+                 << arg1 << "\"");
+
+  /**
+   * This exception is used if some user function returns nonzero exit codes.
+   */
+  DeclException2(
+    ExcFunctionNonzeroReturn,
+    std::string,
+    int,
+    << "The function \"" << arg1 << "\" returned the nonzero value " << arg2
+    << ", but the calling site expected the return value to be zero. "
+       "This error often happens when the function in question is a 'callback', "
+       "that is a user-provided function called from somewhere within deal.II "
+       "or within an external library such as PETSc, Trilinos, SUNDIALS, etc., "
+       "that expect these callbacks to indicate errors via nonzero return "
+       "codes.");
+
+  /**
    * This exception is used if some object is found uninitialized.
    */
   DeclException0(ExcNotInitialized);
@@ -917,7 +941,8 @@ namespace StandardExceptions
   DeclException2(ExcDimensionMismatch,
                  std::size_t,
                  std::size_t,
-                 << "Dimension " << arg1 << " not equal to " << arg2 << '.');
+                 << "Two sizes or dimensions were supposed to be equal, "
+                 << "but aren't. They are " << arg1 << " and " << arg2 << '.');
 
   /**
    * The first dimension should be either equal to the second or the third,
@@ -927,8 +952,10 @@ namespace StandardExceptions
                  std::size_t,
                  std::size_t,
                  std::size_t,
-                 << "Dimension " << arg1 << " neither equal to " << arg2
-                 << " nor to " << arg3 << '.');
+                 << "The size or dimension of one object, " << arg1
+                 << " was supposed to be "
+                 << "equal to one of two values, but isn't. The two possible "
+                 << "values are " << arg2 << " and " << arg3 << '.');
 
   /**
    * This exception indicates that an index is not within the expected range.
@@ -1069,6 +1096,16 @@ namespace StandardExceptions
                    "information.");
 
   /**
+   * Exception indicating that one of the cells in the input to
+   * Triangulation::create_triangulation() or a related function cannot be used.
+   */
+  DeclException1(ExcGridHasInvalidCell,
+                 int,
+                 << "Something went wrong when making cell " << arg1
+                 << ". Read the docs and the source code "
+                 << "for more information.");
+
+  /**
    * Some of our numerical classes allow for setting all entries to zero using
    * the assignment operator <tt>=</tt>.
    *
@@ -1095,6 +1132,15 @@ namespace StandardExceptions
     "You are attempting to use functionality that is only available "
     "if deal.II was configured to use LAPACK, but cmake did not "
     "find a valid LAPACK library.");
+
+  /**
+   * This function requires support for the HDF5 library.
+   */
+  DeclExceptionMsg(
+    ExcNeedsHDF5,
+    "You are attempting to use functionality that requires that deal.II is configured "
+    "with HDF5 support. However, when you called 'cmake', HDF5 support "
+    "was not detected.");
 
   /**
    * This function requires support for the MPI library.
@@ -1139,7 +1185,7 @@ namespace StandardExceptions
                  std::string,
                  << "There was an error in a cuSPARSE function: " << arg1);
 #endif
-  //@}
+  /** @} */
 
   /**
    * This function requires support for the Exodus II library.
@@ -1149,6 +1195,15 @@ namespace StandardExceptions
     "You are attempting to use functionality that is only available if deal.II "
     "was configured to use Trilinos' SEACAS library (which provides ExodusII), "
     "but cmake did not find a valid SEACAS library.");
+
+  /**
+   * This function requires support for the CGAL library.
+   */
+  DeclExceptionMsg(
+    ExcNeedsCGAL,
+    "You are attempting to use functionality that is only available "
+    "if deal.II was configured to use CGAL, but cmake did not "
+    "find a valid CGAL library.");
 
 #ifdef DEAL_II_WITH_MPI
   /**
@@ -1217,6 +1272,19 @@ namespace StandardExceptions
     const int error_code;
   };
 #endif // DEAL_II_TRILINOS_WITH_SEACAS
+
+  /**
+   * An exception to be thrown in user call-backs. See the glossary entry
+   * on user call-back functions for more information.
+   */
+  DeclExceptionMsg(
+    RecoverableUserCallbackError,
+    "A user call-back function encountered a recoverable error, "
+    "but the underlying library that called the call-back did not "
+    "manage to recover from the error and aborted its operation."
+    "\n\n"
+    "See the glossary entry on user call-back functions for more "
+    "information.");
 } /*namespace StandardExceptions*/
 
 
@@ -1286,10 +1354,22 @@ namespace deal_II_exceptions
    * still call abort(), e.g. when an exception is caught during exception
    * handling.
    *
+   * @see enable_abort_on_exception
    * @see Exceptions
    */
   void
   disable_abort_on_exception();
+
+  /**
+   * Calling this function switches on the use of <tt>std::abort()</tt> when
+   * an exception is created using the Assert() macro, instead of throwing it.
+   * This restores the standard behavior.
+   *
+   * @see disable_abort_on_exception
+   * @see Exceptions
+   */
+  void
+  enable_abort_on_exception();
 
   /**
    * The functions in this namespace are in connection with the Assert and
@@ -1457,39 +1537,91 @@ namespace deal_II_exceptions
  * @ingroup Exceptions
  */
 #ifdef DEBUG
-#  ifdef DEAL_II_HAVE_BUILTIN_EXPECT
-#    define Assert(cond, exc)                                            \
-      {                                                                  \
-        if (__builtin_expect(!(cond), false))                            \
-          ::dealii::deal_II_exceptions::internals::issue_error_noreturn( \
-            ::dealii::deal_II_exceptions::internals::ExceptionHandling:: \
-              abort_or_throw_on_exception,                               \
-            __FILE__,                                                    \
-            __LINE__,                                                    \
-            __PRETTY_FUNCTION__,                                         \
-            #cond,                                                       \
-            #exc,                                                        \
-            exc);                                                        \
-      }
-#  else /*ifdef DEAL_II_HAVE_BUILTIN_EXPECT*/
-#    define Assert(cond, exc)                                            \
-      {                                                                  \
-        if (!(cond))                                                     \
-          ::dealii::deal_II_exceptions::internals::issue_error_noreturn( \
-            ::dealii::deal_II_exceptions::internals::ExceptionHandling:: \
-              abort_or_throw_on_exception,                               \
-            __FILE__,                                                    \
-            __LINE__,                                                    \
-            __PRETTY_FUNCTION__,                                         \
-            #cond,                                                       \
-            #exc,                                                        \
-            exc);                                                        \
-      }
-#  endif /*ifdef DEAL_II_HAVE_BUILTIN_EXPECT*/
-#else
+#  if KOKKOS_VERSION >= 30600
+#    ifdef DEAL_II_HAVE_BUILTIN_EXPECT
+#      define Assert(cond, exc)                                              \
+        {                                                                    \
+          KOKKOS_IF_ON_HOST(({                                               \
+            if (__builtin_expect(!(cond), false))                            \
+              ::dealii::deal_II_exceptions::internals::issue_error_noreturn( \
+                ::dealii::deal_II_exceptions::internals::ExceptionHandling:: \
+                  abort_or_throw_on_exception,                               \
+                __FILE__,                                                    \
+                __LINE__,                                                    \
+                __PRETTY_FUNCTION__,                                         \
+                #cond,                                                       \
+                #exc,                                                        \
+                exc);                                                        \
+          }))                                                                \
+          KOKKOS_IF_ON_DEVICE(({                                             \
+            if (!(cond))                                                     \
+              Kokkos::abort(#cond);                                          \
+          }))                                                                \
+        }
+#    else /*ifdef DEAL_II_HAVE_BUILTIN_EXPECT*/
+#      define Assert(cond, exc)                                              \
+        {                                                                    \
+          KOKKOS_IF_ON_HOST(({                                               \
+            if (!(cond))                                                     \
+              ::dealii::deal_II_exceptions::internals::issue_error_noreturn( \
+                ::dealii::deal_II_exceptions::internals::ExceptionHandling:: \
+                  abort_or_throw_on_exception,                               \
+                __FILE__,                                                    \
+                __LINE__,                                                    \
+                __PRETTY_FUNCTION__,                                         \
+                #cond,                                                       \
+                #exc,                                                        \
+                exc);                                                        \
+          }))                                                                \
+          KOKKOS_IF_ON_DEVICE(({                                             \
+            if (!(cond))                                                     \
+              Kokkos::abort(#cond);                                          \
+          }))                                                                \
+        }
+#    endif /*ifdef DEAL_II_HAVE_BUILTIN_EXPECT*/
+#  else    /*if KOKKOS_VERSION >= 30600*/
+#    ifdef KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST
+#      ifdef DEAL_II_HAVE_BUILTIN_EXPECT
+#        define Assert(cond, exc)                                            \
+          {                                                                  \
+            if (__builtin_expect(!(cond), false))                            \
+              ::dealii::deal_II_exceptions::internals::issue_error_noreturn( \
+                ::dealii::deal_II_exceptions::internals::ExceptionHandling:: \
+                  abort_or_throw_on_exception,                               \
+                __FILE__,                                                    \
+                __LINE__,                                                    \
+                __PRETTY_FUNCTION__,                                         \
+                #cond,                                                       \
+                #exc,                                                        \
+                exc);                                                        \
+          }
+#      else /*ifdef DEAL_II_HAVE_BUILTIN_EXPECT*/
+#        define Assert(cond, exc)                                            \
+          {                                                                  \
+            if (!(cond))                                                     \
+              ::dealii::deal_II_exceptions::internals::issue_error_noreturn( \
+                ::dealii::deal_II_exceptions::internals::ExceptionHandling:: \
+                  abort_or_throw_on_exception,                               \
+                __FILE__,                                                    \
+                __LINE__,                                                    \
+                __PRETTY_FUNCTION__,                                         \
+                #cond,                                                       \
+                #exc,                                                        \
+                exc);                                                        \
+          }
+#      endif /*ifdef DEAL_II_HAVE_BUILTIN_EXPECT*/
+#    else    /*#ifdef KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST*/
+#      define Assert(cond, exc)   \
+        {                         \
+          if (!(cond))            \
+            Kokkos::abort(#cond); \
+        }
+#    endif /*ifdef KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST*/
+#  endif   /*KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST*/
+#else      /*ifdef DEBUG*/
 #  define Assert(cond, exc) \
     {}
-#endif
+#endif /*ifdef DEBUG*/
 
 
 
@@ -1608,10 +1740,10 @@ namespace deal_II_exceptions
      * different types (e.g., unsigned and signed variables).
      */
     template <typename T, typename U>
-    inline constexpr bool
+    inline DEAL_II_HOST_DEVICE constexpr bool
     compare_for_equality(const T &t, const U &u)
     {
-      using common_type = typename std::common_type<T, U>::type;
+      using common_type = std::common_type_t<T, U>;
       return static_cast<common_type>(t) == static_cast<common_type>(u);
     }
 
@@ -1622,10 +1754,10 @@ namespace deal_II_exceptions
      * different types (e.g., unsigned and signed variables).
      */
     template <typename T, typename U>
-    inline constexpr bool
+    inline DEAL_II_HOST_DEVICE constexpr bool
     compare_less_than(const T &t, const U &u)
     {
-      using common_type = typename std::common_type<T, U>::type;
+      using common_type = std::common_type_t<T, U>;
       return (static_cast<common_type>(t) < static_cast<common_type>(u));
     }
   } // namespace internals
@@ -1688,7 +1820,7 @@ namespace internal
   // Workaround to allow for commas in template parameter lists
   // in preprocessor macros as found in
   // https://stackoverflow.com/questions/13842468/comma-in-c-c-macro
-  template <typename T>
+  template <typename F>
   struct argument_type;
 
   template <typename T, typename U>
@@ -1696,6 +1828,9 @@ namespace internal
   {
     using type = U;
   };
+
+  template <typename F>
+  using argument_type_t = typename argument_type<F>::type;
 } // namespace internal
 
 /**
@@ -1717,12 +1852,13 @@ namespace internal
  *
  * @ingroup Exceptions
  */
-#define AssertIndexRange(index, range)                                         \
-  Assert(                                                                      \
-    ::dealii::deal_II_exceptions::internals::compare_less_than(index, range),  \
-    dealii::ExcIndexRangeType<typename ::dealii::internal::argument_type<void( \
-      typename std::common_type<decltype(index), decltype(range)>::type)>::    \
-                                type>((index), 0, (range)))
+#define AssertIndexRange(index, range)                                       \
+  Assert(::dealii::deal_II_exceptions::internals::compare_less_than(index,   \
+                                                                    range),  \
+         dealii::ExcIndexRangeType<::dealii::internal::argument_type_t<void( \
+           std::common_type_t<decltype(index), decltype(range)>)>>((index),  \
+                                                                   0,        \
+                                                                   (range)))
 
 /**
  * An assertion that checks whether a number is finite or not. We explicitly
@@ -1981,7 +2117,8 @@ namespace internal
  * @ingroup Exceptions
  */
 #  define AssertThrowExodusII(error_code) \
-    AssertThrow(error_code == 0, ExcExodusII(error_code));
+    AssertThrow(error_code == 0,          \
+                dealii::StandardExceptions::ExcExodusII(error_code));
 #endif // DEAL_II_TRILINOS_WITH_SEACAS
 
 using namespace StandardExceptions;

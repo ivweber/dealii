@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2021 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,52 +19,20 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/array_view.h>
-#include <deal.II/base/index_set.h>
+#include <deal.II/base/mpi_stub.h>
 #include <deal.II/base/mpi_tags.h>
 #include <deal.II/base/numbers.h>
 #include <deal.II/base/template_constraints.h>
+#include <deal.II/base/utilities.h>
 
 #include <boost/signals2.hpp>
 
 #include <complex>
+#include <limits>
 #include <map>
 #include <numeric>
 #include <set>
 #include <vector>
-
-#if !defined(DEAL_II_WITH_MPI) && !defined(DEAL_II_WITH_PETSC)
-// without MPI, we would still like to use
-// some constructs with MPI data
-// types. Therefore, create some dummies
-using MPI_Comm     = int;
-using MPI_Request  = int;
-using MPI_Datatype = int;
-using MPI_Op       = int;
-#  ifndef MPI_COMM_WORLD
-#    define MPI_COMM_WORLD 0
-#  endif
-#  ifndef MPI_COMM_SELF
-#    define MPI_COMM_SELF 0
-#  endif
-#  ifndef MPI_COMM_NULL
-#    define MPI_COMM_NULL 0
-#  endif
-#  ifndef MPI_REQUEST_NULL
-#    define MPI_REQUEST_NULL 0
-#  endif
-#  ifndef MPI_MIN
-#    define MPI_MIN 0
-#  endif
-#  ifndef MPI_MAX
-#    define MPI_MAX 0
-#  endif
-#  ifndef MPI_SUM
-#    define MPI_SUM 0
-#  endif
-#  ifndef MPI_LOR
-#    define MPI_LOR 0
-#  endif
-#endif
 
 
 
@@ -116,9 +84,10 @@ namespace Utilities
    * return the @p my_partition_id 's IndexSet.
    */
   IndexSet
-  create_evenly_distributed_partitioning(const unsigned int my_partition_id,
-                                         const unsigned int n_partitions,
-                                         const IndexSet::size_type total_size);
+  create_evenly_distributed_partitioning(
+    const unsigned int            my_partition_id,
+    const unsigned int            n_partitions,
+    const types::global_dof_index total_size);
 
   /**
    * A namespace for utility functions that abstract certain operations using
@@ -168,7 +137,7 @@ namespace Utilities
      * only one process and the function returns 1.
      */
     unsigned int
-    n_mpi_processes(const MPI_Comm &mpi_communicator);
+    n_mpi_processes(const MPI_Comm mpi_communicator);
 
     /**
      * Return the
@@ -179,15 +148,15 @@ namespace Utilities
      * than) the number of all processes (given by get_n_mpi_processes()).
      */
     unsigned int
-    this_mpi_process(const MPI_Comm &mpi_communicator);
+    this_mpi_process(const MPI_Comm mpi_communicator);
 
     /**
      * Return a vector of the ranks (within @p comm_large) of a subset of
      * processes specified by @p comm_small.
      */
     const std::vector<unsigned int>
-    mpi_processes_within_communicator(const MPI_Comm &comm_large,
-                                      const MPI_Comm &comm_small);
+    mpi_processes_within_communicator(const MPI_Comm comm_large,
+                                      const MPI_Comm comm_small);
 
     /**
      * Consider an unstructured communication pattern where every process in
@@ -212,7 +181,7 @@ namespace Utilities
      */
     std::vector<unsigned int>
     compute_point_to_point_communication_pattern(
-      const MPI_Comm &                 mpi_comm,
+      const MPI_Comm                   mpi_comm,
       const std::vector<unsigned int> &destinations);
 
     /**
@@ -236,7 +205,7 @@ namespace Utilities
      */
     unsigned int
     compute_n_point_to_point_communications(
-      const MPI_Comm &                 mpi_comm,
+      const MPI_Comm                   mpi_comm,
       const std::vector<unsigned int> &destinations);
 
     /**
@@ -256,7 +225,7 @@ namespace Utilities
      * <code>MPI_Comm_dup(mpi_communicator, &return_value);</code>.
      */
     MPI_Comm
-    duplicate_communicator(const MPI_Comm &mpi_communicator);
+    duplicate_communicator(const MPI_Comm mpi_communicator);
 
     /**
      * Free the given
@@ -268,7 +237,7 @@ namespace Utilities
      * <code>MPI_Comm_free(&mpi_communicator);</code>.
      */
     void
-    free_communicator(MPI_Comm &mpi_communicator);
+    free_communicator(MPI_Comm mpi_communicator);
 
     /**
      * Helper class to automatically duplicate and free an MPI
@@ -288,7 +257,7 @@ namespace Utilities
       /**
        * Create a duplicate of the given @p communicator.
        */
-      explicit DuplicatedCommunicator(const MPI_Comm &communicator)
+      explicit DuplicatedCommunicator(const MPI_Comm communicator)
         : comm(duplicate_communicator(communicator))
       {}
 
@@ -308,7 +277,7 @@ namespace Utilities
       /**
        * Access the stored communicator.
        */
-      const MPI_Comm &
+      MPI_Comm
       operator*() const
       {
         return comm;
@@ -327,6 +296,8 @@ namespace Utilities
        */
       MPI_Comm comm;
     };
+
+
 
     /**
      * This class represents a mutex to guard a critical section for a set of
@@ -371,7 +342,7 @@ namespace Utilities
         /**
          * Constructor. Blocks until it can acquire the lock.
          */
-        explicit ScopedLock(CollectiveMutex &mutex, const MPI_Comm &comm)
+        explicit ScopedLock(CollectiveMutex &mutex, const MPI_Comm comm)
           : mutex(mutex)
           , comm(comm)
         {
@@ -414,7 +385,7 @@ namespace Utilities
        * in the communicator.
        */
       void
-      lock(const MPI_Comm &comm);
+      lock(const MPI_Comm comm);
 
       /**
        * Release the lock.
@@ -423,7 +394,7 @@ namespace Utilities
        * in the communicator.
        */
       void
-      unlock(const MPI_Comm &comm);
+      unlock(const MPI_Comm comm);
 
     private:
       /**
@@ -435,6 +406,138 @@ namespace Utilities
        * The request to keep track of the non-blocking barrier.
        */
       MPI_Request request;
+    };
+
+
+
+    /**
+     * An object that acts like a
+     * [std::future](https://en.cppreference.com/w/cpp/thread/future)
+     * object except that it does not encode the operation of waiting
+     * for an operation to finish that may be happening on a different
+     * thread, but for an "immediate" MPI operation such as
+     * `MPI_Isend` or `MPI_Irecv`. An object of this kind is returned,
+     * for example, by the isend() and irecv() functions in this
+     * namespace.
+     *
+     * If the operation being waited for produces a result (such as
+     * a *receive* operation, then the produced result is returned
+     * by the get() function and its type is indicated by the
+     * template argument `T`. If the operation does not produce
+     * a result (such as waiting for a send operation to complete),
+     * then `T=void` is the right choice for the template argument.
+     *
+     *
+     * <h3> Implementation </h3>
+     *
+     * Immediate MPI operations are typically associated with two
+     * additional actions. The first is that one has to be able to
+     * *wait* for them to finish. In many cases, this is done using
+     * a call to `MPI_Wait` that is given an `MPI_Request` object
+     * (in the case of send operations) or a call to `MPI_Probe`
+     * or a variant of this function (in the case of receive
+     * operations). The wait operation may be called more than
+     * once and would immediately return once the first one
+     * has succeeded.
+     *
+     * Secondly, immediate MPI operations often require clean-up
+     * actions that must be executed once the operation has
+     * finished. An example is releasing a buffer in which data
+     * has been stored (for an immediate send operation), or
+     * allocating a receive buffer, calling the MPI function that
+     * puts the received data into this buffer, calling the unpacking
+     * function for the data received, and releasing the receive buffer
+     * (for an immediate receive operation).
+     *
+     * This class models these two steps by taking two constructor
+     * arguments that correspond to these two operations. It ensures
+     * that that upon destruction of the current object, both the
+     * wait and clean-up functions are called. Because the clean-up
+     * function can only be called once, objects of the current
+     * class can not be copied, but they can be moved.
+     */
+    template <typename T>
+    class Future
+    {
+    public:
+      /**
+       * Constructor. Take both the wait and clean-up functions mentioned
+       * in the class documentation as arguments.
+       */
+      template <typename W, typename G>
+      Future(W &&wait_operation, G &&get_and_cleanup_operation);
+
+      /**
+       * Copy constructor. This operation is not possible, as explained
+       * in the class documentation, and consequently the constructor
+       * is deleted.
+       */
+      Future(const Future &) = delete;
+
+      /**
+       * Move constructor.
+       */
+      Future(Future &&) noexcept = default;
+
+      /**
+       * Destructor.
+       */
+      ~Future();
+
+      /**
+       * Copy operator. This operation is not possible, as explained
+       * in the class documentation, and consequently the operator
+       * is deleted.
+       */
+      Future &
+      operator=(const Future &) = delete;
+
+      /**
+       * Move operator.
+       */
+      Future &
+      operator=(Future &&) noexcept = default;
+
+      /**
+       * Wait for the operation to complete. This function can safely be called
+       * more than once. It will wait for the operation to complete the first
+       * time it is called; because the operation will have completed once
+       * it has been called for the first time, it will immediately return
+       * if called again at a later time.
+       */
+      void
+      wait();
+
+      /**
+       * Wait for the operation to complete and return the object the
+       * operation produces (if `T` is not equal to `void`).
+       *
+       * Like for std::future, this function can only be called once
+       * because the class does not store the object produced. (It
+       * can not store the object being produced because returning
+       * it from this function would require the ability to copy
+       * it; however, not all objects can be copied, whereas all
+       * useful objects can be moved.)
+       */
+      T
+      get();
+
+    private:
+      /**
+       * Function objects encoding the wait and clean-up operations.
+       */
+      std::function<void()> wait_function;
+      std::function<T()>    get_and_cleanup_function;
+
+      /**
+       * Whether or not wait() has already been called.
+       */
+      bool is_done;
+
+      /**
+       * Whether or not get() has already been called.
+       */
+      bool get_was_called;
     };
 
 
@@ -469,8 +572,8 @@ namespace Utilities
      * @deprecated Use MPI_Comm_create_group directly
      */
 #ifdef DEAL_II_WITH_MPI
-    DEAL_II_DEPRECATED_EARLY int
-    create_group(const MPI_Comm & comm,
+    DEAL_II_DEPRECATED int
+    create_group(const MPI_Comm   comm,
                  const MPI_Group &group,
                  const int        tag,
                  MPI_Comm *       new_comm);
@@ -485,8 +588,9 @@ namespace Utilities
      * starts at the index one larger than the last one stored on process p.
      */
     std::vector<IndexSet>
-    create_ascending_partitioning(const MPI_Comm &          comm,
-                                  const IndexSet::size_type locally_owned_size);
+    create_ascending_partitioning(
+      const MPI_Comm                comm,
+      const types::global_dof_index locally_owned_size);
 
     /**
      * Given the total number of elements @p total_size, create an evenly
@@ -497,8 +601,8 @@ namespace Utilities
      */
     IndexSet
     create_evenly_distributed_partitioning(
-      const MPI_Comm &          comm,
-      const IndexSet::size_type total_size);
+      const MPI_Comm                comm,
+      const types::global_dof_index total_size);
 
 #ifdef DEAL_II_WITH_MPI
     /**
@@ -518,9 +622,9 @@ namespace Utilities
      */
     template <class Iterator, typename Number = long double>
     std::pair<Number, typename numbers::NumberTraits<Number>::real_type>
-    mean_and_standard_deviation(const Iterator  begin,
-                                const Iterator  end,
-                                const MPI_Comm &comm);
+    mean_and_standard_deviation(const Iterator begin,
+                                const Iterator end,
+                                const MPI_Comm comm);
 #endif
 
 
@@ -531,7 +635,7 @@ namespace Utilities
      * process messages of sizes larger than 2 GB with MPI_Byte as the
      * underlying data type. This helper is required for MPI versions before 4.0
      * because routines like `MPI_Send`
-     * use a signed interger for the @p count variable. Instead, you can use this
+     * use a signed integer for the @p count variable. Instead, you can use this
      * data type with the appropriate size set to the size of your message and
      * by passing
      * 1 as the @p count.
@@ -595,7 +699,7 @@ namespace Utilities
      */
     template <typename T>
     T
-    sum(const T &t, const MPI_Comm &mpi_communicator);
+    sum(const T &t, const MPI_Comm mpi_communicator);
 
     /**
      * Like the previous function, but take the sums over the elements of an
@@ -608,7 +712,7 @@ namespace Utilities
      */
     template <typename T, typename U>
     void
-    sum(const T &values, const MPI_Comm &mpi_communicator, U &sums);
+    sum(const T &values, const MPI_Comm mpi_communicator, U &sums);
 
     /**
      * Like the previous function, but take the sums over the elements of an
@@ -622,7 +726,7 @@ namespace Utilities
     template <typename T>
     void
     sum(const ArrayView<const T> &values,
-        const MPI_Comm &          mpi_communicator,
+        const MPI_Comm            mpi_communicator,
         const ArrayView<T> &      sums);
 
     /**
@@ -633,7 +737,7 @@ namespace Utilities
     template <int rank, int dim, typename Number>
     SymmetricTensor<rank, dim, Number>
     sum(const SymmetricTensor<rank, dim, Number> &local,
-        const MPI_Comm &                          mpi_communicator);
+        const MPI_Comm                            mpi_communicator);
 
     /**
      * Perform an MPI sum of the entries of a tensor.
@@ -643,7 +747,7 @@ namespace Utilities
     template <int rank, int dim, typename Number>
     Tensor<rank, dim, Number>
     sum(const Tensor<rank, dim, Number> &local,
-        const MPI_Comm &                 mpi_communicator);
+        const MPI_Comm                   mpi_communicator);
 
     /**
      * Perform an MPI sum of the entries of a SparseMatrix.
@@ -656,7 +760,7 @@ namespace Utilities
     template <typename Number>
     void
     sum(const SparseMatrix<Number> &local,
-        const MPI_Comm &            mpi_communicator,
+        const MPI_Comm              mpi_communicator,
         SparseMatrix<Number> &      global);
 
     /**
@@ -680,7 +784,7 @@ namespace Utilities
      */
     template <typename T>
     T
-    max(const T &t, const MPI_Comm &mpi_communicator);
+    max(const T &t, const MPI_Comm mpi_communicator);
 
     /**
      * Like the previous function, but take the maximum over the elements of an
@@ -693,7 +797,7 @@ namespace Utilities
      */
     template <typename T, typename U>
     void
-    max(const T &values, const MPI_Comm &mpi_communicator, U &maxima);
+    max(const T &values, const MPI_Comm mpi_communicator, U &maxima);
 
     /**
      * Like the previous function, but take the maximum over the elements of an
@@ -707,7 +811,7 @@ namespace Utilities
     template <typename T>
     void
     max(const ArrayView<const T> &values,
-        const MPI_Comm &          mpi_communicator,
+        const MPI_Comm            mpi_communicator,
         const ArrayView<T> &      maxima);
 
     /**
@@ -731,7 +835,7 @@ namespace Utilities
      */
     template <typename T>
     T
-    min(const T &t, const MPI_Comm &mpi_communicator);
+    min(const T &t, const MPI_Comm mpi_communicator);
 
     /**
      * Like the previous function, but take the minima over the elements of an
@@ -744,7 +848,7 @@ namespace Utilities
      */
     template <typename T, typename U>
     void
-    min(const T &values, const MPI_Comm &mpi_communicator, U &minima);
+    min(const T &values, const MPI_Comm mpi_communicator, U &minima);
 
     /**
      * Like the previous function, but take the minimum over the elements of an
@@ -758,7 +862,7 @@ namespace Utilities
     template <typename T>
     void
     min(const ArrayView<const T> &values,
-        const MPI_Comm &          mpi_communicator,
+        const MPI_Comm            mpi_communicator,
         const ArrayView<T> &      minima);
 
     /**
@@ -786,7 +890,7 @@ namespace Utilities
      */
     template <typename T>
     T
-    logical_or(const T &t, const MPI_Comm &mpi_communicator);
+    logical_or(const T &t, const MPI_Comm mpi_communicator);
 
     /**
      * Like the previous function, but performs the <i>logical or</i> operation
@@ -804,7 +908,7 @@ namespace Utilities
      */
     template <typename T, typename U>
     void
-    logical_or(const T &values, const MPI_Comm &mpi_communicator, U &results);
+    logical_or(const T &values, const MPI_Comm mpi_communicator, U &results);
 
     /**
      * Like the previous function, but performs the <i>logical or</i> operation
@@ -818,7 +922,7 @@ namespace Utilities
     template <typename T>
     void
     logical_or(const ArrayView<const T> &values,
-               const MPI_Comm &          mpi_communicator,
+               const MPI_Comm            mpi_communicator,
                const ArrayView<T> &      results);
 
     /**
@@ -897,7 +1001,7 @@ namespace Utilities
      * everywhere.
      */
     MinMaxAvg
-    min_max_avg(const double my_value, const MPI_Comm &mpi_communicator);
+    min_max_avg(const double my_value, const MPI_Comm mpi_communicator);
 
     /**
      * Same as above but returning the sum, average, minimum, maximum,
@@ -912,7 +1016,7 @@ namespace Utilities
      */
     std::vector<MinMaxAvg>
     min_max_avg(const std::vector<double> &my_value,
-                const MPI_Comm &           mpi_communicator);
+                const MPI_Comm             mpi_communicator);
 
 
     /**
@@ -930,7 +1034,7 @@ namespace Utilities
     void
     min_max_avg(const ArrayView<const double> &my_values,
                 const ArrayView<MinMaxAvg> &   result,
-                const MPI_Comm &               mpi_communicator);
+                const MPI_Comm                 mpi_communicator);
 
 
     /**
@@ -967,8 +1071,8 @@ namespace Utilities
      * processor. In most use cases, one will of course want to work
      * on all MPI processes using essentially the same program, and so
      * this is not an issue. But if you plan to run deal.II-based work
-     * on only a subset of MPI processes, using an @ ref
-     * GlossMPICommunicator "MPI communicator" that is a subset of
+     * on only a subset of MPI processes, using an
+     * @ref GlossMPICommunicator "MPI communicator" that is a subset of
      * `MPI_COMM_WORLD` (for example, in client-server settings where
      * only a subset of processes is responsible for the finite
      * element communications and the remaining processes do other
@@ -1101,6 +1205,10 @@ namespace Utilities
        * Requests to MPI_Wait before finalizing
        */
       static std::set<MPI_Request *> requests;
+
+#ifdef DEAL_II_WITH_PETSC
+      bool finalize_petscslepc;
+#endif
     };
 
     /**
@@ -1136,7 +1244,7 @@ namespace Utilities
      */
     template <typename T>
     std::map<unsigned int, T>
-    some_to_some(const MPI_Comm &                 comm,
+    some_to_some(const MPI_Comm                   comm,
                  const std::map<unsigned int, T> &objects_to_send);
 
     /**
@@ -1154,7 +1262,7 @@ namespace Utilities
      */
     template <typename T>
     std::vector<T>
-    all_gather(const MPI_Comm &comm, const T &object_to_send);
+    all_gather(const MPI_Comm comm, const T &object_to_send);
 
     /**
      * A generalization of the classic MPI_Gather function, that accepts
@@ -1173,9 +1281,29 @@ namespace Utilities
      */
     template <typename T>
     std::vector<T>
-    gather(const MPI_Comm &   comm,
+    gather(const MPI_Comm     comm,
            const T &          object_to_send,
            const unsigned int root_process = 0);
+
+    /**
+     * A generalization of the classic MPI_Scatter function, that accepts
+     * arbitrary data types T, as long as boost::serialize accepts T as an
+     * argument.
+     *
+     * @param[in] comm MPI communicator.
+     * @param[in] objects_to_send A vector of objects to send from the root
+     * process, with size equal to the number of processes. On all other
+     * processes the vector is empty.
+     * @param[in] root_process The process, which sends the objects to all
+     * processes. By default the process with rank 0 is the root process.
+     *
+     * @return Every process receives an object from the root_process.
+     */
+    template <typename T>
+    T
+    scatter(const MPI_Comm        comm,
+            const std::vector<T> &objects_to_send,
+            const unsigned int    root_process = 0);
 
     /**
      * This function sends an object @p object_to_send from the process @p root_process
@@ -1213,8 +1341,8 @@ namespace Utilities
      *   the @p root_process.
      */
     template <typename T>
-    typename std::enable_if<is_mpi_type<T> == false, T>::type
-    broadcast(const MPI_Comm &   comm,
+    std::enable_if_t<is_mpi_type<T> == false, T>
+    broadcast(const MPI_Comm     comm,
               const T &          object_to_send,
               const unsigned int root_process = 0);
 
@@ -1241,8 +1369,8 @@ namespace Utilities
      *   the @p root_process.
      */
     template <typename T>
-    typename std::enable_if<is_mpi_type<T> == true, T>::type
-    broadcast(const MPI_Comm &   comm,
+    std::enable_if_t<is_mpi_type<T> == true, T>
+    broadcast(const MPI_Comm     comm,
               const T &          object_to_send,
               const unsigned int root_process = 0);
 
@@ -1267,7 +1395,7 @@ namespace Utilities
     broadcast(T *                buffer,
               const size_t       count,
               const unsigned int root,
-              const MPI_Comm &   comm);
+              const MPI_Comm     comm);
 
     /**
      * A function that combines values @p local_value from all processes
@@ -1284,7 +1412,7 @@ namespace Utilities
     template <typename T>
     T
     reduce(const T &                                     local_value,
-           const MPI_Comm &                              comm,
+           const MPI_Comm                                comm,
            const std::function<T(const T &, const T &)> &combiner,
            const unsigned int                            root_process = 0);
 
@@ -1300,8 +1428,60 @@ namespace Utilities
     template <typename T>
     T
     all_reduce(const T &                                     local_value,
-               const MPI_Comm &                              comm,
+               const MPI_Comm                                comm,
                const std::function<T(const T &, const T &)> &combiner);
+
+
+    /**
+     * A function that takes a given argument `object` and, using MPI,
+     * sends it to MPI process indicated by the given `target_rank`.
+     * This function is "immediate" (corresponding to the `MPI_Isend`
+     * function), i.e., it immediately returns rather than waiting
+     * for the send operation to succeed. Instead, it returns a
+     * Future object that can be used to wait for the send operation
+     * to complete.
+     *
+     * Unlike `MPI_Isend`, the object to be sent does not need to
+     * have a lifetime that extends until the send operation is
+     * complete. As a consequence, the first argument to this function
+     * may be a temporary variable (such as the result of another
+     * function call). That is because the object is internally
+     * packaged into a buffer whose lifetime is automatically
+     * managed. Using the buffer enables sending arbitrary objects,
+     * not just those natively supported by MPI. The only restriction
+     * on the type is that it needs to be possible to call
+     * Utilities::pack() and Utilities::unpack() on the object.
+     */
+    template <typename T>
+    Future<void>
+    isend(const T &          object,
+          MPI_Comm           communicator,
+          const unsigned int target_rank,
+          const unsigned int mpi_tag = 0);
+
+
+    /**
+     * A function that encodes an MPI "receive" function for an object
+     * whose type is represented by the template argument. The object
+     * is expected to be sent by the MPI process indicated by the given
+     * `source_rank`. This function is "immediate" (corresponding to the
+     * `MPI_Irecv` or a variant of this function),
+     * i.e., it immediately returns rather than waiting
+     * for the receive operation to succeed. Instead, it returns a
+     * Future object that can be used to wait for the send operation
+     * to complete, and then to obtain the object received via the
+     * Future::get() function.
+     *
+     * Unlike `MPI_Irecv`, the object to be received may be of any
+     * type on which one can call Utilities::pack() and Utilities::unpack(),
+     * not just those natively supported by MPI.
+     */
+    template <typename T>
+    Future<T>
+    irecv(MPI_Comm           communicator,
+          const unsigned int source_rank,
+          const unsigned int mpi_tag = 0);
+
 
     /**
      * Given a partitioned index set space, compute the owning MPI process rank
@@ -1348,7 +1528,7 @@ namespace Utilities
     std::vector<unsigned int>
     compute_index_owner(const IndexSet &owned_indices,
                         const IndexSet &indices_to_look_up,
-                        const MPI_Comm &comm);
+                        const MPI_Comm  comm);
 
     /**
      * Compute the union of the input vectors @p vec of all processes in the
@@ -1359,14 +1539,14 @@ namespace Utilities
      */
     template <typename T>
     std::vector<T>
-    compute_set_union(const std::vector<T> &vec, const MPI_Comm &comm);
+    compute_set_union(const std::vector<T> &vec, const MPI_Comm comm);
 
     /**
      * The same as above but for std::set.
      */
     template <typename T>
     std::set<T>
-    compute_set_union(const std::set<T> &set, const MPI_Comm &comm);
+    compute_set_union(const std::set<T> &set, const MPI_Comm comm);
 
 
 
@@ -1561,16 +1741,70 @@ namespace Utilities
       void
       all_reduce(const MPI_Op &            mpi_op,
                  const ArrayView<const T> &values,
-                 const MPI_Comm &          mpi_communicator,
+                 const MPI_Comm            mpi_communicator,
                  const ArrayView<T> &      output);
     } // namespace internal
 
 
+    template <typename T>
+    template <typename W, typename G>
+    Future<T>::Future(W &&wait_operation, G &&get_and_cleanup_operation)
+      : wait_function(wait_operation)
+      , get_and_cleanup_function(get_and_cleanup_operation)
+      , is_done(false)
+      , get_was_called(false)
+    {}
 
-    // Since these depend on N they must live in the header file
+
+
+    template <typename T>
+    Future<T>::~Future()
+    {
+      // If there is a clean-up function, and if it has not been
+      // called yet, then do so. Note that we may not have a
+      // clean-up function (not even an empty one) if the current
+      // object has been moved from, into another object, and as
+      // a consequence the std::function objects are now empty
+      // even though they were initialized in the constructor.
+      // (A std::function object whose object is a an empty lambda
+      // function, [](){}, is not an empty std::function object.)
+      if ((get_was_called == false) && get_and_cleanup_function)
+        get();
+    }
+
+
+
+    template <typename T>
+    void
+    Future<T>::wait()
+    {
+      if (is_done == false)
+        {
+          wait_function();
+
+          is_done = true;
+        }
+    }
+
+
+    template <typename T>
+    T
+    Future<T>::get()
+    {
+      Assert(get_was_called == false,
+             ExcMessage(
+               "You can't call get() more than once on a Future object."));
+      get_was_called = true;
+
+      wait();
+      return get_and_cleanup_function();
+    }
+
+
+
     template <typename T, unsigned int N>
     void
-    sum(const T (&values)[N], const MPI_Comm &mpi_communicator, T (&sums)[N])
+    sum(const T (&values)[N], const MPI_Comm mpi_communicator, T (&sums)[N])
     {
       internal::all_reduce(MPI_SUM,
                            ArrayView<const T>(values, N),
@@ -1582,7 +1816,7 @@ namespace Utilities
 
     template <typename T, unsigned int N>
     void
-    max(const T (&values)[N], const MPI_Comm &mpi_communicator, T (&maxima)[N])
+    max(const T (&values)[N], const MPI_Comm mpi_communicator, T (&maxima)[N])
     {
       internal::all_reduce(MPI_MAX,
                            ArrayView<const T>(values, N),
@@ -1594,7 +1828,7 @@ namespace Utilities
 
     template <typename T, unsigned int N>
     void
-    min(const T (&values)[N], const MPI_Comm &mpi_communicator, T (&minima)[N])
+    min(const T (&values)[N], const MPI_Comm mpi_communicator, T (&minima)[N])
     {
       internal::all_reduce(MPI_MIN,
                            ArrayView<const T>(values, N),
@@ -1607,7 +1841,7 @@ namespace Utilities
     template <typename T, unsigned int N>
     void
     logical_or(const T (&values)[N],
-               const MPI_Comm &mpi_communicator,
+               const MPI_Comm mpi_communicator,
                T (&results)[N])
     {
       static_assert(std::is_integral<T>::value,
@@ -1623,7 +1857,7 @@ namespace Utilities
 
     template <typename T>
     std::map<unsigned int, T>
-    some_to_some(const MPI_Comm &                 comm,
+    some_to_some(const MPI_Comm                   comm,
                  const std::map<unsigned int, T> &objects_to_send)
     {
 #  ifndef DEAL_II_WITH_MPI
@@ -1739,7 +1973,7 @@ namespace Utilities
 
     template <typename T>
     std::vector<T>
-    all_gather(const MPI_Comm &comm, const T &object)
+    all_gather(const MPI_Comm comm, const T &object)
     {
       if (job_supports_mpi() == false)
         return {object};
@@ -1802,7 +2036,7 @@ namespace Utilities
 
     template <typename T>
     std::vector<T>
-    gather(const MPI_Comm &   comm,
+    gather(const MPI_Comm     comm,
            const T &          object_to_send,
            const unsigned int root_process)
     {
@@ -1884,11 +2118,86 @@ namespace Utilities
 
 
     template <typename T>
+    T
+    scatter(const MPI_Comm        comm,
+            const std::vector<T> &objects_to_send,
+            const unsigned int    root_process)
+    {
+#  ifndef DEAL_II_WITH_MPI
+      (void)comm;
+      (void)root_process;
+
+      AssertDimension(objects_to_send.size(), 1);
+
+      return objects_to_send[0];
+#  else
+      const auto n_procs = dealii::Utilities::MPI::n_mpi_processes(comm);
+      const auto my_rank = dealii::Utilities::MPI::this_mpi_process(comm);
+
+      AssertIndexRange(root_process, n_procs);
+      AssertThrow(
+        (my_rank != root_process && objects_to_send.size() == 0) ||
+          objects_to_send.size() == n_procs,
+        ExcMessage(
+          "The number of objects to be scattered must correspond to the number processes."));
+
+      std::vector<char> send_buffer;
+      std::vector<int>  send_counts;
+      std::vector<int>  send_displacements;
+
+      if (my_rank == root_process)
+        {
+          send_counts.resize(n_procs, 0);
+          send_displacements.resize(n_procs + 1, 0);
+
+          for (unsigned int i = 0; i < n_procs; ++i)
+            {
+              const auto packed_data = Utilities::pack(objects_to_send[i]);
+              send_buffer.insert(send_buffer.end(),
+                                 packed_data.begin(),
+                                 packed_data.end());
+              send_counts[i] = packed_data.size();
+            }
+
+          for (unsigned int i = 0; i < n_procs; ++i)
+            send_displacements[i + 1] = send_displacements[i] + send_counts[i];
+        }
+
+      int n_local_data;
+      int ierr = MPI_Scatter(send_counts.data(),
+                             1,
+                             MPI_INT,
+                             &n_local_data,
+                             1,
+                             MPI_INT,
+                             root_process,
+                             comm);
+      AssertThrowMPI(ierr);
+
+      std::vector<char> recv_buffer(n_local_data);
+
+      ierr = MPI_Scatterv(send_buffer.data(),
+                          send_counts.data(),
+                          send_displacements.data(),
+                          MPI_CHAR,
+                          recv_buffer.data(),
+                          n_local_data,
+                          MPI_CHAR,
+                          root_process,
+                          comm);
+      AssertThrowMPI(ierr);
+
+      return Utilities::unpack<T>(recv_buffer);
+#  endif
+    }
+
+
+    template <typename T>
     void
     broadcast(T *                buffer,
               const size_t       count,
               const unsigned int root,
-              const MPI_Comm &   comm)
+              const MPI_Comm     comm)
     {
 #  ifndef DEAL_II_WITH_MPI
       (void)buffer;
@@ -1923,8 +2232,8 @@ namespace Utilities
 
 
     template <typename T>
-    typename std::enable_if<is_mpi_type<T> == false, T>::type
-    broadcast(const MPI_Comm &   comm,
+    std::enable_if_t<is_mpi_type<T> == false, T>
+    broadcast(const MPI_Comm     comm,
               const T &          object_to_send,
               const unsigned int root_process)
     {
@@ -1973,8 +2282,8 @@ namespace Utilities
 
 
     template <typename T>
-    typename std::enable_if<is_mpi_type<T> == true, T>::type
-    broadcast(const MPI_Comm &   comm,
+    std::enable_if_t<is_mpi_type<T> == true, T>
+    broadcast(const MPI_Comm     comm,
               const T &          object_to_send,
               const unsigned int root_process)
     {
@@ -1994,13 +2303,147 @@ namespace Utilities
     }
 
 
+    template <typename T>
+    Future<void>
+    isend(const T &          object,
+          MPI_Comm           communicator,
+          const unsigned int target_rank,
+          const unsigned int mpi_tag)
+    {
+#  ifndef DEAL_II_WITH_MPI
+      Assert(false, ExcNeedsMPI());
+      (void)object;
+      (void)communicator;
+      (void)target_rank;
+      (void)mpi_tag;
+      return Future<void>([]() {}, []() {});
+#  else
+      // Create a pointer to a send buffer into which we pack the object
+      // to be sent. The buffer will be released by the Future object once
+      // the send has been verified to have succeeded.
+      //
+      // Conceptually, we would like this send buffer to be a
+      // std::unique_ptr object whose ownership is later handed over
+      // to the cleanup function. That has the disadvantage that the
+      // cleanup object is a non-copyable lambda capture, leading to
+      // awkward semantics. Instead, we use a std::shared_ptr; we move
+      // this shared pointer into the cleanup function, which means
+      // that there is exactly one shared pointer who owns the buffer
+      // at any given time, though the latter is not an important
+      // optimization.
+      std::shared_ptr<std::vector<char>> send_buffer =
+        std::make_unique<std::vector<char>>(Utilities::pack(object, false));
+
+      // Now start the send, and store the result in a request object that
+      // we can then wait for later:
+      MPI_Request request;
+      const int   ierr =
+        MPI_Isend(send_buffer->data(),
+                  send_buffer->size(),
+                  mpi_type_id_for_type<decltype(*send_buffer->data())>,
+                  target_rank,
+                  mpi_tag,
+                  communicator,
+                  &request);
+      AssertThrowMPI(ierr);
+
+      // Then return a std::future-like object that has a wait()
+      // function one can use to wait for the communication to finish,
+      // and that has a cleanup function to be called at some point
+      // after that makes sure the send buffer gets deallocated. This
+      // cleanup function takes over ownership of the send buffer.
+      //
+      // Note that the body of the lambda function of the clean-up
+      // function could be left empty. If that were so, once the
+      // lambda function object goes out of scope, the 'send_buffer'
+      // member of the closure object goes out of scope as well and so
+      // the send_buffer is destroyed. But we may want to release the
+      // buffer itself as early as possible, and so we clear the
+      // buffer when the Future::get() function is called.
+      auto wait = [request]() mutable {
+        const int ierr = MPI_Wait(&request, MPI_STATUS_IGNORE);
+        AssertThrowMPI(ierr);
+      };
+      auto cleanup = [send_buffer = std::move(send_buffer)]() {
+        send_buffer->clear();
+      };
+      return Future<void>(wait, cleanup);
+#  endif
+    }
+
+
+
+    template <typename T>
+    Future<T>
+    irecv(MPI_Comm           communicator,
+          const unsigned int source_rank,
+          const unsigned int mpi_tag)
+    {
+#  ifndef DEAL_II_WITH_MPI
+      Assert(false, ExcNeedsMPI());
+      (void)communicator;
+      (void)source_rank;
+      (void)mpi_tag;
+      return Future<void>([]() {}, []() { return T{}; });
+#  else
+      // Use a 'probe' operation for the 'wait' operation of the
+      // Future this function returns. It will trigger whenever we get
+      // the incoming message. Later, once we have received the message, we
+      // can query its size and allocate a receiver buffer.
+      //
+      // Since we may be waiting for multiple messages from the same
+      // incoming process (with possibly the same tag -- we can't
+      // know), we must make sure that the 'probe' operation we have
+      // here (and which we use to determine the buffer size) matches
+      // the 'recv' operation with which we actually get the data
+      // later on. This is exactly what the 'MPI_Mprobe' function and
+      // its 'I'mmediate variant is there for, coupled with the
+      // 'MPI_Mrecv' call that would put into the clean-up function
+      // below.
+      std::shared_ptr<MPI_Message> message = std::make_shared<MPI_Message>();
+      std::shared_ptr<MPI_Status>  status  = std::make_shared<MPI_Status>();
+
+      auto wait = [source_rank, mpi_tag, communicator, message, status]() {
+        const int ierr = MPI_Mprobe(
+          source_rank, mpi_tag, communicator, message.get(), status.get());
+        AssertThrowMPI(ierr);
+      };
+
+
+      // Now also define the function that actually gets the data:
+      auto get = [status, message]() {
+        int number_amount;
+        int ierr;
+        ierr = MPI_Get_count(status.get(), MPI_CHAR, &number_amount);
+        AssertThrowMPI(ierr);
+
+        std::vector<char> receive_buffer(number_amount);
+
+        // Then actually get the data, using the matching MPI_Mrecv to the above
+        // MPI_Mprobe:
+        ierr = MPI_Mrecv(receive_buffer.data(),
+                         number_amount,
+                         mpi_type_id_for_type<decltype(*receive_buffer.data())>,
+                         message.get(),
+                         status.get());
+        AssertThrowMPI(ierr);
+
+        // Return the unpacked object:
+        return Utilities::unpack<T>(receive_buffer, false);
+      };
+
+      return Future<T>(wait, get);
+#  endif
+    }
+
+
 
 #  ifdef DEAL_II_WITH_MPI
     template <class Iterator, typename Number>
     std::pair<Number, typename numbers::NumberTraits<Number>::real_type>
-    mean_and_standard_deviation(const Iterator  begin,
-                                const Iterator  end,
-                                const MPI_Comm &comm)
+    mean_and_standard_deviation(const Iterator begin,
+                                const Iterator end,
+                                const MPI_Comm comm)
     {
       // below we do simple and straight-forward implementation. More elaborate
       // options are:

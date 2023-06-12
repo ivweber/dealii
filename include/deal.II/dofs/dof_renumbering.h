@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,11 +24,15 @@
 
 #include <deal.II/dofs/dof_handler.h>
 
-#include <deal.II/hp/dof_handler.h>
-
 #include <vector>
 
 DEAL_II_NAMESPACE_OPEN
+
+#ifndef DOXYGEN
+// forward declaration
+template <int, typename, typename>
+class MatrixFree;
+#endif
 
 /**
  * Implementation of a number of renumbering algorithms for the degrees of
@@ -218,6 +222,15 @@ DEAL_II_NAMESPACE_OPEN
  * The random() function renumbers degrees of freedom randomly. This function
  * is probably seldom of use, except to check the dependence of solvers
  * (iterative or direct ones) on the numbering of the degrees of freedom.
+ *
+ *
+ * <h3>Renumbering DoFs for faster matrix-free computations</h3>
+ *
+ * The MatrixFree class provides optimized algorithms for interleaving
+ * operations on vectors before and after the access of the vector data in the
+ * respective loops. The algorithm matrix_free_data_locality() makes sure
+ * that all unknowns with a short distance between the first and last access
+ * are grouped together, in order to increase the spatial data locality.
  *
  *
  * <h3>A comparison of reordering strategies</h3>
@@ -685,7 +698,7 @@ namespace DoFRenumbering
   types::global_dof_index
   compute_component_wise(std::vector<types::global_dof_index> &new_dof_indices,
                          const CellIterator &                  start,
-                         const typename identity<CellIterator>::type &end,
+                         const std_cxx20::type_identity_t<CellIterator> &end,
                          const std::vector<unsigned int> &target_component,
                          const bool                       is_level_operation);
 
@@ -1214,6 +1227,149 @@ namespace DoFRenumbering
    * @}
    */
 
+  /**
+   * @name Numberings based on properties of the finite element space
+   * @{
+   */
+
+  /**
+   * Stably sort DoFs first by component and second by location of their support
+   * points, so that DoFs with the same support point are listed consecutively
+   * in the component order.
+   *
+   * The primary use of this ordering is that it enables one to interpret a
+   * vector of FE coefficients as a vector of tensors. For example, suppose `X`
+   * is a vector containing coordinates (i.e., the sort of vector one would use
+   * with MappingFEField) and `U` is a vector containing velocities in 2d. Then
+   * the `k`th support point is mapped to `{X[2*k], X[2*k + 1]}` and the
+   * velocity there is `{U[2*k], U[2*k + 1]}`. Hence, with this reordering, one
+   * can read solution data at each support point without additional indexing.
+   * This is useful for, e.g., passing vectors of FE coefficients to external
+   * libraries which expect nodal data in this format.
+   *
+   * @warning This function only supports finite elements which have the same
+   * number of DoFs in each component. This is checked with an assertion.
+   *
+   * @note This renumbering assumes that the base elements of each vector-valued
+   * element in @p dof_handler are numbered in the way FESystem currently
+   * distributes DoFs: i.e., for a given support point, the global dof indices
+   * for component i should be less than the global dof indices for component i
+   * + 1. Due to various technical complications (like DoF unification in
+   * hp-mode) this assumption needs to be satisfied for this function to work in
+   * all relevant cases.
+   */
+  template <int dim, int spacedim>
+  void
+  support_point_wise(DoFHandler<dim, spacedim> &dof_handler);
+
+  /**
+   * Compute the renumbering vector needed by the support_point_wise() function.
+   * Does not perform the renumbering on the @p DoFHandler dofs but returns the
+   * renumbering vector.
+   */
+  template <int dim, int spacedim>
+  void
+  compute_support_point_wise(
+    std::vector<types::global_dof_index> &new_dof_indices,
+    const DoFHandler<dim, spacedim> &     dof_handler);
+
+  /**
+   * @}
+   */
+
+  /**
+   * @name Numberings for better performance with the MatrixFree infrastructure
+   * @{
+   */
+
+  /**
+   * Sort DoFs by their appearance in matrix-free loops in order to increase
+   * data locality when accessing solution vectors with shared DoFs. More
+   * specifically, this renumbering strategy will group DoFs touched only on a
+   * single group of cells (as traversed by a MatrixFree::cell_loop()) nearby,
+   * whereas DoFs touched far apart through the loop over cells are grouped
+   * separately. This approach allows to interleave operations before and
+   * after the cell operations while data is still hot in caches for most
+   * parts of the vector. Since DoFs subject to ghost exchange will also
+   * have far reach, they will also be grouped separately. Currently, this
+   * function only works for finite elements of type FE_Q as well as systems of
+   * a single FE_Q element.
+   *
+   * This function needs to be given a `matrix_free` object with the indices
+   * set up, in order to determine the order in which cells are passed
+   * through. Note that it is necessary to set up constraints and MatrixFree
+   * again after renumbering, so there is no need to set up the mapping
+   * information for this point, see
+   * MatrixFree::AdditionalData::initialize_mapping. As MatrixFree allows to
+   * be set up with multiple DoFHandler objects, the DoFHandler additionally
+   * passed in is used to identify the correct DoFHandler. There is also an
+   * alternative renumbering function with the same name that only takes the
+   * MatrixFree::AdditionalData to identify the indices; which that function
+   * is to be preferred when only a single DoFHandler is involved, cases with
+   * multiple DoFHandler objects in MatrixFree need to choose this function,
+   * as the order of how cells get passed through depends on the indices on
+   * all cells.
+   *
+   * @note This functions can compute a new order both on the active cells and
+   * the level cells, using information in the MatrixFree::get_mg_level()
+   * function.
+   */
+  template <int dim,
+            int spacedim,
+            typename Number,
+            typename VectorizedArrayType>
+  void
+  matrix_free_data_locality(
+    DoFHandler<dim, spacedim> &                         dof_handler,
+    const MatrixFree<dim, Number, VectorizedArrayType> &matrix_free);
+
+  /**
+   * Same function as the one above, but taking a MatrixFree::AdditionalData
+   * object instead. This allows for easier and cheaper computation of the new
+   * numbering in case only a single DoFHandler will be present in the final
+   * MatrixFree object. In order to determine the relevant constraints of the
+   * matrix-free loop, the AffineConstraints objects also passed to MatrixFree
+   * needs to be provided. Furthermore, it is possible to set a multigrid
+   * level by MatrixFree::AdditionalData::mg_level.
+   */
+  template <int dim, int spacedim, typename Number, typename AdditionalDataType>
+  void
+  matrix_free_data_locality(
+    DoFHandler<dim, spacedim> &      dof_handler,
+    const AffineConstraints<Number> &constraints,
+    const AdditionalDataType &       matrix_free_additional_data);
+
+  /**
+   * Compute the renumbering vector needed by the matrix_free_data_locality()
+   * function.
+   * Does not perform the renumbering on the @p DoFHandler dofs but returns the
+   * renumbering vector.
+   */
+  template <int dim,
+            int spacedim,
+            typename Number,
+            typename VectorizedArrayType>
+  std::vector<types::global_dof_index>
+  compute_matrix_free_data_locality(
+    const DoFHandler<dim, spacedim> &                   dof_handler,
+    const MatrixFree<dim, Number, VectorizedArrayType> &matrix_free);
+
+  /**
+   * Compute the renumbering vector needed by the matrix_free_data_locality()
+   * function.
+   * Does not perform the renumbering on the @p DoFHandler dofs but returns the
+   * renumbering vector.
+   */
+  template <int dim, int spacedim, typename Number, typename AdditionalDataType>
+  std::vector<types::global_dof_index>
+  compute_matrix_free_data_locality(
+    const DoFHandler<dim, spacedim> &dof_handler,
+    const AffineConstraints<Number> &constraints,
+    const AdditionalDataType &       matrix_free_additional_data);
+
+  /**
+   * @}
+   */
 
 
   /**

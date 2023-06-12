@@ -122,7 +122,7 @@ template <int dim>
 void
 FE_ABF<dim>::initialize_quad_dof_index_permutation_and_sign_change()
 {
-  // for 1D and 2D, do nothing
+  // for 1d and 2d, do nothing
   if (dim < 3)
     return;
 
@@ -300,7 +300,7 @@ FE_ABF<dim>::initialize_support_points(const unsigned int deg)
   // Additional functionality for the ABF elements
   // TODO: Here the canonical extension of the principle
   // behind the ABF elements is implemented. It is unclear,
-  // if this really leads to the ABF spaces in 3D!
+  // if this really leads to the ABF spaces in 3d!
   interior_weights_abf.reinit(TableIndices<3>(cell_quadrature.size(),
                                               polynomials_abf[0]->n() * dim,
                                               dim));
@@ -354,7 +354,7 @@ FE_ABF<dim>::initialize_restriction()
   const unsigned int n_face_points = q_base.size();
   // First, compute interpolation on
   // subfaces
-  for (unsigned int face : GeometryInfo<dim>::face_indices())
+  for (const unsigned int face : GeometryInfo<dim>::face_indices())
     {
       // The shape functions of the
       // child cell are evaluated
@@ -577,7 +577,7 @@ FE_ABF<dim>::convert_generalized_support_point_values_to_dof_values(
   std::fill(nodal_values.begin(), nodal_values.end(), 0.);
 
   const unsigned int n_face_points = boundary_weights.size(0);
-  for (unsigned int face : GeometryInfo<dim>::face_indices())
+  for (const unsigned int face : GeometryInfo<dim>::face_indices())
     for (unsigned int k = 0; k < n_face_points; ++k)
       for (unsigned int i = 0; i < boundary_weights.size(1); ++i)
         {
@@ -616,13 +616,13 @@ FE_ABF<dim>::convert_generalized_support_point_values_to_dof_values(
           support_point_values[k + start_cell_points][d];
 
   // Face integral of ABF terms
-  for (unsigned int face : GeometryInfo<dim>::face_indices())
+  for (const unsigned int face : GeometryInfo<dim>::face_indices())
     {
       const double n_orient = GeometryInfo<dim>::unit_normal_orientation[face];
       for (unsigned int fp = 0; fp < n_face_points; ++fp)
         {
           // TODO: Check what the face_orientation, face_flip and face_rotation
-          // have to be in 3D
+          // have to be in 3d
           unsigned int k = QProjector<dim>::DataSetDescriptor::face(
             this->reference_cell(), face, false, false, false, n_face_points);
           for (unsigned int i = 0; i < boundary_weights_abf.size(1); ++i)

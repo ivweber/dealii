@@ -24,6 +24,7 @@
 #include <deal.II/distributed/tria.h>
 
 #include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_tools.h>
 
@@ -81,7 +82,7 @@ test()
     (update_gradients | update_JxW_values);
 
   MatrixFree<dim> mf_data;
-  mf_data.reinit(dof, constraints, quad, data);
+  mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
 
   LinearAlgebra::distributed::Vector<double> rhs, sol;
   mf_data.initialize_dof_vector(rhs);

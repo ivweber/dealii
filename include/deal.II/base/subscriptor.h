@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,6 @@
 #include <deal.II/base/exceptions.h>
 
 #include <atomic>
-#include <cstring>
 #include <map>
 #include <mutex>
 #include <string>
@@ -37,7 +36,7 @@ DEAL_II_NAMESPACE_OPEN
  * This class, as a base class, allows to keep track of other objects using a
  * specific object. It is used to avoid that pointers that point to an object of
  * a class derived from Subscriptor are referenced after that object has been
- * invalidated. Here, invalidation is assumend to happen when the object is
+ * invalidated. Here, invalidation is assumed to happen when the object is
  * moved from or destroyed.
  * The mechanism works as follows: The member function subscribe() accepts a
  * pointer to a boolean that is modified on invalidation. The object that owns
@@ -107,8 +106,8 @@ public:
    *
    * Classes derived from Subscriptor provide a facility to subscribe to this
    * object. This is mostly used by the SmartPointer class.
+   * @{
    */
-  // @{
 
   /**
    * Subscribes a user of the object by storing the pointer @p validity. The
@@ -149,7 +148,7 @@ public:
   void
   list_subscribers() const;
 
-  // @}
+  /** @} */
 
   /**
    * @addtogroup Exceptions
@@ -182,7 +181,7 @@ public:
                  << "No subscriber with identifier <" << arg2
                  << "> subscribes to this object of class " << arg1
                  << ". Consequently, it cannot be unsubscribed.");
-  //@}
+  /** @} */
 
   /**
    * Read or write the data of this object to or from a stream for the purpose

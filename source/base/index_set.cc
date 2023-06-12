@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,6 +16,8 @@
 #include <deal.II/base/index_set.h>
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/mpi.h>
+
+#include <deal.II/lac/exceptions.h>
 
 #include <vector>
 
@@ -384,6 +386,57 @@ IndexSet::pop_front()
 
 
 void
+IndexSet::add_range_lower_bound(const Range &new_range)
+{
+  ranges.insert(Utilities::lower_bound(ranges.begin(), ranges.end(), new_range),
+                new_range);
+}
+
+
+
+void
+IndexSet::add_ranges_internal(
+  boost::container::small_vector<std::pair<size_type, size_type>, 200>
+    &        tmp_ranges,
+  const bool ranges_are_sorted)
+{
+  if (!ranges_are_sorted)
+    std::sort(tmp_ranges.begin(), tmp_ranges.end());
+
+  // if we have many ranges, we first construct a temporary index set (where
+  // we add ranges in a consecutive way, so fast), otherwise, we work with
+  // add_range(). the number 9 is chosen heuristically given the fact that
+  // there are typically up to 8 independent ranges when adding the degrees of
+  // freedom on a 3d cell or 9 when adding degrees of freedom of faces. if
+  // doing cell-by-cell additions, we want to avoid repeated calls to
+  // IndexSet::compress() which gets called upon merging two index sets, so we
+  // want to be in the other branch then.
+  if (tmp_ranges.size() > 9)
+    {
+      IndexSet tmp_set(size());
+      tmp_set.ranges.reserve(tmp_ranges.size());
+      for (const auto &i : tmp_ranges)
+        tmp_set.add_range(i.first, i.second);
+
+      // Case if we have zero or just one range: Add into the other set with
+      // its indices, as that is cheaper
+      if (this->ranges.size() <= 1)
+        {
+          if (this->ranges.size() == 1)
+            tmp_set.add_range(ranges[0].begin, ranges[0].end);
+          std::swap(*this, tmp_set);
+        }
+      else
+        this->add_indices(tmp_set);
+    }
+  else
+    for (const auto &i : tmp_ranges)
+      add_range(i.first, i.second);
+}
+
+
+
+void
 IndexSet::add_indices(const IndexSet &other, const size_type offset)
 {
   if ((this == &other) && (offset == 0))
@@ -508,12 +561,137 @@ IndexSet::block_read(std::istream &in)
 
 
 
-void
-IndexSet::fill_index_vector(std::vector<size_type> &indices) const
+bool
+IndexSet::is_element_binary_search(const size_type index) const
+{
+  // get the element after which we would have to insert a range that
+  // consists of all elements from this element to the end of the index
+  // range plus one. after this call we know that if p!=end() then
+  // p->begin<=index unless there is no such range at all
+  //
+  // if the searched for element is an element of this range, then we're
+  // done. otherwise, the element can't be in one of the following ranges
+  // because otherwise p would be a different iterator
+  //
+  // since we already know the position relative to the largest range (we
+  // called compress!), we can perform the binary search on ranges with
+  // lower/higher number compared to the largest range
+  std::vector<Range>::const_iterator p = std::upper_bound(
+    ranges.begin() +
+      (index < ranges[largest_range].begin ? 0 : largest_range + 1),
+    index < ranges[largest_range].begin ? ranges.begin() + largest_range :
+                                          ranges.end(),
+    Range(index, size() + 1));
+
+  if (p == ranges.begin())
+    return ((index >= p->begin) && (index < p->end));
+
+  Assert((p == ranges.end()) || (p->begin > index), ExcInternalError());
+
+  // now move to that previous range
+  --p;
+  Assert(p->begin <= index, ExcInternalError());
+
+  return (p->end > index);
+}
+
+
+
+IndexSet::size_type
+IndexSet::nth_index_in_set_binary_search(const size_type n) const
+{
+  // find out which chunk the local index n belongs to by using a binary
+  // search. the comparator is based on the end of the ranges.
+  Range r(n, n + 1);
+  r.nth_index_in_set = n;
+
+  const std::vector<Range>::const_iterator p = Utilities::lower_bound(
+    ranges.begin(), ranges.end(), r, Range::nth_index_compare);
+
+  Assert(p != ranges.end(), ExcInternalError());
+  return p->begin + (n - p->nth_index_in_set);
+}
+
+
+
+IndexSet::size_type
+IndexSet::index_within_set_binary_search(const size_type n) const
+{
+  // we could try to use the main range for splitting up the search range, but
+  // since we only come here when the largest range did not contain the index,
+  // there is little gain from doing a first step manually.
+  Range                              r(n, n);
+  std::vector<Range>::const_iterator p =
+    Utilities::lower_bound(ranges.begin(), ranges.end(), r, Range::end_compare);
+
+  // if n is not in this set
+  if (p == ranges.end() || p->end == n || p->begin > n)
+    return numbers::invalid_dof_index;
+
+  Assert(p != ranges.end(), ExcInternalError());
+  Assert(p->begin <= n, ExcInternalError());
+  Assert(n < p->end, ExcInternalError());
+  return (n - p->begin) + p->nth_index_in_set;
+}
+
+
+
+IndexSet::ElementIterator
+IndexSet::at(const size_type global_index) const
+{
+  compress();
+  AssertIndexRange(global_index, size());
+
+  if (ranges.empty())
+    return end();
+
+  std::vector<Range>::const_iterator main_range =
+    ranges.begin() + largest_range;
+
+  Range r(global_index, global_index + 1);
+  // This optimization makes the bounds for lower_bound smaller by checking
+  // the largest range first.
+  std::vector<Range>::const_iterator range_begin, range_end;
+  if (global_index < main_range->begin)
+    {
+      range_begin = ranges.begin();
+      range_end   = main_range;
+    }
+  else
+    {
+      range_begin = main_range;
+      range_end   = ranges.end();
+    }
+
+  // This will give us the first range p=[a,b[ with b>=global_index using
+  // a binary search
+  const std::vector<Range>::const_iterator p =
+    Utilities::lower_bound(range_begin, range_end, r, Range::end_compare);
+
+  // We couldn't find a range, which means we have no range that contains
+  // global_index and also no range behind it, meaning we need to return end().
+  if (p == ranges.end())
+    return end();
+
+  // Finally, we can have two cases: Either global_index is not in [a,b[,
+  // which means we need to return an iterator to a because global_index, ...,
+  // a-1 is not in the IndexSet (if branch). Alternatively, global_index is in
+  // [a,b[ and we will return an iterator pointing directly at global_index
+  // (else branch).
+  if (global_index < p->begin)
+    return {this, static_cast<size_type>(p - ranges.begin()), p->begin};
+  else
+    return {this, static_cast<size_type>(p - ranges.begin()), global_index};
+}
+
+
+
+std::vector<IndexSet::size_type>
+IndexSet::get_index_vector() const
 {
   compress();
 
-  indices.clear();
+  std::vector<size_type> indices;
   indices.reserve(n_elements());
 
   for (const auto &range : ranges)
@@ -521,6 +699,16 @@ IndexSet::fill_index_vector(std::vector<size_type> &indices) const
       indices.push_back(entry);
 
   Assert(indices.size() == n_elements(), ExcInternalError());
+
+  return indices;
+}
+
+
+
+void
+IndexSet::fill_index_vector(std::vector<size_type> &indices) const
+{
+  indices = get_index_vector();
 }
 
 
@@ -528,9 +716,9 @@ IndexSet::fill_index_vector(std::vector<size_type> &indices) const
 #ifdef DEAL_II_WITH_TRILINOS
 #  ifdef DEAL_II_TRILINOS_WITH_TPETRA
 
-Tpetra::Map<int, types::global_dof_index>
-IndexSet::make_tpetra_map(const MPI_Comm &communicator,
-                          const bool      overlapping) const
+Tpetra::Map<int, types::signed_global_dof_index>
+IndexSet::make_tpetra_map(const MPI_Comm communicator,
+                          const bool     overlapping) const
 {
   compress();
   (void)communicator;
@@ -564,7 +752,7 @@ IndexSet::make_tpetra_map(const MPI_Comm &communicator,
   const bool linear =
     overlapping ? false : is_ascending_and_one_to_one(communicator);
   if (linear)
-    return Tpetra::Map<int, types::global_dof_index>(
+    return Tpetra::Map<int, types::signed_global_dof_index>(
       size(),
       n_elements(),
       0,
@@ -576,12 +764,12 @@ IndexSet::make_tpetra_map(const MPI_Comm &communicator,
     );
   else
     {
-      std::vector<size_type> indices;
-      fill_index_vector(indices);
-      std::vector<types::global_dof_index> int_indices(indices.size());
+      const std::vector<size_type>                indices = get_index_vector();
+      std::vector<types::signed_global_dof_index> int_indices(indices.size());
       std::copy(indices.begin(), indices.end(), int_indices.begin());
-      const Teuchos::ArrayView<types::global_dof_index> arr_view(int_indices);
-      return Tpetra::Map<int, types::global_dof_index>(
+      const Teuchos::ArrayView<types::signed_global_dof_index> arr_view(
+        int_indices);
+      return Tpetra::Map<int, types::signed_global_dof_index>(
         size(),
         arr_view,
         0,
@@ -598,8 +786,8 @@ IndexSet::make_tpetra_map(const MPI_Comm &communicator,
 
 
 Epetra_Map
-IndexSet::make_trilinos_map(const MPI_Comm &communicator,
-                            const bool      overlapping) const
+IndexSet::make_trilinos_map(const MPI_Comm communicator,
+                            const bool     overlapping) const
 {
   compress();
   (void)communicator;
@@ -645,13 +833,12 @@ IndexSet::make_trilinos_map(const MPI_Comm &communicator,
     );
   else
     {
-      std::vector<size_type> indices;
-      fill_index_vector(indices);
+      const std::vector<size_type> indices = get_index_vector();
       return Epetra_Map(
         TrilinosWrappers::types::int_type(-1),
         TrilinosWrappers::types::int_type(n_elements()),
         (n_elements() > 0 ?
-           reinterpret_cast<TrilinosWrappers::types::int_type *>(
+           reinterpret_cast<const TrilinosWrappers::types::int_type *>(
              indices.data()) :
            nullptr),
         0,
@@ -666,9 +853,29 @@ IndexSet::make_trilinos_map(const MPI_Comm &communicator,
 #endif
 
 
+#ifdef DEAL_II_WITH_PETSC
+IS
+IndexSet::make_petsc_is(const MPI_Comm communicator) const
+{
+  std::vector<size_type> indices;
+  fill_index_vector(indices);
+
+  PetscInt              n = indices.size();
+  std::vector<PetscInt> pindices(indices.begin(), indices.end());
+
+  IS             is;
+  PetscErrorCode ierr =
+    ISCreateGeneral(communicator, n, pindices.data(), PETSC_COPY_VALUES, &is);
+  AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+  return is;
+}
+#endif
+
+
 
 bool
-IndexSet::is_ascending_and_one_to_one(const MPI_Comm &communicator) const
+IndexSet::is_ascending_and_one_to_one(const MPI_Comm communicator) const
 {
   // If the sum of local elements does not add up to the total size,
   // the IndexSet can't be complete.

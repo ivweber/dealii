@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2020 by the deal.II authors
+## Copyright (C) 2012 - 2021 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,9 +13,7 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
   fe_immersed_values.cc
   fe_values.cc
   mesh_classifier.cc
@@ -24,7 +22,7 @@ SET(_src
   immersed_surface_quadrature.cc
   )
 
-  SET(_inst
+  set(_inst
   fe_immersed_values.inst.in
   fe_values.inst.in
   mesh_classifier.inst.in
@@ -32,9 +30,9 @@ SET(_src
   coupling.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/non_matching/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_non_matching OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_non_matching "${_inst}")
+define_object_library(object_non_matching OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_non_matching "${_inst}")

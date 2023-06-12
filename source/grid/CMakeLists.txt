@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2020 by the deal.II authors
+## Copyright (C) 2012 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,9 +13,23 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
+#
+# Work around an issue where gcc emits a note that the warning
+# -Wmisleading-indentation will be disabled due to a humongous line of over
+# 100k characters produced by one of the CGAL headers. Unfortunately,
+# guarding the include by DEAL_II_DISABLE_EXTRA_DIAGNOSTICS is not enough
+# due to a longstanding bug in gcc. Thus, simply set
+# -Wno-misleading-indentation on the command line for the
+# grid_generator_cgal.cc compilation unit.
+#
+if(DEAL_II_WITH_CGAL)
+  enable_if_supported(_flag "-Wno-misleading-indentation")
+  set_property(SOURCE "grid_generator_cgal.cc"
+    APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flag}"
+    )
+endif()
 
-SET(_unity_include_src
+set(_unity_include_src
   cell_id.cc
   grid_refinement.cc
   grid_reordering.cc
@@ -31,32 +45,34 @@ SET(_unity_include_src
   tria_objects.cc
   )
 
-SET(_separate_src
+set(_separate_src
+  grid_generator.cc
+  grid_generator_cgal.cc
   grid_generator_from_name.cc
+  grid_generator_pipe_junction.cc
   grid_in.cc
   grid_out.cc
-  grid_generator.cc
-  grid_generator_pipe_junction.cc
-  grid_tools.cc
   grid_tools_cache.cc
-  grid_tools_nontemplates.cc
+  grid_tools.cc
   grid_tools_dof_handlers.cc
+  grid_tools_nontemplates.cc
   tria.cc
   )
 
 # include all files in the unity file
-SET(_n_includes_per_unity_file 20)
+set(_n_includes_per_unity_file 20)
 
-SETUP_SOURCE_LIST("${_unity_include_src}"
+setup_source_list("${_unity_include_src}"
   "${_separate_src}"
   ${_n_includes_per_unity_file}
   _src
   )
 
-SET(_inst
+set(_inst
   cell_id.inst.in
-  grid_generator.inst.in
+  grid_generator_cgal.inst.in
   grid_generator_from_name.inst.in
+  grid_generator.inst.in
   grid_generator_pipe_junction.inst.in
   grid_in.inst.in
   grid_out.inst.in
@@ -74,9 +90,9 @@ SET(_inst
   tria_objects.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/grid/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_grid OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_grid "${_inst}")
+define_object_library(object_grid OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_grid "${_inst}")

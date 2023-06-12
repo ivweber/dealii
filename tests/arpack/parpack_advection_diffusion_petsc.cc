@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2020 by the deal.II authors
+ * Copyright (C) 2009 - 2021 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -113,8 +113,8 @@ class PETScInverse
 public:
   PETScInverse(const dealii::PETScWrappers::MatrixBase &A,
                dealii::SolverControl &                  cn,
-               const MPI_Comm &mpi_communicator = PETSC_COMM_SELF)
-    : solver(cn, mpi_communicator)
+               const MPI_Comm mpi_communicator = PETSC_COMM_SELF)
+    : solver(cn)
     , matrix(A)
     , preconditioner(matrix)
   {}

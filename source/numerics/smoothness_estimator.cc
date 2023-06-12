@@ -16,11 +16,12 @@
 #include <deal.II/base/quadrature.h>
 #include <deal.II/base/signaling_nan.h>
 
+#include <deal.II/dofs/dof_handler.h>
+
 #include <deal.II/fe/fe_series.h>
 
 #include <deal.II/grid/filtered_iterator.h>
 
-#include <deal.II/hp/dof_handler.h>
 #include <deal.II/hp/q_collection.h>
 
 #include <deal.II/lac/block_vector.h>
@@ -81,7 +82,7 @@ namespace SmoothnessEstimator
        * highest absolute value, i.e. $l^\infty$-norm. The <code>bool</code>
        * parameter defines which indices should be used in processing. In the
        * current case we are interested in coefficients which correspond to $0
-       * <= i+j < N$ and $0 <= i+j+k < N$ in 2D and 3D, respectively.
+       * <= i+j < N$ and $0 <= i+j+k < N$ in 2d and 3d, respectively.
        */
       template <int dim>
       std::pair<bool, unsigned int>
@@ -346,7 +347,7 @@ namespace SmoothnessEstimator
        * value, i.e. $l^\infty$-norm. The <code>bool</code> parameter defines
        * which indices should be used in processing. In the current case we are
        * interested in coefficients which correspond to $0 < i^2+j^2 < N^2$ and
-       * $0 < i^2+j^2+k^2 < N^2$ in 2D and 3D, respectively.
+       * $0 < i^2+j^2+k^2 < N^2$ in 2d and 3d, respectively.
        */
       template <int dim>
       std::pair<bool, unsigned int>

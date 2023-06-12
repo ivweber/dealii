@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,9 +40,6 @@
 // 1: continuous refinement of the unit square always in the middle
 // 2: refinement of the circle at the boundary
 // 2: refinement of a wiggled area at the boundary
-
-std::ofstream logfile("output");
-
 
 template <int dim>
 class Ball : public FlatManifold<dim>
@@ -153,13 +150,13 @@ CurvedLine<dim>::get_new_point_on_quad(
 {
   Point<dim> middle = FlatManifold<dim>::get_new_point_on_quad(quad);
 
-  // if the face is at the top of bottom
+  // if the face is at the top or bottom
   // face: do not move the midpoint in
   // x/y direction. Note that if the
   // z-value of the midpoint is either
   // 0 or 1, then the z-values of all
   // vertices of the quad is like that
-  if (dim == 3 && (middle(dim - 1) == 0) || (middle(dim - 1) == 1))
+  if (dim == 3 && ((middle(dim - 1) == 0) || (middle(dim - 1) == 1)))
     return middle;
 
   double x = middle(0), y = middle(1);
@@ -325,7 +322,7 @@ TestCases<dim>::run(const unsigned int test_case)
   int unconstrained_bandwidth = sparsity.bandwidth();
 
   deallog << "    Writing sparsity pattern..." << std::endl;
-  sparsity.print_gnuplot(logfile);
+  sparsity.print_gnuplot(deallog.get_file_stream());
 
 
   // computing constraints
@@ -336,7 +333,7 @@ TestCases<dim>::run(const unsigned int test_case)
   constraints.condense(sparsity);
 
   deallog << "    Writing condensed sparsity pattern..." << std::endl;
-  sparsity.print_gnuplot(logfile);
+  sparsity.print_gnuplot(deallog.get_file_stream());
 
 
   deallog << std::endl
@@ -364,7 +361,7 @@ TestCases<dim>::run(const unsigned int test_case)
 int
 main()
 {
-  deallog.attach(logfile);
+  initlog();
 
   for (unsigned int test_case = 1; test_case <= 2; ++test_case)
     {

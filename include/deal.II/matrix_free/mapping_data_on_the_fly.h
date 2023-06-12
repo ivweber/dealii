@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -131,7 +131,7 @@ namespace internal
       get_data_storage();
 
       /**
-       * Return a reference to 1D quadrature underlying this object.
+       * Return a reference to 1d quadrature underlying this object.
        */
       const Quadrature<1> &
       get_quadrature() const;
@@ -155,7 +155,7 @@ namespace internal
       std::unique_ptr<dealii::FEValues<dim>> fe_values;
 
       /**
-       * Get 1D quadrature formula to be used for reinitializing shape info.
+       * Get 1d quadrature formula to be used for reinitializing shape info.
        */
       const Quadrature<1> quadrature_1d;
 
@@ -187,7 +187,7 @@ namespace internal
       mapping_info_storage.data_index_offsets.resize(1);
       mapping_info_storage.JxW_values.resize(fe_values->n_quadrature_points);
       mapping_info_storage.jacobians[0].resize(fe_values->n_quadrature_points);
-      if ((update_flags & update_quadrature_points) != 0u)
+      if (update_flags & update_quadrature_points)
         {
           mapping_info_storage.quadrature_point_offsets.resize(1, 0);
           mapping_info_storage.quadrature_points.resize(

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,9 @@
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/vectorization.h>
 
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/lac/sparsity_pattern.h>
+
 #include <deal.II/matrix_free/dof_info.templates.h>
 
 #include <iostream>
@@ -28,6 +31,13 @@ namespace internal
 {
   namespace MatrixFreeFunctions
   {
+    // ensure that the type defined in both dof_info.h and
+    // hanging_nodes_internal.h is consistent
+    static_assert(std::is_same<compressed_constraint_kind, std::uint8_t>::value,
+                  "Unexpected type for compressed hanging node indicators!");
+
+
+
     DoFInfo::DoFInfo()
     {
       clear();
@@ -46,7 +56,6 @@ namespace internal
       dofs_per_cell.clear();
       dofs_per_face.clear();
       vectorization_length       = 1;
-      dimension                  = 2;
       global_base_element_offset = 0;
       n_base_elements            = 0;
       n_components.clear();
@@ -106,7 +115,7 @@ namespace internal
             (hanging_node_constraint_masks.size() != 0 &&
              hanging_node_constraint_masks_comp.size() != 0 &&
              hanging_node_constraint_masks[cell * n_vectorization + v] !=
-               ConstraintKinds::unconstrained &&
+               unconstrained_compressed_constraint_kind &&
              hanging_node_constraint_masks_comp[fe_index][0 /*TODO*/]) ||
             (row_starts[ib].second != row_starts[ib + n_fe_components].second);
 
@@ -144,7 +153,7 @@ namespace internal
 
     void
     DoFInfo::assign_ghosts(const std::vector<unsigned int> &boundary_cells,
-                           const MPI_Comm &                 communicator_sm,
+                           const MPI_Comm                   communicator_sm,
                            const bool use_vector_data_exchanger_full)
     {
       Assert(boundary_cells.size() < row_starts.size(), ExcInternalError());
@@ -238,7 +247,7 @@ namespace internal
                   if (hanging_node_constraint_masks.size() > 0 &&
                       hanging_node_constraint_masks_comp.size() > 0 &&
                       hanging_node_constraint_masks[boundary_cells[i]] !=
-                        ConstraintKinds::unconstrained)
+                        unconstrained_compressed_constraint_kind)
                     for (unsigned int comp = 0; comp < n_components; ++comp)
                       has_hanging_nodes |=
                         hanging_node_constraint_masks_comp[fe_index][comp];
@@ -341,7 +350,7 @@ namespace internal
       new_dof_indices.reserve(dof_indices.size());
       new_constraint_indicator.reserve(constraint_indicator.size());
 
-      std::vector<ConstraintKinds> new_hanging_node_constraint_masks;
+      std::vector<compressed_constraint_kind> new_hanging_node_constraint_masks;
       new_hanging_node_constraint_masks.reserve(
         hanging_node_constraint_masks.size());
 
@@ -384,7 +393,7 @@ namespace internal
                                                               j]];
                   new_hanging_node_constraint_masks.push_back(mask);
 
-                  if (mask != ConstraintKinds::unconstrained)
+                  if (mask != unconstrained_compressed_constraint_kind)
                     for (unsigned int comp = 0; comp < n_components; ++comp)
                       has_hanging_nodes |= hanging_node_constraint_masks_comp
                         [have_hp ? cell_active_fe_index[i] : 0][comp];
@@ -439,7 +448,7 @@ namespace internal
           for (unsigned int j = n_vect; j < vectorization_length; ++j)
             if (hanging_node_constraint_masks.size() > 0)
               new_hanging_node_constraint_masks.push_back(
-                ConstraintKinds::unconstrained);
+                unconstrained_compressed_constraint_kind);
 
           position_cell += n_vect;
         }
@@ -605,7 +614,9 @@ namespace internal
                 const unsigned int *dof_indices =
                   this->dof_indices.data() +
                   row_starts[i * vectorization_length * n_components].first;
-                for (unsigned int k = 0; k < ndofs; ++k)
+                for (unsigned int k = 0;
+                     k < ndofs && indices_are_interleaved_and_contiguous;
+                     ++k)
                   for (unsigned int j = 0; j < n_comp; ++j)
                     if (dof_indices[j * ndofs + k] !=
                         dof_indices[0] + k * n_comp + j)
@@ -621,10 +632,12 @@ namespace internal
                   for (unsigned int j = 0; j < n_comp; ++j)
                     dof_indices_contiguous
                       [dof_access_cell][i * vectorization_length + j] =
-                        this->dof_indices[row_starts[(i * vectorization_length +
-                                                      j) *
-                                                     n_components]
-                                            .first];
+                        this->dof_indices.size() == 0 ?
+                          0 :
+                          this->dof_indices
+                            [row_starts[(i * vectorization_length + j) *
+                                        n_components]
+                               .first];
                 }
 
               if (indices_are_interleaved_and_contiguous)
@@ -654,7 +667,9 @@ namespace internal
                   for (unsigned int j = 0; j < n_comp; ++j)
                     offsets[j] =
                       dof_indices[j * ndofs + 1] - dof_indices[j * ndofs];
-                  for (unsigned int k = 0; k < ndofs; ++k)
+                  for (unsigned int k = 0;
+                       k < ndofs && indices_are_interleaved_and_mixed != 0;
+                       ++k)
                     for (unsigned int j = 0; j < n_comp; ++j)
                       // the first if case is to avoid negative offsets
                       // (invalid)
@@ -703,19 +718,36 @@ namespace internal
                         index_storage_variants[dof_access_cell][i] =
                           IndexStorageVariants::full;
 
-                      // do not use interleaved storage if two vectorized
-                      // components point to the same field (scatter not
-                      // possible)
-                      for (unsigned int k = 0; k < ndofs; ++k)
-                        for (unsigned int l = 0; l < n_comp; ++l)
-                          for (unsigned int j = l + 1; j < n_comp; ++j)
-                            if (dof_indices[j * ndofs + k] ==
-                                dof_indices[l * ndofs + k])
-                              {
-                                index_storage_variants[dof_access_cell][i] =
-                                  IndexStorageVariants::full;
-                                break;
-                              }
+                      // do not use interleaved storage if two entries within
+                      // vectorized array point to the same index (scatter not
+                      // possible due to race condition)
+                      for (const unsigned int *indices = dof_indices;
+                           indices != dof_indices + ndofs;
+                           ++indices)
+                        {
+                          bool         is_sorted = true;
+                          unsigned int previous  = indices[0];
+                          for (unsigned int l = 1; l < n_comp; ++l)
+                            {
+                              const unsigned int current = indices[l * ndofs];
+                              if (current <= previous)
+                                is_sorted = false;
+
+                              // the simple check failed, must compare all
+                              // indices manually - due to short sizes this
+                              // O(n^2) algorithm is better than sorting
+                              if (!is_sorted)
+                                for (unsigned int j = 0; j < l; ++j)
+                                  if (indices[j * ndofs] == current)
+                                    {
+                                      index_storage_variants
+                                        [dof_access_cell][i] =
+                                          IndexStorageVariants::full;
+                                      break;
+                                    }
+                              previous = current;
+                            }
+                        }
                     }
                 }
             }
@@ -833,15 +865,20 @@ namespace internal
                             vectorization_length);
             AssertIndexRange(
               row_starts[i * vectorization_length * n_components].first,
-              this->dof_indices_interleaved.size());
+              this->dof_indices_interleaved.size() + 1);
             AssertIndexRange(
               row_starts[i * vectorization_length * n_components].first +
                 ndofs * vectorization_length,
               this->dof_indices_interleaved.size() + 1);
             for (unsigned int k = 0; k < ndofs; ++k)
-              for (unsigned int j = 0; j < vectorization_length; ++j)
-                interleaved_dof_indices[k * vectorization_length + j] =
-                  dof_indices[j * ndofs + k];
+              {
+                const unsigned int *my_dof_indices = dof_indices + k;
+                const unsigned int *end =
+                  interleaved_dof_indices + vectorization_length;
+                for (; interleaved_dof_indices != end;
+                     ++interleaved_dof_indices, my_dof_indices += ndofs)
+                  *interleaved_dof_indices = *my_dof_indices;
+              }
           }
     }
 
@@ -855,7 +892,7 @@ namespace internal
       const std::vector<FaceToCellTopology<1>> &inner_faces,
       const std::vector<FaceToCellTopology<1>> &ghosted_faces,
       const bool                                fill_cell_centric,
-      const MPI_Comm &                          communicator_sm,
+      const MPI_Comm                            communicator_sm,
       const bool                                use_vector_data_exchanger_full)
     {
       const Utilities::MPI::Partitioner &part = *vector_partitioner;
@@ -870,7 +907,7 @@ namespace internal
             for (unsigned int i = row_starts[cell * n_components].first;
                  i < row_starts[(cell + 1) * n_components].first;
                  ++i)
-              if (dof_indices[i] >= part.local_size())
+              if (dof_indices[i] >= part.locally_owned_size())
                 ghost_indices.push_back(part.local_to_global(dof_indices[i]));
 
             const unsigned int fe_index =
@@ -881,7 +918,7 @@ namespace internal
             for (unsigned int i = row_starts_plain_indices[cell];
                  i < row_starts_plain_indices[cell] + dofs_this_cell;
                  ++i)
-              if (plain_dof_indices[i] >= part.local_size())
+              if (plain_dof_indices[i] >= part.locally_owned_size())
                 ghost_indices.push_back(
                   part.local_to_global(plain_dof_indices[i]));
           }
@@ -985,16 +1022,19 @@ namespace internal
           const std::function<void(
             const std::function<void(
               const unsigned int, const unsigned int, const bool)> &)> &loop) {
-          bool all_nodal_and_tensorial = true;
-          for (unsigned int c = 0; c < n_base_elements; ++c)
-            {
-              const auto &si =
-                shape_info(global_base_element_offset + c, 0).data.front();
-              if (!si.nodal_at_cell_boundaries ||
-                  (si.element_type ==
-                   MatrixFreeFunctions::ElementType::tensor_none))
-                all_nodal_and_tensorial = false;
-            }
+          bool all_nodal_and_tensorial = shape_info.size(1) == 1;
+
+          if (all_nodal_and_tensorial)
+            for (unsigned int c = 0; c < n_base_elements; ++c)
+              {
+                const auto &si =
+                  shape_info(global_base_element_offset + c, 0).data.front();
+                if (!si.nodal_at_cell_boundaries ||
+                    (si.element_type ==
+                     MatrixFreeFunctions::ElementType::tensor_none))
+                  all_nodal_and_tensorial = false;
+              }
+
           if (all_nodal_and_tensorial == false)
             vector_partitioner_values = vector_partitioner;
           else
@@ -1007,7 +1047,7 @@ namespace internal
                 const unsigned int index =
                   dof_indices_contiguous[dof_access_cell][cell_no];
                 if (flag || (index != numbers::invalid_unsigned_int &&
-                             index >= part.local_size()))
+                             index >= part.locally_owned_size()))
                   {
                     const unsigned int stride =
                       dof_indices_interleave_strides[dof_access_cell][cell_no];
@@ -1073,11 +1113,13 @@ namespace internal
           const std::function<void(
             const std::function<void(
               const unsigned int, const unsigned int, const bool)> &)> &loop) {
-          bool all_hermite = true;
-          for (unsigned int c = 0; c < n_base_elements; ++c)
-            if (shape_info(global_base_element_offset + c, 0).element_type !=
-                MatrixFreeFunctions::tensor_symmetric_hermite)
-              all_hermite = false;
+          bool all_hermite = shape_info.size(1) == 1;
+
+          if (all_hermite)
+            for (unsigned int c = 0; c < n_base_elements; ++c)
+              if (shape_info(global_base_element_offset + c, 0).element_type !=
+                  MatrixFreeFunctions::tensor_symmetric_hermite)
+                all_hermite = false;
           if (all_hermite == false ||
               vector_partitoner_values.get() == vector_partitioner.get())
             vector_partitioner_gradients = vector_partitioner;
@@ -1089,7 +1131,7 @@ namespace internal
                 const unsigned int index =
                   dof_indices_contiguous[dof_access_cell][cell_no];
                 if (flag || (index != numbers::invalid_unsigned_int &&
-                             index >= part.local_size()))
+                             index >= part.locally_owned_size()))
                   {
                     const unsigned int stride =
                       dof_indices_interleave_strides[dof_access_cell][cell_no];
@@ -1503,14 +1545,11 @@ namespace internal
 {
   namespace MatrixFreeFunctions
   {
-    template struct ConstraintValues<double>;
-    template struct ConstraintValues<float>;
-
     template void
     DoFInfo::read_dof_indices<double>(
       const std::vector<types::global_dof_index> &,
       const std::vector<types::global_dof_index> &,
-      const bool cell_has_hanging_node_constraints,
+      const bool,
       const dealii::AffineConstraints<double> &,
       const unsigned int,
       ConstraintValues<double> &,
@@ -1520,7 +1559,7 @@ namespace internal
     DoFInfo::read_dof_indices<float>(
       const std::vector<types::global_dof_index> &,
       const std::vector<types::global_dof_index> &,
-      const bool cell_has_hanging_node_constraints,
+      const bool,
       const dealii::AffineConstraints<float> &,
       const unsigned int,
       ConstraintValues<double> &,
@@ -1528,25 +1567,25 @@ namespace internal
 
     template bool
     DoFInfo::process_hanging_node_constraints<1>(
-      const HangingNodes<1> &                           hanging_nodes,
-      const std::vector<std::vector<unsigned int>> &    lexicographic_mapping,
-      const unsigned int                                cell_number,
-      const TriaIterator<DoFCellAccessor<1, 1, false>> &cell,
-      std::vector<types::global_dof_index> &            dof_indices);
+      const HangingNodes<1> &,
+      const std::vector<std::vector<unsigned int>> &,
+      const unsigned int,
+      const TriaIterator<DoFCellAccessor<1, 1, false>> &,
+      std::vector<types::global_dof_index> &);
     template bool
     DoFInfo::process_hanging_node_constraints<2>(
-      const HangingNodes<2> &                           hanging_nodes,
-      const std::vector<std::vector<unsigned int>> &    lexicographic_mapping,
-      const unsigned int                                cell_number,
-      const TriaIterator<DoFCellAccessor<2, 2, false>> &cell,
-      std::vector<types::global_dof_index> &            dof_indices);
+      const HangingNodes<2> &,
+      const std::vector<std::vector<unsigned int>> &,
+      const unsigned int,
+      const TriaIterator<DoFCellAccessor<2, 2, false>> &,
+      std::vector<types::global_dof_index> &);
     template bool
     DoFInfo::process_hanging_node_constraints<3>(
-      const HangingNodes<3> &                           hanging_nodes,
-      const std::vector<std::vector<unsigned int>> &    lexicographic_mapping,
-      const unsigned int                                cell_number,
-      const TriaIterator<DoFCellAccessor<3, 3, false>> &cell,
-      std::vector<types::global_dof_index> &            dof_indices);
+      const HangingNodes<3> &,
+      const std::vector<std::vector<unsigned int>> &,
+      const unsigned int,
+      const TriaIterator<DoFCellAccessor<3, 3, false>> &,
+      std::vector<types::global_dof_index> &);
 
     template void
     DoFInfo::compute_face_index_compression<1>(

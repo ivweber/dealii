@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,8 +23,6 @@
 #include <deal.II/base/table.h>
 #include <deal.II/base/tensor.h>
 
-#include <deal.II/differentiation/ad/ad_number_traits.h>
-
 #include <deal.II/lac/exceptions.h>
 #include <deal.II/lac/identity_matrix.h>
 
@@ -43,20 +41,31 @@ template <typename number>
 class LAPACKFullMatrix;
 #endif
 
-/*! @addtogroup Matrix1
- *@{
+/**
+ * @addtogroup Matrix1
+ * @{
  */
 
 
 /**
- * Implementation of a classical rectangular scheme of numbers. The data type
- * of the entries is provided in the template argument <tt>number</tt>.  The
- * interface is quite fat and in fact has grown every time a new feature was
- * needed. So, a lot of functions are provided.
+ * This class implements a rectangular, dense ("full") matrix, that is,
+ * a matrix where we store every element whether it is zero or
+ * nonzero.  This is in contrast to the SparseMatrix and related
+ * classes, which store a "sparse" representation in which memory is
+ * only allocated for those elements for which it is known that they
+ * are (or, more precisely, could be) nonzero.
  *
- * Internal calculations are usually done with the accuracy of the vector
- * argument to functions. If there is no argument with a number type, the
- * matrix number type is used.
+ * The data type of the entries of the matrix is provided by the
+ * template argument <tt>number</tt>.
+ *
+ * This class provides a number of operations that involve both the
+ * current matrix and either another matrix or one or more
+ * vectors. Each of these other objects may store their elements in a
+ * different data type than the current object does (again, as
+ * indicated by the corresponding template arguments of the other
+ * objects). In these cases, internal calculations are usually done
+ * with the accuracy of the vector argument, or with the more accurate
+ * of the data types.
  *
  * @note Instantiations for this template are provided for <tt>@<float@>,
  * @<double@>, @<std::complex@<float@>@>,
@@ -69,11 +78,19 @@ template <typename number>
 class FullMatrix : public Table<2, number>
 {
 public:
-  // The assertion in full_matrix.templates.h for whether or not a number is
-  // finite is not compatible for AD number types.
+  /**
+   * This class only supports basic numeric types (i.e., we support double and
+   * float but not automatically differentiated numbers).
+   *
+   * @note we test real_type here to get the underlying scalar type when using
+   * std::complex.
+   */
   static_assert(
-    !Differentiation::AD::is_ad_number<number>::value,
-    "The FullMatrix class does not support auto-differentiable numbers.");
+    std::is_arithmetic<
+      typename numbers::NumberTraits<number>::real_type>::value,
+    "The FullMatrix class only supports basic numeric types. In particular, it "
+    "does not support automatically differentiated numbers.");
+
 
   /**
    * A type of used to index into this container.
@@ -120,7 +137,7 @@ public:
   /**
    * @name Constructors and initialization.  See also the base class Table.
    */
-  //@{
+  /** @{ */
 
   /**
    * Constructor. Initialize the matrix as a square matrix with dimension
@@ -159,8 +176,6 @@ public:
 
   /**
    * @name Copying into and out of other matrices
-   */
-  /**
    * @{
    */
 
@@ -349,8 +364,6 @@ public:
    */
   /**
    * @name Non-modifying operators
-   */
-  /**
    * @{
    */
 
@@ -388,7 +401,7 @@ public:
    * Return the square of the norm of the vector <tt>v</tt> induced by this
    * matrix, i.e. <i>(v,Mv)</i>. This is useful, e.g. in the finite element
    * context, where the <i>L<sup>2</sup></i> norm of a function equals the
-   * matrix norm with respect to the mass matrix of the vector representing
+   * matrix norm with respect to the @ref GlossMassMatrix "mass matrix" of the vector representing
    * the nodal values of the finite element function.
    *
    * Obviously, the matrix needs to be quadratic for this operation, and for
@@ -518,9 +531,11 @@ public:
   std::size_t
   memory_consumption() const;
 
-  //@}
-  ///@name Iterator functions
-  //@{
+  /** @} */
+  /**
+   * @name Iterator functions
+   * @{
+   */
 
   /**
    * Mutable iterator starting at the first entry of row <tt>r</tt>.
@@ -546,9 +561,11 @@ public:
   const_iterator
   end(const size_type r) const;
 
-  //@}
-  ///@name Modifying operators
-  //@{
+  /** @} */
+  /**
+   * @name Modifying operators
+   * @{
+   */
 
   /**
    * Scale the entire matrix by a fixed factor.
@@ -769,18 +786,18 @@ public:
   symmetrize();
 
   /**
-   * A=Inverse(A). A must be a square matrix.  Inversion of this matrix by
-   * Gauss-Jordan algorithm with partial pivoting.  This process is well-
-   * behaved for positive definite matrices, but be aware of round-off errors
-   * in the indefinite case.
+   * A=Inverse(A). A must be a square matrix. Inversion of this matrix by
+   * Gauss-Jordan algorithm with partial pivoting. This process is
+   * well-behaved for positive definite matrices, but be aware of round-off
+   * errors in the indefinite case.
    *
    * In case deal.II was configured with LAPACK, the functions Xgetrf and
    * Xgetri build an LU factorization and invert the matrix upon that
    * factorization, providing best performance up to matrices with a few
    * hundreds rows and columns.
    *
-   * The numerical effort to invert an <tt>n x n</tt> matrix is of the order
-   * <tt>n**3</tt>.
+   * The numerical effort to invert an $n \times n$ matrix is of the order
+   * $n^3$.
    */
   void
   gauss_jordan();
@@ -833,9 +850,11 @@ public:
   void
   right_invert(const FullMatrix<number2> &M);
 
-  //@}
-  ///@name Multiplications
-  //@{
+  /** @} */
+  /**
+   * @name Multiplications
+   * @{
+   */
 
   /**
    * Matrix-matrix-multiplication.
@@ -1056,7 +1075,7 @@ public:
   void
   backward(Vector<number2> &dst, const Vector<number2> &src) const;
 
-  //@}
+  /** @} */
 
   /**
    * @addtogroup Exceptions
@@ -1090,17 +1109,17 @@ public:
    * Exception
    */
   DeclExceptionMsg(ExcSourceEqualsDestination,
-                   "You are attempting an operation on two matrices that "
+                   "You are attempting an operation on two vectors that "
                    "are the same object, but the operation requires that the "
                    "two objects are in fact different.");
   /**
    * Exception
    */
   DeclException0(ExcMatrixNotPositiveDefinite);
-  //@}
+  /** @} */
 };
 
-/**@}*/
+/** @} */
 
 #ifndef DOXYGEN
 /*-------------------------Inline functions -------------------------------*/
@@ -1168,6 +1187,66 @@ FullMatrix<number>::copy_from(const MatrixType &M)
            ++entry)
         this->el(row, entry->column()) = entry->value();
     }
+}
+
+
+
+template <typename number>
+template <int dim>
+void
+FullMatrix<number>::copy_from(const Tensor<2, dim> &T,
+                              const unsigned int    src_r_i,
+                              const unsigned int    src_r_j,
+                              const unsigned int    src_c_i,
+                              const unsigned int    src_c_j,
+                              const size_type       dst_r,
+                              const size_type       dst_c)
+{
+  Assert(!this->empty(), ExcEmptyMatrix());
+  AssertIndexRange(src_r_j - src_r_i, this->m() - dst_r);
+  AssertIndexRange(src_c_j - src_c_i, this->n() - dst_c);
+  AssertIndexRange(src_r_j, dim);
+  AssertIndexRange(src_c_j, dim);
+  AssertIndexRange(src_r_i, src_r_j + 1);
+  AssertIndexRange(src_c_i, src_c_j + 1);
+
+  for (size_type i = 0; i < src_r_j - src_r_i + 1; ++i)
+    for (size_type j = 0; j < src_c_j - src_c_i + 1; ++j)
+      {
+        const unsigned int src_r_index = static_cast<unsigned int>(i + src_r_i);
+        const unsigned int src_c_index = static_cast<unsigned int>(j + src_c_i);
+        (*this)(i + dst_r, j + dst_c)  = number(T[src_r_index][src_c_index]);
+      }
+}
+
+
+
+template <typename number>
+template <int dim>
+void
+FullMatrix<number>::copy_to(Tensor<2, dim> &   T,
+                            const size_type    src_r_i,
+                            const size_type    src_r_j,
+                            const size_type    src_c_i,
+                            const size_type    src_c_j,
+                            const unsigned int dst_r,
+                            const unsigned int dst_c) const
+{
+  Assert(!this->empty(), ExcEmptyMatrix());
+  AssertIndexRange(src_r_j - src_r_i, dim - dst_r);
+  AssertIndexRange(src_c_j - src_c_i, dim - dst_c);
+  AssertIndexRange(src_r_j, this->m());
+  AssertIndexRange(src_r_j, this->n());
+  AssertIndexRange(src_r_i, src_r_j + 1);
+  AssertIndexRange(src_c_j, src_c_j + 1);
+
+  for (size_type i = 0; i < src_r_j - src_r_i + 1; ++i)
+    for (size_type j = 0; j < src_c_j - src_c_i + 1; ++j)
+      {
+        const unsigned int dst_r_index = static_cast<unsigned int>(i + dst_r);
+        const unsigned int dst_c_index = static_cast<unsigned int>(j + dst_c);
+        T[dst_r_index][dst_c_index] = double((*this)(i + src_r_i, j + src_c_i));
+      }
 }
 
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2020 by the deal.II authors
+// Copyright (C) 2007 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -116,8 +116,7 @@ DataPostprocessorScalar<dim>::get_needed_update_flags() const
 
 
 
-// -------------------------- DataPostprocessorVector
-// -------------------------
+// ------------------------- DataPostprocessorVector ------------------------
 
 template <int dim>
 DataPostprocessorVector<dim>::DataPostprocessorVector(
@@ -156,8 +155,7 @@ DataPostprocessorVector<dim>::get_needed_update_flags() const
 
 
 
-// -------------------------- DataPostprocessorTensor
-// -------------------------
+// ------------------------- DataPostprocessorTensor ------------------------
 
 template <int dim>
 DataPostprocessorTensor<dim>::DataPostprocessorTensor(
@@ -193,6 +191,44 @@ DataPostprocessorTensor<dim>::get_needed_update_flags() const
 {
   return update_flags;
 }
+
+
+
+namespace DataPostprocessors
+{
+  template <int dim>
+  BoundaryIds<dim>::BoundaryIds()
+    : DataPostprocessorScalar<dim>("boundary_id", update_default)
+  {}
+
+
+  template <int dim>
+  void
+  BoundaryIds<dim>::evaluate_scalar_field(
+    const DataPostprocessorInputs::Scalar<dim> &inputs,
+    std::vector<Vector<double>> &               computed_quantities) const
+  {
+    AssertDimension(computed_quantities.size(), inputs.solution_values.size());
+
+    const typename DoFHandler<dim>::active_cell_iterator cell =
+      inputs.template get_cell<dim>();
+    const unsigned int face = inputs.get_face_number();
+
+    for (auto &output : computed_quantities)
+      {
+        AssertDimension(output.size(), 1);
+
+        // By default, DataOutFaces is only run on faces at the boundary of the
+        // domain. But one can instruct it to also run on internal faces, and in
+        // that case we cannot ask for the boundary id. Rather, we output -1, as
+        // described in the documentation.
+        if (cell->at_boundary(face))
+          output(0) = cell->face(face)->boundary_id();
+        else
+          output(0) = -1;
+      }
+  }
+} // namespace DataPostprocessors
 
 
 

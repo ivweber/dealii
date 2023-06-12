@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2020 - 2021 by the deal.II authors
+ * Copyright (C) 2020 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -66,7 +66,7 @@ namespace LA
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_fe_field.h>
-#include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_in.h>
@@ -537,7 +537,7 @@ namespace Step70
     // The next two functions initialize the
     // Particles::ParticleHandler objects used in this class. We have two such
     // objects: One represents passive tracers, used to plot the trajectories
-    // of fluid particles, while the the other represents material particles
+    // of fluid particles, while the other represents material particles
     // of the solid, which are placed at quadrature points of the solid grid.
     void setup_tracer_particles();
     void setup_solid_particles();
@@ -638,8 +638,6 @@ namespace Step70
 
     DoFHandler<spacedim>      fluid_dh;
     DoFHandler<dim, spacedim> solid_dh;
-
-    std::unique_ptr<MappingFEField<dim, spacedim>> solid_mapping;
 
     // Similarly to how things are done in step-22, we use a block system to
     // treat the Stokes part of the problem, and follow very closely what was
@@ -835,8 +833,12 @@ namespace Step70
         const auto &manifold_id   = pair.first;
         const auto &cad_file_name = pair.second;
 
-        const auto extension = boost::algorithm::to_lower_copy(
-          cad_file_name.substr(cad_file_name.find_last_of('.') + 1));
+        std::string extension =
+          cad_file_name.substr(cad_file_name.find_last_of('.') + 1);
+        std::transform(extension.begin(),
+                       extension.end(),
+                       extension.begin(),
+                       [](const char c) -> char { return std::tolower(c); });
 
         TopoDS_Shape shape;
         if (extension == "iges" || extension == "igs")
@@ -850,7 +852,7 @@ namespace Step70
                                         "extension. Bailing out."));
 
         // Now we check how many faces are contained in the `Shape`. OpenCASCADE
-        // is intrinsically 3D, so if this number is zero, we interpret this as
+        // is intrinsically 3d, so if this number is zero, we interpret this as
         // a line manifold, otherwise as a
         // OpenCASCADE::NormalToMeshProjectionManifold in `spacedim` = 3, or
         // OpenCASCADE::NURBSPatchManifold in `spacedim` = 2.
@@ -1429,9 +1431,9 @@ namespace Step70
     std::vector<types::global_dof_index> fluid_dof_indices(
       fluid_fe->n_dofs_per_cell());
 
-    FullMatrix<double>     local_matrix(fluid_fe->n_dofs_per_cell(),
+    FullMatrix<double> local_matrix(fluid_fe->n_dofs_per_cell(),
                                     fluid_fe->n_dofs_per_cell());
-    dealii::Vector<double> local_rhs(fluid_fe->n_dofs_per_cell());
+    Vector<double>     local_rhs(fluid_fe->n_dofs_per_cell());
 
     const auto penalty_parameter =
       1.0 / GridTools::minimal_cell_diameter(fluid_tria);
@@ -1477,9 +1479,9 @@ namespace Step70
         Assert(pic.begin() == particle, ExcInternalError());
         for (const auto &p : pic)
           {
-            const auto &ref_q  = p.get_reference_location();
-            const auto &real_q = p.get_location();
-            const auto &JxW    = p.get_properties()[0];
+            const Point<spacedim> ref_q  = p.get_reference_location();
+            const Point<spacedim> real_q = p.get_location();
+            const double          JxW    = p.get_properties()[0];
 
             for (unsigned int i = 0; i < fluid_fe->n_dofs_per_cell(); ++i)
               {
@@ -1523,7 +1525,7 @@ namespace Step70
   // This function solves the linear system with FGMRES with a block diagonal
   // preconditioner and an algebraic multigrid (AMG) method for the diagonal
   // blocks. The preconditioner applies a V cycle to the $(0,0)$ (i.e., the
-  // velocity-velocity) block and a CG with the mass matrix for the $(1,1)$
+  // velocity-velocity) block and a CG with the @ref GlossMassMatrix "mass matrix" for the $(1,1)$
   // block (which is our approximation to the Schur complement: the pressure
   // mass matrix assembled above).
   template <int dim, int spacedim>
@@ -1566,9 +1568,8 @@ namespace Step70
     const auto invS = inverse_operator(S, cg, amgS);
 
     const auto P = block_diagonal_operator<2, LA::MPI::BlockVector>(
-      std::array<
-        dealii::LinearOperator<typename LA::MPI::BlockVector::BlockType>,
-        2>{{amgA, amgS}});
+      std::array<LinearOperator<typename LA::MPI::BlockVector::BlockType>, 2>{
+        {amgA, amgS}});
 
     SolverControl solver_control(system_matrix.m(),
                                  1e-10 * system_rhs.l2_norm());
@@ -1718,7 +1719,7 @@ namespace Step70
                                    mpi_communicator);
 
     static std::vector<std::pair<double, std::string>> times_and_names;
-    times_and_names.push_back(std::make_pair(time, filename));
+    times_and_names.emplace_back(time, filename);
     std::ofstream ofile(par.output_directory + "/" + "solution.pvd");
     DataOutBase::write_pvd_record(ofile, times_and_names);
   }
@@ -1905,7 +1906,7 @@ namespace Step70
 // exception of the handling of input parameter files. We allow the user to
 // specify an optional parameter file as an argument to the program. If
 // nothing is specified, we use the default file "parameters.prm", which is
-// created if non existent. The file name is scanned for the the string "23"
+// created if non existent. The file name is scanned for the string "23"
 // first, and "3" afterwards. If the filename contains the string "23", the
 // problem classes are instantiated with template arguments 2 and 3
 // respectively. If only the string "3" is found, then both template arguments
@@ -1936,7 +1937,7 @@ int main(int argc, char *argv[])
           StokesImmersedProblem<2, 3> problem(par);
           problem.run();
         }
-      else if (prm_file.find("3") != std::string::npos)
+      else if (prm_file.find('3') != std::string::npos)
         {
           StokesImmersedProblemParameters<3> par;
           ParameterAcceptor::initialize(prm_file);

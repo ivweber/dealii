@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2001 - 2021 by the deal.II authors
+ * Copyright (C) 2001 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -159,7 +159,7 @@ namespace Step11
     // of what is to come later:
     mean_value_constraints.clear();
     mean_value_constraints.add_line(first_boundary_dof);
-    for (types::global_dof_index i : boundary_dofs)
+    for (const types::global_dof_index i : boundary_dofs)
       if (i != first_boundary_dof)
         mean_value_constraints.add_entry(first_boundary_dof, i, -1);
     mean_value_constraints.close();
@@ -266,7 +266,7 @@ namespace Step11
     // That's quite simple, right?
     //
     // Two remarks are in order, though: First, these functions are used in a
-    // lot of contexts. Maybe you want to create a Laplace or mass matrix for
+    // lot of contexts. Maybe you want to create a Laplace or @ref GlossMassMatrix "mass matrix" for
     // a vector values finite element; or you want to use the default Q1
     // mapping; or you want to assembled the matrix with a coefficient in the
     // Laplace operator. For this reason, there are quite a large number of

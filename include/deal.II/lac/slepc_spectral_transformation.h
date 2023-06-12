@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -79,7 +79,7 @@ namespace SLEPcWrappers
     /**
      * Constructor.
      */
-    TransformationBase(const MPI_Comm &mpi_communicator);
+    TransformationBase(const MPI_Comm mpi_communicator);
 
   public:
     /**
@@ -144,7 +144,7 @@ namespace SLEPcWrappers
     /**
      * Constructor.
      */
-    TransformationShift(const MPI_Comm &      mpi_communicator,
+    TransformationShift(const MPI_Comm        mpi_communicator,
                         const AdditionalData &data = AdditionalData());
 
 
@@ -184,7 +184,7 @@ namespace SLEPcWrappers
     /**
      * Constructor.
      */
-    TransformationShiftInvert(const MPI_Comm &      mpi_communicator,
+    TransformationShiftInvert(const MPI_Comm        mpi_communicator,
                               const AdditionalData &data = AdditionalData());
 
   protected:
@@ -203,9 +203,13 @@ namespace SLEPcWrappers
    * Spectrum Folding. This transformation type has been removed in SLEPc
    * 3.5.0 and thus cannot be used in the newer versions.
    *
+   * @deprecated Since deal.II requires PETSc 3.7 or newer this class no longer
+   * does anything.
+   *
    * @ingroup SLEPcWrappers
    */
-  class TransformationSpectrumFolding : public TransformationBase
+  class DEAL_II_DEPRECATED TransformationSpectrumFolding
+    : public TransformationBase
   {
   public:
     /**
@@ -229,7 +233,7 @@ namespace SLEPcWrappers
      * Constructor.
      */
     TransformationSpectrumFolding(
-      const MPI_Comm &      mpi_communicator,
+      const MPI_Comm        mpi_communicator,
       const AdditionalData &data = AdditionalData());
 
   protected:
@@ -273,7 +277,7 @@ namespace SLEPcWrappers
     /**
      * Constructor.
      */
-    TransformationCayley(const MPI_Comm &      mpi_communicator,
+    TransformationCayley(const MPI_Comm        mpi_communicator,
                          const AdditionalData &data = AdditionalData());
 
   protected:

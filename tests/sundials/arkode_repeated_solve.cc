@@ -1,6 +1,6 @@
 //-----------------------------------------------------------
 //
-//    Copyright (C) 2021 by the deal.II authors
+//    Copyright (C) 2021 - 2022 by the deal.II authors
 //
 //    This file is part of the deal.II library.
 //
@@ -41,29 +41,23 @@ create_solver()
   auto ode = std::make_unique<SUNDIALS::ARKode<VectorType>>(data);
 
   // will yield analytic solution y[0] = sin(kappa*t); y[1] = kappa*cos(kappa*t)
-  ode->explicit_function =
-    [&](double, const VectorType &y, VectorType &ydot) -> int {
+  ode->explicit_function = [&](double, const VectorType &y, VectorType &ydot) {
     ydot[0] = y[1];
     ydot[1] = -kappa * kappa * y[0];
-    return 0;
   };
 
-  ode->output_step = [&](const double       t,
-                         const VectorType & sol,
-                         const unsigned int step_number) -> int {
-    deallog << t << ' ' << sol[0] << ' ' << sol[1] << std::endl;
-    return 0;
-  };
+  ode->output_step =
+    [&](const double t, const VectorType &sol, const unsigned int step_number) {
+      deallog << std::setprecision(16) << t << ' ' << sol[0] << ' ' << sol[1]
+              << std::endl;
+    };
   return ode;
 }
 
 int
-main(int argc, char **argv)
+main()
 {
   initlog();
-
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(
-    argc, argv, numbers::invalid_unsigned_int);
 
   auto ode = create_solver();
   {
@@ -124,6 +118,4 @@ main(int argc, char **argv)
     ode->reset(0.0, 0.01, y0);
     ode->solve_ode_incrementally(y, 2.0);
   }
-
-  return 0;
 }

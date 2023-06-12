@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,10 +20,12 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/complex_overloads.h>
+#include <deal.II/base/std_cxx20/type_traits.h>
 
 #include <complex>
-#include <iterator>
+#include <type_traits>
 #include <utility>
+
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -260,13 +262,62 @@ struct is_same_as_any_of
 /*
  * A generalization of `std::enable_if` that only works if
  * <i>all</i> of the given boolean template parameters are
- * true.
+ * true. See [here](https://en.cppreference.com/w/cpp/types/enable_if)
+ * for what `std::enable_if` does.
+ *
+ * @note
+ * In contrast to `std::enable_if`, this template has no additional
+ * template type (which for `std::enable_if` is defaulted to `void`).
+ * As a consequence, this structure cannot be used for anything other
+ * than enabling or disabling a template declaration; in particular
+ * it cannot be used to set the return type of a function as one might
+ * do with something like
+ * @code
+ *   template <typename T>
+ *   typename std::enable_if<std::is_floating_point<T>::value, T>::type
+ *   abs (const T t);
+ * @endcode
+ * which declares a function template `abs()` that can only be
+ * instantiated if `T` is a floating point type; this function then
+ * returns an object of type `T` as indicated by the last argument to
+ * `std::enable_if`. The reason `enable_if_all` does not allow providing
+ * this additional type is that variadic templates (here, the list of
+ * `bool` arguments) must be the last template argument.
  */
 template <bool... Values>
 struct enable_if_all
   : std::enable_if<internal::TemplateConstraints::all_true<Values...>::value>
 {};
 
+
+
+/*
+ * A generalization of `std::enable_if_t` that only works if
+ * <i>all</i> of the given boolean template parameters are
+ * true. See [here](https://en.cppreference.com/w/cpp/types/enable_if)
+ * for what `std::enable_if_t` does.
+ *
+ * @note
+ * In contrast to `std::enable_if_t`, this template has no additional
+ * template type (which for `std::enable_if` is defaulted to `void`).
+ * As a consequence, this structure cannot be used for anything other
+ * than enabling or disabling a template declaration; in particular
+ * it cannot be used to set the return type of a function as one might
+ * do with something like
+ * @code
+ *   template <typename T>
+ *   std::enable_if_t<std::is_floating_point<T>::value, T>
+ *   abs (const T t);
+ * @endcode
+ * which declares a function template `abs()` that can only be
+ * instantiated if `T` is a floating point type; this function then
+ * returns an object of type `T` as indicated by the last argument to
+ * `std::enable_if`. The reason `enable_if_all` does not allow providing
+ * this additional type is that variadic templates (here, the list of
+ * `bool` arguments) must be the last template argument.
+ */
+template <bool... Values>
+using enable_if_all_t = typename enable_if_all<Values...>::type;
 
 
 /**
@@ -283,70 +334,15 @@ constexpr bool has_begin_and_end =
   internal::is_supported_operation<begin_and_end_t, T>;
 
 
-
 /**
- * A template class that simply exports its template argument as a local
- * alias. This class, while at first appearing useless, makes sense in the
- * following context: if you have a function template as follows:
- * @code
- * template <typename T>
- * void f(T, T);
- * @endcode
- * then it can't be called in an expression like <code>f(1, 3.141)</code>
- * because the type <code>T</code> of the template can not be deduced in a
- * unique way from the types of the arguments. However, if the template is
- * written as
- * @code
- * template <typename T>
- * void f(T, typename identity<T>::type);
- * @endcode
- * then the call becomes valid: the type <code>T</code> is not deducible from
- * the second argument to the function, so only the first argument
- * participates in template type resolution.
+ * A `using` declaration to make the
+ * [std::identity_type](https://en.cppreference.com/w/cpp/types/type_identity)
+ * class available under the name that deal.II has used for a long time.
  *
- * The context for this feature is as follows: consider
- * @code
- * template <typename RT, typename A>
- * void forward_call(RT (*p) (A), A a)
- * {
- *   p(a);
- * }
- *
- * void h (double);
- *
- * void g()
- * {
- *   forward_call(&h, 1);
- * }
- * @endcode
- * This code fails to compile because the compiler can't decide whether the
- * template type <code>A</code> should be <code>double</code> (from the
- * signature of the function given as first argument to
- * <code>forward_call</code>, or <code>int</code> because the expression
- * <code>1</code> has that type. Of course, what we would like the compiler to
- * do is simply cast the <code>1</code> to <code>double</code>. We can achieve
- * this by writing the code as follows:
- * @code
- * template <typename RT, typename A>
- * void forward_call(RT (*p) (A), typename identity<A>::type a)
- * {
- *   p(a);
- * }
- *
- * void h (double);
- *
- * void g()
- * {
- *   forward_call(&h, 1);
- * }
- * @endcode
+ * @deprecated Use `std_cxx20::identity_type` instead.
  */
 template <typename T>
-struct identity
-{
-  using type = T;
-};
-
+using identity DEAL_II_DEPRECATED_EARLY = std_cxx20::type_identity<T>;
 
 
 /**
@@ -630,6 +626,360 @@ struct EnableIfScalar<std::complex<T>>
 {
   using type = std::complex<T>;
 };
+
+
+// Forward declarations of vector types
+template <typename Number>
+class Vector;
+
+template <typename Number>
+class BlockVector;
+
+namespace LinearAlgebra
+{
+  template <typename Number>
+  class Vector;
+
+  template <typename Number>
+  class BlockVector;
+
+  namespace distributed
+  {
+    template <typename Number, typename MemorySpace>
+    class Vector;
+
+    template <typename Number>
+    class BlockVector;
+  } // namespace distributed
+} // namespace LinearAlgebra
+
+#ifdef DEAL_II_WITH_PETSC
+namespace PETScWrappers
+{
+  class VectorBase;
+  class Vector;
+  class BlockVector;
+
+  namespace MPI
+  {
+    class Vector;
+    class BlockVector;
+
+    class SparseMatrix;
+    class BlockSparseMatrix;
+  } // namespace MPI
+} // namespace PETScWrappers
+#endif
+
+#ifdef DEAL_II_WITH_TRILINOS
+namespace TrilinosWrappers
+{
+  namespace MPI
+  {
+    class Vector;
+    class BlockVector;
+  } // namespace MPI
+} // namespace TrilinosWrappers
+
+namespace LinearAlgebra
+{
+  namespace EpetraWrappers
+  {
+    class Vector;
+  }
+
+#  ifdef DEAL_II_TRILINOS_WITH_TPETRA
+  namespace TpetraWrappers
+  {
+    template <typename Number>
+    class Vector;
+  }
+#  endif
+} // namespace LinearAlgebra
+#endif
+
+
+
+/**
+ * A namespace that is used to declare concepts used in C++20-style
+ * `requires` clauses.
+ */
+namespace concepts
+{
+#if defined(DEAL_II_HAVE_CXX20) || defined(DOXYGEN)
+  /**
+   * A concept that tests that a combination of `dim` and `spacedim`
+   * template arguments is valid. Specifically, we must have that
+   * - `dim>=1`
+   * - `spacedim<=3`
+   * - `dim<=spacedim`.
+   * These are the kinds of requirements that are imposed, for
+   * example, on class Triangulation.
+   */
+  template <int dim, int spacedim>
+  concept is_valid_dim_spacedim = (dim >= 1 && spacedim <= 3 &&
+                                   dim <= spacedim);
+
+  namespace internal
+  {
+    /**
+     * A template variable that returns whether the template argument is
+     * a valid deal.II vector type. Its general definition is `false`, with
+     * specializations dealing with actual vector types for which the
+     * predicate is `true`.
+     */
+    template <typename T>
+    inline constexpr bool is_dealii_vector_type = false;
+
+    template <typename Number>
+    inline constexpr bool is_dealii_vector_type<dealii::Vector<Number>> = true;
+
+    template <typename Number>
+    inline constexpr bool is_dealii_vector_type<dealii::BlockVector<Number>> =
+      true;
+
+    template <typename Number>
+    inline constexpr bool
+      is_dealii_vector_type<dealii::LinearAlgebra::Vector<Number>> = true;
+
+    template <typename Number>
+    inline constexpr bool
+      is_dealii_vector_type<dealii::LinearAlgebra::BlockVector<Number>> = true;
+
+    template <typename Number, typename MemorySpace>
+    inline constexpr bool is_dealii_vector_type<
+      dealii::LinearAlgebra::distributed::Vector<Number, MemorySpace>> = true;
+
+    template <typename Number>
+    inline constexpr bool is_dealii_vector_type<
+      dealii::LinearAlgebra::distributed::BlockVector<Number>> = true;
+
+#  ifdef DEAL_II_WITH_PETSC
+    template <>
+    inline constexpr bool is_dealii_vector_type<dealii::PETScWrappers::Vector> =
+      true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_vector_type<dealii::PETScWrappers::BlockVector> = true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_vector_type<dealii::PETScWrappers::MPI::Vector> = true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_vector_type<dealii::PETScWrappers::MPI::BlockVector> = true;
+#  endif
+
+#  ifdef DEAL_II_WITH_TRILINOS
+    template <>
+    inline constexpr bool
+      is_dealii_vector_type<dealii::TrilinosWrappers::MPI::Vector> = true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_vector_type<dealii::TrilinosWrappers::MPI::BlockVector> = true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_vector_type<dealii::LinearAlgebra::EpetraWrappers::Vector> =
+        true;
+
+#    ifdef DEAL_II_TRILINOS_WITH_TPETRA
+    template <typename Number>
+    inline constexpr bool is_dealii_vector_type<
+      dealii::LinearAlgebra::TpetraWrappers::Vector<Number>> = true;
+#    endif
+#  endif
+
+
+    /**
+     * A template variable that returns whether the template argument is
+     * a valid deal.II vector type that is internally built on PETSc
+     * functionality. Its general definition is `false`, with
+     * specializations dealing with actual vector types for which the
+     * predicate is `true`.
+     */
+    template <typename T>
+    inline constexpr bool is_dealii_petsc_vector_type = false;
+
+#  ifdef DEAL_II_WITH_PETSC
+    template <>
+    inline constexpr bool
+      is_dealii_petsc_vector_type<dealii::PETScWrappers::VectorBase> = true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_petsc_vector_type<dealii::PETScWrappers::Vector> = true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_petsc_vector_type<dealii::PETScWrappers::BlockVector> = true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_petsc_vector_type<dealii::PETScWrappers::MPI::Vector> = true;
+
+    template <>
+    inline constexpr bool
+      is_dealii_petsc_vector_type<dealii::PETScWrappers::MPI::BlockVector> =
+        true;
+#  endif
+
+
+    /**
+     * A template variable that returns whether the template argument is
+     * a valid deal.II matrix type that is internally built on PETSc
+     * functionality. Its general definition is `false`, with
+     * specializations dealing with actual matrix types for which the
+     * predicate is `true`.
+     */
+    template <typename T>
+    inline constexpr bool is_dealii_petsc_matrix_type = false;
+
+#  ifdef DEAL_II_WITH_PETSC
+    template <>
+    inline constexpr bool
+      is_dealii_petsc_matrix_type<dealii::PETScWrappers::MPI::SparseMatrix> =
+        true;
+
+    template <>
+    inline constexpr bool is_dealii_petsc_matrix_type<
+      dealii::PETScWrappers::MPI::BlockSparseMatrix> = true;
+#  endif
+  } // namespace internal
+
+
+  /**
+   * A concept that tests whether a given template argument is a deal.II
+   * vector type. This concept is used in many places, such as for the
+   * functions in namespace VectorTools, where functions take a vector
+   * as argument, but the type of the vector is a template argument. The
+   * concept ensures that these functions cannot be called with an `int`
+   * argument, for example, for which the declaration without the concept
+   * would be perfectly valid but for which one would later get a linker
+   * error because the function is only instantiated for deal.II vector
+   * types.
+   */
+  template <typename VectorType>
+  concept is_dealii_vector_type =
+    internal::is_dealii_vector_type<std::remove_cv_t<VectorType>>;
+
+  /**
+   * A concept that tests whether a given template argument is a deal.II
+   * vector type into which one can write. It is defined by asking
+   * whether the is_dealii_vector_type concept is satisfied, and
+   * that the template argument is not a `const`-qualified type. For
+   * example, `is_writable_dealii_vector_type<dealii::Vector>` is true,
+   * whereas `is_writable_dealii_vector_type<const dealii::Vector>` is
+   * not.
+   */
+  template <typename VectorType>
+  concept is_writable_dealii_vector_type = is_dealii_vector_type<VectorType> &&
+                                           (std::is_const_v<VectorType> ==
+                                            false);
+
+  /**
+   * A concept that tests whether a given template argument is a deal.II
+   * vector type that internally builds on PETSc functionality. This
+   * concept is used to constrain some classes that implement advanced
+   * functionality based on PETSc and that requires that the vector
+   * it works on are PETSc vectors. This includes, for example, the
+   * time stepping and nonlinear solver classes in namespace PETScWrappers.
+   */
+  template <typename VectorType>
+  concept is_dealii_petsc_vector_type =
+    internal::is_dealii_petsc_vector_type<VectorType>;
+
+  /**
+   * A concept that tests whether a given template argument is a deal.II
+   * matrix type that internally builds on PETSc functionality. This
+   * concept is used to constrain some classes that implement advanced
+   * functionality based on PETSc and that requires that the matrix
+   * it works on are PETSc matrices. This includes, for example, the
+   * time stepping and nonlinear solver classes in namespace PETScWrappers.
+   */
+  template <typename VectorType>
+  concept is_dealii_petsc_matrix_type =
+    internal::is_dealii_petsc_matrix_type<VectorType>;
+#endif
+} // namespace concepts
+
+
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+class Triangulation;
+
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+class DoFHandler;
+
+namespace parallel
+{
+  namespace distributed
+  {
+    template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    class Triangulation;
+  }
+  namespace shared
+  {
+    template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    class Triangulation;
+  }
+  namespace fullydistributed
+  {
+    template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    class Triangulation;
+  }
+} // namespace parallel
+
+namespace concepts
+{
+#if defined(DEAL_II_HAVE_CXX20) || defined(DOXYGEN)
+  namespace internal
+  {
+    template <typename T>
+    inline constexpr bool is_triangulation_or_dof_handler = false;
+
+    template <int dim, int spacedim>
+    inline constexpr bool
+      is_triangulation_or_dof_handler<Triangulation<dim, spacedim>> = true;
+
+    template <int dim, int spacedim>
+    inline constexpr bool is_triangulation_or_dof_handler<
+      parallel::distributed::Triangulation<dim, spacedim>> = true;
+
+    template <int dim, int spacedim>
+    inline constexpr bool is_triangulation_or_dof_handler<
+      parallel::shared::Triangulation<dim, spacedim>> = true;
+
+    template <int dim, int spacedim>
+    inline constexpr bool is_triangulation_or_dof_handler<
+      parallel::fullydistributed::Triangulation<dim, spacedim>> = true;
+
+    template <int dim, int spacedim>
+    inline constexpr bool
+      is_triangulation_or_dof_handler<DoFHandler<dim, spacedim>> = true;
+  } // namespace internal
+
+
+  /**
+   * A concept that is used to check whether the `MeshType` template
+   * type used in many functions in namespace GridTools and
+   * VectorTools is in fact a "mesh" in the sense expected by these
+   * functions. Specifically, this means that the type is either a
+   * Triangulation or a DoFHandler type.
+   */
+  template <typename MeshType>
+  concept is_triangulation_or_dof_handler =
+    internal::is_triangulation_or_dof_handler<MeshType>;
+#endif
+} // namespace concepts
+
 
 
 DEAL_II_NAMESPACE_CLOSE

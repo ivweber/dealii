@@ -308,7 +308,7 @@ namespace Step8
         mu.value_list(fe_values.get_quadrature_points(), mu_values);
         right_hand_side(fe_values.get_quadrature_points(), rhs_values);
 
-        // Then assemble the entries of the local stiffness matrix and right
+        // Then assemble the entries of the local @ref GlossStiffnessMatrix "stiffness matrix" and right
         // hand side vector. This follows almost one-to-one the pattern
         // described in the introduction of this example.  One of the few
         // comments in place is that we can compute the number
@@ -344,7 +344,7 @@ namespace Step8
                      fe_values.quadrature_point_indices())
                   {
                     cell_matrix(i, j) +=
-                      // The first term is $\lambda \partial_i u_i, \partial_j
+                      // The first term is $(\lambda \partial_i u_i, \partial_j
                       // v_j) + (\mu \partial_i u_j, \partial_j v_i)$. Note
                       // that <code>shape_grad(i,q_point)</code> returns the
                       // gradient of the only nonzero component of the i-th
@@ -541,7 +541,7 @@ namespace Step8
   // The reason for refining is a bit accidental: we use the QGauss
   // quadrature formula with two points in each direction for integration of the
   // right hand side; that means that there are four quadrature points on each
-  // cell (in 2D). If we only refine the initial grid once globally, then there
+  // cell (in 2d). If we only refine the initial grid once globally, then there
   // will be only four quadrature points in each direction on the
   // domain. However, the right hand side function was chosen to be rather
   // localized and in that case, by pure chance, it happens that all quadrature

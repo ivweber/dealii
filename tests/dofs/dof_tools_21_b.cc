@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,9 +31,6 @@
 #include <utility>
 
 #include "../tests.h"
-
-std::ofstream logfile("output");
-
 
 //
 // Test
@@ -361,9 +358,9 @@ print_matching(DoFHandler<dim, spacedim> &dof_handler,
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(4);
-  logfile << std::setprecision(4);
-  deallog.attach(logfile);
+  deallog.get_file_stream() << std::setprecision(4);
 
   deallog << "Test for 2D, Q1:" << std::endl << std::endl;
 

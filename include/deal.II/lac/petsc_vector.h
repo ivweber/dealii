@@ -14,28 +14,29 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_petsc_vector_h
-#  define dealii_petsc_vector_h
+#define dealii_petsc_vector_h
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  ifdef DEAL_II_WITH_PETSC
+#ifdef DEAL_II_WITH_PETSC
 
-#    include <deal.II/base/index_set.h>
-#    include <deal.II/base/partitioner.h>
-#    include <deal.II/base/subscriptor.h>
+#  include <deal.II/base/index_set.h>
+#  include <deal.II/base/partitioner.h>
+#  include <deal.II/base/subscriptor.h>
 
-#    include <deal.II/lac/exceptions.h>
-#    include <deal.II/lac/petsc_vector_base.h>
-#    include <deal.II/lac/vector.h>
-#    include <deal.II/lac/vector_operation.h>
-#    include <deal.II/lac/vector_type_traits.h>
+#  include <deal.II/lac/exceptions.h>
+#  include <deal.II/lac/petsc_vector_base.h>
+#  include <deal.II/lac/vector.h>
+#  include <deal.II/lac/vector_operation.h>
+#  include <deal.II/lac/vector_type_traits.h>
 
 DEAL_II_NAMESPACE_OPEN
 
 
-/*! @addtogroup PETScWrappers
- *@{
+/**
+ * @addtogroup PETScWrappers
+ * @{
  */
 namespace PETScWrappers
 {
@@ -168,6 +169,11 @@ namespace PETScWrappers
       Vector();
 
       /**
+       * Import VectorBase constructors, including from a PETSc Vec object.
+       */
+      using VectorBase::VectorBase;
+
+      /**
        * Constructor. Set dimension to @p n and initialize all elements with
        * zero.
        *
@@ -183,7 +189,7 @@ namespace PETScWrappers
        * <tt>v=Vector@<number@>(0);</tt>, i.e. the vector is replaced by one
        * of length zero.
        */
-      explicit Vector(const MPI_Comm &communicator,
+      explicit Vector(const MPI_Comm  communicator,
                       const size_type n,
                       const size_type locally_owned_size);
 
@@ -198,27 +204,9 @@ namespace PETScWrappers
        * different parts of the vector shall communicate
        */
       template <typename Number>
-      explicit Vector(const MPI_Comm &              communicator,
+      explicit Vector(const MPI_Comm                communicator,
                       const dealii::Vector<Number> &v,
                       const size_type               locally_owned_size);
-
-
-      /**
-       * Copy-constructor the values from a PETSc wrapper vector class.
-       *
-       * @arg local_size denotes the size of the chunk that shall be stored on
-       * the present process.
-       *
-       * @arg communicator denotes the MPI communicator over which the
-       * different parts of the vector shall communicate
-       *
-       * @deprecated The use of objects that are explicitly of type VectorBase
-       * is deprecated: use PETScWrappers::MPI::Vector instead.
-       */
-      DEAL_II_DEPRECATED
-      explicit Vector(const MPI_Comm &  communicator,
-                      const VectorBase &v,
-                      const size_type   local_size);
 
       /**
        * Construct a new parallel ghosted PETSc vector from IndexSets.
@@ -245,7 +233,7 @@ namespace PETScWrappers
        */
       Vector(const IndexSet &local,
              const IndexSet &ghost,
-             const MPI_Comm &communicator);
+             const MPI_Comm  communicator);
 
       /**
        * Construct a new parallel PETSc vector without ghost elements from an
@@ -258,7 +246,7 @@ namespace PETScWrappers
        * not reordered by component (use a PETScWrappers::BlockVector
        * otherwise).
        */
-      explicit Vector(const IndexSet &local, const MPI_Comm &communicator);
+      explicit Vector(const IndexSet &local, const MPI_Comm communicator);
 
       /**
        * Copy constructor.
@@ -301,6 +289,8 @@ namespace PETScWrappers
       Vector &
       operator=(const dealii::Vector<number> &v);
 
+      using VectorBase::reinit;
+
       /**
        * Change the dimension of the vector to @p N. It is unspecified how
        * resizing the vector affects the memory allocation of this object;
@@ -318,7 +308,7 @@ namespace PETScWrappers
        * Otherwise, the elements are left an unspecified state.
        */
       void
-      reinit(const MPI_Comm &communicator,
+      reinit(const MPI_Comm  communicator,
              const size_type N,
              const size_type locally_owned_size,
              const bool      omit_zeroing_entries = false);
@@ -345,7 +335,7 @@ namespace PETScWrappers
       void
       reinit(const IndexSet &local,
              const IndexSet &ghost,
-             const MPI_Comm &communicator);
+             const MPI_Comm  communicator);
 
       /**
        * Reinit as a vector without ghost elements. See constructor with same
@@ -355,22 +345,19 @@ namespace PETScWrappers
        * @ref GlossGhostedVector "vectors with ghost elements"
        */
       void
-      reinit(const IndexSet &local, const MPI_Comm &communicator);
+      reinit(const IndexSet &local, const MPI_Comm communicator);
 
       /**
        * Initialize the vector given to the parallel partitioning described in
        * @p partitioner.
+       *
+       * You can decide whether your vector will contain ghost elements with
+       * @p make_ghosted.
        */
       void
       reinit(
-        const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner);
-
-      /**
-       * Return a reference to the MPI communicator object in use with this
-       * vector.
-       */
-      const MPI_Comm &
-      get_mpi_communicator() const override;
+        const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
+        const bool make_ghosted = true);
 
       /**
        * Print to a stream. @p precision denotes the desired precision with
@@ -406,7 +393,9 @@ namespace PETScWrappers
        * locally.
        */
       virtual void
-      create_vector(const size_type n, const size_type locally_owned_size);
+      create_vector(const MPI_Comm  comm,
+                    const size_type n,
+                    const size_type locally_owned_size);
 
 
 
@@ -416,16 +405,10 @@ namespace PETScWrappers
        * you need to call update_ghost_values() before accessing those.
        */
       virtual void
-      create_vector(const size_type n,
+      create_vector(const MPI_Comm  comm,
+                    const size_type n,
                     const size_type locally_owned_size,
                     const IndexSet &ghostnodes);
-
-
-    private:
-      /**
-       * Copy of the communicator object to be used for this parallel vector.
-       */
-      MPI_Comm communicator;
     };
 
 
@@ -446,15 +429,14 @@ namespace PETScWrappers
     }
 
 
-#    ifndef DOXYGEN
+#  ifndef DOXYGEN
 
     template <typename number>
-    Vector::Vector(const MPI_Comm &              communicator,
+    Vector::Vector(const MPI_Comm                communicator,
                    const dealii::Vector<number> &v,
                    const size_type               locally_owned_size)
-      : communicator(communicator)
     {
-      Vector::create_vector(v.size(), locally_owned_size);
+      Vector::create_vector(communicator, v.size(), locally_owned_size);
 
       *this = v;
     }
@@ -500,27 +482,21 @@ namespace PETScWrappers
       // in this case a) again takes up a whole lot of memory on the heap,
       // and b) is totally dumb since its content would simply be the
       // sequence 0,1,2,3,...,n. the best of all worlds would probably be a
-      // function in Petsc that would take a pointer to an array of
+      // function in PETSc that would take a pointer to an array of
       // PetscScalar values and simply copy n elements verbatim into the
       // vector...
       for (size_type i = 0; i < v.size(); ++i)
         (*this)(i) = v(i);
 
-      compress(::dealii::VectorOperation::insert);
+      compress(VectorOperation::insert);
 
       return *this;
     }
 
 
 
-    inline const MPI_Comm &
-    Vector::get_mpi_communicator() const
-    {
-      return communicator;
-    }
-
-#    endif // DOXYGEN
-  }        // namespace MPI
+#  endif // DOXYGEN
+  }      // namespace MPI
 } // namespace PETScWrappers
 
 namespace internal
@@ -562,7 +538,7 @@ namespace internal
   } // namespace LinearOperatorImplementation
 } /* namespace internal */
 
-/**@}*/
+/** @} */
 
 
 /**
@@ -575,7 +551,6 @@ struct is_serial_vector<PETScWrappers::MPI::Vector> : std::false_type
 
 DEAL_II_NAMESPACE_CLOSE
 
-#  endif // DEAL_II_WITH_PETSC
+#endif // DEAL_II_WITH_PETSC
 
 #endif
-/*------------------------- petsc_vector.h -------------------------*/

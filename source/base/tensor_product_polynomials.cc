@@ -19,9 +19,7 @@
 #include <deal.II/base/table.h>
 #include <deal.II/base/tensor_product_polynomials.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <boost/container/small_vector.hpp>
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #include <array>
 #include <memory>
@@ -347,7 +345,7 @@ TensorProductPolynomials<dim, PolynomialType>::evaluate(
   if (update_4th_derivatives)
     n_values_and_derivatives = 5;
 
-  // Compute the values (and derivatives, if necessary) of all 1D polynomials
+  // Compute the values (and derivatives, if necessary) of all 1d polynomials
   // at this evaluation point. We need to compute dim*n_polynomials
   // evaluations, involving an evaluation of each polynomial for each
   // coordinate direction. Once we have those values, we perform the

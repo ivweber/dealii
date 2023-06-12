@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,8 +15,8 @@
 
 
 
-#ifndef dealii_hermite_polynomials
-#define dealii_hermite_polynomials
+#ifndef dealii_polynomials_hermite_h
+#define dealii_polynomials_hermite_h
 
 #include <deal.II/base/config.h>
 
@@ -41,7 +41,7 @@ namespace Polynomials
   /**
    * This class implements Hermite interpolation polynomials (see
    * @cite CiarletRiavart1972interpolation) enforcing the maximum
-   * posible level of regularity $r$ in the FEM basis given a
+   * possible level of regularity $r$ in the FEM basis given a
    * polynomial degree of $2r+1$. The polynomials all represent
    * either a non-zero shape value or derivative at $x=0$ and $x=1$
    * on the reference interval $x \in [0,1]$.
@@ -140,7 +140,7 @@ namespace Polynomials
     /**
      * This stores whether the shape function corresponds to a non-zero
      * value or derivative at $x=0$ on the reference interval
-     * ($\mathtt{side} =0$), or at $x=1$ ($\mathtt{side} =1$).
+     * ($\mathtt{side} =0$) or at $x=1$ ($\mathtt{side} =1$).
      */
     unsigned int side;
   };

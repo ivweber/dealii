@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,8 +29,8 @@ test(const std::uint8_t kind, const std::string out = "")
           << ',' << spacedim << '>' << std::endl;
 
   Triangulation<dim, spacedim> tria;
-  GridGenerator::reference_cell(
-    tria, internal::ReferenceCell::make_reference_cell_from_int(kind));
+  GridGenerator::reference_cell(tria,
+                                internal::make_reference_cell_from_int(kind));
   GridOut go;
   go.write_msh(tria, "output.msh");
   cat_file("output.msh");

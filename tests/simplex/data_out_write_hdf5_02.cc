@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -137,7 +137,7 @@ test(const FiniteElement<dim, spacedim> &fe, const unsigned int n_components)
 
       deallog << "Files " << output_basename + ".h5"
               << " and " << output_basename + ".xdmf"
-              << " created succesfully!" << std::endl;
+              << " created successfully!" << std::endl;
     }
 }
 

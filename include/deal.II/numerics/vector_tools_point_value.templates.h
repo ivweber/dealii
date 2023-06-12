@@ -18,6 +18,7 @@
 
 
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_tools.h>
 
@@ -41,11 +42,11 @@ DEAL_II_NAMESPACE_OPEN
 namespace VectorTools
 {
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_value(const DoFHandler<dim, spacedim> &        dof,
-              const VectorType &                       fe_function,
-              const Point<spacedim> &                  point,
-              Vector<typename VectorType::value_type> &value)
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_value(const DoFHandler<dim, spacedim> &        dof,
+                   const VectorType &                       fe_function,
+                   const Point<spacedim> &                  point,
+                   Vector<typename VectorType::value_type> &value)
   {
     if (dof.has_hp_capabilities() == false)
       point_value(get_default_linear_mapping(dof.get_triangulation()),
@@ -63,10 +64,11 @@ namespace VectorTools
 
 
   template <int dim, typename VectorType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
-  point_value(const DoFHandler<dim, spacedim> &dof,
-              const VectorType &               fe_function,
-              const Point<spacedim> &          point)
+    point_value(const DoFHandler<dim, spacedim> &dof,
+                const VectorType &               fe_function,
+                const Point<spacedim> &          point)
   {
     if (dof.has_hp_capabilities() == false)
       return point_value(get_default_linear_mapping(dof.get_triangulation()),
@@ -82,12 +84,12 @@ namespace VectorTools
 
 
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_value(const Mapping<dim, spacedim> &           mapping,
-              const DoFHandler<dim, spacedim> &        dof,
-              const VectorType &                       fe_function,
-              const Point<spacedim> &                  point,
-              Vector<typename VectorType::value_type> &value)
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_value(const Mapping<dim, spacedim> &           mapping,
+                   const DoFHandler<dim, spacedim> &        dof,
+                   const VectorType &                       fe_function,
+                   const Point<spacedim> &                  point,
+                   Vector<typename VectorType::value_type> &value)
   {
     using Number                 = typename VectorType::value_type;
     const FiniteElement<dim> &fe = dof.get_fe();
@@ -125,12 +127,12 @@ namespace VectorTools
 
 
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_value(const hp::MappingCollection<dim, spacedim> &mapping,
-              const DoFHandler<dim, spacedim> &           dof,
-              const VectorType &                          fe_function,
-              const Point<spacedim> &                     point,
-              Vector<typename VectorType::value_type> &   value)
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_value(const hp::MappingCollection<dim, spacedim> &mapping,
+                   const DoFHandler<dim, spacedim> &           dof,
+                   const VectorType &                          fe_function,
+                   const Point<spacedim> &                     point,
+                   Vector<typename VectorType::value_type> &   value)
   {
     using Number                              = typename VectorType::value_type;
     const hp::FECollection<dim, spacedim> &fe = dof.get_fe_collection();
@@ -172,11 +174,12 @@ namespace VectorTools
 
 
   template <int dim, typename VectorType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
-  point_value(const Mapping<dim, spacedim> &   mapping,
-              const DoFHandler<dim, spacedim> &dof,
-              const VectorType &               fe_function,
-              const Point<spacedim> &          point)
+    point_value(const Mapping<dim, spacedim> &   mapping,
+                const DoFHandler<dim, spacedim> &dof,
+                const VectorType &               fe_function,
+                const Point<spacedim> &          point)
   {
     Assert(dof.get_fe(0).n_components() == 1,
            ExcMessage(
@@ -190,11 +193,12 @@ namespace VectorTools
 
 
   template <int dim, typename VectorType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
-  point_value(const hp::MappingCollection<dim, spacedim> &mapping,
-              const DoFHandler<dim, spacedim> &           dof,
-              const VectorType &                          fe_function,
-              const Point<spacedim> &                     point)
+    point_value(const hp::MappingCollection<dim, spacedim> &mapping,
+                const DoFHandler<dim, spacedim> &           dof,
+                const VectorType &                          fe_function,
+                const Point<spacedim> &                     point)
   {
     Assert(dof.get_fe(0).n_components() == 1,
            ExcMessage(
@@ -208,8 +212,8 @@ namespace VectorTools
 
 
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_difference(
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_difference(
     const DoFHandler<dim, spacedim> &                          dof,
     const VectorType &                                         fe_function,
     const Function<spacedim, typename VectorType::value_type> &exact_function,
@@ -226,8 +230,8 @@ namespace VectorTools
 
 
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_difference(
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_difference(
     const Mapping<dim, spacedim> &                             mapping,
     const DoFHandler<dim, spacedim> &                          dof,
     const VectorType &                                         fe_function,

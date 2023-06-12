@@ -56,7 +56,7 @@ namespace internal
       /**
        * Indices of the faces in the current face batch as compared to the
        * numbers of the cells on the logical "interior" side of the face which
-       * is aligned to the direction of FEEvaluation::get_normal_vector().
+       * is aligned to the direction of FEEvaluation::normal_vector().
        */
       std::array<unsigned int, vectorization_width> cells_interior;
 
@@ -64,7 +64,7 @@ namespace internal
        * Indices of the faces in the current face batch as compared to the
        * numbers of the cells on the logical "exterior" side of the face which
        * is aligned to the opposite direction of
-       * FEEvaluation::get_normal_vector(). Note that the distinction into
+       * FEEvaluation::normal_vector(). Note that the distinction into
        * interior and exterior faces is purely logical and refers to the
        * direction of the normal only. In the actual discretization of a
        * problem, the discretization typically needs to make sure that interior
@@ -97,7 +97,7 @@ namespace internal
       unsigned char subface_index;
 
       /**
-       * In 3D, one of the two cells adjacent to a face might use a different
+       * In 3d, one of the two cells adjacent to a face might use a different
        * orientation (also called as face orientation, face flip and face
        * rotation) than the standard orientation. This variable stores the
        * values of face orientation, face flip and face
@@ -165,8 +165,9 @@ namespace internal
       std::vector<FaceToCellTopology<vectorization_width>> faces;
 
       /**
-       * This table translates a triple of the macro cell number, the index of a
-       * face within a cell and the index within the cell batch of vectorization
+       * This table translates a triple of the cell-batch number number, the
+       * index of a face within a cell and the index within the cell batch of
+       * vectorization
        * into the index within the @p faces array.
        */
       ::dealii::Table<3, unsigned int> cell_and_face_to_plain_faces;

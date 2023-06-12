@@ -39,10 +39,8 @@
 
 #include "../tests.h"
 
-#define PRECISION 8
+#define PRECISION 10
 
-
-std::ofstream logfile("output");
 
 template <int dim>
 void
@@ -52,15 +50,14 @@ test(const unsigned int degree)
   Triangulation<dim>    tr;
   GridGenerator::hyper_cube(tr, 0., 1.);
 
-  DoFHandler<dim>                         dof(tr);
-  typename DoFHandler<dim>::cell_iterator c = dof.begin();
+  DoFHandler<dim> dof(tr);
   dof.distribute_dofs(fe_rt);
 
   QTrapezoid<1>      q_trapez;
   const unsigned int div = 4;
   QIterated<dim>     q(q_trapez, div);
   FEValues<dim>      fe(fe_rt, q, update_values | update_JxW_values);
-  fe.reinit(c);
+  fe.reinit(dof.begin_active());
 
   const unsigned int dofs_per_cell = fe_rt.dofs_per_cell;
   FullMatrix<double> mass_matrix(dofs_per_cell, dofs_per_cell);
@@ -79,9 +76,9 @@ test(const unsigned int degree)
     for (unsigned int j = 0; j < dofs_per_cell; ++j)
       if (std::fabs(mass_matrix(i, j)) < 1e-14)
         mass_matrix(i, j) = 0;
-  mass_matrix.print_formatted(logfile, 3, false, 0, " ", 1);
+  mass_matrix.print_formatted(deallog.get_file_stream(), 3, false, 0, " ", 1);
 
-  SolverControl           solver_control(dofs_per_cell, 1e-8);
+  SolverControl           solver_control(dofs_per_cell, 1e-9);
   PrimitiveVectorMemory<> vector_memory;
   SolverCG<>              cg(solver_control, vector_memory);
 
@@ -98,9 +95,9 @@ test(const unsigned int degree)
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(PRECISION);
   deallog << std::fixed;
-  deallog.attach(logfile);
 
   for (unsigned int i = 0; i < 4; ++i)
     test<2>(i);

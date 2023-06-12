@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -63,25 +63,98 @@ private:
   DiagonalMatrix<VectorType> diagonal_matrix;
 };
 
+template <typename VectorType>
+class MyDiagonalMatrixWithPreAndPost
+{
+public:
+  void
+  vmult(VectorType &      dst,
+        const VectorType &src,
+        const std::function<void(const unsigned int, const unsigned int)>
+          &operation_before_matrix_vector_product = {},
+        const std::function<void(const unsigned int, const unsigned int)>
+          &operation_after_matrix_vector_product = {}) const
+  {
+    if (operation_before_matrix_vector_product)
+      operation_before_matrix_vector_product(0, src.size());
+
+    if (operation_before_matrix_vector_product)
+      diagonal_matrix.vmult_add(dst, src);
+    else
+      diagonal_matrix.vmult(dst, src);
+
+    if (operation_after_matrix_vector_product)
+      operation_after_matrix_vector_product(0, src.size());
+  }
+
+  VectorType &
+  get_vector()
+  {
+    return diagonal_matrix.get_vector();
+  }
+
+private:
+  DiagonalMatrix<VectorType> diagonal_matrix;
+};
+
+template <typename SparseMatrixType>
+class MySparseMatrix : public Subscriptor
+{
+public:
+  MySparseMatrix(const SparseMatrixType &sparse_matrix)
+    : sparse_matrix(sparse_matrix)
+  {}
+
+  template <typename VectorType>
+  void
+  vmult(VectorType &      dst,
+        const VectorType &src,
+        const std::function<void(const unsigned int, const unsigned int)>
+          &operation_before_matrix_vector_product,
+        const std::function<void(const unsigned int, const unsigned int)>
+          &operation_after_matrix_vector_product) const
+  {
+    operation_before_matrix_vector_product(0, src.size());
+
+    sparse_matrix.vmult(dst, src);
+
+    operation_after_matrix_vector_product(0, src.size());
+  }
+
+private:
+  const SparseMatrixType &sparse_matrix;
+};
 
 
 template <typename PreconditionerType, typename VectorType>
 std::tuple<double, double, double, double>
-test(const PreconditionerType &preconditioner, const VectorType &src)
+test(const PreconditionerType &preconditioner,
+     const VectorType &        src,
+     const bool                test_transposed = true)
 {
   VectorType dst;
   dst.reinit(src);
 
+  dst = 1.0;
   preconditioner.vmult(dst, src);
   const double norm_0 = dst.l2_norm();
 
+  if (test_transposed)
+    {
+      dst = 1.0;
+      preconditioner.Tvmult(dst, src);
+    }
+  const double norm_2 = dst.l2_norm();
+
+  dst = 1.0;
   preconditioner.step(dst, src);
   const double norm_1 = dst.l2_norm();
 
-  preconditioner.Tvmult(dst, src);
-  const double norm_2 = dst.l2_norm();
-
-  preconditioner.Tstep(dst, src);
+  if (test_transposed)
+    {
+      dst = 1.0;
+      preconditioner.Tstep(dst, src);
+    }
   const double norm_3 = dst.l2_norm();
 
   return std::tuple<double, double, double, double>{norm_0,
@@ -147,7 +220,7 @@ main()
         std::vector<std::tuple<double, double, double, double>> results;
 
         {
-          // Test PreconditionJacobi
+          // 0) Test PreconditionJacobi
           PreconditionJacobi<MatrixType> preconditioner;
 
           PreconditionJacobi<MatrixType>::AdditionalData ad;
@@ -160,7 +233,32 @@ main()
         }
 
         {
-          // Test PreconditionRelaxation + DiagonalMatrix: optimized path
+          // 1) Test PreconditionRelaxation + DiagonalMatrix and matrix with
+          // pre/post
+          using PreconditionerType = DiagonalMatrix<VectorType>;
+
+          using MyMatrixType = MySparseMatrix<MatrixType>;
+
+          MyMatrixType my_system_matrix(system_matrix);
+
+          PreconditionRelaxation<MyMatrixType, PreconditionerType>
+            preconditioner;
+
+          PreconditionRelaxation<MyMatrixType,
+                                 PreconditionerType>::AdditionalData ad;
+          ad.relaxation     = relaxation;
+          ad.n_iterations   = n_iterations;
+          ad.preconditioner = std::make_shared<PreconditionerType>();
+          ad.preconditioner->get_vector() = diagonal;
+
+          preconditioner.initialize(my_system_matrix, ad);
+
+          results.emplace_back(test(preconditioner, src, false));
+        }
+
+        {
+          // 2) Test PreconditionRelaxation + DiagonalMatrix and matrix without
+          // pre/post
           using PreconditionerType = DiagonalMatrix<VectorType>;
 
           PreconditionRelaxation<MatrixType, PreconditionerType> preconditioner;
@@ -178,8 +276,8 @@ main()
         }
 
         {
-          // Test PreconditionRelaxation + wrapper around DiagonalMatrix:
-          // optimized path cannot be used
+          // 3) Test PreconditionRelaxation + arbitrary preconditioner and
+          // matrix without pre/post
           using PreconditionerType = MyDiagonalMatrix<VectorType>;
 
           PreconditionRelaxation<MatrixType, PreconditionerType> preconditioner;
@@ -196,24 +294,64 @@ main()
           results.emplace_back(test(preconditioner, src));
         }
 
-        if (std::equal(results.begin(),
-                       results.end(),
-                       results.begin(),
-                       [](const auto &a, const auto &b) {
-                         if (std::abs(std::get<0>(a) - std::get<0>(b)) > 1e-6)
-                           return false;
+        {
+          // 4) Test PreconditionRelaxation + preconditioner with pre/post and
+          // matrix without pre/post
+          using PreconditionerType = MyDiagonalMatrixWithPreAndPost<VectorType>;
 
-                         if (std::abs(std::get<1>(a) - std::get<1>(b)) > 1e-6)
-                           return false;
+          PreconditionRelaxation<MatrixType, PreconditionerType> preconditioner;
 
-                         if (std::abs(std::get<2>(a) - std::get<2>(b)) > 1e-6)
-                           return false;
+          PreconditionRelaxation<MatrixType, PreconditionerType>::AdditionalData
+            ad;
+          ad.relaxation     = relaxation;
+          ad.n_iterations   = n_iterations;
+          ad.preconditioner = std::make_shared<PreconditionerType>();
+          ad.preconditioner->get_vector() = diagonal;
 
-                         if (std::abs(std::get<3>(a) - std::get<3>(b)) > 1e-6)
-                           return false;
+          preconditioner.initialize(system_matrix, ad);
 
-                         return true;
-                       }))
+          results.emplace_back(test(preconditioner, src, false));
+        }
+
+        {
+          // 5) Test PreconditionRelaxation + preconditioner with pre/post and
+          // matrix with pre/post
+          using PreconditionerType = MyDiagonalMatrixWithPreAndPost<VectorType>;
+
+          using MyMatrixType = MySparseMatrix<MatrixType>;
+
+          MyMatrixType my_system_matrix(system_matrix);
+
+          PreconditionRelaxation<MyMatrixType, PreconditionerType>
+            preconditioner;
+
+          PreconditionRelaxation<MyMatrixType,
+                                 PreconditionerType>::AdditionalData ad;
+          ad.relaxation     = relaxation;
+          ad.n_iterations   = n_iterations;
+          ad.preconditioner = std::make_shared<PreconditionerType>();
+          ad.preconditioner->get_vector() = diagonal;
+
+          preconditioner.initialize(my_system_matrix, ad);
+
+          results.emplace_back(test(preconditioner, src, false));
+        }
+
+        if (std::all_of(results.begin(), results.end(), [&](const auto &a) {
+              if (std::abs(std::get<0>(a) - std::get<0>(results[0])) > 1e-6)
+                return false;
+
+              if (std::abs(std::get<1>(a) - std::get<1>(results[0])) > 1e-6)
+                return false;
+
+              if (std::abs(std::get<2>(a) - std::get<2>(results[0])) > 1e-6)
+                return false;
+
+              if (std::abs(std::get<3>(a) - std::get<3>(results[0])) > 1e-6)
+                return false;
+
+              return true;
+            }))
           deallog << "OK!" << std::endl;
         else
           deallog << "ERROR!" << std::endl;

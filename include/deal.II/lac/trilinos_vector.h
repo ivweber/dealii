@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2021 by the deal.II authors
+// Copyright (C) 2008 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,9 +21,9 @@
 
 #ifdef DEAL_II_WITH_TRILINOS
 #  include <deal.II/base/index_set.h>
-#  include <deal.II/base/mpi.h>
+#  include <deal.II/base/mpi_stub.h>
+#  include <deal.II/base/partitioner.h>
 #  include <deal.II/base/subscriptor.h>
-#  include <deal.II/base/utilities.h>
 
 #  include <deal.II/lac/exceptions.h>
 #  include <deal.II/lac/vector.h>
@@ -35,7 +35,6 @@
 #  include <Epetra_LocalMap.h>
 #  include <Epetra_Map.h>
 #  include <Epetra_MpiComm.h>
-#  include <mpi.h>
 
 #  include <memory>
 #  include <utility>
@@ -394,7 +393,6 @@ namespace TrilinosWrappers
      *
      * @ingroup TrilinosWrappers
      * @ingroup Vectors
-     *         2008, 2009, 2017
      */
     class Vector : public Subscriptor
     {
@@ -415,7 +413,7 @@ namespace TrilinosWrappers
       /**
        * @name 1: Basic Object-handling
        */
-      //@{
+      /** @{ */
       /**
        * Default constructor that generates an empty (zero size) vector. The
        * function <tt>reinit()</tt> will have to give the vector the correct
@@ -447,7 +445,7 @@ namespace TrilinosWrappers
        * @ref GlossGhostedVector "vectors with ghost elements"
        */
       explicit Vector(const IndexSet &parallel_partitioning,
-                      const MPI_Comm &communicator = MPI_COMM_WORLD);
+                      const MPI_Comm  communicator = MPI_COMM_WORLD);
 
       /**
        * Creates a ghosted parallel vector.
@@ -462,7 +460,7 @@ namespace TrilinosWrappers
        */
       Vector(const IndexSet &local,
              const IndexSet &ghost,
-             const MPI_Comm &communicator = MPI_COMM_WORLD);
+             const MPI_Comm  communicator = MPI_COMM_WORLD);
 
       /**
        * Copy constructor from the TrilinosWrappers vector class. Since a
@@ -480,7 +478,7 @@ namespace TrilinosWrappers
        */
       Vector(const IndexSet &parallel_partitioning,
              const Vector &  v,
-             const MPI_Comm &communicator = MPI_COMM_WORLD);
+             const MPI_Comm  communicator = MPI_COMM_WORLD);
 
       /**
        * Copy-constructor from deal.II vectors. Sets the dimension to that of
@@ -497,13 +495,17 @@ namespace TrilinosWrappers
       template <typename Number>
       Vector(const IndexSet &              parallel_partitioning,
              const dealii::Vector<Number> &v,
-             const MPI_Comm &              communicator = MPI_COMM_WORLD);
+             const MPI_Comm                communicator = MPI_COMM_WORLD);
 
       /**
        * Move constructor. Creates a new vector by stealing the internal data
        * of the vector @p v.
+       *
+       * @note In order for this constructor to leave the moved-from object in a
+       * valid state it must allocate memory (in this case, an empty
+       * Epetra_FEVector) - hence it cannot be marked as noexcept.
        */
-      Vector(Vector &&v) noexcept;
+      Vector(Vector &&v); // NOLINT
 
       /**
        * Destructor.
@@ -569,7 +571,7 @@ namespace TrilinosWrappers
        */
       void
       reinit(const IndexSet &parallel_partitioning,
-             const MPI_Comm &communicator         = MPI_COMM_WORLD,
+             const MPI_Comm  communicator         = MPI_COMM_WORLD,
              const bool      omit_zeroing_entries = false);
 
       /**
@@ -577,19 +579,28 @@ namespace TrilinosWrappers
        * and generates a new one based on the input partitioning. In addition
        * to just specifying one index set as in all the other methods above,
        * this method allows to supply an additional set of ghost entries.
+       *
        * There are two different versions of a vector that can be created. If
        * the flag @p vector_writable is set to @p false, the vector only
        * allows read access to the joint set of @p parallel_partitioning and
-       * @p ghost_entries. The effect of the reinit method is then equivalent
-       * to calling the other reinit method with an index set containing both
-       * the locally owned entries and the ghost entries.
+       * @p locally_relevant_or_ghost_entries. The effect of the reinit method
+       * is then equivalent to calling the other reinit method with an index set
+       * containing the union of the two provided index sets. In this case,
+       * it does not matter whether the second argument contains all
+       * locally relevant DoF indices, or only the ones indicating ghost
+       * indices: The union between the two index sets is the same in either
+       * case.
        *
        * If the flag @p vector_writable is set to true, this creates an
        * alternative storage scheme for ghost elements that allows multiple
        * threads to write into the vector (for the other reinit methods, only
-       * one thread is allowed to write into the ghost entries at a time).
+       * one thread is allowed to write into the ghost entries at a time). In
+       * this case, the set of ghost elements of the resulting vector is the
+       * *set difference* between the second and first argument -- where again
+       * it does not matter whether the second argument does or does not
+       * contain the locally owned entries specified by the first argument.
        *
-       * Depending on whether the @p ghost_entries argument uniquely
+       * Depending on whether the @p locally_relevant_or_ghost_entries argument uniquely
        * subdivides elements among processors or not, the resulting vector may
        * or may not have ghost elements. See the general documentation of this
        * class for more information.
@@ -599,9 +610,25 @@ namespace TrilinosWrappers
        */
       void
       reinit(const IndexSet &locally_owned_entries,
-             const IndexSet &ghost_entries,
-             const MPI_Comm &communicator    = MPI_COMM_WORLD,
+             const IndexSet &locally_relevant_or_ghost_entries,
+             const MPI_Comm  communicator    = MPI_COMM_WORLD,
              const bool      vector_writable = false);
+
+      /**
+       * Initialize the vector given to the parallel partitioning described in
+       * @p partitioner using the function above.
+       *
+       * You can decide whether your vector will contain ghost elements with
+       * @p make_ghosted.
+       *
+       * The parameter @p vector_writable only has effect on ghosted vectors
+       * and is ignored for non-ghosted vectors.
+       */
+      void
+      reinit(
+        const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
+        const bool make_ghosted    = true,
+        const bool vector_writable = false);
 
       /**
        * Create vector by merging components from a block vector.
@@ -626,7 +653,7 @@ namespace TrilinosWrappers
        * for more information.
        */
       void
-      compress(::dealii::VectorOperation::values operation);
+      compress(VectorOperation::values operation);
 
       /**
        * Set all components of the vector to the given number @p s. Simply
@@ -698,8 +725,19 @@ namespace TrilinosWrappers
        * current elements.
        */
       void
+      import_elements(const LinearAlgebra::ReadWriteVector<double> &rwv,
+                      const VectorOperation::values                 operation);
+
+      /**
+       * @deprecated Use import_elements() instead.
+       */
+      DEAL_II_DEPRECATED_EARLY
+      void
       import(const LinearAlgebra::ReadWriteVector<double> &rwv,
-             const VectorOperation::values                 operation);
+             const VectorOperation::values                 operation)
+      {
+        import_elements(rwv, operation);
+      }
 
 
       /**
@@ -911,13 +949,13 @@ namespace TrilinosWrappers
        */
       bool
       is_non_negative() const;
-      //@}
+      /** @} */
 
 
       /**
        * @name 2: Data-Access
        */
-      //@{
+      /** @{ */
 
       /**
        * Provide access to a given element, both read and write.
@@ -1041,13 +1079,13 @@ namespace TrilinosWrappers
       const_iterator
       end() const;
 
-      //@}
+      /** @} */
 
 
       /**
        * @name 3: Modification of vectors
        */
-      //@{
+      /** @{ */
 
       /**
        * A collective set operation: instead of setting individual elements of a
@@ -1190,12 +1228,12 @@ namespace TrilinosWrappers
        */
       void
       equ(const TrilinosScalar a, const Vector &V);
-      //@}
+      /** @} */
 
       /**
        * @name 4: Mixed stuff
        */
-      //@{
+      /** @{ */
 
       /**
        * Return a const reference to the underlying Trilinos Epetra_MultiVector
@@ -1254,12 +1292,11 @@ namespace TrilinosWrappers
       memory_consumption() const;
 
       /**
-       * Return a reference to the MPI communicator object in use with this
-       * object.
+       * Return the underlying MPI communicator.
        */
-      const MPI_Comm &
+      MPI_Comm
       get_mpi_communicator() const;
-      //@}
+      /** @} */
 
       /**
        * Exception
@@ -2164,22 +2201,20 @@ namespace TrilinosWrappers
 
 
 
-    inline const MPI_Comm &
+    inline MPI_Comm
     Vector::get_mpi_communicator() const
     {
-      static MPI_Comm comm;
-
       const Epetra_MpiComm *mpi_comm =
         dynamic_cast<const Epetra_MpiComm *>(&vector->Map().Comm());
-      comm = mpi_comm->Comm();
-
-      return comm;
+      return mpi_comm->Comm();
     }
+
+
 
     template <typename number>
     Vector::Vector(const IndexSet &              parallel_partitioner,
                    const dealii::Vector<number> &v,
-                   const MPI_Comm &              communicator)
+                   const MPI_Comm                communicator)
     {
       *this =
         Vector(parallel_partitioner.make_trilinos_map(communicator, true), v);
@@ -2210,7 +2245,7 @@ namespace TrilinosWrappers
 
 } /* end of namespace TrilinosWrappers */
 
-/*@}*/
+/** @} */
 
 
 namespace internal
@@ -2266,8 +2301,6 @@ struct is_serial_vector<TrilinosWrappers::MPI::Vector> : std::false_type
 
 DEAL_II_NAMESPACE_CLOSE
 
-#endif // DEAL_II_WITH_TRILINOS
+#endif
 
-/*----------------------------   trilinos_vector.h ---------------------------*/
-
-#endif // dealii_trilinos_vector_h
+#endif

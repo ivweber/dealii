@@ -16,6 +16,7 @@
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/utilities.h>
 
 #include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_values.h>
@@ -615,13 +616,11 @@ template <>
 unsigned int
 QGaussOneOverR<2>::quad_size(const Point<2> &singularity, const unsigned int n)
 {
-  const double eps = 1e-8;
-  const bool   on_edge =
-    std::any_of(singularity.begin_raw(),
-                singularity.end_raw(),
-                [eps](double coord) {
-                  return std::abs(coord) < eps || std::abs(coord - 1.) < eps;
-                });
+  const double eps     = 1e-8;
+  bool         on_edge = false;
+  for (unsigned int d = 0; d < 2; ++d)
+    on_edge = on_edge || (std::abs(singularity[d]) < eps ||
+                          std::abs(singularity[d] - 1.0) < eps);
   const bool on_vertex =
     on_edge &&
     std::abs((singularity - Point<2>(.5, .5)).norm_square() - .5) < eps;
@@ -948,7 +947,7 @@ QTelles<1>::QTelles(const Quadrature<1> &base_quad, const Point<1> &singularity)
   for (unsigned int q = 0; q < quadrature_points.size(); ++q)
     {
       double gamma = quadrature_points[q][0] * 2 - 1;
-      double eta   = (std::pow(gamma - gamma_bar, 3.0) +
+      double eta   = (Utilities::fixed_power<3>(gamma - gamma_bar) +
                     gamma_bar * (gamma_bar * gamma_bar + 3)) /
                    (1 + 3 * gamma_bar * gamma_bar);
 
@@ -1227,31 +1226,65 @@ QSimplex<dim>::QSimplex(const Quadrature<dim> &quad)
 
 
 template <int dim>
-Quadrature<dim>
+template <int spacedim>
+Quadrature<spacedim>
 QSimplex<dim>::compute_affine_transformation(
-  const std::array<Point<dim>, dim + 1> &vertices) const
+  const std::array<Point<spacedim>, dim + 1> &vertices) const
 {
-  Tensor<2, dim> B;
+  Assert(dim <= spacedim,
+         ExcMessage("Invalid combination of dim and spacedim ."));
+  DerivativeForm<1, spacedim, dim> Bt;
   for (unsigned int d = 0; d < dim; ++d)
-    B[d] = vertices[d + 1] - vertices[0];
+    Bt[d] = vertices[d + 1] - vertices[0];
 
-  B              = transpose(B);
-  const double J = std::abs(determinant(B));
+  const auto   B = Bt.transpose();
+  const double J = std::abs(B.determinant());
 
   // if the determinant is zero, we return an empty quadrature
   if (J < 1e-12)
-    return Quadrature<dim>();
+    return Quadrature<spacedim>();
 
-  std::vector<Point<dim>> qp(this->size());
-  std::vector<double>     w(this->size());
+  std::vector<Point<spacedim>> qp(this->size());
+  std::vector<double>          w(this->size());
 
   for (unsigned int i = 0; i < this->size(); ++i)
     {
-      qp[i] = Point<dim>(vertices[0] + B * this->point(i));
-      w[i]  = J * this->weight(i);
+      qp[i] =
+        Point<spacedim>(vertices[0] + apply_transformation(B, this->point(i)));
+      w[i] = J * this->weight(i);
     }
 
-  return Quadrature<dim>(qp, w);
+  return Quadrature<spacedim>(qp, w);
+}
+
+
+
+template <int dim>
+template <int spacedim>
+Quadrature<spacedim>
+QSimplex<dim>::mapped_quadrature(
+  const std::vector<std::array<Point<spacedim>, dim + 1>> &simplices) const
+{
+  Assert(!(dim == 1 && spacedim == 1),
+         ExcMessage("This function is not supposed to work in 1D-1d case."));
+  Assert(dim <= spacedim,
+         ExcMessage("Invalid combination of dim and spacedim ."));
+
+  std::vector<Point<spacedim>> qp;
+  std::vector<double>          ws;
+  for (const auto &simplex : simplices)
+    {
+      const auto rule = this->compute_affine_transformation(simplex);
+      std::transform(rule.get_points().begin(),
+                     rule.get_points().end(),
+                     std::back_inserter(qp),
+                     [&](const Point<spacedim> &p) { return p; });
+      std::transform(rule.get_weights().begin(),
+                     rule.get_weights().end(),
+                     std::back_inserter(ws),
+                     [&](const double w) { return w; });
+    }
+  return Quadrature<spacedim>(qp, ws);
 }
 
 
@@ -1534,7 +1567,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
   : QSimplex<dim>(Quadrature<dim>())
 {
   Assert(1 <= dim && dim <= 3, ExcNotImplemented());
-  // Just use Gauss in 1D: this is a high-order open rule so this is a
+  // Just use Gauss in 1d: this is a high-order open rule so this is a
   // reasonable equivalent for generic programming.
   if (dim == 1)
     {
@@ -1565,7 +1598,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
     b_point_permutations.push_back(all_permutations(b_point));
   };
 
-  // Apply a Barycentric permutation where two points (in 3D) are different.
+  // Apply a Barycentric permutation where two points (in 3d) are different.
   // Equivalent to s22 in quadpy.
   auto process_point_2 = [&](const double a, const double w) {
     Assert(dim == 3, ExcInternalError());
@@ -1601,13 +1634,13 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 2:
               if (use_odd_order)
                 {
-                  // WV-1, 2D
+                  // WV-1, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(1.0000000000000000e+00);
                 }
               else
                 {
-                  // WV-2, 2D
+                  // WV-2, 2d
                   process_point_1(1.6666666666666669e-01,
                                   3.3333333333333331e-01);
                 }
@@ -1615,13 +1648,13 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 3:
               if (use_odd_order)
                 {
-                  // WV-1, 3D
+                  // WV-1, 3d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(1.0000000000000000e+00);
                 }
               else
                 {
-                  // WV-2, 3D
+                  // WV-2, 3d
                   process_point_1(1.3819660112501050e-01,
                                   2.5000000000000000e-01);
                 }
@@ -1634,14 +1667,14 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
         switch (dim)
           {
             case 2:
-              // WV-4 in both cases (no WV-3 in 2D)
+              // WV-4 in both cases (no WV-3 in 2d)
               process_point_1(9.1576213509770743e-02, 1.0995174365532187e-01);
               process_point_1(4.4594849091596489e-01, 2.2338158967801147e-01);
               break;
             case 3:
               if (use_odd_order)
                 {
-                  // WV-3, 3D
+                  // WV-3, 3d
                   process_point_1(3.2816330251638171e-01,
                                   1.3621784253708741e-01);
                   process_point_1(1.0804724989842859e-01,
@@ -1649,7 +1682,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-5 (no WV-4 in 3D)
+                  // WV-5 (no WV-4 in 3d)
                   Quadrature<dim>::operator=(QWitherdenVincentSimplex<dim>(3));
                 }
               break;
@@ -1663,7 +1696,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 2:
               if (use_odd_order)
                 {
-                  // WV-5, 2D
+                  // WV-5, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(2.2500000000000001e-01);
                   process_point_1(1.0128650732345634e-01,
@@ -1673,7 +1706,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-6, 2D
+                  // WV-6, 2d
                   process_point_1(6.3089014491502227e-02,
                                   5.0844906370206819e-02);
                   process_point_1(2.4928674517091043e-01,
@@ -1686,7 +1719,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 3:
               if (use_odd_order)
                 {
-                  // WV-5, 3D
+                  // WV-5, 3d
                   process_point_1(3.1088591926330061e-01,
                                   1.1268792571801590e-01);
                   process_point_1(9.2735250310891248e-02,
@@ -1696,7 +1729,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-6, 3D
+                  // WV-6, 3d
                   process_point_1(4.0673958534611372e-02,
                                   1.0077211055320640e-02);
                   process_point_1(3.2233789014227548e-01,
@@ -1718,7 +1751,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 2:
               if (use_odd_order)
                 {
-                  // WV-7, 2D
+                  // WV-7, 2d
                   process_point_1(3.3730648554587850e-02,
                                   1.6545050110792131e-02);
                   process_point_1(4.7430969250471822e-01,
@@ -1731,7 +1764,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-8, 2D
+                  // WV-8, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(1.4431560767778717e-01);
                   process_point_1(5.0547228317030957e-02,
@@ -1748,7 +1781,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 3:
               if (use_odd_order)
                 {
-                  // WV-7, 3D
+                  // WV-7, 3d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(9.5485289464130846e-02);
                   process_point_1(3.1570114977820279e-01,
@@ -1764,7 +1797,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-8, 3D
+                  // WV-8, 3d
                   process_point_1(1.0795272496221089e-01,
                                   2.6426650908408830e-02);
                   process_point_1(1.8510948778258660e-01,
@@ -1793,7 +1826,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 2:
               if (use_odd_order)
                 {
-                  // WV-9, 2D
+                  // WV-9, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(9.7135796282798836e-02);
                   process_point_1(4.4729513394452691e-02,
@@ -1810,7 +1843,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-10, 2D
+                  // WV-10, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(8.1743329146285973e-02);
                   process_point_1(3.2055373216943517e-02,
@@ -1831,7 +1864,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 3:
               if (use_odd_order)
                 {
-                  // WV-9, 3D
+                  // WV-9, 3d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(5.8010548912480253e-02);
                   process_point_1(6.1981697552226933e-10,
@@ -1856,7 +1889,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-10, 3D
+                  // WV-10, 3d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(4.7399773556020743e-02);
                   process_point_1(3.1225006869518868e-01,
@@ -1888,11 +1921,11 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           }
         break;
       case 6:
-        // There is no WV-11 rule in 3D yet
+        // There is no WV-11 rule in 3d yet
         Assert(dim == 2, ExcNotImplemented());
         if (use_odd_order)
           {
-            // WV-11, 2D
+            // WV-11, 2d
             b_point_permutations.push_back({centroid});
             b_weights.push_back(8.5761179732224219e-02);
             process_point_1(2.8485417614371900e-02, 1.0431870512894697e-02);
@@ -1909,7 +1942,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           }
         else
           {
-            // WV-12, 2D
+            // WV-12, 2d
             process_point_1(2.4646363436335583e-02, 7.9316425099736389e-03);
             process_point_1(4.8820375094554153e-01, 2.4266838081452032e-02);
             process_point_1(1.0925782765935427e-01, 2.8486052068877544e-02);
@@ -1927,11 +1960,11 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           }
         break;
       case 7:
-        // There is no WV-13 rule in 3D yet
+        // There is no WV-13 rule in 3d yet
         Assert(dim == 2, ExcNotImplemented());
         if (use_odd_order)
           {
-            // WV-13, 2D
+            // WV-13, 2d
             b_point_permutations.push_back({centroid});
             b_weights.push_back(6.7960036586831640e-02);
             process_point_1(2.1509681108843159e-02, 6.0523371035391717e-03);
@@ -1953,7 +1986,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           }
         else
           {
-            // WV-14, 2D
+            // WV-14, 2d
             process_point_1(1.9390961248701044e-02, 4.9234036024000819e-03);
             process_point_1(6.1799883090872587e-02, 1.4433699669776668e-02);
             process_point_1(4.8896391036217862e-01, 2.1883581369428889e-02);
@@ -1988,9 +2021,8 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           const double volume = (dim == 2 ? 1.0 / 2.0 : 1.0 / 6.0);
           this->weights.emplace_back(volume * b_weights[permutation_n]);
           Point<dim> c_point;
-          std::copy(b_point.begin(),
-                    b_point.begin() + dim,
-                    c_point.begin_raw());
+          for (int d = 0; d < dim; ++d)
+            c_point[d] = b_point[d];
           this->quadrature_points.emplace_back(c_point);
         }
     }
@@ -2196,9 +2228,11 @@ template class QGaussSimplex<0>;
 template class QGaussSimplex<1>;
 template class QGaussSimplex<2>;
 template class QGaussSimplex<3>;
+template class QGaussWedge<0>;
 template class QGaussWedge<1>;
 template class QGaussWedge<2>;
 template class QGaussWedge<3>;
+template class QGaussPyramid<0>;
 template class QGaussPyramid<1>;
 template class QGaussPyramid<2>;
 template class QGaussPyramid<3>;
@@ -2206,5 +2240,51 @@ template class QGaussPyramid<3>;
 template class QWitherdenVincentSimplex<1>;
 template class QWitherdenVincentSimplex<2>;
 template class QWitherdenVincentSimplex<3>;
+
+#ifndef DOXYGEN
+template Quadrature<1>
+QSimplex<1>::compute_affine_transformation(
+  const std::array<Point<1>, 1 + 1> &vertices) const;
+
+template Quadrature<2>
+QSimplex<1>::compute_affine_transformation(
+  const std::array<Point<2>, 1 + 1> &vertices) const;
+
+template Quadrature<2>
+QSimplex<2>::compute_affine_transformation(
+  const std::array<Point<2>, 2 + 1> &vertices) const;
+
+template Quadrature<3>
+QSimplex<1>::compute_affine_transformation(
+  const std::array<Point<3>, 1 + 1> &vertices) const;
+
+template Quadrature<3>
+QSimplex<2>::compute_affine_transformation(
+  const std::array<Point<3>, 2 + 1> &vertices) const;
+
+template Quadrature<3>
+QSimplex<3>::compute_affine_transformation(
+  const std::array<Point<3>, 3 + 1> &vertices) const;
+
+template Quadrature<2>
+QSimplex<1>::mapped_quadrature(
+  const std::vector<std::array<Point<2>, 1 + 1>> &simplices) const;
+
+template Quadrature<3>
+QSimplex<1>::mapped_quadrature(
+  const std::vector<std::array<Point<3>, 1 + 1>> &simplices) const;
+
+template Quadrature<2>
+QSimplex<2>::mapped_quadrature(
+  const std::vector<std::array<Point<2>, 2 + 1>> &simplices) const;
+
+template Quadrature<3>
+QSimplex<2>::mapped_quadrature(
+  const std::vector<std::array<Point<3>, 2 + 1>> &simplices) const;
+
+template Quadrature<3>
+QSimplex<3>::mapped_quadrature(
+  const std::vector<std::array<Point<3>, 3 + 1>> &simplices) const;
+#endif
 
 DEAL_II_NAMESPACE_CLOSE

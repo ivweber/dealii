@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2021 by the deal.II authors
+ * Copyright (C) 2018 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -894,7 +894,7 @@ namespace Step63
   // for degree 1 and degree 3 finite elements. If the user wants to change to
   // another degree, they may need to adjust these numbers. For block smoothers,
   // this parameter has a more straightforward interpretation, namely that for
-  // additive methods in 2D, a DoF can have a repeated contribution from up to 4
+  // additive methods in 2d, a DoF can have a repeated contribution from up to 4
   // cells, therefore we must relax these methods by 0.25 to compensate. This is
   // not an issue for multiplicative methods as each cell's inverse application
   // carries new information to all its DoFs.
@@ -1027,7 +1027,7 @@ namespace Step63
   // The last thing to note is that since our problem is non-symmetric, we must
   // use an appropriate Krylov subspace method. We choose here to
   // use GMRES since it offers the guarantee of residual reduction in each
-  // iteration. The major disavantage of GMRES is that, for each iteration,
+  // iteration. The major disadvantage of GMRES is that, for each iteration,
   // the number of stored temporary vectors increases by one, and one also needs
   // to compute a scalar product with all previously stored vectors. This is
   // rather expensive. This requirement is relaxed by using the restarted GMRES

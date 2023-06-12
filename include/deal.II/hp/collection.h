@@ -21,6 +21,7 @@
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/subscriptor.h>
 
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -170,7 +171,8 @@ namespace hp
   /**
    * This class implements a collection of objects.
    *
-   * It implements the concepts stated in the @ref hpcollection
+   * It implements the concepts stated in the
+   * @ref hpcollection
    * module described in the doxygen documentation.
    *
    * @ingroup hp hpcollection
@@ -305,11 +307,9 @@ namespace std
    */
   template <class T>
   struct iterator_traits<dealii::hp::CollectionIterator<T>>
-  {
-    using iterator_category = random_access_iterator_tag;
-    using value_type        = T;
-    using difference_type   = std::ptrdiff_t;
-  };
+    : public iterator_traits<
+        typename std::vector<std::shared_ptr<const T>>::iterator>
+  {};
 } // namespace std
 
 #endif

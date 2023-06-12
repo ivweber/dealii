@@ -17,31 +17,26 @@
 # Remove all cached and non cached variables associated with a feature.
 #
 # Usage:
-#     PURGE_FEATURE(feature)
+#     purge_feature(feature)
 #
 
-MACRO(PURGE_FEATURE _feature)
+macro(purge_feature _feature)
   #
   # uncached:
   #
-  FOREACH(_var ${DEAL_II_LIST_SUFFIXES} ${DEAL_II_STRING_SUFFIXES})
-    IF(NOT _var MATCHES BUNDLED)
-      SET(${_feature}_${_var})
-    ENDIF()
-  ENDFOREACH()
-
-  UNSET(${_feature}_FOUND)
-  UNSET(${_feature}_VERSION)
+  clear_feature(${_feature})
+  unset(${_feature}_FOUND)
+  unset(${_feature}_VERSION)
 
   #
   # cached:
   #
-  FOREACH(_var ${${_feature}_CLEAR_VARIABLES})
-    SET(${_var})
-    UNSET(${_var} CACHE)
-  ENDFOREACH()
+  foreach(_var ${${_feature}_CLEAR_VARIABLES})
+    set(${_var})
+    unset(${_var} CACHE)
+  endforeach()
 
-  UNSET(${_feature}_CLEAR_VARIABLES CACHE)
+  unset(${_feature}_CLEAR_VARIABLES CACHE)
 
-  MARK_AS_ADVANCED(CLEAR ${_feature}_DIR ${_feature}_ARCH)
-ENDMACRO()
+  mark_as_advanced(CLEAR ${_feature}_DIR ${_feature}_ARCH)
+endmacro()

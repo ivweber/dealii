@@ -27,13 +27,15 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Implementation of the scalar version of the P1 nonconforming finite
- * element, a piecewise linear element on quadrilaterals in 2D.
- * This implementation is only for 2D cells in a 2D space (i.e., codimension 0).
+ * element, a piecewise linear element on quadrilaterals in 2d.
+ * This implementation is only for 2d cells in a 2d space (i.e., codimension 0).
  *
  * Unlike the usual continuous, $H^1$ conforming finite elements,
  * the P1 nonconforming element does not enforce continuity across edges.
@@ -65,7 +67,7 @@ DEAL_II_NAMESPACE_OPEN
  * freedom (DoFs) on a quadrilateral is by using midpoint values of a function.
  *
  * However, these 4 functionals are not linearly independent
- * because a linear function on 2D is uniquely determined by only 3 independent
+ * because a linear function on 2d is uniquely determined by only 3 independent
  * values. A simple observation reads that any linear function on a
  * quadrilateral should satisfy the 'dice rule': the sum of two function values
  * at the midpoints of the edge pair on opposite sides of a cell is equal to the
@@ -86,7 +88,7 @@ DEAL_II_NAMESPACE_OPEN
  * the last value at the last midpoint.
  * It means that the number of independent local functionals on a cell is 3,
  * and this is also the dimension of the linear polynomial space on a cell in
- * 2D.
+ * 2d.
  *
  * <h3>Shape functions</h3>
  * Before introducing the degrees of freedom, we present 4 local shape functions
@@ -259,7 +261,7 @@ class FE_P1NC : public FiniteElement<2, 2>
 public:
   /**
    * Constructor for the P1 nonconforming element.
-   * It is only for 2D and codimension = 0.
+   * It is only for 2d and codimension = 0.
    */
   FE_P1NC();
 
@@ -299,8 +301,8 @@ private:
    * Do the work which is needed before cellwise data computation.
    * Since the shape functions are constructed independently on each cell,
    * the data on the reference cell is not necessary.
-   * It returns an empty variable type of @ InternalDataBase and updates @
-   * update_flags, and computes trivially zero Hessian for each cell if it is
+   * It returns an empty variable of type @p InternalDataBase and stores
+   * @p update_flags, and computes trivially zero Hessian for each cell if it is
    * needed.
    */
   virtual std::unique_ptr<FiniteElement<2, 2>::InternalDataBase>
@@ -357,7 +359,7 @@ private:
     const hp::QCollection<1> &                quadrature,
     const Mapping<2, 2> &                     mapping,
     const Mapping<2, 2>::InternalDataBase &   mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<2, 2>
+    const internal::FEValuesImplementation::MappingRelatedData<2, 2>
       &                     mapping_data,
     const InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<2, 2>
@@ -374,7 +376,7 @@ private:
     const Quadrature<1> &                     quadrature,
     const Mapping<2, 2> &                     mapping,
     const Mapping<2, 2>::InternalDataBase &   mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<2, 2>
+    const internal::FEValuesImplementation::MappingRelatedData<2, 2>
       &                     mapping_data,
     const InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<2, 2>
@@ -389,7 +391,7 @@ private:
 
 
 
-/*@}*/
+/** @} */
 
 
 DEAL_II_NAMESPACE_CLOSE

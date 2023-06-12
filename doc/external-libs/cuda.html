@@ -4,7 +4,7 @@
   <head>
     <title>The deal.II Readme on interfacing to CUDA</title>
     <link href="../screen.css" rel="StyleSheet">
-    <meta name="copyright" content="Copyright (C) 2017 - 2020 by the deal.II authors">
+    <meta name="copyright" content="Copyright (C) 2017 - 2021 by the deal.II authors">
     <meta name="keywords" content="deal.II">
   </head>
 
@@ -13,15 +13,16 @@
     <h1>Installing deal.II with CUDA</h1>
 
     <p>
-      To compile and run CUDA code, you need a CUDA-enabled GPU, appropriate
+      To compile and run CUDA code, you need to use an external Kokkos
+      installation that has been configured with CUDA support.
+      This, in turn, requires a CUDA-enabled GPU, appropriate
       drivers, the CUDA toolkit, and the nvcc compiler. Unlike other libraries,
       you need special hardware and compiler to enable CUDA. Because the
       hardware is always evolving, older GPUs do not support all the
       capabilities of newer ones. In order to use CUDA with deal.II, you will
-      need your GPU to have compute capability 3.5 or higher. Independently
+      need your GPU to have compute capability 6.0 or higher. Independently
       from the GPU itself, you also need a version of CUDA recent enough.
-      deal.II supports CUDA 10.2 and higher. Finally to be able to configure
-      deal.II, you will need CMake 3.9 or higher.
+      deal.II supports CUDA 10.2 and higher.
     </p>
 
     <p>
@@ -30,23 +31,8 @@
 
         -DDEAL_II_WITH_CUDA=ON
       </pre>
-      Depending on you system, this may be enough to get CUDA to work. If
-      you are using CUDA 10.2, you will have to make sure that
-      C++17 is disabled.
-      By default, we try to detect the compute capability of your device
-      but you can easily set your own CUDA flags:
-      <pre>
-
-        -DDEAL_II_CUDA_FLAGS="-arch=sm_60"
-      </pre>
-      <code>-DDEAL_II_CUDA_FLAGS_DEBUG</code> and
-      <code>-DDEAL_II_CUDA_FLAGS_RELEASE</code> are also available if you want
-      a finer control on the CUDA flags. The CUDA compiler and the
-      CUDA toolkit root directory can be set using
-      <code>-DDEAL_II_CUDA_COMPILER</code> and
-      <code>-DDEAL_II_CUDA_TOOLKIT_ROOT_DIR</code>.
-      Finally, the CUDA host compiler is the same as the C++ compiler
-      by default, but can be changed using CUDA flags as well.
+      CUDA versions prior to 11.0 don't support C++17 or higher. You will have
+      to make sure that C++17 is disabled when using earlier versions.
     </p>
 
     <p>
@@ -59,7 +45,7 @@
 
         -DDEAL_II_WITH_CUDA=ON
         -DDEAL_II_WITH_MPI=ON
-        -DDEAL_II_MPI_WITH_CUDA_SUPPORT=ON
+        -DDEAL_II_MPI_WITH_DEVICE_SUPPORT=ON
       </pre>
       Note, that there is no check that detects if the MPI implementation
       really is CUDA-aware. Activating this flag for incompatible MPI libraries

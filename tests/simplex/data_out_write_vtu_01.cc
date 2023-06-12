@@ -73,7 +73,8 @@ test(const FiniteElement<dim, spacedim> &fe, const unsigned int n_components)
                            RightHandSideFunction<dim>(n_components),
                            solution);
 
-  static unsigned int counter = 0;
+  DataOutBase::VtkFlags vtk_flags;
+  vtk_flags.compression_level = DataOutBase::CompressionLevel::best_compression;
 
   for (unsigned int n_subdivisions = 1; n_subdivisions <= 2; ++n_subdivisions)
     {
@@ -81,17 +82,12 @@ test(const FiniteElement<dim, spacedim> &fe, const unsigned int n_components)
 
       data_out.attach_dof_handler(dof_handler);
       data_out.add_data_vector(solution, "solution");
+      data_out.set_flags(vtk_flags);
 
 
       data_out.build_patches(mapping, n_subdivisions);
 
-      //#if false
-      std::ofstream output("test." + std::to_string(dim) + "." +
-                           std::to_string(counter++) + ".vtu");
-      data_out.write_vtu(output);
-      //#else
       data_out.write_vtu(deallog.get_file_stream());
-      //#endif
     }
 }
 

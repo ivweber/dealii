@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2014 - 2021 by the deal.II authors
+## Copyright (C) 2014 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -16,55 +16,36 @@
 
 ########################################################################
 #                                                                      #
-#                Query for git repository information:                 #
-#                                                                      #
-########################################################################
-
-DEAL_II_QUERY_GIT_INFORMATION("DEAL_II")
-
-FILE(WRITE ${CMAKE_BINARY_DIR}/revision.log
-"###
-#
-#  Git information:
-#        Branch:    ${DEAL_II_GIT_BRANCH}
-#        Revision:  ${DEAL_II_GIT_REVISION}
-#        Timestamp: ${DEAL_II_GIT_TIMESTAMP}
-#
-###"
-  )
-
-
-########################################################################
-#                                                                      #
 #              Write a nice configuration summary to file:             #
 #                                                                      #
 ########################################################################
 
-SET(_log_detailed "${CMAKE_BINARY_DIR}/detailed.log")
-SET(_log_summary  "${CMAKE_BINARY_DIR}/summary.log")
-SET(_log_feature "${CMAKE_BINARY_DIR}/${DEAL_II_PROJECT_CONFIG_RELDIR}/${DEAL_II_PROJECT_CONFIG_NAME}FeatureConfig.cmake")
-FILE(REMOVE ${_log_detailed} ${_log_summary} ${_log_feature})
+set(_log_detailed "${CMAKE_BINARY_DIR}/detailed.log")
+set(_log_summary  "${CMAKE_BINARY_DIR}/summary.log")
+file(REMOVE ${_log_detailed} ${_log_summary})
 
-MACRO(_both)
+function(_both)
   # Write to both log files:
-  FILE(APPEND ${_log_detailed} "${ARGN}")
-  FILE(APPEND ${_log_summary} "${ARGN}")
-ENDMACRO()
+  file(APPEND ${_log_detailed} "${ARGN}")
+  file(APPEND ${_log_summary} "${ARGN}")
+endfunction()
 
-MACRO(_detailed)
+function(_detailed)
   # Only write to detailed.log:
-  FILE(APPEND ${_log_detailed} "${ARGN}")
-ENDMACRO()
+  file(APPEND ${_log_detailed} "${ARGN}")
+endfunction()
 
-MACRO(_summary)
+function(_summary)
   # Only write to summary.log:
-  FILE(APPEND ${_log_summary} "${ARGN}")
-ENDMACRO()
+  file(APPEND ${_log_summary} "${ARGN}")
+endfunction()
 
-MACRO(_featurelog)
-  # Only write to deal.IIFeatureConfig.cmake:
-  FILE(APPEND ${_log_feature} "${ARGN}")
-ENDMACRO()
+function(_print_target _target)
+  print_target_properties(${_target} _messages)
+  foreach(_message ${_messages})
+    _detailed("#    ${_message}\n")
+  endforeach()
+endfunction()
 
 _both(
 "###
@@ -76,211 +57,188 @@ _both(
 #        CMAKE_SOURCE_DIR:       ${CMAKE_SOURCE_DIR}
 "
   )
-IF("${DEAL_II_GIT_SHORTREV}" STREQUAL "")
+if("${DEAL_II_GIT_SHORTREV}" STREQUAL "")
   _both("#                                (version ${DEAL_II_PACKAGE_VERSION})\n")
-ELSE()
+else()
   _both("#                                (version ${DEAL_II_PACKAGE_VERSION}, shortrev ${DEAL_II_GIT_SHORTREV})\n")
-ENDIF()
+endif()
 _both(
 "#        CMAKE_BINARY_DIR:       ${CMAKE_BINARY_DIR}
 #        CMAKE_CXX_COMPILER:     ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} on platform ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}
 #                                ${CMAKE_CXX_COMPILER}
 "
   )
-IF(DEAL_II_HAVE_CXX20)
-  _both("#        C++ language standard:  C++20\n")
-ELSEIF(DEAL_II_HAVE_CXX17)
-  _both("#        C++ language standard:  C++17\n")
-ELSEIF(DEAL_II_HAVE_CXX14)
-  _both("#        C++ language standard:  C++14\n")
-ENDIF()
-
-IF(CMAKE_C_COMPILER_WORKS)
+if(CMAKE_C_COMPILER_WORKS)
   _detailed("#        CMAKE_C_COMPILER:       ${CMAKE_C_COMPILER}\n")
-ENDIF()
-IF(CMAKE_Fortran_COMPILER_WORKS)
+endif()
+if(CMAKE_Fortran_COMPILER_WORKS)
   _detailed("#        CMAKE_Fortran_COMPILER: ${CMAKE_Fortran_COMPILER}\n")
-ENDIF()
+endif()
 _detailed("#        CMAKE_GENERATOR:        ${CMAKE_GENERATOR}\n")
 
-IF(CMAKE_CROSSCOMPILING)
+if(DEAL_II_HAVE_CXX20)
+  _both("#        C++ language standard:  C++20\n")
+elseif(DEAL_II_HAVE_CXX17)
+  _both("#        C++ language standard:  C++17\n")
+elseif(DEAL_II_HAVE_CXX14)
+  _both("#        C++ language standard:  C++14\n")
+endif()
+
+_both("#        Vectorization level:    ${DEAL_II_VECTORIZATION_WIDTH_IN_BITS} bit")
+set(_instructions)
+if(DEAL_II_HAVE_SSE2)
+  list(APPEND _instructions "sse2")
+endif()
+if(DEAL_II_HAVE_AVX)
+  list(APPEND _instructions "avx2")
+endif()
+if(DEAL_II_HAVE_AVX512)
+  list(APPEND _instructions "avx512*")
+endif()
+if(DEAL_II_HAVE_ALTIVEC)
+  list(APPEND _instructions "altivec")
+endif()
+if(NOT "${_instructions}" STREQUAL "")
+  to_string(_string ${_instructions})
+  _both(" (${_string})\n")
+endif()
+
+if(CMAKE_CROSSCOMPILING)
   _both(
     "#\n#        CROSSCOMPILING!\n"
     )
-ENDIF()
-
-IF(DEAL_II_STATIC_EXECUTABLE)
-  _both(
-    "#\n#        STATIC LINKAGE!\n"
-    )
-ENDIF()
+endif()
 
 _both("#\n")
 
-_detailed(
-"#  Base configuration (prior to feature configuration):
-#        DEAL_II_CXX_FLAGS:            ${BASE_CXX_FLAGS}
-"
-  )
-IF(CMAKE_BUILD_TYPE MATCHES "Release")
-  _detailed("#        DEAL_II_CXX_FLAGS_RELEASE:    ${BASE_CXX_FLAGS_RELEASE}\n")
-ENDIF()
-IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-  _detailed("#        DEAL_II_CXX_FLAGS_DEBUG:      ${BASE_CXX_FLAGS_DEBUG}\n")
-ENDIF()
+_detailed("#  Exported compiler and linker flags:\n")
+_detailed("#        DEAL_II_CXX_FLAGS:            ${DEAL_II_CXX_FLAGS}\n")
+if(CMAKE_BUILD_TYPE MATCHES "Release")
+  _detailed("#        DEAL_II_CXX_FLAGS_RELEASE:    ${DEAL_II_CXX_FLAGS_RELEASE}\n")
+endif()
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  _detailed("#        DEAL_II_CXX_FLAGS_DEBUG:      ${DEAL_II_CXX_FLAGS_DEBUG}\n")
+endif()
+_detailed("#        DEAL_II_WARNING_FLAGS:        ${DEAL_II_WARNING_FLAGS}\n")
 
-_detailed("#        DEAL_II_LINKER_FLAGS:         ${BASE_LINKER_FLAGS}\n")
-IF(CMAKE_BUILD_TYPE MATCHES "Release")
-  _detailed("#        DEAL_II_LINKER_FLAGS_RELEASE: ${BASE_LINKER_FLAGS_RELEASE}\n")
-ENDIF()
-IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-  _detailed("#        DEAL_II_LINKER_FLAGS_DEBUG:   ${BASE_LINKER_FLAGS_DEBUG}\n")
-ENDIF()
+_detailed("#        DEAL_II_LINKER_FLAGS:         ${DEAL_II_LINKER_FLAGS}\n")
+if(CMAKE_BUILD_TYPE MATCHES "Release")
+  _detailed("#        DEAL_II_LINKER_FLAGS_RELEASE: ${DEAL_II_LINKER_FLAGS_RELEASE}\n")
+endif()
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  _detailed("#        DEAL_II_LINKER_FLAGS_DEBUG:   ${DEAL_II_LINKER_FLAGS_DEBUG}\n")
+endif()
 
-_detailed("#        DEAL_II_DEFINITIONS:          ${BASE_DEFINITIONS}\n")
-IF(CMAKE_BUILD_TYPE MATCHES "Release")
-  _detailed("#        DEAL_II_DEFINITIONS_RELEASE:  ${BASE_DEFINITIONS_RELEASE}\n")
-ENDIF()
-IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-  _detailed("#        DEAL_II_DEFINITIONS_DEBUG:    ${BASE_DEFINITIONS_DEBUG}\n")
-ENDIF()
-
-_detailed("#        DEAL_II_USER_DEFINITIONS:     ${BASE_DEFINITIONS}\n")
-IF(CMAKE_BUILD_TYPE MATCHES "Release")
-  _detailed("#        DEAL_II_USER_DEFINITIONS_REL: ${BASE_DEFINITIONS_RELEASE}\n")
-ENDIF()
-IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-  _detailed("#        DEAL_II_USER_DEFINITIONS_DEB: ${BASE_DEFINITIONS_DEBUG}\n")
-ENDIF()
-
-_detailed("#        DEAL_II_INCLUDE_DIRS          ${BASE_INCLUDE_DIRS}\n")
-_detailed("#        DEAL_II_USER_INCLUDE_DIRS:    ${BASE_USER_INCLUDE_DIRS}\n")
-_detailed("#        DEAL_II_BUNDLED_INCLUDE_DIRS: ${BASE_BUNDLED_INCLUDE_DIRS}\n")
-
-_detailed("#        DEAL_II_LIBRARIES:            ${BASE_LIBRARIES}\n")
-IF(CMAKE_BUILD_TYPE MATCHES "Release")
-  _detailed("#        DEAL_II_LIBRARIES_RELEASE:    ${BASE_LIBRARIES_RELEASE}\n")
-ENDIF()
-IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-  _detailed("#        DEAL_II_LIBRARIES_DEBUG:      ${BASE_LIBRARIES_DEBUG}\n")
-ENDIF()
-_detailed("#        DEAL_II_VECTORIZATION_WIDTH_IN_BITS: ${DEAL_II_VECTORIZATION_WIDTH_IN_BITS}\n")
-
-IF(DEAL_II_HAVE_CXX20)
-  _detailed("#        DEAL_II_HAVE_CXX20\n")
-ELSEIF(DEAL_II_HAVE_CXX17)
-  _detailed("#        DEAL_II_HAVE_CXX17\n")
-ELSEIF(DEAL_II_HAVE_CXX14)
-  _detailed("#        DEAL_II_HAVE_CXX14\n")
-ENDIF()
-
+_detailed("#  Library targets:\n")
 
 _detailed("#\n")
+_print_target(${DEAL_II_TARGET_NAME})
 
-IF(NOT DEAL_II_SETUP_DEFAULT_COMPILER_FLAGS)
-  _both("#  WARNING: DEAL_II_SETUP_DEFAULT_COMPILER_FLAGS is set to OFF\n")
-ENDIF()
+foreach(_build ${DEAL_II_BUILD_TYPES})
+  string(TOLOWER "${_build}" _build_lowercase)
+  _detailed("#\n")
+  _print_target(${DEAL_II_TARGET_NAME}_${_build_lowercase})
+endforeach()
+_detailed("#\n")
+
 _both("#  Configured Features (")
-IF(DEFINED DEAL_II_ALLOW_BUNDLED)
+if(DEFINED DEAL_II_ALLOW_BUNDLED)
   _both("DEAL_II_ALLOW_BUNDLED = ${DEAL_II_ALLOW_BUNDLED}, ")
-ENDIF()
-IF(DEAL_II_FORCE_AUTODETECTION)
+endif()
+if(DEAL_II_FORCE_AUTODETECTION)
   _both("!!! DEAL_II_FORCE_AUTODETECTION=ON !!!, ")
-ENDIF()
+endif()
 _both("DEAL_II_ALLOW_AUTODETECTION = ${DEAL_II_ALLOW_AUTODETECTION}):\n")
 
+set(_deal_ii_features_sorted ${DEAL_II_FEATURES})
+list(SORT _deal_ii_features_sorted)
+foreach(_feature ${_deal_ii_features_sorted})
+  set(_var DEAL_II_WITH_${_feature})
 
-SET(_deal_ii_features_sorted ${DEAL_II_FEATURES})
-LIST(SORT _deal_ii_features_sorted)
-FOREACH(_feature ${_deal_ii_features_sorted})
-  SET(_var DEAL_II_WITH_${_feature})
-
-  IF(${${_var}})
+  if(${${_var}})
     #
     # The feature is enabled:
     #
-    IF(FEATURE_${_feature}_EXTERNAL_CONFIGURED)
+    if(FEATURE_${_feature}_EXTERNAL_CONFIGURED)
       _both("#        ${_var} set up with external dependencies\n")
-    ELSEIF(FEATURE_${_feature}_BUNDLED_CONFIGURED)
-      IF(DEAL_II_FORCE_BUNDLED_${_feature})
+    elseif(DEAL_II_FEATURE_${_feature}_BUNDLED_CONFIGURED)
+      if(DEAL_II_FORCE_BUNDLED_${_feature})
         _both("#        ${_var} set up with bundled packages (forced)\n")
-      ELSE()
+      else()
         _both("#        ${_var} set up with bundled packages\n")
-      ENDIF()
-    ELSE()
+      endif()
+    else()
      _both("#        ${_var} = ${${_var}}\n")
-    ENDIF()
+    endif()
 
     #
-    # Print out version number:
+    # Print some non interface target related configuration values:
     #
-    IF(DEFINED ${_feature}_VERSION)
-      _detailed("#            ${_feature}_VERSION = ${${_feature}_VERSION}\n")
-    ENDIF()
 
-    #
-    # Special version numbers:
-    #
-    IF(_feature MATCHES "THREADS" AND DEFINED TBB_VERSION)
-      _detailed("#            TBB_VERSION = ${TBB_VERSION}\n")
-    ENDIF()
-    IF(_feature MATCHES "CUDA" AND DEFINED CUDA_COMPUTE_CAPABILITY)
-      _detailed("#            CMAKE_CUDA_COMPILER = ${CMAKE_CUDA_COMPILER}\n")
-      _detailed("#            CUDA_COMPUTE_CAPABILITY = ${CUDA_COMPUTE_CAPABILITY_MAJOR}.${CUDA_COMPUTE_CAPABILITY_MINOR}\n")
-      _detailed("#            DEAL_II_CUDA_FLAGS = ${DEAL_II_CUDA_FLAGS}\n")
-      _detailed("#            DEAL_II_CUDA_FLAGS_RELEASE = ${DEAL_II_CUDA_FLAGS_RELEASE}\n")
-      _detailed("#            DEAL_II_CUDA_FLAGS_DEBUG = ${DEAL_II_CUDA_FLAGS_DEBUG}\n")
-    ENDIF()
-
-
-    #
-    # Print out ${_feature}_DIR:
-    #
-    IF(NOT "${${_feature}_DIR}" STREQUAL "")
-      _detailed("#            ${_feature}_DIR = ${${_feature}_DIR}\n")
-      _featurelog("SET(DEAL_II_${_feature}_DIR \"${${_feature}_DIR}\")\n")
-    ENDIF()
-
-    #
-    # Print the feature configuration:
-    #
-    FOREACH(_var2
-      C_COMPILER CXX_COMPILER Fortran_COMPILER WITH_64BIT_BLAS_INDICES
-      ${DEAL_II_STRING_SUFFIXES} ${DEAL_II_LIST_SUFFIXES}
+    foreach(_var
+      EXECUTABLE VERSION DIR C_COMPILER CXX_COMPILER Fortran_COMPILER
+      WITH_64BIT_BLAS_INDICES
       )
-      IF(DEFINED ${_feature}_${_var2})
-        _detailed("#            ${_feature}_${_var2} = ${${_feature}_${_var2}}\n")
-        _featurelog("SET(DEAL_II_${_feature}_${_var2} \"${${_feature}_${_var2}}\")\n")
-      ENDIF()
-    ENDFOREACH()
-  ELSE()
+      if(NOT "${${_feature}_${_var}}" STREQUAL "")
+        _detailed("#            ${_feature}_${_var} = ${${_feature}_${_var}}\n")
+      endif()
+    endforeach()
+
+    #
+    # Special information:
+    #
+
+    if(_feature MATCHES "MPI")
+      _detailed("#            MPI_CXX_VERSION = ${MPI_CXX_VERSION}\n")
+    endif()
+
+    if(_feature MATCHES "KOKKOS")
+      _detailed("#            KOKKOS_BACKENDS = ${Kokkos_DEVICES}\n")
+      _detailed("#            KOKKOS_ARCHITECTURES = ${Kokkos_ARCH}\n")
+    endif()
+  else()
     # FEATURE is disabled
     _both("#      ( ${_var} = ${${_var}} )\n")
-  ENDIF()
-ENDFOREACH()
+  endif()
+endforeach()
 
-_both(
-  "#\n#  Component configuration:\n"
-  )
+_detailed("#\n#  Interface targets:\n")
 
-FOREACH(_component ${DEAL_II_COMPONENTS})
-  SET(_var DEAL_II_COMPONENT_${_component})
-  IF(${${_var}})
+foreach(_feature ${_deal_ii_features_sorted})
+  if(${DEAL_II_WITH_${_feature}})
+    string(TOLOWER ${_feature} _feature_lowercase)
+    foreach(_target ${DEAL_II_BUILD_TYPES}
+      interface_${_feature_lowercase} interface_${_feature_lowercase}_debug interface_${_feature_lowercase}_release
+      bundled_${_feature_lowercase} bundled_${_feature_lowercase}_debug bundled_${_feature_lowercase}_release
+      )
+      if(TARGET ${_target})
+        _detailed("#\n")
+        _print_target(${_target})
+      endif()
+    endforeach()
+  endif()
+endforeach()
+
+_both("#\n#  Component configuration:\n")
+
+foreach(_component ${DEAL_II_COMPONENTS})
+  set(_var DEAL_II_COMPONENT_${_component})
+  if(${${_var}})
     _both("#        ${_var}\n")
-  ELSE()
+  else()
     _both("#      ( ${_var} = ${${_var}} )\n")
-  ENDIF()
-ENDFOREACH()
+  endif()
+endforeach()
 
 _summary(
 "#\n#  Detailed information (compiler flags, feature configuration) can be found in detailed.log
 #\n#  Run  $ "
   )
-IF(CMAKE_GENERATOR MATCHES "Ninja")
+if(CMAKE_GENERATOR MATCHES "Ninja")
   _summary("ninja ")
-ELSE()
+else()
 _summary("make ")
-ENDIF()
+endif()
 _summary("info  to print a help message with a list of top level targets\n")
 
 _both("#\n###")

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,8 +35,6 @@
 
 #include "../tests.h"
 
-using namespace std;
-
 
 
 template <int dim, int spacedim>
@@ -56,7 +54,7 @@ main()
   // Extract the boundary of 3/4 of a sphere
   {
     const int dim = 3;
-    deallog << "Testing hyper_cube in dim: " << dim << "..." << endl;
+    deallog << "Testing hyper_cube in dim: " << dim << "..." << std::endl;
 
     const SphericalManifold<dim> boundary_description;
     Triangulation<dim>           volume_mesh;
@@ -90,8 +88,7 @@ main()
 
     // now extract a mesh of the 5
     // surface faces
-    std::set<types::boundary_id> boundary_ids;
-    boundary_ids.insert(0);
+    const std::set<types::boundary_id> boundary_ids = {0};
     GridGenerator::extract_boundary_mesh(volume_mesh,
                                          boundary_mesh,
                                          boundary_ids);

@@ -20,6 +20,7 @@
 #include <deal.II/base/config.h>
 
 #include <cstdint>
+#include <type_traits> // make_signed_t
 
 
 DEAL_II_NAMESPACE_OPEN
@@ -45,13 +46,18 @@ namespace types
   /**
    * The type used for global indices of vertices.
    */
-  using global_vertex_index = uint64_t;
+  using global_vertex_index = std::uint64_t;
 
   /**
    * An identifier that denotes the MPI type associated with
    * types::global_vertex_index.
    */
 #define DEAL_II_VERTEX_INDEX_MPI_TYPE MPI_UINT64_T
+
+  /**
+   * The type in which we store the active and future FE indices.
+   */
+  using fe_index = unsigned short int;
 
   /**
    * The type used to denote the global index of degrees of freedom. This
@@ -71,10 +77,17 @@ namespace types
    * page for guidance on when this type should or should not be used.
    */
 #ifdef DEAL_II_WITH_64BIT_INDICES
-  using global_dof_index = uint64_t;
+  using global_dof_index = std::uint64_t;
 #else
   using global_dof_index  = unsigned int;
 #endif
+
+  /**
+   * Signed version of global_dof_index.
+   * This is useful for interacting with Trilinos' Tpetra that only works well
+   * with a signed global ordinal type.
+   */
+  using signed_global_dof_index = std::make_signed_t<global_dof_index>;
 
   /**
    * An identifier that denotes the MPI type associated with
@@ -100,7 +113,7 @@ namespace types
    * The data type always corresponds to an unsigned integer type.
    */
 #ifdef DEAL_II_WITH_64BIT_INDICES
-  using global_cell_index = uint64_t;
+  using global_cell_index = std::uint64_t;
 #else
   using global_cell_index = unsigned int;
 #endif
@@ -115,8 +128,7 @@ namespace types
 
   /**
    * The type used to denote boundary indicators associated with every piece
-   * of the boundary and, in the case of meshes that describe manifolds in
-   * higher dimensions, associated with every cell.
+   * of the boundary of the domain.
    *
    * There is a special value, numbers::internal_face_boundary_id that is used
    * to indicate an invalid value of this type and that is used as the
@@ -167,11 +179,16 @@ namespace TrilinosWrappers
 {
   namespace types
   {
+    /**
+     * Declare type of 64 bit integer used in the Epetra package of Trilinos.
+     */
+    using int64_type = long long int;
+
 #ifdef DEAL_II_WITH_64BIT_INDICES
     /**
      * Declare type of integer used in the Epetra package of Trilinos.
      */
-    using int_type = long long int;
+    using int_type = int64_type;
 #else
     /**
      * Declare type of integer used in the Epetra package of Trilinos.
@@ -204,6 +221,11 @@ namespace numbers
    */
   const types::global_dof_index invalid_size_type =
     static_cast<types::global_dof_index>(-1);
+
+  /**
+   * An invalid value for active and future fe indices.
+   */
+  const types::fe_index invalid_fe_index = static_cast<types::fe_index>(-1);
 
   /**
    * An invalid value for indices of degrees of freedom.

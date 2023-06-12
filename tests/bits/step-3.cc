@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2018 by the deal.II authors
+// Copyright (C) 2005 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -45,10 +45,6 @@
 #include <deal.II/numerics/vector_tools.h>
 
 #include "../tests.h"
-
-std::ofstream logfile("output");
-
-
 
 class LaplaceProblem
 {
@@ -217,10 +213,10 @@ LaplaceProblem::run()
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(2);
-  logfile << std::setprecision(2);
+  deallog.get_file_stream() << std::setprecision(2);
 
-  deallog.attach(logfile);
 
   LaplaceProblem laplace_problem;
   laplace_problem.run();

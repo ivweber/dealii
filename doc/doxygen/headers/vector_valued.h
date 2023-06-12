@@ -85,7 +85,8 @@
  * Here, <b>D</b> denotes the symmetric gradient defined by
  * $\mathbf Du = \tfrac12 (\nabla \mathbf u + (\nabla \mathbf u)^T)$
  * and the colon indicates double contraction of two tensors of rank 2
- * (the Frobenius inner product). This bilinear form looks indeed very
+ * (the [Frobenius inner product](https://en.wikipedia.org/wiki/Frobenius_inner_product)).
+ * This bilinear form looks indeed very
  * much like the bilinear form of the Poisson problem in step-3. The
  * only differences are
  * <ol>
@@ -801,7 +802,7 @@
   \begin{array}{cc} M & B \\ B^T & 0 \end{array}
   \right),
 @f}
- * where $M$ represents the mass matrix that results from discretizing the
+ * where $M$ represents the @ref GlossMassMatrix "mass matrix" that results from discretizing the
  * identity operator $\mathbf 1$ and $B$ the equivalent of the gradient
  * operator.
  *

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2018 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -76,7 +76,7 @@ namespace
 
 
 
-  // Generate an hyper_shell over an EllipticalManifold having an abitrary
+  // Generate an hyper_shell over an EllipticalManifold having an arbitrary
   // center, and the major axis oriented in the direction of the x-axis.
   //
   // inner_radius and outer_radius parameters correspond to the

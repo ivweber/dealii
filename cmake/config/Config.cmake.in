@@ -20,196 +20,168 @@
 ##                                                                    ##
 ########################################################################
 
-
 #
 # General information
 #
 
-SET(DEAL_II_PACKAGE_NAME "@DEAL_II_PACKAGE_NAME@")
-SET(DEAL_II_PACKAGE_VERSION "@DEAL_II_PACKAGE_VERSION@")
-SET(DEAL_II_PACKAGE_VENDOR "@DEAL_II_PACKAGE_VENDOR@")
-SET(DEAL_II_PACKAGE_DESCRIPTION "@DEAL_II_PACKAGE_DESCRIPTION@")
+set(DEAL_II_PACKAGE_NAME "@DEAL_II_PACKAGE_NAME@")
+set(DEAL_II_PACKAGE_VERSION "@DEAL_II_PACKAGE_VERSION@")
+set(DEAL_II_PACKAGE_VENDOR "@DEAL_II_PACKAGE_VENDOR@")
+set(DEAL_II_PACKAGE_DESCRIPTION "@DEAL_II_PACKAGE_DESCRIPTION@")
 
-SET(DEAL_II_VERSION_MAJOR "@DEAL_II_VERSION_MAJOR@")
-SET(DEAL_II_VERSION_MINOR "@DEAL_II_VERSION_MINOR@")
-SET(DEAL_II_VERSION_SUBMINOR "@DEAL_II_VERSION_SUBMINOR@")
-SET(DEAL_II_VERSION "@DEAL_II_VERSION@")
+set(DEAL_II_VERSION_MAJOR "@DEAL_II_VERSION_MAJOR@")
+set(DEAL_II_VERSION_MINOR "@DEAL_II_VERSION_MINOR@")
+set(DEAL_II_VERSION_SUBMINOR "@DEAL_II_VERSION_SUBMINOR@")
+set(DEAL_II_VERSION "@DEAL_II_VERSION@")
 
-SET(DEAL_II_GIT_BRANCH "@DEAL_II_GIT_BRANCH@")
-SET(DEAL_II_GIT_REVISION "@DEAL_II_GIT_REVISION@")
-SET(DEAL_II_GIT_SHORTREV "@DEAL_II_GIT_SHORTREV@")
-SET(DEAL_II_GIT_TAG "@DEAL_II_GIT_TAG@")
+set(DEAL_II_GIT_BRANCH "@DEAL_II_GIT_BRANCH@")
+set(DEAL_II_GIT_REVISION "@DEAL_II_GIT_REVISION@")
+set(DEAL_II_GIT_SHORTREV "@DEAL_II_GIT_SHORTREV@")
+set(DEAL_II_GIT_TAG "@DEAL_II_GIT_TAG@")
 
-SET(DEAL_II_PROJECT_CONFIG_NAME "@DEAL_II_PROJECT_CONFIG_NAME@")
+set(DEAL_II_PROJECT_CONFIG_NAME "@DEAL_II_PROJECT_CONFIG_NAME@")
 
-SET(DEAL_II_BUILD_TYPE "@CMAKE_BUILD_TYPE@")
-SET(DEAL_II_BUILD_TYPES "@DEAL_II_BUILD_TYPES@")
-
+set(DEAL_II_BUILD_TYPE "@CMAKE_BUILD_TYPE@")
+set(DEAL_II_BUILD_TYPES "@DEAL_II_BUILD_TYPES@")
 
 #
 # Information about the project location
 #
 
-SET(DEAL_II_DOCHTML_RELDIR "@DEAL_II_DOCHTML_RELDIR@")
-SET(DEAL_II_DOCREADME_RELDIR "@DEAL_II_DOCREADME_RELDIR@")
-SET(DEAL_II_EXAMPLES_RELDIR "@DEAL_II_EXAMPLES_RELDIR@")
-SET(DEAL_II_EXECUTABLE_RELDIR "@DEAL_II_EXECUTABLE_RELDIR@")
-SET(DEAL_II_INCLUDE_RELDIR "@DEAL_II_INCLUDE_RELDIR@")
-SET(DEAL_II_LIBRARY_RELDIR "@DEAL_II_LIBRARY_RELDIR@")
-SET(DEAL_II_PROJECT_CONFIG_RELDIR "@DEAL_II_PROJECT_CONFIG_RELDIR@")
-SET(DEAL_II_SHARE_RELDIR "@DEAL_II_SHARE_RELDIR@")
+set(DEAL_II_DOCHTML_RELDIR "@DEAL_II_DOCHTML_RELDIR@")
+set(DEAL_II_DOCREADME_RELDIR "@DEAL_II_DOCREADME_RELDIR@")
+set(DEAL_II_EXAMPLES_RELDIR "@DEAL_II_EXAMPLES_RELDIR@")
+set(DEAL_II_EXECUTABLE_RELDIR "@DEAL_II_EXECUTABLE_RELDIR@")
+set(DEAL_II_INCLUDE_RELDIR "@DEAL_II_INCLUDE_RELDIR@")
+set(DEAL_II_LIBRARY_RELDIR "@DEAL_II_LIBRARY_RELDIR@")
+set(DEAL_II_PROJECT_CONFIG_RELDIR "@DEAL_II_PROJECT_CONFIG_RELDIR@")
+set(DEAL_II_SHARE_RELDIR "@DEAL_II_SHARE_RELDIR@")
 
 #
 # Determine DEAL_II_PATH from CMAKE_CURRENT_LIST_DIR:
 #
 
-SET(DEAL_II_PATH "${CMAKE_CURRENT_LIST_DIR}")
-SET(_path "${DEAL_II_PROJECT_CONFIG_RELDIR}")
-WHILE(NOT "${_path}" STREQUAL "")
-  GET_FILENAME_COMPONENT(DEAL_II_PATH "${DEAL_II_PATH}" PATH)
-  GET_FILENAME_COMPONENT(_path "${_path}" PATH)
-ENDWHILE()
+set(DEAL_II_PATH "${CMAKE_CURRENT_LIST_DIR}")
+set(_path "${DEAL_II_PROJECT_CONFIG_RELDIR}")
+while(NOT "${_path}" STREQUAL "")
+  get_filename_component(DEAL_II_PATH "${DEAL_II_PATH}" PATH)
+  get_filename_component(_path "${_path}" PATH)
+endwhile()
 
 #
 # Print a message after inclusion of this file:
 #
 
-SET(DEAL_II_PROJECT_CONFIG_INCLUDED TRUE)
+set(DEAL_II_PROJECT_CONFIG_INCLUDED TRUE)
 
-SET(DEAL_II_BUILD_DIR @CONFIG_BUILD_DIR@)
+set(DEAL_II_BUILD_DIR @CONFIG_BUILD_DIR@)
 
-IF(NOT ${DEAL_II_PACKAGE_NAME}_FIND_QUIETLY)
-  IF(DEAL_II_BUILD_DIR)
-    MESSAGE(STATUS
+if(NOT ${DEAL_II_PACKAGE_NAME}_FIND_QUIETLY)
+  if(DEAL_II_BUILD_DIR)
+    message(STATUS
       "Using the ${DEAL_II_PACKAGE_NAME}-${DEAL_II_PACKAGE_VERSION} build directory found at ${DEAL_II_PATH}"
       )
-  ELSE()
-    MESSAGE(STATUS
+  else()
+    message(STATUS
       "Using the ${DEAL_II_PACKAGE_NAME}-${DEAL_II_PACKAGE_VERSION} installation found at ${DEAL_II_PATH}"
       )
-  ENDIF()
-ENDIF()
-
+  endif()
+endif()
 
 #
 # Include all convenience macros:
 #
 
-FILE(GLOB _macro_files
+file(GLOB _macro_files
   "${DEAL_II_PATH}/${DEAL_II_SHARE_RELDIR}/macros/*.cmake"
   )
-FOREACH(file ${_macro_files})
-  IF(NOT ${DEAL_II_PACKAGE_NAME}_FIND_QUIETLY)
-    MESSAGE(STATUS "Include macro ${file}")
-  ENDIF()
-  INCLUDE(${file})
-ENDFOREACH()
-
+foreach(file ${_macro_files})
+  if(NOT ${DEAL_II_PACKAGE_NAME}_FIND_QUIETLY)
+    message(STATUS "Include macro ${file}")
+  endif()
+  include(${file})
+endforeach()
 
 #
 # Compiler and linker configuration
 #
 
-SET(DEAL_II_CXX_COMPILER "@CMAKE_CXX_COMPILER@")
-SET(DEAL_II_C_COMPILER "@CMAKE_C_COMPILER@")
+set(DEAL_II_CXX_COMPILER "@CMAKE_CXX_COMPILER@")
+set(DEAL_II_C_COMPILER "@CMAKE_C_COMPILER@")
 
 # used for all targets:
-SET(DEAL_II_CXX_FLAGS "@DEAL_II_CXX_FLAGS@")
+set(DEAL_II_CXX_FLAGS "@DEAL_II_CXX_FLAGS@")
 
 # _additionally_ used for debug targets:
-SET(DEAL_II_CXX_FLAGS_DEBUG "@DEAL_II_CXX_FLAGS_DEBUG@")
+set(DEAL_II_CXX_FLAGS_DEBUG "@DEAL_II_CXX_FLAGS_DEBUG@")
 
 # _additionally_ used for release targets:
-SET(DEAL_II_CXX_FLAGS_RELEASE "@DEAL_II_CXX_FLAGS_RELEASE@")
+set(DEAL_II_CXX_FLAGS_RELEASE "@DEAL_II_CXX_FLAGS_RELEASE@")
+
+# warning flags used for all targets:
+set(DEAL_II_WARNING_FLAGS "@DEAL_II_WARNING_FLAGS@")
 
 # used for all targets:
-SET(DEAL_II_LINKER_FLAGS "@DEAL_II_LINKER_FLAGS@")
+set(DEAL_II_LINKER_FLAGS "@DEAL_II_LINKER_FLAGS@")
 
 # _additionally_ used for debug targets:
-SET(DEAL_II_LINKER_FLAGS_DEBUG "@DEAL_II_LINKER_FLAGS_DEBUG@")
+set(DEAL_II_LINKER_FLAGS_DEBUG "@DEAL_II_LINKER_FLAGS_DEBUG@")
 
 # _additionally_ used for release targets:
-SET(DEAL_II_LINKER_FLAGS_RELEASE "@DEAL_II_LINKER_FLAGS_RELEASE@")
-
-# used for all targets:
-SET(DEAL_II_USER_DEFINITIONS "@DEAL_II_USER_DEFINITIONS@")
-
-# _additionally_ used for debug targets:
-SET(DEAL_II_USER_DEFINITIONS_DEBUG "@DEAL_II_USER_DEFINITIONS_DEBUG@")
-
-# _additionally_ used for release targets:
-SET(DEAL_II_USER_DEFINITIONS_RELEASE "@DEAL_II_USER_DEFINITIONS_RELEASE@")
+set(DEAL_II_LINKER_FLAGS_RELEASE "@DEAL_II_LINKER_FLAGS_RELEASE@")
 
 #
 # MPI runtime:
 #
 
-SET(DEAL_II_MPIEXEC "@MPIEXEC@")
-SET(DEAL_II_MPIEXEC_NUMPROC_FLAG "@MPIEXEC_NUMPROC_FLAG@")
-SET(DEAL_II_MPIEXEC_PREFLAGS "@MPIEXEC_PREFLAGS@")
-SET(DEAL_II_MPIEXEC_POSTFLAGS "@MPIEXEC_POSTFLAGS@")
-
-#
-# CUDA specific setup:
-#
-SET(CMAKE_CUDA_ARCHITECTURES "@CMAKE_CUDA_ARCHITECTURES@")
-
-#
-# Build a static executable:
-#
-
-SET(DEAL_II_STATIC_EXECUTABLE "@DEAL_II_STATIC_EXECUTABLE@")
-
-
-#
-# Information about include directories and libraries
-#
-
-# Full list of include directories:
-SET(DEAL_II_INCLUDE_DIRS "@CONFIG_INCLUDE_DIRS@")
-
-# Full list of libraries for the debug target:
-SET(DEAL_II_LIBRARIES_DEBUG "@CONFIG_LIBRARIES_DEBUG@")
-
-# Full list of libraries for the release target:
-SET(DEAL_II_LIBRARIES_RELEASE "@CONFIG_LIBRARIES_RELEASE@")
-
-# Full list of libraries with "debug" and "optimized" keywords for easy use with TARGET_LINK_LIBRARIES:
-SET(DEAL_II_LIBRARIES "@CONFIG_LIBRARIES@")
-
-
-#
-# Information about CUDA configuration
-#
-
-SET(DEAL_II_CUDA_TOOLKIT_ROOT_DIR "@CUDA_TOOLKIT_ROOT_DIR@")
-SET(DEAL_II_CUDA_COMPILER "@CMAKE_CUDA_COMPILER@")
-
-# used for all cuda targets:
-SET(DEAL_II_CUDA_FLAGS "@DEAL_II_CUDA_FLAGS@")
-
-# _additionally_ used for debug targets:
-SET(DEAL_II_CUDA_FLAGS_DEBUG "@DEAL_II_CUDA_FLAGS_DEBUG@")
-
-# _additionally_ used for release targets:
-SET(DEAL_II_CUDA_FLAGS_RELEASE "@DEAL_II_CUDA_FLAGS_RELEASE@")
-
+set(DEAL_II_MPIEXEC "@MPIEXEC@")
+set(DEAL_II_MPIEXEC_NUMPROC_FLAG "@MPIEXEC_NUMPROC_FLAG@")
+set(DEAL_II_MPIEXEC_PREFLAGS "@MPIEXEC_PREFLAGS@")
+set(DEAL_II_MPIEXEC_POSTFLAGS "@MPIEXEC_POSTFLAGS@")
 
 #
 # Information about library targets and feature configuration
 #
 
-# The library targets file:
-SET(DEAL_II_TARGET_CONFIG "${DEAL_II_PATH}/${DEAL_II_PROJECT_CONFIG_RELDIR}/${DEAL_II_PROJECT_CONFIG_NAME}Targets.cmake")
+set(DEAL_II_TARGET_CONFIG "${DEAL_II_PATH}/${DEAL_II_PROJECT_CONFIG_RELDIR}/${DEAL_II_PROJECT_CONFIG_NAME}Targets.cmake")
+
+#
+# We support a rather nonstandard situation where the find_package(deal.II)
+# call happens before proper setup of a toolchain via project(). The
+# reasoning behind this was to properly initialize the compiler in user
+# projects via the deal_ii_initialize_cached_variables():
+#
+#   find_package(deal.II)
+#   deal_ii_initialize_cached_variables()
+#   project(...)
+#   ...
+#   deal_ii_setup_target(...)
+#
+# This requires that the deal_ii_setup_target() loads the target
+# configuration because this has to happen after the call to project().
+#
+# Unfortunately _not_ automatically including all target definitions is
+# non-standard behavior and rather surprising. Therefore, in order to
+# support the modern way of searching for a dependency and using it:
+#
+#   project(...)
+#   find_package(deal.II)
+#   ...
+#   target_link_libraries(... dealii::dealii_[debug|release])
+#
+# we check whether project(... [CXX]) has been called prior to
+# find_package(deal.II) and if yes simply include our target configuration:
+#
+if(DEFINED CMAKE_CXX_COMPILER_ABI)
+  include(${DEAL_II_TARGET_CONFIG})
+  set(DEAL_II_TARGET_CONFIG_INCLUDED TRUE)
+endif()
 
 # The Debug target:
-SET(DEAL_II_TARGET_DEBUG "@CONFIG_TARGET_DEBUG@")
+set(DEAL_II_TARGET_DEBUG "@CONFIG_TARGET_DEBUG@")
 
 # The Release target:
-SET(DEAL_II_TARGET_RELEASE "@CONFIG_TARGET_RELEASE@")
+set(DEAL_II_TARGET_RELEASE "@CONFIG_TARGET_RELEASE@")
 
 # Full list of targets with "debug" and "optimized" keywords for easy use with TARGET_LINK_LIBRARIES:
-SET(DEAL_II_TARGET "@CONFIG_TARGET@")
-
-# The feature configuration file:
-SET(DEAL_II_FEATURE_CONFIG "${DEAL_II_PATH}/${DEAL_II_PROJECT_CONFIG_RELDIR}/${DEAL_II_PROJECT_CONFIG_NAME}FeatureConfig.cmake")
+set(DEAL_II_TARGET "@CONFIG_TARGET@")

@@ -53,13 +53,35 @@ case $STAGE in
     #    testsuite to explicitly set the number of threads in the header
     #    file tests.h.
     #
+
+    # Read in TEST_N_THREADS from command line:
+    if [[ $1 == TEST_N_THREADS=* ]]; then
+      TEST_N_THREADS="${1#TEST_N_THREADS=}"
+      shift
+    fi
+
     if [ "${TEST_N_THREADS:-0}" -ne 0 ]; then
       export DEAL_II_NUM_THREADS="${TEST_N_THREADS}"
       export TEST_N_THREADS
     fi
 
-    # Limit the OpenMP pool to two threads.
+    # Limit the OpenMP pool to two threads. Set both variables in case the
+    # caller has either one set.
+    #
+    # These variables do different things and are interpreted by, e.g., GOMP and
+    # openBLAS in slightly different ways so it is best to set both to avoid
+    # inconsistencies. For reference:
+    # 1. OMP_NUM_THREADS permits nesting, e.g., if we were using OpenMP we could
+    #    set it to 4,2,1 to set parallelization levels inside parallelized blocks
+    # 2. OMP_THREAD_LIMIT limits the total number of threads, independent of
+    #    nesting
+    #
+    # 3. In addition we set the OMP_PROC_BIND variable to false to allow
+    #    free movement of the two worker threads and silence a KOKKOS
+    #    warning (which might insist on this variable to be defined).
     export OMP_NUM_THREADS="2"
+    export OMP_THREAD_LIMIT="2"
+    export OMP_PROC_BIND="false"
 
     # Allow oversubscription for MPI (needed for Openmpi@3.0)
     export OMPI_MCA_rmaps_base_oversubscribe=1

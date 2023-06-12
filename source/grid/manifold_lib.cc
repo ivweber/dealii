@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,11 +28,10 @@
 
 #include <deal.II/physics/vector_relations.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <boost/container/small_vector.hpp>
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #include <cmath>
+#include <limits>
 #include <memory>
 
 DEAL_II_NAMESPACE_OPEN
@@ -682,7 +681,7 @@ SphericalManifold<dim, spacedim>::get_new_points(
           continue;
         }
 
-      // If not in 3D, just use the implementation from PolarManifold
+      // If not in 3d, just use the implementation from PolarManifold
       // after we verified that the candidate is not the center.
       if (spacedim < 3)
         new_points[row] = polar_manifold.get_new_point(
@@ -1558,9 +1557,10 @@ TorusManifold<dim>::pull_back(const Point<3> &p) const
   double y     = p(2);
   double phi   = std::atan2(y, x);
   double theta = std::atan2(z, std::sqrt(x * x + y * y) - R);
-  double w     = std::sqrt(std::pow(y - std::sin(phi) * R, 2.0) +
-                       std::pow(x - std::cos(phi) * R, 2.0) + z * z) /
-             r;
+  double w =
+    std::sqrt(Utilities::fixed_power<2>(y - std::sin(phi) * R) +
+              Utilities::fixed_power<2>(x - std::cos(phi) * R) + z * z) /
+    r;
   return {phi, theta, w};
 }
 
@@ -1673,7 +1673,7 @@ TransfiniteInterpolationManifold<dim, spacedim>::initialize(
   const Triangulation<dim, spacedim> &triangulation)
 {
   this->triangulation = &triangulation;
-  // in case the triangulation is cleared, remove the pointers by a signal
+  // In case the triangulation is cleared, remove the pointers by a signal:
   clear_signal.disconnect();
   clear_signal = triangulation.signals.clear.connect([&]() -> void {
     this->triangulation = nullptr;
@@ -1683,8 +1683,16 @@ TransfiniteInterpolationManifold<dim, spacedim>::initialize(
   coarse_cell_is_flat.resize(triangulation.n_cells(level_coarse), false);
   quadratic_approximation.clear();
 
+  // In case of dim == spacedim we perform a quadratic approximation in
+  // InverseQuadraticApproximation(), thus initialize the unit_points
+  // vector with one subdivision to get 3^dim unit_points.
+  //
+  // In the co-dimension one case (meaning  dim < spacedim) we have to fall
+  // back to a simple GridTools::affine_cell_approximation<dim>() which
+  // requires 2^dim points, instead. Thus, initialize the QIterated
+  // quadrature with no subdivisions.
   std::vector<Point<dim>> unit_points =
-    QIterated<dim>(QTrapez<1>(), 2).get_points();
+    QIterated<dim>(QTrapezoid<1>(), (dim == spacedim ? 2 : 1)).get_points();
   std::vector<Point<spacedim>> real_points(unit_points.size());
 
   for (const auto &cell : triangulation.active_cell_iterators())
@@ -1714,7 +1722,7 @@ TransfiniteInterpolationManifold<dim, spacedim>::initialize(
 
 namespace
 {
-  // version for 1D
+  // version for 1d
   template <typename AccessorType>
   Point<AccessorType::space_dimension>
   compute_transfinite_interpolation(const AccessorType &cell,
@@ -1725,7 +1733,7 @@ namespace
            cell.vertex(1) * chart_point[0];
   }
 
-  // version for 2D
+  // version for 2d
   template <typename AccessorType>
   Point<AccessorType::space_dimension>
   compute_transfinite_interpolation(const AccessorType &cell,
@@ -1763,7 +1771,7 @@ namespace
         // contribution of the vertices.  If a line employs the same manifold
         // as the cell, we can merge the weights of the line with the weights
         // of the vertex with a negative sign while going through the faces
-        // (this is a bit artificial in 2D but it becomes clear in 3D where we
+        // (this is a bit artificial in 2d but it becomes clear in 3d where we
         // avoid looking at the faces' orientation and other complications).
 
         // add the contribution from the lines around the cell (first line in
@@ -1840,7 +1848,7 @@ namespace
                                                                {0, 1, 2, 3},
                                                                {4, 5, 6, 7}};
 
-  // version for 3D
+  // version for 3d
   template <typename AccessorType>
   Point<AccessorType::space_dimension>
   compute_transfinite_interpolation(const AccessorType &cell,
@@ -1852,7 +1860,7 @@ namespace
     const types::manifold_id my_manifold_id  = cell.manifold_id();
     const Triangulation<dim, spacedim> &tria = cell.get_triangulation();
 
-    // Same approach as in 2D, but adding the faces, subtracting the edges, and
+    // Same approach as in 2d, but adding the faces, subtracting the edges, and
     // adding the vertices
     const std::array<Point<spacedim>, 8> vertices{{cell.vertex(0),
                                                    cell.vertex(1),
@@ -2122,7 +2130,7 @@ TransfiniteInterpolationManifold<dim, spacedim>::pull_back(
       // method usually does not need more than 5-8 iterations, but sometimes
       // we might have had a bad initial guess and then we can accelerate
       // convergence considerably with getting the actual Jacobian rather than
-      // using secant-like methods (one gradient calculation in 3D costs as
+      // using secant-like methods (one gradient calculation in 3d costs as
       // much as 3 more iterations). this usually happens close to convergence
       // and one more step with the finite-differenced Jacobian leads to
       // convergence
@@ -2335,7 +2343,7 @@ TransfiniteInterpolationManifold<dim, spacedim>::compute_chart_points(
 
   // Function that can guess the location of a chart point by assuming that
   // the eight surrounding points are points on a two-dimensional object
-  // (either a cell in 2D or the face of a hexahedron in 3D), arranged like
+  // (either a cell in 2d or the face of a hexahedron in 3d), arranged like
   //
   //     2 - 7 - 3
   //     |       |
@@ -2428,7 +2436,7 @@ TransfiniteInterpolationManifold<dim, spacedim>::compute_chart_points(
         use_structdim_2_guesses = true;
       else if (spacedim == 3)
         // otherwise these vectors are roughly orthogonal: enable the
-        // structdim 3 optimization if we are in 3D
+        // structdim 3 optimization if we are in 3d
         use_structdim_3_guesses = true;
     }
   // we should enable at most one of the optimizations

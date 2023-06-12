@@ -44,16 +44,17 @@ DEAL_II_NAMESPACE_OPEN
 template <int dim>
 FE_RaviartThomas<dim>::FE_RaviartThomas(const unsigned int deg)
   : FE_PolyTensor<dim>(
-      PolynomialsRaviartThomas<dim>(deg),
+      PolynomialsRaviartThomas<dim>(deg + 1, deg),
       FiniteElementData<dim>(get_dpo_vector(deg),
                              dim,
                              deg + 1,
                              FiniteElementData<dim>::Hdiv),
-      std::vector<bool>(PolynomialsRaviartThomas<dim>::n_polynomials(deg),
+      std::vector<bool>(PolynomialsRaviartThomas<dim>::n_polynomials(deg + 1,
+                                                                     deg),
                         true),
-      std::vector<ComponentMask>(PolynomialsRaviartThomas<dim>::n_polynomials(
-                                   deg),
-                                 std::vector<bool>(dim, true)))
+      std::vector<ComponentMask>(
+        PolynomialsRaviartThomas<dim>::n_polynomials(deg + 1, deg),
+        std::vector<bool>(dim, true)))
 {
   Assert(dim >= 2, ExcImpossibleInDim(dim));
   const unsigned int n_dofs = this->n_dofs_per_cell();
@@ -254,10 +255,10 @@ template <int dim>
 void
 FE_RaviartThomas<dim>::initialize_quad_dof_index_permutation_and_sign_change()
 {
-  // For 1D do nothing.
+  // For 1d do nothing.
   //
-  // TODO: For 2D we simply keep the legacy behavior for now. This should be
-  // changed in the future and can be taken care of by similar means as the 3D
+  // TODO: For 2d we simply keep the legacy behavior for now. This should be
+  // changed in the future and can be taken care of by similar means as the 3d
   // case below. The legacy behavior can be found in fe_poly_tensor.cc in the
   // function internal::FE_PolyTensor::get_dof_sign_change_h_div(...)
   if (dim < 3)
@@ -268,11 +269,13 @@ FE_RaviartThomas<dim>::initialize_quad_dof_index_permutation_and_sign_change()
   AssertDimension(this->n_unique_faces(), 1);
   const unsigned int face_no = 0;
 
-  Assert(this->adjust_quad_dof_index_for_face_orientation_table[0]
-             .n_elements() == 8 * this->n_dofs_per_quad(face_no),
-         ExcInternalError());
+  Assert(
+    this->adjust_quad_dof_index_for_face_orientation_table[0].n_elements() ==
+      this->reference_cell().n_face_orientations(face_no) *
+        this->n_dofs_per_quad(face_no),
+    ExcInternalError());
 
-  // The 3D RaviartThomas space has tensor_degree*tensor_degree face dofs
+  // The 3d RaviartThomas space has tensor_degree*tensor_degree face dofs
   const unsigned int n = this->tensor_degree();
   Assert(n * n == this->n_dofs_per_quad(face_no), ExcInternalError());
 
@@ -443,7 +446,7 @@ FE_RaviartThomas<dim>::initialize_restriction()
   const unsigned int n_face_points = q_base.size();
   // First, compute interpolation on
   // subfaces
-  for (unsigned int face : GeometryInfo<dim>::face_indices())
+  for (const unsigned int face : GeometryInfo<dim>::face_indices())
     {
       // The shape functions of the
       // child cell are evaluated
@@ -678,7 +681,7 @@ FE_RaviartThomas<dim>::convert_generalized_support_point_values_to_dof_values(
   std::fill(nodal_values.begin(), nodal_values.end(), 0.);
 
   const unsigned int n_face_points = boundary_weights.size(0);
-  for (unsigned int face : GeometryInfo<dim>::face_indices())
+  for (const unsigned int face : GeometryInfo<dim>::face_indices())
     for (unsigned int k = 0; k < n_face_points; ++k)
       for (unsigned int i = 0; i < boundary_weights.size(1); ++i)
         {

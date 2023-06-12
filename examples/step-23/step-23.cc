@@ -88,7 +88,7 @@ namespace Step23
   // Next comes the declaration of the main class. It's public interface of
   // functions is like in most of the other tutorial programs. Worth
   // mentioning is that we now have to store four matrices instead of one: the
-  // mass matrix $M$, the Laplace matrix $A$, the matrix $M+k^2\theta^2A$ used
+  // @ref GlossMassMatrix "mass matrix" $M$, the Laplace matrix $A$, the matrix $M+k^2\theta^2A$ used
   // for solving for $U^n$, and a copy of the mass matrix with boundary
   // conditions applied used for solving for $V^n$. Note that it is a bit
   // wasteful to have an additional copy of the mass matrix around. We will
@@ -412,8 +412,7 @@ namespace Step23
     // zlib compression algorithm that is optimized for speed instead of disk
     // usage since otherwise plotting the output becomes a bottleneck:
     DataOutBase::VtkFlags vtk_flags;
-    vtk_flags.compression_level =
-      DataOutBase::VtkFlags::ZlibCompressionLevel::best_speed;
+    vtk_flags.compression_level = DataOutBase::CompressionLevel::best_speed;
     data_out.set_flags(vtk_flags);
     std::ofstream output(filename);
     data_out.write_vtu(output);

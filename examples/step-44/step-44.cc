@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2010 - 2020 by the deal.II authors and
+ * Copyright (C) 2010 - 2022 by the deal.II authors and
  *                              & Jean-Paul Pelteret and Andrew McBride
  *
  * This file is part of the deal.II library.
@@ -43,7 +43,7 @@
 #include <deal.II/grid/grid_in.h>
 #include <deal.II/grid/tria.h>
 
-#include <deal.II/fe/fe_dgp_monomial.h>
+#include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_tools.h>
@@ -1037,19 +1037,18 @@ namespace Step44
     // The Finite Element System is composed of dim continuous displacement
     // DOFs, and discontinuous pressure and dilatation DOFs. In an attempt to
     // satisfy the Babuska-Brezzi or LBB stability conditions (see Hughes
-    // (2000)), we setup a $Q_n \times DGPM_{n-1} \times DGPM_{n-1}$
-    // system. $Q_2 \times DGPM_1 \times DGPM_1$ elements satisfy this
-    // condition, while $Q_1 \times DGPM_0 \times DGPM_0$ elements do
+    // (2000)), we setup a $Q_n \times DGP_{n-1} \times DGP_{n-1}$
+    // system. $Q_2 \times DGP_1 \times DGP_1$ elements satisfy this
+    // condition, while $Q_1 \times DGP_0 \times DGP_0$ elements do
     // not. However, it has been shown that the latter demonstrate good
     // convergence characteristics nonetheless.
     fe(FE_Q<dim>(parameters.poly_degree),
        dim, // displacement
-       FE_DGPMonomial<dim>(parameters.poly_degree - 1),
+       FE_DGP<dim>(parameters.poly_degree - 1),
        1, // pressure
-       FE_DGPMonomial<dim>(parameters.poly_degree - 1),
-       1)
-    , // dilatation
-    dof_handler(triangulation)
+       FE_DGP<dim>(parameters.poly_degree - 1),
+       1) // dilatation
+    , dof_handler(triangulation)
     , dofs_per_cell(fe.n_dofs_per_cell())
     , u_fe(first_u_component)
     , p_fe(p_component)
@@ -1080,10 +1079,11 @@ namespace Step44
   // constraint $\widetilde{J}=1$ on the initial solution field. The constraint
   // corresponds to the determinant of the deformation gradient in the
   // undeformed configuration, which is the identity tensor. We use
-  // FE_DGPMonomial bases to interpolate the dilatation field, thus we can't
+  // FE_DGP bases to interpolate the dilatation field, thus we can't
   // simply set the corresponding dof to unity as they correspond to the
-  // monomial coefficients. Thus we use the VectorTools::project function to do
-  // the work for us. The VectorTools::project function requires an argument
+  // coefficients of a truncated Legendre polynomial.
+  // Thus we use the VectorTools::project function to do the work for us.
+  // The VectorTools::project function requires an argument
   // indicating the hanging node constraints. We have none in this program
   // So we have to create a constraint object. In its original state, constraint
   // objects are unsorted, and have to be sorted (using the
@@ -2032,7 +2032,7 @@ namespace Step44
           }
       }
 
-    // Now we build the local cell stiffness matrix and RHS vector. Since the
+    // Now we build the local cell @ref GlossStiffnessMatrix "stiffness matrix" and RHS vector. Since the
     // global and local system matrices are symmetric, we can exploit this
     // property by building only the lower half of the local matrix and copying
     // the values to the upper half.  So we only assemble half of the
@@ -2272,7 +2272,7 @@ namespace Step44
         // in displacement is non-constant between each time step.
         constraints.clear();
 
-        // The boundary conditions for the indentation problem in 3D are as
+        // The boundary conditions for the indentation problem in 3d are as
         // follows: On the -x, -y and -z faces (IDs 0,2,4) we set up a symmetry
         // condition to allow only planar movement while the +x and +z faces
         // (IDs 1,5) are traction free. In this contrived problem, part of the

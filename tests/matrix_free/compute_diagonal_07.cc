@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,7 +15,7 @@
 
 
 
-// Similar to compute_diagonal_02 but testing block vectorss.
+// Similar to compute_diagonal_02 but testing block vectors.
 
 #include <deal.II/lac/la_parallel_block_vector.h>
 

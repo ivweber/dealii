@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2021 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,9 +20,9 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/derivative_form.h>
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/quadrature.h>
 #include <deal.II/base/tensor_polynomials_base.h>
-#include <deal.II/base/thread_management.h>
 
 #include <deal.II/fe/fe.h>
 
@@ -225,12 +225,12 @@ protected:
   single_mapping_kind() const;
 
   /**
-   * For faces with non-standard face_orientation in 3D, the dofs on faces
+   * For faces with non-standard face_orientation in 3d, the dofs on faces
    * (quads) have to be permuted in order to be combined with the correct
    * shape functions and additionally can change the sign. Given a local
    * dof @p index on a quad, return the
    * sign of the permuted shape function, if the face has non-standard
-   * face_orientation, face_flip or face_rotation. In 2D and 1D there is no need
+   * face_orientation, face_flip or face_rotation. In 2d and 1d there is no need
    * for permutation and consequently it does nothing in this case.
    *
    * The permutation itself is returned by
@@ -245,15 +245,15 @@ protected:
                                             const bool face_rotation) const;
 
   /**
-   * For faces with non-standard face_orientation in 3D, the dofs on faces
+   * For faces with non-standard face_orientation in 3d, the dofs on faces
    * (quads) need not only to be permuted in order to be combined with the
    * correct shape functions. Additionally they may change their sign.
    *
    * The constructor of this class fills this table with 'false' values, i.e.,
    * no sign change at all. Derived finite element classes have to
    * fill this Table with the correct values, see the documentation in
-   * GeometryInfo<dim> and
-   * this @ref GlossFaceOrientation "glossary entry on face orientation".
+   * GeometryInfo<dim> and this
+   * @ref GlossFaceOrientation "glossary entry on face orientation".
    *
    * The table must be filled in finite element classes derived
    * from FE_PolyTensor in a meaningful way since the permutation
@@ -301,8 +301,7 @@ protected:
     std::vector<Tensor<4, dim>> third_derivatives(0);
     std::vector<Tensor<5, dim>> fourth_derivatives(0);
 
-    if ((update_flags & (update_values | update_gradients | update_hessians)) !=
-        0u)
+    if (update_flags & (update_values | update_gradients | update_hessians))
       data.dof_sign_change.resize(this->dofs_per_cell);
 
     // initialize fields only if really
@@ -325,7 +324,7 @@ protected:
     const bool update_transformed_shape_hessian_tensors =
       update_transformed_shape_values;
 
-    if ((update_flags & update_values) != 0u)
+    if (update_flags & update_values)
       {
         values.resize(this->n_dofs_per_cell());
         data.shape_values.reinit(this->n_dofs_per_cell(), n_q_points);
@@ -333,7 +332,7 @@ protected:
           data.transformed_shape_values.resize(n_q_points);
       }
 
-    if ((update_flags & update_gradients) != 0u)
+    if (update_flags & update_gradients)
       {
         grads.resize(this->n_dofs_per_cell());
         data.shape_grads.reinit(this->n_dofs_per_cell(), n_q_points);
@@ -343,7 +342,7 @@ protected:
           data.untransformed_shape_grads.resize(n_q_points);
       }
 
-    if ((update_flags & update_hessians) != 0u)
+    if (update_flags & update_hessians)
       {
         grad_grads.resize(this->n_dofs_per_cell());
         data.shape_grad_grads.reinit(this->n_dofs_per_cell(), n_q_points);
@@ -359,7 +358,7 @@ protected:
     // node values N_i holds
     // N_i(v_j)=\delta_ij for all basis
     // functions v_j
-    if ((update_flags & (update_values | update_gradients)) != 0u)
+    if (update_flags & (update_values | update_gradients))
       for (unsigned int k = 0; k < n_q_points; ++k)
         {
           poly_space->evaluate(quadrature.point(k),
@@ -369,7 +368,7 @@ protected:
                                third_derivatives,
                                fourth_derivatives);
 
-          if ((update_flags & update_values) != 0u)
+          if (update_flags & update_values)
             {
               if (inverse_node_matrix.n_cols() == 0)
                 for (unsigned int i = 0; i < this->n_dofs_per_cell(); ++i)
@@ -384,7 +383,7 @@ protected:
                   }
             }
 
-          if ((update_flags & update_gradients) != 0u)
+          if (update_flags & update_gradients)
             {
               if (inverse_node_matrix.n_cols() == 0)
                 for (unsigned int i = 0; i < this->n_dofs_per_cell(); ++i)
@@ -399,7 +398,7 @@ protected:
                   }
             }
 
-          if ((update_flags & update_hessians) != 0u)
+          if (update_flags & update_hessians)
             {
               if (inverse_node_matrix.n_cols() == 0)
                 for (unsigned int i = 0; i < this->n_dofs_per_cell(); ++i)
@@ -425,8 +424,7 @@ protected:
     const Quadrature<dim> &                                     quadrature,
     const Mapping<dim, spacedim> &                              mapping,
     const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                       spacedim>
+    const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &                                                            mapping_data,
     const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -442,8 +440,7 @@ protected:
     const hp::QCollection<dim - 1> &                            quadrature,
     const Mapping<dim, spacedim> &                              mapping,
     const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                       spacedim>
+    const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &                                                            mapping_data,
     const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -458,8 +455,7 @@ protected:
     const Quadrature<dim - 1> &                                 quadrature,
     const Mapping<dim, spacedim> &                              mapping,
     const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                       spacedim>
+    const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &                                                            mapping_data,
     const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
@@ -520,7 +516,7 @@ protected:
   const std::unique_ptr<const TensorPolynomialsBase<dim>> poly_space;
 
   /**
-   * The inverse of the matrix <i>a<sub>ij</sub></i> of node values
+   * The inverse of the matrix <i>a<sub>ij</sub></i> of node functionals
    * <i>N<sub>i</sub></i> applied to polynomial <i>p<sub>j</sub></i>. This
    * matrix is used to convert polynomials in the "raw" basis provided in
    * #poly_space to the basis dual to the node functionals on the reference
@@ -528,14 +524,16 @@ protected:
    *
    * This object is not filled by FE_PolyTensor, but is a chance for a derived
    * class to allow for reorganization of the basis functions. If it is left
-   * empty, the basis in #poly_space is used.
+   * empty, the basis in #poly_space is used, i.e., it is assumed that
+   * #poly_space already satisfies the Kronecker delta property with
+   * regard to the node functionals.
    */
   FullMatrix<double> inverse_node_matrix;
 
   /**
    * A mutex to be used to guard access to the variables below.
    */
-  mutable std::mutex cache_mutex;
+  mutable Threads::Mutex cache_mutex;
 
   /**
    * If a shape function is computed at a single point, we must compute all of

@@ -257,35 +257,38 @@ test(const Triangulation<dim, spacedim> &tria,
   Assert(reference_cells.size() == 1, ExcNotImplemented());
   unsigned int lower = 0;
   unsigned int upper = 0;
-  switch (reference_cells[0])
+  if (reference_cells[0] == ReferenceCells::Triangle)
     {
-      case ReferenceCells::Triangle:
-        lower = 111;
-        upper = 115;
-        break;
-      case ReferenceCells::Quadrilateral:
-        lower = 96;
-        upper = 100;
-        break;
-      case ReferenceCells::Tetrahedron:
-        lower = 154;
-        upper = 158;
-        break;
-      case ReferenceCells::Hexahedron:
-        lower = 132;
-        upper = 136;
-        break;
-      case ReferenceCells::Wedge:
-        lower = 194;
-        upper = 198;
-        break;
-      case ReferenceCells::Pyramid:
-        lower = 81;
-        upper = 85;
-        break;
-      default:
-        Assert(false, ExcInternalError());
+      lower = 111;
+      upper = 115;
     }
+  else if (reference_cells[0] == ReferenceCells::Quadrilateral)
+    {
+      lower = 96;
+      upper = 100;
+    }
+  else if (reference_cells[0] == ReferenceCells::Tetrahedron)
+    {
+      lower = 154;
+      upper = 158;
+    }
+  else if (reference_cells[0] == ReferenceCells::Hexahedron)
+    {
+      lower = 132;
+      upper = 136;
+    }
+  else if (reference_cells[0] == ReferenceCells::Wedge)
+    {
+      lower = 194;
+      upper = 198;
+    }
+  else if (reference_cells[0] == ReferenceCells::Pyramid)
+    {
+      lower = 81;
+      upper = 85;
+    }
+  else
+    Assert(false, ExcInternalError());
 
   check_solver_within_range(
     solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity()),
@@ -335,7 +338,7 @@ test(const Triangulation<dim, spacedim> &tria,
 
 template <int dim, int spacedim = dim>
 void
-test_tet(const MPI_Comm &comm, const Parameters<dim> &params)
+test_tet(const MPI_Comm comm, const Parameters<dim> &params)
 {
   const unsigned int tria_type = 2;
 
@@ -422,7 +425,7 @@ test_tet(const MPI_Comm &comm, const Parameters<dim> &params)
 
 template <int dim, int spacedim = dim>
 void
-test_hex(const MPI_Comm &comm, const Parameters<dim> &params)
+test_hex(const MPI_Comm comm, const Parameters<dim> &params)
 {
   // 1) Create triangulation...
   parallel::distributed::Triangulation<dim, spacedim> tria(comm);
@@ -464,7 +467,7 @@ test_hex(const MPI_Comm &comm, const Parameters<dim> &params)
 
 template <int dim, int spacedim = dim>
 void
-test_wedge(const MPI_Comm &comm, const Parameters<dim> &params)
+test_wedge(const MPI_Comm comm, const Parameters<dim> &params)
 {
   const unsigned int tria_type = 2;
 
@@ -555,7 +558,7 @@ test_wedge(const MPI_Comm &comm, const Parameters<dim> &params)
 
 template <int dim, int spacedim = dim>
 void
-test_pyramid(const MPI_Comm &comm, const Parameters<dim> &params)
+test_pyramid(const MPI_Comm comm, const Parameters<dim> &params)
 {
   const unsigned int tria_type = 2;
 

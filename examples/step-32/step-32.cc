@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2008 - 2021 by the deal.II authors
+ * Copyright (C) 2008 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -77,7 +77,7 @@
 
 // This is the only include file that is new: It introduces the
 // parallel::distributed::SolutionTransfer equivalent of the
-// dealii::SolutionTransfer class to take a solution from on mesh to the next
+// SolutionTransfer class to take a solution from on mesh to the next
 // one upon mesh refinement, but in the case of parallel distributed
 // triangulations:
 #include <deal.II/distributed/solution_transfer.h>
@@ -2218,8 +2218,8 @@ namespace Step32
 
     scratch.stokes_fe_values.reinit(cell);
 
-    typename DoFHandler<dim>::active_cell_iterator temperature_cell(
-      &triangulation, cell->level(), cell->index(), &temperature_dof_handler);
+    const typename DoFHandler<dim>::active_cell_iterator temperature_cell =
+      cell->as_dof_handler_iterator(temperature_dof_handler);
     scratch.temperature_fe_values.reinit(temperature_cell);
 
     if (rebuild_stokes_matrix)
@@ -2457,7 +2457,7 @@ namespace Step32
   // having inhomogeneous boundary conditions, by just making a right hand
   // side at this point (compare the comments for the <code>project()</code>
   // function above): We create some matrix columns with exactly the values
-  // that would be entered for the temperature stiffness matrix, in case we
+  // that would be entered for the temperature @ref GlossStiffnessMatrix "stiffness matrix", in case we
   // have inhomogeneously constrained dofs. That will account for the correct
   // balance of the right hand side vector with the matrix system of
   // temperature.
@@ -2485,8 +2485,8 @@ namespace Step32
 
     scratch.temperature_fe_values.reinit(cell);
 
-    typename DoFHandler<dim>::active_cell_iterator stokes_cell(
-      &triangulation, cell->level(), cell->index(), &stokes_dof_handler);
+    typename DoFHandler<dim>::active_cell_iterator stokes_cell =
+      cell->as_dof_handler_iterator(stokes_dof_handler);
     scratch.stokes_fe_values.reinit(stokes_cell);
 
     scratch.temperature_fe_values.get_function_values(
@@ -2860,7 +2860,7 @@ namespace Step32
 
 
     // Now let's turn to the temperature part: First, we compute the time step
-    // size. We found that we need smaller time steps for 3D than for 2D for
+    // size. We found that we need smaller time steps for 3d than for 2d for
     // the shell geometry. This is because the cells are more distorted in
     // that case (it is the smallest edge length that determines the CFL
     // number). Instead of computing the time step from maximum velocity and
@@ -3058,34 +3058,34 @@ namespace Step32
     const DataPostprocessorInputs::Vector<dim> &inputs,
     std::vector<Vector<double>> &               computed_quantities) const
   {
-    const unsigned int n_quadrature_points = inputs.solution_values.size();
-    Assert(inputs.solution_gradients.size() == n_quadrature_points,
+    const unsigned int n_evaluation_points = inputs.solution_values.size();
+    Assert(inputs.solution_gradients.size() == n_evaluation_points,
            ExcInternalError());
-    Assert(computed_quantities.size() == n_quadrature_points,
+    Assert(computed_quantities.size() == n_evaluation_points,
            ExcInternalError());
     Assert(inputs.solution_values[0].size() == dim + 2, ExcInternalError());
 
-    for (unsigned int q = 0; q < n_quadrature_points; ++q)
+    for (unsigned int p = 0; p < n_evaluation_points; ++p)
       {
         for (unsigned int d = 0; d < dim; ++d)
-          computed_quantities[q](d) = (inputs.solution_values[q](d) *
+          computed_quantities[p](d) = (inputs.solution_values[p](d) *
                                        EquationData::year_in_seconds * 100);
 
         const double pressure =
-          (inputs.solution_values[q](dim) - minimal_pressure);
-        computed_quantities[q](dim) = pressure;
+          (inputs.solution_values[p](dim) - minimal_pressure);
+        computed_quantities[p](dim) = pressure;
 
-        const double temperature        = inputs.solution_values[q](dim + 1);
-        computed_quantities[q](dim + 1) = temperature;
+        const double temperature        = inputs.solution_values[p](dim + 1);
+        computed_quantities[p](dim + 1) = temperature;
 
         Tensor<2, dim> grad_u;
         for (unsigned int d = 0; d < dim; ++d)
-          grad_u[d] = inputs.solution_gradients[q][d];
+          grad_u[d] = inputs.solution_gradients[p][d];
         const SymmetricTensor<2, dim> strain_rate = symmetrize(grad_u);
-        computed_quantities[q](dim + 2) =
+        computed_quantities[p](dim + 2) =
           2 * EquationData::eta * strain_rate * strain_rate;
 
-        computed_quantities[q](dim + 3) = partition;
+        computed_quantities[p](dim + 3) = partition;
       }
   }
 

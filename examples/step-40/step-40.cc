@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2021 by the deal.II authors
+ * Copyright (C) 2009 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -44,7 +44,7 @@
 // @endcode
 //
 // Using this logic, the following lines will then import either the
-// PETSc or Trilinos wrappers into the namespace `LA` (for "linear
+// PETSc or Trilinos wrappers into the namespace `LA` (for linear
 // algebra). In the former case, we are also defining the macro
 // `USE_PETSC_LA` so that we can detect if we are using PETSc (see
 // solve() for an example where this is necessary).
@@ -351,14 +351,16 @@ namespace Step40
   //   cell->is_artificial()</code> is true. The simplest way, however, is to
   //   simply ask the cell whether it is owned by the local processor.
   // - Copying local contributions into the global matrix must include
-  //   distributing constraints and boundary values. In other words, we cannot
-  //   (as we did in step-6) first copy every local contribution into the global
-  //   matrix and only in a later step take care of hanging node constraints and
-  //   boundary values. The reason is, as discussed in step-17, that the
-  //   parallel vector classes do not provide access to arbitrary elements of
-  //   the matrix once they have been assembled into it -- in parts because they
-  //   may simply no longer reside on the current processor but have instead
-  //   been shipped to a different machine.
+  //   distributing constraints and boundary values not just from the local
+  //   matrix and vector into the global ones, but in the process
+  //   also -- possibly -- from one MPI process to other processes if the
+  //   entries we want to write to are not stored on the current process.
+  //   Interestingly, this requires essentially no additional work: The
+  //   AffineConstraints class we already used in step-6 is perfectly
+  //   capable to also do this in parallel, and the only difference in this
+  //   regard is that at the very end of the function, we have to call a
+  //   `compress()` function on the global matrix and right hand side vector
+  //   objects (see the description of what this does just before these calls).
   // - The way we compute the right hand side (given the
   //   formula stated in the introduction) may not be the most elegant but will
   //   do for a program whose focus lies somewhere entirely different.
@@ -421,11 +423,21 @@ namespace Step40
                                                  system_rhs);
         }
 
-    // Notice that the assembling above is just a local operation. So, to
-    // form the "global" linear system, a synchronization between all
-    // processors is needed. This could be done by invoking the function
-    // compress(). See @ref GlossCompress "Compressing distributed objects"
-    // for more information on what is compress() designed to do.
+    // In the operations above, specifically the call to
+    // `distribute_local_to_global()` in the last line, every MPI
+    // process was only working on its local data. If the operation
+    // required adding something to a matrix or vector entry that is
+    // not actually stored on the current process, then the matrix or
+    // vector object keeps track of this for a later data exchange,
+    // but for efficiency reasons, this part of the operation is only
+    // queued up, rather than executed right away. But now that we got
+    // here, it is time to send these queued-up additions to those
+    // processes that actually own these matrix or vector entries. In
+    // other words, we want to "finalize" the global data
+    // structures. This is done by invoking the function `compress()`
+    // on both the matrix and vector objects. See
+    // @ref GlossCompress "Compressing distributed objects"
+    // for more information on what `compress()` actually does.
     system_matrix.compress(VectorOperation::add);
     system_rhs.compress(VectorOperation::add);
   }
@@ -469,22 +481,16 @@ namespace Step40
                                                     mpi_communicator);
 
     SolverControl solver_control(dof_handler.n_dofs(), 1e-12);
+    LA::SolverCG  solver(solver_control);
 
-#ifdef USE_PETSC_LA
-    LA::SolverCG solver(solver_control, mpi_communicator);
-#else
-    LA::SolverCG solver(solver_control);
-#endif
-
-    LA::MPI::PreconditionAMG preconditioner;
 
     LA::MPI::PreconditionAMG::AdditionalData data;
-
 #ifdef USE_PETSC_LA
     data.symmetric_operator = true;
 #else
     /* Trilinos defaults are good */
 #endif
+    LA::MPI::PreconditionAMG preconditioner;
     preconditioner.initialize(system_matrix, data);
 
     solver.solve(system_matrix,
@@ -537,20 +543,24 @@ namespace Step40
 
   // @sect4{LaplaceProblem::output_results}
 
-  // Compared to the corresponding function in step-6, the one here is a tad
-  // more complicated. There are two reasons: the first one is that we do not
-  // just want to output the solution but also for each cell which processor
-  // owns it (i.e. which "subdomain" it is in). Secondly, as discussed at
-  // length in step-17 and step-18, generating graphical data can be a
-  // bottleneck in parallelizing. In step-18, we have moved this step out of
-  // the actual computation but shifted it into a separate program that later
-  // combined the output from various processors into a single file. But this
-  // doesn't scale: if the number of processors is large, this may mean that
-  // the step of combining data on a single processor later becomes the
-  // longest running part of the program, or it may produce a file that's so
-  // large that it can't be visualized any more. We here follow a more
-  // sensible approach, namely creating individual files for each MPI process
-  // and leaving it to the visualization program to make sense of that.
+  // Compared to the corresponding function in step-6, the one here is
+  // a tad more complicated. There are two reasons: the first one is
+  // that we do not just want to output the solution but also for each
+  // cell which processor owns it (i.e. which "subdomain" it is
+  // in). Secondly, as discussed at length in step-17 and step-18,
+  // generating graphical data can be a bottleneck in
+  // parallelizing. In those two programs, we simply generate one
+  // output file per process. That worked because the
+  // parallel::shared::Triangulation cannot be used with large numbers
+  // of MPI processes anyway.  But this doesn't scale: Creating a
+  // single file per processor will overwhelm the filesystem with a
+  // large number of processors.
+  //
+  // We here follow a more sophisticated approach that uses
+  // high-performance, parallel IO routines using MPI I/O to write to
+  // a small, fixed number of visualization files (here 8). We also
+  // generate a .pvtu record referencing these .vtu files, which can
+  // be opened directly in visualizatin tools like ParaView and VisIt.
   //
   // To start, the top of the function looks like it usually does. In addition
   // to attaching the solution vector (the one that has entries for all locally
@@ -581,7 +591,7 @@ namespace Step40
 
     data_out.build_patches();
 
-    // The next step is to write this data to disk. We write up to 8 VTU files
+    // The final step is to write this data to disk. We write up to 8 VTU files
     // in parallel with the help of MPI-IO. Additionally a PVTU record is
     // generated, which groups the written VTU files.
     data_out.write_vtu_with_pvtu_record(
@@ -595,11 +605,7 @@ namespace Step40
   // The function that controls the overall behavior of the program is again
   // like the one in step-6. The minor difference are the use of
   // <code>pcout</code> instead of <code>std::cout</code> for output to the
-  // console (see also step-17) and that we only generate graphical output if
-  // at most 32 processors are involved. Without this limit, it would be just
-  // too easy for people carelessly running this program without reading it
-  // first to bring down the cluster interconnect and fill any file system
-  // available :-)
+  // console (see also step-17).
   //
   // A functional difference to step-6 is the use of a square domain and that
   // we start with a slightly finer mesh (5 global refinement cycles) -- there
@@ -641,11 +647,10 @@ namespace Step40
         assemble_system();
         solve();
 
-        if (Utilities::MPI::n_mpi_processes(mpi_communicator) <= 32)
-          {
-            TimerOutput::Scope t(computing_timer, "output");
-            output_results(cycle);
-          }
+        {
+          TimerOutput::Scope t(computing_timer, "output");
+          output_results(cycle);
+        }
 
         computing_timer.print_summary();
         computing_timer.reset();

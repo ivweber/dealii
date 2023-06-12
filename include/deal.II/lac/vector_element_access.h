@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2019 by the deal.II authors
+// Copyright (C) 2017 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -157,21 +157,30 @@ namespace internal
     LinearAlgebra::TpetraWrappers::Vector<NumberType> &V)
   {
     // Extract local indices in the vector.
-    Tpetra::Vector<NumberType, int, types::global_dof_index> vector =
+    Tpetra::Vector<NumberType, int, types::signed_global_dof_index> vector =
       V.trilinos_vector();
     TrilinosWrappers::types::int_type trilinos_i =
       vector.getMap()->getLocalElement(
         static_cast<TrilinosWrappers::types::int_type>(i));
 
+#    if DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+    auto vector_2d = vector.template getLocalView<Kokkos::HostSpace>(
+      Tpetra::Access::ReadWrite);
+#    else
     vector.template sync<Kokkos::HostSpace>();
     auto vector_2d = vector.template getLocalView<Kokkos::HostSpace>();
+#    endif
     auto vector_1d = Kokkos::subview(vector_2d, Kokkos::ALL(), 0);
+#    if !DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
     // We're going to modify the data on host.
     vector.template modify<Kokkos::HostSpace>();
+#    endif
     vector_1d(trilinos_i) += value;
+#    if !DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
     vector.template sync<
-      typename Tpetra::Vector<NumberType, int, types::global_dof_index>::
+      typename Tpetra::Vector<NumberType, int, types::signed_global_dof_index>::
         device_type::memory_space>();
+#    endif
   }
 
 
@@ -184,21 +193,30 @@ namespace internal
     LinearAlgebra::TpetraWrappers::Vector<NumberType> &V)
   {
     // Extract local indices in the vector.
-    Tpetra::Vector<NumberType, int, types::global_dof_index> vector =
+    Tpetra::Vector<NumberType, int, types::signed_global_dof_index> vector =
       V.trilinos_vector();
     TrilinosWrappers::types::int_type trilinos_i =
       vector.getMap()->getLocalElement(
         static_cast<TrilinosWrappers::types::int_type>(i));
 
+#    if DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+    auto vector_2d = vector.template getLocalView<Kokkos::HostSpace>(
+      Tpetra::Access::ReadWrite);
+#    else
     vector.template sync<Kokkos::HostSpace>();
     auto vector_2d = vector.template getLocalView<Kokkos::HostSpace>();
+#    endif
     auto vector_1d = Kokkos::subview(vector_2d, Kokkos::ALL(), 0);
     // We're going to modify the data on host.
+#    if !DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
     vector.template modify<Kokkos::HostSpace>();
+#    endif
     vector_1d(trilinos_i) = value;
+#    if !DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
     vector.template sync<
-      typename Tpetra::Vector<NumberType, int, types::global_dof_index>::
+      typename Tpetra::Vector<NumberType, int, types::signed_global_dof_index>::
         device_type::memory_space>();
+#    endif
   }
 
 
@@ -210,16 +228,20 @@ namespace internal
     const types::global_dof_index                            i)
   {
     // Extract local indices in the vector.
-    Tpetra::Vector<NumberType, int, types::global_dof_index> vector =
+    Tpetra::Vector<NumberType, int, types::signed_global_dof_index> vector =
       V.trilinos_vector();
     TrilinosWrappers::types::int_type trilinos_i =
       vector.getMap()->getLocalElement(
         static_cast<TrilinosWrappers::types::int_type>(i));
 
+#    if DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+    auto vector_2d =
+      vector.template getLocalView<Kokkos::HostSpace>(Tpetra::Access::ReadOnly);
+#    else
     vector.template sync<Kokkos::HostSpace>();
     auto vector_2d = vector.template getLocalView<Kokkos::HostSpace>();
+#    endif
     auto vector_1d = Kokkos::subview(vector_2d, Kokkos::ALL(), 0);
-    // We're going to modify the data on host.
     return vector_1d(trilinos_i);
   }
 #  endif

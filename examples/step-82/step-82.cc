@@ -91,7 +91,7 @@ namespace Step82
 
     // As indicated by its name, the function
     // <code>assemble_local_matrix()</code> is used for the assembly of the
-    // (local) mass matrix used to compute the two lifting terms (see the matrix
+    // (local) @ref GlossMassMatrix "mass matrix" used to compute the two lifting terms (see the matrix
     // $\boldsymbol{M}_c$ introduced in the introduction when describing the
     // computation of $b_e$). The function
     // <code>compute_discrete_hessians()</code> computes the required discrete
@@ -435,7 +435,7 @@ namespace Step82
     // At the end of the function, we output this sparsity pattern as
     // a scalable vector graphic. You can visualize it by loading this
     // file in most web browsers:
-    std::ofstream out("sparsity_pattern.svg");
+    std::ofstream out("sparsity-pattern.svg");
     sparsity_pattern.print_svg(out);
   }
 
@@ -1260,7 +1260,7 @@ namespace Step82
 
             const bool at_boundary = face->at_boundary();
 
-            // Recall that by convention, the average of a function accross a
+            // Recall that by convention, the average of a function across a
             // boundary face $e$ reduces to the trace of the function on the
             // only element adjacent to $e$, namely there is no factor
             // $\frac{1}{2}$. We distinguish between the two cases (the current
@@ -1467,7 +1467,7 @@ namespace Step82
 // This is the <code>main</code> function. We define here the number of mesh
 // refinements, the polynomial degree for the two finite element spaces
 // (for the solution and the two liftings) and the two penalty coefficients.
-// We can also change the dimension to run the code in 3D.
+// We can also change the dimension to run the code in 3d.
 int main()
 {
   try

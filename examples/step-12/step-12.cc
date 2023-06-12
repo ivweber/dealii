@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2021 by the deal.II authors
+ * Copyright (C) 2009 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -31,6 +31,7 @@
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/dofs/dof_tools.h>
@@ -134,7 +135,7 @@ namespace Step12
   //
   // The following objects are the scratch and copy objects we use in the call
   // to MeshWorker::mesh_loop(). The new object is the FEInterfaceValues object,
-  // that works similar to FEValues or FEFacesValues, except that it acts on
+  // that works similar to FEValues or FEFaceValues, except that it acts on
   // an interface between two cells and allows us to assemble the interface
   // terms in our weak form.
 

@@ -1,6 +1,6 @@
 //-----------------------------------------------------------
 //
-//    Copyright (C) 2017 - 2021 by the deal.II authors
+//    Copyright (C) 2017 - 2022 by the deal.II authors
 //
 //    This file is part of the deal.II library.
 //
@@ -67,7 +67,6 @@ public:
     , A(2, 2)
     , Jinv(2, 2)
     , kappa(_kappa)
-    , out("output")
   {
     using VectorType = Vector<double>;
 
@@ -77,16 +76,15 @@ public:
     time_stepper.residual = [&](const double      t,
                                 const VectorType &y,
                                 const VectorType &y_dot,
-                                VectorType &      res) -> int {
+                                VectorType &      res) {
       res = y_dot;
       A.vmult_add(res, y);
-      return 0;
     };
 
     time_stepper.setup_jacobian = [&](const double,
                                       const VectorType &,
                                       const VectorType &,
-                                      const double alpha) -> int {
+                                      const double alpha) {
       A(0, 1) = -1.0;
       A(1, 0) = kappa * kappa;
 
@@ -96,30 +94,24 @@ public:
       J(1, 1) = alpha;
 
       Jinv.invert(J);
-      return 0;
     };
 
     // Used only in ver < 4.0.0
-    time_stepper.solve_jacobian_system = [&](const VectorType &src,
-                                             VectorType &      dst) -> int {
-      Jinv.vmult(dst, src);
-      return 0;
-    };
+    time_stepper.solve_jacobian_system =
+      [&](const VectorType &src, VectorType &dst) { Jinv.vmult(dst, src); };
 
     // Used in ver >= 4.0.0
     time_stepper.solve_with_jacobian =
-      [&](const VectorType &src, VectorType &dst, const double) -> int {
-      Jinv.vmult(dst, src);
-      return 0;
-    };
+      [&](const VectorType &src, VectorType &dst, const double) {
+        Jinv.vmult(dst, src);
+      };
 
     time_stepper.output_step = [&](const double       t,
                                    const VectorType & sol,
                                    const VectorType & sol_dot,
-                                   const unsigned int step_number) -> int {
-      out << t << ' ' << sol[0] << ' ' << sol[1] << ' ' << sol_dot[0] << ' '
-          << sol_dot[1] << std::endl;
-      return 0;
+                                   const unsigned int step_number) {
+      deallog << t << ' ' << sol[0] << ' ' << sol[1] << ' ' << sol_dot[0] << ' '
+              << sol_dot[1] << std::endl;
     };
   }
 
@@ -139,16 +131,14 @@ private:
   FullMatrix<double> A;
   FullMatrix<double> Jinv;
   double             kappa;
-
-  std::ofstream out;
 };
 
 
 int
-main(int argc, char **argv)
+main()
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(
-    argc, argv, numbers::invalid_unsigned_int);
+  initlog();
+  deallog << std::setprecision(10);
 
   SUNDIALS::IDA<Vector<double>>::AdditionalData data;
   ParameterHandler                              prm;
@@ -164,5 +154,4 @@ main(int argc, char **argv)
 
   HarmonicOscillator ode(1.0, data);
   ode.run();
-  return 0;
 }

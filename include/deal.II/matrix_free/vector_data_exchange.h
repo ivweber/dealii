@@ -20,8 +20,13 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/array_view.h>
+#include <deal.II/base/mpi_stub.h>
 #include <deal.II/base/partitioner.h>
 
+#include <deal.II/lac/vector_operation.h>
+
+#include <memory>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -259,7 +264,7 @@ namespace internal
       public:
         Full(
           const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
-          const MPI_Comm &communicator_sm);
+          const MPI_Comm communicator_sm);
 
         unsigned int
         locally_owned_size() const override;
@@ -276,7 +281,7 @@ namespace internal
         virtual types::global_dof_index
         size() const override;
 
-        const MPI_Comm &
+        MPI_Comm
         get_sm_mpi_communicator() const;
 
         void

@@ -21,7 +21,8 @@
 
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/point.h>
-#include <deal.II/base/utilities.h>
+
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -38,15 +39,17 @@ enum class NeighborType
 
   /**
    * Simple neighbors: the boxes intersect with an intersection of dimension at
-   * most `spacedim - 2`. For example, in 2d this means that the two boxes
-   * touch at one corner of the each box.
+   * most `spacedim - 2`. For example, in 2d this means that the two rectangles
+   * touch at a single point, which must then be a vertex of each box. In 3d,
+   * this means that two boxes touch along an edge.
    */
   simple_neighbors = 1,
 
   /**
    * Attached neighbors: neighbors with an intersection of
    * `dimension > spacedim - 2`. For example, in 2d this means that the two
-   * boxes touch along an edge.
+   * rectangles touch along (parts of) their edges. In 3d, it would mean that
+   * two boxes touch along (parts of) their faces.
    */
   attached_neighbors = 2,
 
@@ -58,7 +61,9 @@ enum class NeighborType
    *  |  |  | =  |     |
    *  V--W--.    V-----.
    *  @endcode
-   * or one is inside the other
+   * or one is inside the other. This is a special case of `attached_neighbors`
+   * where the two bounding boxes touch along the entirety of their respective
+   * faces, or where they overlap in suitable ways.
    */
   mergeable_neighbors = 3
 };
@@ -76,15 +81,15 @@ enum class NeighborType
  * direction $k$.
  *
  * Geometrically, a bounding box is thus:
- * - 1D: a segment (represented by its vertices in the proper order)
- * - 2D: a rectangle (represented by the vertices V at bottom left, top right)
+ * - 1d: a segment (represented by its vertices in the proper order)
+ * - 2d: a rectangle (represented by the vertices V at bottom left, top right)
  * @code
  * .--------V
  * |        |
  * V--------.
  * @endcode
  *
- * - 3D: a cuboid (in which case the two vertices V follow the convention and
+ * - 3d: a cuboid (in which case the two vertices V follow the convention and
  * are not owned by the same face)
  * @code
  *   .------V
@@ -110,10 +115,10 @@ enum class NeighborType
  *
  * Taking the cross section of a BoundingBox<spacedim> orthogonal to a given
  * direction gives a box in one dimension lower: BoundingBox<spacedim - 1>.
- * In 3D, the 2 coordinates of the cross section of BoundingBox<3> can be
+ * In 3d, the 2 coordinates of the cross section of BoundingBox<3> can be
  * ordered in 2 different ways. That is, if we take the cross section orthogonal
- * to the y direction we could either order a 3D-coordinate into a
- * 2D-coordinate as $(x,z)$ or as $(z,x)$. This class uses the second
+ * to the y direction we could either order a 3d-coordinate into a
+ * 2d-coordinate as $(x,z)$ or as $(z,x)$. This class uses the second
  * convention, corresponding to the coordinates being ordered cyclicly
  * $x \rightarrow y \rightarrow z \rightarrow x \rightarrow ... $
  * To be precise, if we take a cross section:
@@ -136,6 +141,22 @@ public:
    * i.e. a degenerate box with both points being the origin.
    */
   BoundingBox() = default;
+
+  /**
+   * Standard copy constructor operator.
+   */
+  BoundingBox(const BoundingBox<spacedim, Number> &box) = default;
+
+  /**
+   * Standard copy assignment operator.
+   */
+  BoundingBox<spacedim, Number> &
+  operator=(const BoundingBox<spacedim, Number> &t) = default;
+
+  /**
+   * Standard constructor for an empty box around a point @p point.
+   */
+  BoundingBox(const Point<spacedim, Number> &point);
 
   /**
    * Standard constructor for non-empty boxes: it uses a pair of points
@@ -182,11 +203,19 @@ public:
   /**
    * Check if the current object and @p other_bbox are neighbors, i.e. if the boxes
    * have dimension spacedim, check if their intersection is non empty.
-   *
-   * Return an enumerator of type NeighborType.
+   */
+  bool
+  has_overlap_with(
+    const BoundingBox<spacedim, Number> &other_bbox,
+    const double tolerance = std::numeric_limits<Number>::epsilon()) const;
+
+  /**
+   * Check which NeighborType @p other_bbox is to the current object.
    */
   NeighborType
-  get_neighbor_type(const BoundingBox<spacedim, Number> &other_bbox) const;
+  get_neighbor_type(
+    const BoundingBox<spacedim, Number> &other_bbox,
+    const double tolerance = std::numeric_limits<Number>::epsilon()) const;
 
   /**
    * Enlarge the current object so that it contains @p other_bbox .
@@ -219,6 +248,29 @@ public:
    */
   void
   extend(const Number amount);
+
+  /**
+   * The same as above with the difference that a new BoundingBox instance is
+   * created without changing the current object.
+   */
+  BoundingBox<spacedim, Number>
+  create_extended(const Number amount) const;
+
+  /**
+   * Increase (or decrease) each side of the bounding box by the given
+   * @p relative_amount.
+   *
+   * After calling this method, the lower left corner of the bounding box will
+   * have each coordinate decreased by @p relative_amount * side_length(direction),
+   * and the upper right corner of the bounding box will have each coordinate
+   * increased by @p relative_amount * side_length(direction).
+   *
+   * If you call this method with a negative number, and one of the axes of the
+   * original bounding box is smaller than relative_amount *
+   * side_length(direction) / 2, the method will trigger an assertion.
+   */
+  BoundingBox<spacedim, Number>
+  create_extended_relative(const Number relative_amount) const;
 
   /**
    * Compute the volume (i.e. the dim-dimensional measure) of the BoundingBox.
@@ -274,7 +326,7 @@ public:
    * Returns the cross section of the box orthogonal to @p direction.
    * This is a box in one dimension lower.
    *
-   * @note Calling this method in 1D will result in an exception since
+   * @note Calling this method in 1d will result in an exception since
    * <code>BoundingBox&lt;0&gt;</code> is not implemented.
    */
   BoundingBox<spacedim - 1, Number>
@@ -301,6 +353,24 @@ public:
    */
   Point<spacedim, Number>
   unit_to_real(const Point<spacedim, Number> &point) const;
+  /**
+   * Returns the signed distance from a @p point orthogonal to the bounds of the
+   * box in @p direction. The signed distance is negative for points inside the
+   * interval described by the bounds of the rectangle in the respective
+   * direction, zero for points on the interval boundary and positive for points
+   * outside.
+   */
+  Number
+  signed_distance(const Point<spacedim, Number> &point,
+                  const unsigned int             direction) const;
+
+  /**
+   * Returns the signed distance from a @p point to the bounds of the box. The
+   * signed distance is negative for points inside the rectangle, zero for
+   * points on the rectangle and positive for points outside the rectangle.
+   */
+  Number
+  signed_distance(const Point<spacedim, Number> &point) const;
 
   /**
    * Write or read the data of this object to or from a stream for the
@@ -362,16 +432,16 @@ namespace internal
    *
    * The convention is the following: Starting from the locked coordinate we
    * store the lower dimensional coordinates consecutively and wrap around
-   * when going over the dimension. This relationship is, in 2D,
+   * when going over the dimension. This relationship is, in 2d,
    *
-   * | locked in 2D | 1D coordinate | 2D coordinate |
+   * | locked in 2D | 1d coordinate | 2d coordinate |
    * |:------------:|:-------------:|:-------------:|
    * |     x0       |      (a)      |   (x0,  a)    |
    * |     x1       |      (a)      |   (a , x1)    |
    *
-   * and, in 3D,
+   * and, in 3d,
    *
-   * | locked in 3D | 2D coordinates | 3D coordinates |
+   * | locked in 3D | 2d coordinates | 3d coordinates |
    * |:-------------|:--------------:|:--------------:|
    * |     x0       |    (a, b)      | (x0,  a,  b)   |
    * |     x1       |    (a, b)      | ( b, x1,  a)   |
@@ -405,6 +475,14 @@ namespace internal
 
 template <int spacedim, typename Number>
 inline BoundingBox<spacedim, Number>::BoundingBox(
+  const Point<spacedim, Number> &p)
+  : BoundingBox({p, p})
+{}
+
+
+
+template <int spacedim, typename Number>
+inline BoundingBox<spacedim, Number>::BoundingBox(
   const std::pair<Point<spacedim, Number>, Point<spacedim, Number>>
     &boundary_points)
 {
@@ -429,12 +507,11 @@ inline BoundingBox<spacedim, Number>::BoundingBox(const Container &points)
     {
       auto &min = boundary_points.first;
       auto &max = boundary_points.second;
-      std::fill(min.begin_raw(),
-                min.end_raw(),
-                std::numeric_limits<Number>::infinity());
-      std::fill(max.begin_raw(),
-                max.end_raw(),
-                -std::numeric_limits<Number>::infinity());
+      for (unsigned int d = 0; d < spacedim; ++d)
+        {
+          min[d] = std::numeric_limits<Number>::infinity();
+          max[d] = -std::numeric_limits<Number>::infinity();
+        }
 
       for (const Point<spacedim, Number> &point : points)
         for (unsigned int d = 0; d < spacedim; ++d)
@@ -498,6 +575,42 @@ BoundingBox<spacedim, Number>::extend(const Number amount)
                         "order should remain bottom left, top right."));
     }
 }
+
+
+
+template <int spacedim, typename Number>
+inline BoundingBox<spacedim, Number>
+BoundingBox<spacedim, Number>::create_extended(const Number amount) const
+{
+  // create and modify copy
+  auto bb = *this;
+  bb.extend(amount);
+
+  return bb;
+}
+
+
+
+template <int spacedim, typename Number>
+inline BoundingBox<spacedim, Number>
+BoundingBox<spacedim, Number>::create_extended_relative(
+  const Number relative_amount) const
+{
+  // create and modify copy
+  auto bb = *this;
+
+  for (unsigned int d = 0; d < spacedim; ++d)
+    {
+      bb.boundary_points.first[d] -= relative_amount * side_length(d);
+      bb.boundary_points.second[d] += relative_amount * side_length(d);
+      Assert(bb.boundary_points.first[d] <= bb.boundary_points.second[d],
+             ExcMessage("Bounding Box can't be shrunk this much: the points' "
+                        "order should remain bottom left, top right."));
+    }
+
+  return bb;
+}
+
 
 
 template <int spacedim, typename Number>

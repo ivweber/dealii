@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2020 by the deal.II authors
+// Copyright (C) 2007 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,7 +20,6 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/logstream.h>
-#include <deal.II/base/utilities.h>
 
 #include <deal.II/fe/fe_values.h>
 

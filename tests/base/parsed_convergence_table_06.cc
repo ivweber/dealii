@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,6 +17,7 @@
 // vector function + scalar function, ignore second component
 
 #include <deal.II/base/function_lib.h>
+#include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/parsed_convergence_table.h>
 
 #include <deal.II/dofs/dof_handler.h>

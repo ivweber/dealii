@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2021 by the deal.II authors
+## Copyright (C) 2012 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,14 +13,12 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
 #
 # All source/base files are sufficiently small that they may be added to the
 # unity build file (see the developer documentation on DEAL_II_UNITY_BUILD
 # for more information).
 #
-SET(_unity_include_src
+set(_unity_include_src
   auto_derivative_function.cc
   bounding_box.cc
   conditional_ostream.cc
@@ -48,9 +46,9 @@ SET(_unity_include_src
   job_identifier.cc
   logstream.cc
   hdf5.cc
+  kokkos.cc
   mpi.cc
   mpi_compute_index_owner_internal.cc
-  mpi_consensus_algorithms.cc
   mpi_noncontiguous_partitioner.cc
   mpi_remote_point_evaluation.cc
   mu_parser_internal.cc
@@ -102,34 +100,34 @@ SET(_unity_include_src
   thread_management.cc
   timer.cc
   time_stepping.cc
+  trilinos_utilities.cc
   utilities.cc
   vectorization.cc
   )
 
-SET(_separate_src
+set(_separate_src
   data_out_base.cc
   symmetric_tensor.cc
   )
 
 # Add CUDA wrapper files
-IF(DEAL_II_WITH_CUDA)
-  SET(_separate_src
+if(DEAL_II_WITH_CUDA)
+  set(_separate_src
     ${_separate_src}
-    cuda.cu
-    partitioner.cu
+    cuda.cc
   )
-ENDIF()
+endif()
 
 # determined by profiling
-SET(_n_includes_per_unity_file 29)
+set(_n_includes_per_unity_file 29)
 
-SETUP_SOURCE_LIST("${_unity_include_src}"
+setup_source_list("${_unity_include_src}"
   "${_separate_src}"
   ${_n_includes_per_unity_file}
   _src
   )
 
-SET(_inst
+set(_inst
   bounding_box.inst.in
   data_out_base.inst.in
   function.inst.in
@@ -143,21 +141,20 @@ SET(_inst
   mpi_noncontiguous_partitioner.inst.in
   mpi_remote_point_evaluation.inst.in
   partitioner.inst.in
-  partitioner.cuda.inst.in
   polynomials_rannacher_turek.inst.in
   symmetric_tensor.inst.in
   symbolic_function.inst.in
   tensor_function.inst.in
   tensor_function_parser.inst.in
+  mu_parser_internal.inst.in
   time_stepping.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/base/*.h
-  ${CMAKE_SOURCE_DIR}/include/deal.II/base/*.cuh
   )
 
-DEAL_II_ADD_LIBRARY(obj_base OBJECT ${_src} ${_header} ${_inst}
+define_object_library(object_base OBJECT ${_src} ${_header} ${_inst}
   ${CMAKE_BINARY_DIR}/include/deal.II/base/config.h
   )
-EXPAND_INSTANTIATIONS(obj_base "${_inst}")
+expand_instantiations(object_base "${_inst}")

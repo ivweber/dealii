@@ -33,8 +33,8 @@ namespace internal
      * triangulation. These classes are similar to the TriaLevel classes. As
      * cells are organized in a hierarchical structure of levels, each
      * triangulation consists of several such TriaLevels. However the faces of
-     * a triangulation, lower dimensional objects like lines in 2D or lines
-     * and quads in 3D, do not have to be based on such a hierarchical
+     * a triangulation, lower dimensional objects like lines in 2d or lines
+     * and quads in 3d, do not have to be based on such a hierarchical
      * structure. In fact we have to organise them in only one object if we
      * want to enable anisotropic refinement. Therefore the TriaFaces classes
      * store the information belonging to the faces of a triangulation
@@ -66,18 +66,33 @@ namespace internal
       TriaObjects quads;
 
       /**
-       * Orientation of each line of each quad.
+       * Orientation of each line of each quad. Like elsewhere, `true` refers to
+       * the standard orientation and `false` refers to the reverse orientation.
        *
        * @note Used only for dim=3.
        */
-      std::vector<unsigned char> quads_line_orientations;
+      std::vector<bool> quads_line_orientations;
 
       /**
-       * Reference cell type of each quad.
+       * Whether or not each quad is a Quadrilateral. Since, if dim = 3, faces
+       * are either Triangles or Quadrilaterals, it suffices to store a
+       * boolean.
        *
        * @note Used only for dim=3.
        */
-      std::vector<dealii::ReferenceCell> quad_reference_cell;
+      std::vector<bool> quad_is_quadrilateral;
+
+      /**
+       * Helper accessor function for quad_is_quadrilateral
+       */
+      ReferenceCell
+      get_quad_type(const std::size_t index) const;
+
+      /**
+       * Helper accessor function for quad_is_quadrilateral
+       */
+      void
+      set_quad_type(const std::size_t index, const ReferenceCell face_type);
 
       /**
        * The TriaObject containing the data of lines.
@@ -105,12 +120,38 @@ namespace internal
 
 
 
+    inline ReferenceCell
+    TriaFaces::get_quad_type(const std::size_t index) const
+    {
+      AssertIndexRange(index, quad_is_quadrilateral.size());
+      return quad_is_quadrilateral[index] ? ReferenceCells::Quadrilateral :
+                                            ReferenceCells::Triangle;
+    }
+
+
+
+    inline void
+    TriaFaces::set_quad_type(const std::size_t   index,
+                             const ReferenceCell face_type)
+    {
+      AssertIndexRange(index, quad_is_quadrilateral.size());
+      Assert(face_type == ReferenceCells::Quadrilateral ||
+               face_type == ReferenceCells::Triangle,
+             ExcInternalError());
+      if (face_type == ReferenceCells::Quadrilateral)
+        quad_is_quadrilateral[index] = true;
+      else
+        quad_is_quadrilateral[index] = false;
+    }
+
+
+
     template <class Archive>
     void
     TriaFaces::serialize(Archive &ar, const unsigned int)
     {
       ar &dim;
-      ar &quads &lines &quads_line_orientations &quad_reference_cell;
+      ar &quads &lines &quads_line_orientations &quad_is_quadrilateral;
     }
   } // namespace TriangulationImplementation
 } // namespace internal

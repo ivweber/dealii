@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,7 +15,10 @@
 
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/mg_level_object.h>
+#include <deal.II/base/mpi_compute_index_owner_internal.h>
 #include <deal.II/base/thread_management.h>
+
+#include <deal.II/distributed/tria_base.h>
 
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -24,15 +27,14 @@
 #include <deal.II/fe/component_mask.h>
 #include <deal.II/fe/fe.h>
 
+#include <deal.II/grid/cell_id_translator.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
 
 #include <deal.II/lac/block_sparse_matrix.h>
-#include <deal.II/lac/block_sparsity_pattern.h>
 #include <deal.II/lac/block_vector.h>
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/sparsity_pattern.h>
+#include <deal.II/lac/sparsity_pattern_base.h>
 
 #include <deal.II/multigrid/mg_base.h>
 #include <deal.II/multigrid/mg_constrained_dofs.h>
@@ -49,7 +51,7 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace MGTools
 {
-  // specializations for 1D
+  // specializations for 1d
   template <>
   void
   compute_row_length_vector(const DoFHandler<1, 1> &,
@@ -99,7 +101,7 @@ namespace MGTools
 
 
 
-  // Template for 2D and 3D. For 1D see specialization above
+  // Template for 2d and 3d. For 1d see specialization above
   template <int dim, int spacedim>
   void
   compute_row_length_vector(const DoFHandler<dim, spacedim> &dofs,
@@ -113,17 +115,10 @@ namespace MGTools
     // Function starts here by
     // resetting the counters.
     std::fill(row_lengths.begin(), row_lengths.end(), 0);
-    // We need the user flags, so we
-    // save them for later restoration
-    std::vector<bool> old_flags;
-    // We need a non-constant
-    // triangulation for the user
-    // flags. Since we restore them in
-    // the end, this cast is safe.
-    Triangulation<dim, spacedim> &user_flags_triangulation =
-      const_cast<Triangulation<dim, spacedim> &>(dofs.get_triangulation());
-    user_flags_triangulation.save_user_flags(old_flags);
-    user_flags_triangulation.clear_user_flags();
+
+    std::vector<bool> face_touched(dim == 2 ?
+                                     dofs.get_triangulation().n_raw_lines() :
+                                     dofs.get_triangulation().n_raw_quads());
 
     std::vector<types::global_dof_index> cell_indices;
     std::vector<types::global_dof_index> neighbor_indices;
@@ -190,7 +185,7 @@ namespace MGTools
         while (i < fe.get_first_quad_index(face_no))
           row_lengths[cell_indices[i++]] += increment;
 
-        // Now quads in 2D and 3D
+        // Now quads in 2d and 3d
         increment =
           (dim > 2) ?
             fe.n_dofs_per_cell() - (dim - 2) * fe.n_dofs_per_face(face_no) :
@@ -198,7 +193,7 @@ namespace MGTools
               GeometryInfo<dim>::faces_per_cell * fe.n_dofs_per_face(face_no);
         while (i < fe.get_first_hex_index())
           row_lengths[cell_indices[i++]] += increment;
-        // Finally, cells in 3D
+        // Finally, cells in 3d
         increment = fe.n_dofs_per_cell() - GeometryInfo<dim>::faces_per_cell *
                                              fe.n_dofs_per_face(face_no);
         while (i < fe.n_dofs_per_cell())
@@ -260,9 +255,10 @@ namespace MGTools
 
             // Do this only once per
             // face.
-            if (face->user_flag_set())
+            if (face_touched[face->index()])
               continue;
-            face->set_user_flag();
+            face_touched[face->index()] = true;
+
             // At this point, we assume
             // that each cell added its
             // dofs minus the face to
@@ -287,11 +283,10 @@ namespace MGTools
                 fe.n_dofs_per_face(face_no);
           }
       }
-    user_flags_triangulation.load_user_flags(old_flags);
   }
 
 
-  // This is the template for 2D and 3D. See version for 1D above
+  // This is the template for 2d and 3d. See version for 1d above
   template <int dim, int spacedim>
   void
   compute_row_length_vector(const DoFHandler<dim, spacedim> &   dofs,
@@ -306,17 +301,10 @@ namespace MGTools
     // Function starts here by
     // resetting the counters.
     std::fill(row_lengths.begin(), row_lengths.end(), 0);
-    // We need the user flags, so we
-    // save them for later restoration
-    std::vector<bool> old_flags;
-    // We need a non-constant
-    // triangulation for the user
-    // flags. Since we restore them in
-    // the end, this cast is safe.
-    Triangulation<dim, spacedim> &user_flags_triangulation =
-      const_cast<Triangulation<dim, spacedim> &>(dofs.get_triangulation());
-    user_flags_triangulation.save_user_flags(old_flags);
-    user_flags_triangulation.clear_user_flags();
+
+    std::vector<bool> face_touched(dim == 2 ?
+                                     dofs.get_triangulation().n_raw_lines() :
+                                     dofs.get_triangulation().n_raw_quads());
 
     std::vector<types::global_dof_index> cell_indices;
     std::vector<types::global_dof_index> neighbor_indices;
@@ -429,7 +417,7 @@ namespace MGTools
             ++i;
           }
 
-        // Now quads in 2D and 3D
+        // Now quads in 2d and 3d
         while (i < fe.get_first_hex_index())
           {
             for (unsigned int base = 0; base < fe.n_base_elements(); ++base)
@@ -449,7 +437,7 @@ namespace MGTools
             ++i;
           }
 
-        // Finally, cells in 3D
+        // Finally, cells in 3d
         while (i < fe.n_dofs_per_cell())
           {
             for (unsigned int base = 0; base < fe.n_base_elements(); ++base)
@@ -528,12 +516,11 @@ namespace MGTools
                       row_lengths[cell_indices[local_dof]] += dof_increment;
                     }
 
-            // Do this only once per
-            // face and not on the
-            // hanging faces.
-            if (face->user_flag_set())
+            // Do this only once per face and not on the hanging faces.
+            if (face_touched[face->index()])
               continue;
-            face->set_user_flag();
+            face_touched[face->index()] = true;
+
             // At this point, we assume
             // that each cell added its
             // dofs minus the face to
@@ -580,18 +567,14 @@ namespace MGTools
                       fe.base_element(base).n_dofs_per_face(face_no);
           }
       }
-    user_flags_triangulation.load_user_flags(old_flags);
   }
 
 
 
-  template <int dim,
-            int spacedim,
-            typename SparsityPatternType,
-            typename number>
+  template <int dim, int spacedim, typename number>
   void
   make_sparsity_pattern(const DoFHandler<dim, spacedim> &dof,
-                        SparsityPatternType &            sparsity,
+                        SparsityPatternBase &            sparsity,
                         const unsigned int               level,
                         const AffineConstraints<number> &constraints,
                         const bool                       keep_constrained_dofs)
@@ -618,13 +601,10 @@ namespace MGTools
 
 
 
-  template <int dim,
-            int spacedim,
-            typename SparsityPatternType,
-            typename number>
+  template <int dim, int spacedim, typename number>
   void
   make_flux_sparsity_pattern(const DoFHandler<dim, spacedim> &dof,
-                             SparsityPatternType &            sparsity,
+                             SparsityPatternBase &            sparsity,
                              const unsigned int               level,
                              const AffineConstraints<number> &constraints,
                              const bool keep_constrained_dofs)
@@ -640,9 +620,7 @@ namespace MGTools
     const unsigned int dofs_per_cell = dof.get_fe().n_dofs_per_cell();
     std::vector<types::global_dof_index> dofs_on_this_cell(dofs_per_cell);
     std::vector<types::global_dof_index> dofs_on_other_cell(dofs_per_cell);
-    typename DoFHandler<dim, spacedim>::cell_iterator cell = dof.begin(level),
-                                                      endc = dof.end(level);
-    for (; cell != endc; ++cell)
+    for (const auto &cell : dof.cell_iterators_on_level(level))
       {
         if (!cell->is_locally_owned_on_level())
           continue;
@@ -697,10 +675,10 @@ namespace MGTools
 
 
 
-  template <int dim, typename SparsityPatternType, int spacedim>
+  template <int dim, int spacedim>
   void
   make_flux_sparsity_pattern_edge(const DoFHandler<dim, spacedim> &dof,
-                                  SparsityPatternType &            sparsity,
+                                  SparsityPatternBase &            sparsity,
                                   const unsigned int               level)
   {
     Assert((level >= 1) && (level < dof.get_triangulation().n_global_levels()),
@@ -721,9 +699,7 @@ namespace MGTools
     const unsigned int dofs_per_cell = dof.get_fe().n_dofs_per_cell();
     std::vector<types::global_dof_index> dofs_on_this_cell(dofs_per_cell);
     std::vector<types::global_dof_index> dofs_on_other_cell(dofs_per_cell);
-    typename DoFHandler<dim, spacedim>::cell_iterator cell = dof.begin(level),
-                                                      endc = dof.end(level);
-    for (; cell != endc; ++cell)
+    for (const auto &cell : dof.cell_iterators_on_level(level))
       {
         if (!cell->is_locally_owned_on_level())
           continue;
@@ -749,16 +725,11 @@ namespace MGTools
                   cell->neighbor_or_periodic_neighbor(face);
                 neighbor->get_mg_dof_indices(dofs_on_other_cell);
 
+                std::sort(dofs_on_this_cell.begin(), dofs_on_this_cell.end());
                 for (unsigned int i = 0; i < dofs_per_cell; ++i)
-                  {
-                    for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                      {
-                        sparsity.add(dofs_on_other_cell[i],
-                                     dofs_on_this_cell[j]);
-                        sparsity.add(dofs_on_other_cell[j],
-                                     dofs_on_this_cell[i]);
-                      }
-                  }
+                  sparsity.add_row_entries(dofs_on_other_cell[i],
+                                           make_array_view(dofs_on_this_cell),
+                                           true);
               }
           }
       }
@@ -766,10 +737,10 @@ namespace MGTools
 
 
 
-  template <int dim, typename SparsityPatternType, int spacedim>
+  template <int dim, int spacedim>
   void
   make_flux_sparsity_pattern(const DoFHandler<dim, spacedim> &   dof,
-                             SparsityPatternType &               sparsity,
+                             SparsityPatternBase &               sparsity,
                              const unsigned int                  level,
                              const Table<2, DoFTools::Coupling> &int_mask,
                              const Table<2, DoFTools::Coupling> &flux_mask)
@@ -796,11 +767,11 @@ namespace MGTools
     const unsigned int                   total_dofs = fe.n_dofs_per_cell();
     std::vector<types::global_dof_index> dofs_on_this_cell(total_dofs);
     std::vector<types::global_dof_index> dofs_on_other_cell(total_dofs);
-    Table<2, bool>                       support_on_face(total_dofs,
-                                   GeometryInfo<dim>::faces_per_cell);
+    std::vector<std::pair<types::global_dof_index, types::global_dof_index>>
+      cell_entries;
 
-    typename DoFHandler<dim, spacedim>::cell_iterator cell = dof.begin(level),
-                                                      endc = dof.end(level);
+    Table<2, bool> support_on_face(total_dofs,
+                                   GeometryInfo<dim>::faces_per_cell);
 
     const Table<2, DoFTools::Coupling>
       int_dof_mask =
@@ -812,20 +783,11 @@ namespace MGTools
       for (auto f : GeometryInfo<dim>::face_indices())
         support_on_face(i, f) = fe.has_support_on_face(i, f);
 
-    // Clear user flags because we will
-    // need them. But first we save
-    // them and make sure that we
-    // restore them later such that at
-    // the end of this function the
-    // Triangulation will be in the
-    // same state as it was at the
-    // beginning of this function.
-    std::vector<bool> user_flags;
-    dof.get_triangulation().save_user_flags(user_flags);
-    const_cast<Triangulation<dim, spacedim> &>(dof.get_triangulation())
-      .clear_user_flags();
+    std::vector<bool> face_touched(dim == 2 ?
+                                     dof.get_triangulation().n_raw_lines() :
+                                     dof.get_triangulation().n_raw_quads());
 
-    for (; cell != endc; ++cell)
+    for (const auto &cell : dof.cell_iterators_on_level(level))
       {
         if (!cell->is_locally_owned_on_level())
           continue;
@@ -835,14 +797,15 @@ namespace MGTools
         for (unsigned int i = 0; i < total_dofs; ++i)
           for (unsigned int j = 0; j < total_dofs; ++j)
             if (int_dof_mask[i][j] != DoFTools::none)
-              sparsity.add(dofs_on_this_cell[i], dofs_on_this_cell[j]);
+              cell_entries.emplace_back(dofs_on_this_cell[i],
+                                        dofs_on_this_cell[j]);
 
         // Loop over all interior neighbors
         for (const unsigned int face : GeometryInfo<dim>::face_indices())
           {
             typename DoFHandler<dim, spacedim>::face_iterator cell_face =
               cell->face(face);
-            if (cell_face->user_flag_set())
+            if (face_touched[cell_face->index()])
               continue;
 
             if (cell->at_boundary(face) && !cell->has_periodic_neighbor(face))
@@ -855,12 +818,12 @@ namespace MGTools
                         const bool j_non_zero_i = support_on_face(j, face);
 
                         if (flux_dof_mask(i, j) == DoFTools::always)
-                          sparsity.add(dofs_on_this_cell[i],
-                                       dofs_on_this_cell[j]);
+                          cell_entries.emplace_back(dofs_on_this_cell[i],
+                                                    dofs_on_this_cell[j]);
                         if (flux_dof_mask(i, j) == DoFTools::nonzero &&
                             i_non_zero_i && j_non_zero_i)
-                          sparsity.add(dofs_on_this_cell[i],
-                                       dofs_on_this_cell[j]);
+                          cell_entries.emplace_back(dofs_on_this_cell[i],
+                                                    dofs_on_this_cell[j]);
                       }
                   }
               }
@@ -889,75 +852,73 @@ namespace MGTools
                           support_on_face(j, neighbor_face);
                         if (flux_dof_mask(i, j) == DoFTools::always)
                           {
-                            sparsity.add(dofs_on_this_cell[i],
-                                         dofs_on_other_cell[j]);
-                            sparsity.add(dofs_on_other_cell[i],
-                                         dofs_on_this_cell[j]);
-                            sparsity.add(dofs_on_this_cell[i],
-                                         dofs_on_this_cell[j]);
-                            sparsity.add(dofs_on_other_cell[i],
-                                         dofs_on_other_cell[j]);
+                            cell_entries.emplace_back(dofs_on_this_cell[i],
+                                                      dofs_on_other_cell[j]);
+                            cell_entries.emplace_back(dofs_on_other_cell[i],
+                                                      dofs_on_this_cell[j]);
+                            cell_entries.emplace_back(dofs_on_this_cell[i],
+                                                      dofs_on_this_cell[j]);
+                            cell_entries.emplace_back(dofs_on_other_cell[i],
+                                                      dofs_on_other_cell[j]);
                           }
                         if (flux_dof_mask(i, j) == DoFTools::nonzero)
                           {
                             if (i_non_zero_i && j_non_zero_e)
-                              sparsity.add(dofs_on_this_cell[i],
-                                           dofs_on_other_cell[j]);
+                              cell_entries.emplace_back(dofs_on_this_cell[i],
+                                                        dofs_on_other_cell[j]);
                             if (i_non_zero_e && j_non_zero_i)
-                              sparsity.add(dofs_on_other_cell[i],
-                                           dofs_on_this_cell[j]);
+                              cell_entries.emplace_back(dofs_on_other_cell[i],
+                                                        dofs_on_this_cell[j]);
                             if (i_non_zero_i && j_non_zero_i)
-                              sparsity.add(dofs_on_this_cell[i],
-                                           dofs_on_this_cell[j]);
+                              cell_entries.emplace_back(dofs_on_this_cell[i],
+                                                        dofs_on_this_cell[j]);
                             if (i_non_zero_e && j_non_zero_e)
-                              sparsity.add(dofs_on_other_cell[i],
-                                           dofs_on_other_cell[j]);
+                              cell_entries.emplace_back(dofs_on_other_cell[i],
+                                                        dofs_on_other_cell[j]);
                           }
 
                         if (flux_dof_mask(j, i) == DoFTools::always)
                           {
-                            sparsity.add(dofs_on_this_cell[j],
-                                         dofs_on_other_cell[i]);
-                            sparsity.add(dofs_on_other_cell[j],
-                                         dofs_on_this_cell[i]);
-                            sparsity.add(dofs_on_this_cell[j],
-                                         dofs_on_this_cell[i]);
-                            sparsity.add(dofs_on_other_cell[j],
-                                         dofs_on_other_cell[i]);
+                            cell_entries.emplace_back(dofs_on_this_cell[j],
+                                                      dofs_on_other_cell[i]);
+                            cell_entries.emplace_back(dofs_on_other_cell[j],
+                                                      dofs_on_this_cell[i]);
+                            cell_entries.emplace_back(dofs_on_this_cell[j],
+                                                      dofs_on_this_cell[i]);
+                            cell_entries.emplace_back(dofs_on_other_cell[j],
+                                                      dofs_on_other_cell[i]);
                           }
                         if (flux_dof_mask(j, i) == DoFTools::nonzero)
                           {
                             if (j_non_zero_i && i_non_zero_e)
-                              sparsity.add(dofs_on_this_cell[j],
-                                           dofs_on_other_cell[i]);
+                              cell_entries.emplace_back(dofs_on_this_cell[j],
+                                                        dofs_on_other_cell[i]);
                             if (j_non_zero_e && i_non_zero_i)
-                              sparsity.add(dofs_on_other_cell[j],
-                                           dofs_on_this_cell[i]);
+                              cell_entries.emplace_back(dofs_on_other_cell[j],
+                                                        dofs_on_this_cell[i]);
                             if (j_non_zero_i && i_non_zero_i)
-                              sparsity.add(dofs_on_this_cell[j],
-                                           dofs_on_this_cell[i]);
+                              cell_entries.emplace_back(dofs_on_this_cell[j],
+                                                        dofs_on_this_cell[i]);
                             if (j_non_zero_e && i_non_zero_e)
-                              sparsity.add(dofs_on_other_cell[j],
-                                           dofs_on_other_cell[i]);
+                              cell_entries.emplace_back(dofs_on_other_cell[j],
+                                                        dofs_on_other_cell[i]);
                           }
                       }
                   }
-                neighbor->face(neighbor_face)->set_user_flag();
+                face_touched[neighbor->face(neighbor_face)->index()] = true;
               }
           }
+        sparsity.add_entries(make_array_view(cell_entries));
+        cell_entries.clear();
       }
-
-    // finally restore the user flags
-    const_cast<Triangulation<dim, spacedim> &>(dof.get_triangulation())
-      .load_user_flags(user_flags);
   }
 
 
 
-  template <int dim, typename SparsityPatternType, int spacedim>
+  template <int dim, int spacedim>
   void
   make_flux_sparsity_pattern_edge(const DoFHandler<dim, spacedim> &   dof,
-                                  SparsityPatternType &               sparsity,
+                                  SparsityPatternBase &               sparsity,
                                   const unsigned int                  level,
                                   const Table<2, DoFTools::Coupling> &flux_mask)
   {
@@ -987,11 +948,11 @@ namespace MGTools
     const unsigned int dofs_per_cell = dof.get_fe().n_dofs_per_cell();
     std::vector<types::global_dof_index> dofs_on_this_cell(dofs_per_cell);
     std::vector<types::global_dof_index> dofs_on_other_cell(dofs_per_cell);
-    Table<2, bool>                       support_on_face(dofs_per_cell,
-                                   GeometryInfo<dim>::faces_per_cell);
+    std::vector<std::pair<types::global_dof_index, types::global_dof_index>>
+      cell_entries;
 
-    typename DoFHandler<dim, spacedim>::cell_iterator cell = dof.begin(level),
-                                                      endc = dof.end(level);
+    Table<2, bool> support_on_face(dofs_per_cell,
+                                   GeometryInfo<dim>::faces_per_cell);
 
     const Table<2, DoFTools::Coupling> flux_dof_mask =
       DoFTools::dof_couplings_from_component_couplings(fe, flux_mask);
@@ -1000,7 +961,7 @@ namespace MGTools
       for (auto f : GeometryInfo<dim>::face_indices())
         support_on_face(i, f) = fe.has_support_on_face(i, f);
 
-    for (; cell != endc; ++cell)
+    for (const auto &cell : dof.cell_iterators_on_level(level))
       {
         if (!cell->is_locally_owned_on_level())
           continue;
@@ -1032,25 +993,27 @@ namespace MGTools
                       {
                         if (flux_dof_mask(i, j) != DoFTools::none)
                           {
-                            sparsity.add(dofs_on_other_cell[i],
-                                         dofs_on_this_cell[j]);
-                            sparsity.add(dofs_on_other_cell[j],
-                                         dofs_on_this_cell[i]);
+                            cell_entries.emplace_back(dofs_on_other_cell[i],
+                                                      dofs_on_this_cell[j]);
+                            cell_entries.emplace_back(dofs_on_other_cell[j],
+                                                      dofs_on_this_cell[i]);
                           }
                       }
                   }
               }
           }
+        sparsity.add_entries(make_array_view(cell_entries));
+        cell_entries.clear();
       }
   }
 
 
 
-  template <int dim, int spacedim, typename SparsityPatternType>
+  template <int dim, int spacedim>
   void
   make_interface_sparsity_pattern(const DoFHandler<dim, spacedim> &dof,
                                   const MGConstrainedDoFs &mg_constrained_dofs,
-                                  SparsityPatternType &    sparsity,
+                                  SparsityPatternBase &    sparsity,
                                   const unsigned int       level)
   {
     const types::global_dof_index n_dofs = dof.n_dofs(level);
@@ -1063,17 +1026,25 @@ namespace MGTools
 
     const unsigned int dofs_per_cell = dof.get_fe().n_dofs_per_cell();
     std::vector<types::global_dof_index> dofs_on_this_cell(dofs_per_cell);
-    typename DoFHandler<dim, spacedim>::cell_iterator cell = dof.begin(level),
-                                                      endc = dof.end(level);
-    for (; cell != endc; ++cell)
+    std::vector<types::global_dof_index> cols;
+    cols.reserve(dofs_per_cell);
+
+    for (const auto &cell : dof.cell_iterators_on_level(level))
       if (cell->is_locally_owned_on_level())
         {
           cell->get_mg_dof_indices(dofs_on_this_cell);
+          std::sort(dofs_on_this_cell.begin(), dofs_on_this_cell.end());
           for (unsigned int i = 0; i < dofs_per_cell; ++i)
-            for (unsigned int j = 0; j < dofs_per_cell; ++j)
-              if (mg_constrained_dofs.is_interface_matrix_entry(
-                    level, dofs_on_this_cell[i], dofs_on_this_cell[j]))
-                sparsity.add(dofs_on_this_cell[i], dofs_on_this_cell[j]);
+            {
+              for (unsigned int j = 0; j < dofs_per_cell; ++j)
+                if (mg_constrained_dofs.is_interface_matrix_entry(
+                      level, dofs_on_this_cell[i], dofs_on_this_cell[j]))
+                  cols.push_back(dofs_on_this_cell[j]);
+              sparsity.add_row_entries(dofs_on_this_cell[i],
+                                       make_array_view(cols),
+                                       true);
+              cols.clear();
+            }
         }
   }
 
@@ -1492,10 +1463,7 @@ namespace MGTools
 
     std::vector<bool> cell_dofs(dofs_per_cell, false);
 
-    typename DoFHandler<dim>::cell_iterator cell = mg_dof_handler.begin(),
-                                            endc = mg_dof_handler.end();
-
-    for (; cell != endc; ++cell)
+    for (const auto &cell : mg_dof_handler.cell_iterators())
       {
         // Do not look at artificial level cells (in a serial computation we
         // need to ignore the level_subdomain_id() because it is never set).
@@ -1571,10 +1539,7 @@ namespace MGTools
     // the first locally owned cell we find will have
     // the lowest level in the particular subdomain.
     unsigned int min_level = tria.n_global_levels();
-    typename Triangulation<dim, spacedim>::active_cell_iterator
-      cell = tria.begin_active(),
-      endc = tria.end();
-    for (; cell != endc; ++cell)
+    for (const auto &cell : tria.active_cell_iterators())
       if (cell->is_locally_owned())
         {
           min_level = cell->level();
@@ -1596,61 +1561,270 @@ namespace MGTools
 
 
 
+  namespace internal
+  {
+    double
+    workload_imbalance(
+      const std::vector<types::global_dof_index> &n_cells_on_levels,
+      const MPI_Comm                              comm)
+    {
+      std::vector<types::global_dof_index> n_cells_on_leves_max(
+        n_cells_on_levels.size());
+      std::vector<types::global_dof_index> n_cells_on_leves_sum(
+        n_cells_on_levels.size());
+
+      Utilities::MPI::max(n_cells_on_levels, comm, n_cells_on_leves_max);
+      Utilities::MPI::sum(n_cells_on_levels, comm, n_cells_on_leves_sum);
+
+      const unsigned int n_proc = Utilities::MPI::n_mpi_processes(comm);
+
+      const double ideal_work = std::accumulate(n_cells_on_leves_sum.begin(),
+                                                n_cells_on_leves_sum.end(),
+                                                0) /
+                                static_cast<double>(n_proc);
+      const double workload_imbalance =
+        std::accumulate(n_cells_on_leves_max.begin(),
+                        n_cells_on_leves_max.end(),
+                        0) /
+        ideal_work;
+
+      return workload_imbalance;
+    }
+
+
+
+    double
+    vertical_communication_efficiency(
+      const std::vector<
+        std::pair<types::global_dof_index, types::global_dof_index>> &cells,
+      const MPI_Comm                                                  comm)
+    {
+      std::vector<types::global_dof_index> cells_local(cells.size());
+      std::vector<types::global_dof_index> cells_remote(cells.size());
+
+      for (unsigned int i = 0; i < cells.size(); ++i)
+        {
+          cells_local[i]  = cells[i].first;
+          cells_remote[i] = cells[i].second;
+        }
+
+      std::vector<types::global_dof_index> cells_local_sum(cells_local.size());
+      Utilities::MPI::sum(cells_local, comm, cells_local_sum);
+
+      std::vector<types::global_dof_index> cells_remote_sum(
+        cells_remote.size());
+      Utilities::MPI::sum(cells_remote, comm, cells_remote_sum);
+
+      const auto n_cells_local =
+        std::accumulate(cells_local_sum.begin(), cells_local_sum.end(), 0);
+      const auto n_cells_remote =
+        std::accumulate(cells_remote_sum.begin(), cells_remote_sum.end(), 0);
+
+      return static_cast<double>(n_cells_local) /
+             (n_cells_local + n_cells_remote);
+    }
+  } // namespace internal
+
+
+
+  template <int dim, int spacedim>
+  std::vector<types::global_dof_index>
+  local_workload(const Triangulation<dim, spacedim> &tria)
+  {
+    if (const parallel::TriangulationBase<dim, spacedim> *tr =
+          dynamic_cast<const parallel::TriangulationBase<dim, spacedim> *>(
+            &tria))
+      Assert(
+        tr->is_multilevel_hierarchy_constructed(),
+        ExcMessage(
+          "We can only compute the workload imbalance if the multilevel hierarchy has been constructed!"));
+
+    const unsigned int n_global_levels = tria.n_global_levels();
+
+    std::vector<types::global_dof_index> n_cells_on_levels(n_global_levels);
+
+    for (unsigned int lvl = 0; lvl < n_global_levels; ++lvl)
+      for (const auto &cell : tria.cell_iterators_on_level(lvl))
+        if (cell->is_locally_owned_on_level())
+          ++n_cells_on_levels[lvl];
+
+    return n_cells_on_levels;
+  }
+
+
+
+  template <int dim, int spacedim>
+  std::vector<types::global_dof_index>
+  local_workload(
+    const std::vector<std::shared_ptr<const Triangulation<dim, spacedim>>>
+      &trias)
+  {
+    const unsigned int n_global_levels = trias.size();
+
+    std::vector<types::global_dof_index> n_cells_on_levels(n_global_levels);
+
+    for (unsigned int lvl = 0; lvl < n_global_levels; ++lvl)
+      for (const auto &cell : trias[lvl]->active_cell_iterators())
+        if (cell->is_locally_owned())
+          ++n_cells_on_levels[lvl];
+
+    return n_cells_on_levels;
+  }
+
+
+
   template <int dim, int spacedim>
   double
   workload_imbalance(const Triangulation<dim, spacedim> &tria)
   {
-    double workload_imbalance = 1.0;
+    return internal::workload_imbalance(local_workload(tria),
+                                        tria.get_communicator());
+  }
 
-    // It is only necessary to calculate the imbalance
-    // on a distributed mesh. The imbalance is always
-    // 1.0 for the serial case.
-    if (const parallel::TriangulationBase<dim, spacedim> *tr =
-          dynamic_cast<const parallel::TriangulationBase<dim, spacedim> *>(
-            &tria))
+
+
+  template <int dim, int spacedim>
+  double
+  workload_imbalance(
+    const std::vector<std::shared_ptr<const Triangulation<dim, spacedim>>>
+      &trias)
+  {
+    return internal::workload_imbalance(local_workload(trias),
+                                        trias.back()->get_communicator());
+  }
+
+
+
+  template <int dim, int spacedim>
+  std::vector<std::pair<types::global_dof_index, types::global_dof_index>>
+  local_vertical_communication_cost(const Triangulation<dim, spacedim> &tria)
+  {
+    const unsigned int n_global_levels = tria.n_global_levels();
+
+    std::vector<std::pair<types::global_dof_index, types::global_dof_index>>
+      cells(n_global_levels);
+
+    const MPI_Comm communicator = tria.get_communicator();
+
+    const unsigned int my_rank = Utilities::MPI::this_mpi_process(communicator);
+
+    for (unsigned int lvl = 0; lvl < n_global_levels - 1; ++lvl)
+      for (const auto &cell : tria.cell_iterators_on_level(lvl))
+        if (cell->is_locally_owned_on_level() && cell->has_children())
+          for (unsigned int i = 0; i < GeometryInfo<dim>::max_children_per_cell;
+               ++i)
+            {
+              const auto level_subdomain_id =
+                cell->child(i)->level_subdomain_id();
+              if (level_subdomain_id == my_rank)
+                ++cells[lvl + 1].first;
+              else if (level_subdomain_id != numbers::invalid_unsigned_int)
+                ++cells[lvl + 1].second;
+              else
+                AssertThrow(false, ExcNotImplemented());
+            }
+
+    return cells;
+  }
+
+
+
+  template <int dim, int spacedim>
+  std::vector<std::pair<types::global_dof_index, types::global_dof_index>>
+  local_vertical_communication_cost(
+    const std::vector<std::shared_ptr<const Triangulation<dim, spacedim>>>
+      &trias)
+  {
+    const unsigned int n_global_levels = trias.size();
+
+    std::vector<std::pair<types::global_dof_index, types::global_dof_index>>
+      cells(n_global_levels);
+
+    const MPI_Comm communicator = trias.back()->get_communicator();
+
+    const unsigned int my_rank = Utilities::MPI::this_mpi_process(communicator);
+
+    for (unsigned int lvl = 0; lvl < n_global_levels - 1; ++lvl)
       {
-        Assert(
-          tr->is_multilevel_hierarchy_constructed(),
-          ExcMessage(
-            "We can only compute the workload imbalance if the multilevel hierarchy has been constructed!"));
+        const auto &tria_coarse = *trias[lvl];
+        const auto &tria_fine   = *trias[lvl + 1];
 
-        const unsigned int n_proc =
-          Utilities::MPI::n_mpi_processes(tr->get_communicator());
-        const unsigned int n_global_levels = tr->n_global_levels();
+        const unsigned int n_coarse_cells  = tria_fine.n_global_coarse_cells();
+        const unsigned int n_global_levels = tria_fine.n_global_levels();
 
-        // This value will represent the sum over the multigrid
-        // levels of the maximum number of cells owned by any
-        // one processesor on that level.
-        types::global_dof_index work_estimate = 0;
+        const dealii::internal::CellIDTranslator<dim> cell_id_translator(
+          n_coarse_cells, n_global_levels);
 
-        // Sum of all cells in the multigrid hierarchy
-        types::global_dof_index total_cells_in_hierarchy = 0;
+        IndexSet is_fine_owned(cell_id_translator.size());
+        IndexSet is_fine_required(cell_id_translator.size());
 
-        for (int lvl = n_global_levels - 1; lvl >= 0; --lvl)
-          {
-            // Number of cells this processor owns on this level
-            types::global_dof_index n_owned_cells_on_lvl = 0;
+        for (const auto &cell : tria_fine.active_cell_iterators())
+          if (!cell->is_artificial() && cell->is_locally_owned())
+            is_fine_owned.add_index(cell_id_translator.translate(cell));
 
-            for (const auto &cell : tr->cell_iterators_on_level(lvl))
-              if (cell->is_locally_owned_on_level())
-                ++n_owned_cells_on_lvl;
+        for (const auto &cell : tria_coarse.active_cell_iterators())
+          if (!cell->is_artificial() && cell->is_locally_owned())
+            {
+              if (cell->level() + 1u == tria_fine.n_global_levels())
+                continue;
 
-            work_estimate +=
-              dealii::Utilities::MPI::max(n_owned_cells_on_lvl,
-                                          tr->get_communicator());
+              for (unsigned int i = 0;
+                   i < GeometryInfo<dim>::max_children_per_cell;
+                   ++i)
+                is_fine_required.add_index(
+                  cell_id_translator.translate(cell, i));
+            }
 
-            total_cells_in_hierarchy +=
-              dealii::Utilities::MPI::sum(n_owned_cells_on_lvl,
-                                          tr->get_communicator());
-          }
+        std::vector<unsigned int> is_fine_required_ranks(
+          is_fine_required.n_elements());
 
-        const double ideal_work =
-          total_cells_in_hierarchy / static_cast<double>(n_proc);
-        workload_imbalance = work_estimate / ideal_work;
+        Utilities::MPI::internal::ComputeIndexOwner::ConsensusAlgorithmsPayload
+          process(is_fine_owned,
+                  is_fine_required,
+                  communicator,
+                  is_fine_required_ranks,
+                  false);
+
+        Utilities::MPI::ConsensusAlgorithms::Selector<
+          std::vector<
+            std::pair<types::global_cell_index, types::global_cell_index>>,
+          std::vector<unsigned int>>
+          consensus_algorithm;
+        consensus_algorithm.run(process, communicator);
+
+        for (unsigned i = 0; i < is_fine_required.n_elements(); ++i)
+          if (is_fine_required_ranks[i] == my_rank)
+            ++cells[lvl + 1].first;
+          else if (is_fine_required_ranks[i] != numbers::invalid_unsigned_int)
+            ++cells[lvl + 1].second;
       }
 
-    return workload_imbalance;
+    return cells;
   }
+
+
+
+  template <int dim, int spacedim>
+  double
+  vertical_communication_efficiency(const Triangulation<dim, spacedim> &tria)
+  {
+    return internal::vertical_communication_efficiency(
+      local_vertical_communication_cost(tria), tria.get_communicator());
+  }
+
+
+
+  template <int dim, int spacedim>
+  double
+  vertical_communication_efficiency(
+    const std::vector<std::shared_ptr<const Triangulation<dim, spacedim>>>
+      &trias)
+  {
+    return internal::vertical_communication_efficiency(
+      local_vertical_communication_cost(trias),
+      trias.back()->get_communicator());
+  }
+
 } // namespace MGTools
 
 

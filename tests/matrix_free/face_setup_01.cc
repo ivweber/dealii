@@ -27,6 +27,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 
@@ -69,7 +70,8 @@ main(int argc, char **argv)
   DoFTools::make_hanging_node_constraints(dof_handler, constraint);
   constraint.close();
 
-  matrix_free.reinit(dof_handler, constraint, QGauss<1>(4), data);
+  matrix_free.reinit(
+    MappingQ1<dim>{}, dof_handler, constraint, QGauss<1>(4), data);
 
   LinearAlgebra::distributed::Vector<double> src;
   matrix_free.initialize_dof_vector(src);

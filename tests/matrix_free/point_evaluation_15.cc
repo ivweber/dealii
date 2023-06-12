@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -84,16 +84,15 @@ test()
   dof_handler.distribute_dofs(fe);
   Vector<double> vector(dof_handler.n_dofs());
 
-  // Use the first evaluator to compute the values of the function
-  FEPointEvaluation<dim, dim> evaluator1(mapping,
-                                         fe,
-                                         update_values | update_gradients);
+  // mapping info object for precomputed mapping
+  NonMatching::MappingInfo<dim, dim> mapping_info(mapping,
+                                                  update_values |
+                                                    update_gradients);
+  // First evaluator to use precomputed mapping
+  FEPointEvaluation<dim, dim> evaluator1(mapping_info, fe);
 
-  // The second evaluator will use the precomputed mapping information
-  // from evaluator1 to compute the values of the function
-  FEPointEvaluation<dim, dim> evaluator2(mapping,
-                                         fe,
-                                         update_values | update_gradients);
+  // Second evaluator to use precomputed mapping
+  FEPointEvaluation<dim, dim> evaluator2(mapping_info, fe);
 
   VectorTools::interpolate(mapping, dof_handler, MyFunction<dim>(), vector);
 
@@ -108,11 +107,10 @@ test()
                            solution_values.begin(),
                            solution_values.end());
 
-      evaluator1.reinit(cell, unit_points);
+      mapping_info.reinit(cell, unit_points);
+
       evaluator1.evaluate(solution_values,
                           EvaluationFlags::values | EvaluationFlags::gradients);
-
-      evaluator2.reinit(cell, unit_points, evaluator1.get_mapping_data());
       evaluator2.evaluate(solution_values,
                           EvaluationFlags::values | EvaluationFlags::gradients);
 
@@ -136,12 +134,12 @@ test()
           evaluator2.submit_gradient(evaluator2.get_gradient(i), i);
         }
 
-      evaluator1.integrate(solution_values,
-                           EvaluationFlags::values |
-                             EvaluationFlags::gradients);
-      evaluator2.integrate(solution_values2,
-                           EvaluationFlags::values |
-                             EvaluationFlags::gradients);
+      evaluator1.test_and_sum(solution_values,
+                              EvaluationFlags::values |
+                                EvaluationFlags::gradients);
+      evaluator2.test_and_sum(solution_values2,
+                              EvaluationFlags::values |
+                                EvaluationFlags::gradients);
 
       for (unsigned int i = 0; i < solution_values.size(); ++i)
         deallog << solution_values[i] - solution_values2[i] << ' ';

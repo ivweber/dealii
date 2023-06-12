@@ -24,7 +24,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe.h>
-#include <deal.II/fe/fe_base.h>
+#include <deal.II/fe/fe_data.h>
 #include <deal.II/fe/fe_interface_values.h>
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/fe/fe_values.h>
@@ -206,7 +206,7 @@ namespace FEConforimityTest
   {
     triangulation.clear();
 
-    // alias for better readabilty
+    // alias for better readability
     const unsigned int n_rotate_central_square = config_switch;
 
     GridGenerator::non_standard_orientation_mesh(triangulation,

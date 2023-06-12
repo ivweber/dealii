@@ -14,6 +14,7 @@
 // ---------------------------------------------------------------------
 
 #include <deal.II/base/mpi.h>
+#include <deal.II/base/mpi.templates.h>
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/distributed/shared_tria.h>
@@ -27,6 +28,8 @@
 
 #include <deal.II/lac/sparsity_tools.h>
 
+#include <type_traits>
+
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -36,8 +39,9 @@ namespace parallel
   namespace shared
   {
     template <int dim, int spacedim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     Triangulation<dim, spacedim>::Triangulation(
-      const MPI_Comm &mpi_communicator,
+      const MPI_Comm mpi_communicator,
       const typename dealii::Triangulation<dim, spacedim>::MeshSmoothing
                      smooth_grid,
       const bool     allow_artificial_cells,
@@ -70,8 +74,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::is_multilevel_hierarchy_constructed() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::is_multilevel_hierarchy_constructed()
+      const
     {
       return (settings & construct_multigrid_hierarchy);
     }
@@ -79,8 +84,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::partition()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::partition()
     {
 #  ifdef DEBUG
       // Check that all meshes are the same (or at least have the same
@@ -315,8 +320,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::with_artificial_cells() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::with_artificial_cells() const
     {
       return allow_artificial_cells;
     }
@@ -324,8 +329,9 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    const std::vector<types::subdomain_id> &
-    Triangulation<dim, spacedim>::get_true_subdomain_ids_of_cells() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    const std::vector<types::subdomain_id>
+      &Triangulation<dim, spacedim>::get_true_subdomain_ids_of_cells() const
     {
       return true_subdomain_ids_of_cells;
     }
@@ -333,9 +339,10 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    const std::vector<types::subdomain_id> &
-    Triangulation<dim, spacedim>::get_true_level_subdomain_ids_of_cells(
-      const unsigned int level) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    const std::vector<types::subdomain_id>
+      &Triangulation<dim, spacedim>::get_true_level_subdomain_ids_of_cells(
+        const unsigned int level) const
     {
       Assert(level < true_level_subdomain_ids_of_cells.size(),
              ExcInternalError());
@@ -348,9 +355,69 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::execute_coarsening_and_refinement()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::execute_coarsening_and_refinement()
     {
+      // make sure that all refinement/coarsening flags are the same on all
+      // processes
+      {
+        // Obtain the type used to store the different possibilities
+        // a cell can be refined. This is a bit awkward because
+        // what `cell->refine_flag_set()` returns is a struct
+        // type, RefinementCase, which internally stores a
+        // std::uint8_t, which actually holds integers of
+        // enum type RefinementPossibilities<dim>::Possibilities.
+        // In the following, use the actual name of the enum, but
+        // make sure that it is in fact a `std::uint8_t` or
+        // equally sized type.
+        using int_type = std::underlying_type_t<
+          typename RefinementPossibilities<dim>::Possibilities>;
+        static_assert(sizeof(int_type) == sizeof(std::uint8_t),
+                      "Internal type mismatch.");
+
+        std::vector<int_type> refinement_configurations(this->n_active_cells() *
+                                                          2,
+                                                        int_type(0));
+        for (const auto &cell : this->active_cell_iterators())
+          if (cell->is_locally_owned())
+            {
+              refinement_configurations[cell->active_cell_index() * 2 + 0] =
+                static_cast<int_type>(cell->refine_flag_set());
+              refinement_configurations[cell->active_cell_index() * 2 + 1] =
+                static_cast<int_type>(cell->coarsen_flag_set() ? 1 : 0);
+            }
+
+        Utilities::MPI::max(refinement_configurations,
+                            this->get_communicator(),
+                            refinement_configurations);
+
+        for (const auto &cell : this->active_cell_iterators())
+          {
+            cell->clear_refine_flag();
+            cell->clear_coarsen_flag();
+
+            Assert(
+              (refinement_configurations[cell->active_cell_index() * 2 + 0] >
+                   0 ?
+                 1 :
+                 0) +
+                  refinement_configurations[cell->active_cell_index() * 2 +
+                                            1] <=
+                1,
+              ExcMessage(
+                "Refinement/coarsening flags of cells are not consistent in parallel!"));
+
+            if (refinement_configurations[cell->active_cell_index() * 2 + 0] !=
+                0)
+              cell->set_refine_flag(RefinementCase<dim>(
+                refinement_configurations[cell->active_cell_index() * 2 + 0]));
+
+            if (refinement_configurations[cell->active_cell_index() * 2 + 1] >
+                0)
+              cell->set_coarsen_flag();
+          }
+      }
+
       dealii::Triangulation<dim, spacedim>::execute_coarsening_and_refinement();
       partition();
       this->update_number_cache();
@@ -359,8 +426,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::create_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::create_triangulation(
       const std::vector<Point<spacedim>> &vertices,
       const std::vector<CellData<dim>> &  cells,
       const SubCellData &                 subcelldata)
@@ -385,8 +452,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::create_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::create_triangulation(
       const TriangulationDescription::Description<dim, spacedim>
         &construction_data)
     {
@@ -398,8 +465,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::copy_triangulation(
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::copy_triangulation(
       const dealii::Triangulation<dim, spacedim> &other_tria)
     {
       Assert(
@@ -424,23 +491,29 @@ namespace parallel
   namespace shared
   {
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::with_artificial_cells() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::with_artificial_cells() const
     {
       Assert(false, ExcNotImplemented());
       return true;
     }
 
+
+
     template <int dim, int spacedim>
-    bool
-    Triangulation<dim, spacedim>::is_multilevel_hierarchy_constructed() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    bool Triangulation<dim, spacedim>::is_multilevel_hierarchy_constructed()
+      const
     {
       return false;
     }
 
+
+
     template <int dim, int spacedim>
-    const std::vector<unsigned int> &
-    Triangulation<dim, spacedim>::get_true_subdomain_ids_of_cells() const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    const std::vector<unsigned int>
+      &Triangulation<dim, spacedim>::get_true_subdomain_ids_of_cells() const
     {
       Assert(false, ExcNotImplemented());
       return true_subdomain_ids_of_cells;
@@ -449,9 +522,10 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    const std::vector<unsigned int> &
-    Triangulation<dim, spacedim>::get_true_level_subdomain_ids_of_cells(
-      const unsigned int) const
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    const std::vector<unsigned int>
+      &Triangulation<dim, spacedim>::get_true_level_subdomain_ids_of_cells(
+        const unsigned int) const
     {
       Assert(false, ExcNotImplemented());
       return true_level_subdomain_ids_of_cells;

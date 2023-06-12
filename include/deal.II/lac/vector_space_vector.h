@@ -40,8 +40,9 @@ namespace LinearAlgebra
 
 namespace LinearAlgebra
 {
-  /*! @addtogroup Vectors
-   *@{
+  /**
+   * @addtogroup Vectors
+   * @{
    */
 
   /**
@@ -106,6 +107,17 @@ namespace LinearAlgebra
      * communication pattern is used multiple times. This can be used to improve
      * performance.
      */
+    virtual void
+    import_elements(
+      const ReadWriteVector<Number> &V,
+      VectorOperation::values        operation,
+      std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
+        communication_pattern = {}) = 0;
+
+    /**
+     * @deprecated Use import_elements() instead.
+     */
+    DEAL_II_DEPRECATED_EARLY
     virtual void
     import(const ReadWriteVector<Number> &V,
            VectorOperation::values        operation,
@@ -268,7 +280,7 @@ namespace LinearAlgebra
      */
     virtual ~VectorSpaceVector() = default;
   };
-  /*@}*/
+  /** @} */
 } // namespace LinearAlgebra
 
 // ---------------------------- Free functions --------------------------

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,25 +14,28 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_petsc_sparse_matrix_h
-#  define dealii_petsc_sparse_matrix_h
+#define dealii_petsc_sparse_matrix_h
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  ifdef DEAL_II_WITH_PETSC
+#ifdef DEAL_II_WITH_PETSC
 
-#    include <deal.II/lac/exceptions.h>
-#    include <deal.II/lac/petsc_matrix_base.h>
-#    include <deal.II/lac/petsc_vector.h>
+#  include <deal.II/lac/exceptions.h>
+#  include <deal.II/lac/petsc_matrix_base.h>
+#  include <deal.II/lac/petsc_vector.h>
 
-#    include <vector>
+#  include <petscis.h>
+#  include <petscistypes.h>
+
+#  include <vector>
 
 DEAL_II_NAMESPACE_OPEN
 // forward declaration
-#    ifndef DOXYGEN
+#  ifndef DOXYGEN
 template <typename MatrixType>
 class BlockMatrixBase;
-#    endif
+#  endif
 
 namespace PETScWrappers
 {
@@ -71,6 +74,14 @@ namespace PETScWrappers
      * Default constructor. Create an empty matrix.
      */
     SparseMatrix();
+
+    /**
+     * Initialize a Matrix from a PETSc Mat object. Note that we do not copy
+     * the matrix. The Mat object is referenced by the newly created instance
+     * of the class using PetscObjectReference. This is in line with the PETSc
+     * approach to object ownership, which mimicks std::shared_ptr.
+     */
+    explicit SparseMatrix(const Mat &);
 
     /**
      * Create a sparse matrix of dimensions @p m times @p n, with an initial
@@ -209,14 +220,6 @@ namespace PETScWrappers
            const bool                 preset_nonzero_locations = true);
 
     /**
-     * Return a reference to the MPI communicator object in use with this
-     * matrix. Since this is a sequential matrix, it returns the MPI_COMM_SELF
-     * communicator.
-     */
-    virtual const MPI_Comm &
-    get_mpi_communicator() const override;
-
-    /**
      * Return the number of rows of this matrix.
      */
     size_t
@@ -254,8 +257,7 @@ namespace PETScWrappers
   private:
     /**
      * Do the actual work for the respective reinit() function and the
-     * matching constructor, i.e. create a matrix. Getting rid of the previous
-     * matrix is left to the caller.
+     * matching constructor, i.e. create a matrix.
      */
     void
     do_reinit(const size_type m,
@@ -395,6 +397,14 @@ namespace PETScWrappers
       SparseMatrix();
 
       /**
+       * Initialize a SparseMatrix from a PETSc Mat object. Note that we do not
+       * copy the matrix. The Mat object is referenced by the newly created
+       * instance of the class using PetscObjectReference. This is in line with
+       * the PETSc approach to object ownership, which mimicks std::shared_ptr.
+       */
+      explicit SparseMatrix(const Mat &);
+
+      /**
        * Destructor to free the PETSc object.
        */
       ~SparseMatrix() override;
@@ -422,7 +432,7 @@ namespace PETScWrappers
        * efficient to get memory allocation right from the start.
        */
       template <typename SparsityPatternType>
-      SparseMatrix(const MPI_Comm &              communicator,
+      SparseMatrix(const MPI_Comm                communicator,
                    const SparsityPatternType &   sparsity_pattern,
                    const std::vector<size_type> &local_rows_per_process,
                    const std::vector<size_type> &local_columns_per_process,
@@ -470,12 +480,24 @@ namespace PETScWrappers
        */
       template <typename SparsityPatternType>
       void
-      reinit(const MPI_Comm &              communicator,
+      reinit(const MPI_Comm                communicator,
              const SparsityPatternType &   sparsity_pattern,
              const std::vector<size_type> &local_rows_per_process,
              const std::vector<size_type> &local_columns_per_process,
              const unsigned int            this_process,
              const bool                    preset_nonzero_locations = true);
+
+      /**
+       * Create a square matrix where the size() of the IndexSet determines the
+       * global number of rows and columns and the entries of the IndexSet
+       * give the rows and columns for the calling processor. Note that only
+       * ascending, 1:1 IndexSets are supported.
+       */
+      template <typename SparsityPatternType>
+      void
+      reinit(const IndexSet &           local_partitioning,
+             const SparsityPatternType &sparsity_pattern,
+             const MPI_Comm             communicator);
 
       /**
        * Create a matrix where the size() of the IndexSets determine the
@@ -488,7 +510,7 @@ namespace PETScWrappers
       reinit(const IndexSet &           local_rows,
              const IndexSet &           local_columns,
              const SparsityPatternType &sparsity_pattern,
-             const MPI_Comm &           communicator);
+             const MPI_Comm             communicator);
 
       /**
        * Initialize this matrix to have the same structure as @p other. This
@@ -499,11 +521,22 @@ namespace PETScWrappers
       reinit(const SparseMatrix &other);
 
       /**
-       * Return a reference to the MPI communicator object in use with this
-       * matrix.
+       * Create a matrix where the size of the IndexSets determine the
+       * global number of rows and columns and the entries of the IndexSet
+       * give the rows and columns for the calling processor. Note that only
+       * ascending, 1:1 IndexSets are supported. The additional call to the
+       * local to global mappings is required to create the matrix of type
+       * IS (see DoFTools::extract_locally_active_dofs).
+       * This is required by the BDDC preconditioner.
        */
-      virtual const MPI_Comm &
-      get_mpi_communicator() const override;
+      template <typename SparsityPatternType>
+      void
+      reinit(const IndexSet &           local_rows,
+             const IndexSet &           local_active_rows,
+             const IndexSet &           local_columns,
+             const IndexSet &           local_active_columns,
+             const SparsityPatternType &sparsity_pattern,
+             const MPI_Comm             communicator);
 
       /**
        * @addtogroup Exceptions
@@ -518,13 +551,13 @@ namespace PETScWrappers
                      << "The number of local rows " << arg1
                      << " must be larger than the total number of rows "
                      << arg2);
-      //@}
+      /** @} */
 
       /**
        * Return the square of the norm of the vector $v$ with respect to the
        * norm induced by this matrix, i.e. $\left(v^\ast,Mv\right)$. This is
        * useful, e.g. in the finite element context, where the $L_2$ norm of a
-       * function equals the matrix norm with respect to the mass matrix of
+       * function equals the matrix norm with respect to the @ref GlossMassMatrix "mass matrix" of
        * the vector representing the nodal values of the finite element
        * function.
        *
@@ -589,16 +622,12 @@ namespace PETScWrappers
 
     private:
       /**
-       * Copy of the communicator object to be used for this parallel vector.
-       */
-      MPI_Comm communicator;
-
-      /**
        * Same as previous functions.
        */
       template <typename SparsityPatternType>
       void
-      do_reinit(const SparsityPatternType &   sparsity_pattern,
+      do_reinit(const MPI_Comm                comm,
+                const SparsityPatternType &   sparsity_pattern,
                 const std::vector<size_type> &local_rows_per_process,
                 const std::vector<size_type> &local_columns_per_process,
                 const unsigned int            this_process,
@@ -609,29 +638,33 @@ namespace PETScWrappers
        */
       template <typename SparsityPatternType>
       void
-      do_reinit(const IndexSet &           local_rows,
+      do_reinit(const MPI_Comm             comm,
+                const IndexSet &           local_rows,
                 const IndexSet &           local_columns,
+                const SparsityPatternType &sparsity_pattern);
+
+      /**
+       * Same as previous functions, but here we consider active dofs for
+       * matrices of IS type.
+       */
+      template <typename SparsityPatternType>
+      void
+      do_reinit(const MPI_Comm             comm,
+                const IndexSet &           local_rows,
+                const IndexSet &           local_active_rows,
+                const IndexSet &           local_columns,
+                const IndexSet &           local_active_columns,
                 const SparsityPatternType &sparsity_pattern);
 
       // To allow calling protected prepare_add() and prepare_set().
       friend class BlockMatrixBase<SparseMatrix>;
     };
 
-
-
-    // -------- template and inline functions ----------
-
-    inline const MPI_Comm &
-    SparseMatrix::get_mpi_communicator() const
-    {
-      return communicator;
-    }
   } // namespace MPI
 } // namespace PETScWrappers
 
 DEAL_II_NAMESPACE_CLOSE
 
-#  endif // DEAL_II_WITH_PETSC
+#endif // DEAL_II_WITH_PETSC
 
 #endif
-/*--------------------------- petsc_sparse_matrix.h -------------------------*/
