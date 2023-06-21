@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,21 +13,25 @@
 //
 // ---------------------------------------------------------------------
 
+#include "../tests.h"
+
+#define PRECISION 8
+
+
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/mapping_cartesian.h>
 
 #include <string>
 
-#include "../tests.h"
-
 #include "shapes.h"
 
-#define PRECISION 8
+
 
 /*
- * Test file to check that the shape values of an Hermite polynomial basis
- * of a given regularity are correct. Values of derivatives at the boundaries
- * are checked elsehwere in derivatives_hermite.cc.
+ * Test case on various hypercube reference cells to check that the shape
+ * values of <code>FE_Hermite<dim>(reg)<\code> are correct. Values of
+ * derivatives at the vertices are checked in the test case
+ * derivatives_hermite.cc.
  */
 
 template <int dim>

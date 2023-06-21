@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef SHAPES_TEST_HEADER
-#define SHAPES_TEST_HEADER
+#ifndef dealii_tests_shapes_h
+#define dealii_tests_shapes_h
 
 // Show the shape functions implemented.
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,6 +16,7 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/function.h>
+#include <deal.II/base/multithread_info.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/utilities.h>
 
@@ -24,7 +25,6 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_hermite.h>
-#include <deal.II/fe/fe_interface_values.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_cartesian.h>
 
@@ -52,90 +52,66 @@
 #include <sstream>
 #include <vector>
 
-
+#define PRECISION 8
 
 /*
- * Test case for Hermite on an irregular 1D grid.
- * <code>FE_Hermite<dim>(reg)<\code> should be able to perfectly represent any
- * polynomial function up to degree $2 \times reg+1$. If all basis functions
- * are correctly scaled according to element size, then projecting a
- * polynomial of this form onto the FE space will produce negligible pointwise
- * errors.
+ * Test case for Hermite on an regular square grid to check mass matrix
+ * assembly and representation of polynomials by
+ * <code>FE_Hermite<dim>(reg)<\code> works as expected and polynomials have
+ * exact representation.
  */
 
 using namespace dealii;
 
-// Define a function to project onto the domain [-1,1]^dim
-template <int dim>
-class Solution : public Function<dim>
+// Define a function to project onto the domain [-1,1]^2
+class Solution : public Function<2>
 {
 public:
   virtual double
-  value(const Point<dim> &p, unsigned int c = 0) const override
+  value(const Point<2> &p, unsigned int c = 0) const override
   {
     (void)c;
-    switch (dim)
-      {
-        case 2:
-          return p(0) * p(1);
-        case 1:
-        case 3:
-        default:
-          Assert(false, ExcNotImplemented());
-          return 0;
-      }
+    return p(0) * p(1);
   }
-
 
 
   std::string
   get_function_string()
   {
-    switch (dim)
-      {
-        case 2:
-          return "XY";
-        case 1:
-        case 3:
-        default:
-          Assert(false, ExcNotImplemented());
-          return "";
-      }
+    return "XY";
   }
 };
 
 
-
-template <int dim>
 void
 test_fe_on_domain(const unsigned int regularity)
 {
   deallog << std::endl;
   char fname[50];
-  sprintf(fname, "Cell-%dd-Hermite-%d", dim, regularity);
+  sprintf(fname, "Cell-%dd-Hermite-%d", 2, regularity);
   deallog.push(fname);
   deallog.depth_file(2);
 
-  Triangulation<dim> tr;
-  DoFHandler<dim>    dof(tr);
+  Triangulation<2> tr;
+  DoFHandler<2>    dof(tr);
 
-  double     left = -1.0, right = 1.0;
-  Point<dim> left_point, right_point;
-  for (unsigned int i = 0; i < dim; ++i)
+  double   left = -1.0, right = 1.0;
+  Point<2> left_point, right_point;
+  for (unsigned int i = 0; i < 2; ++i)
     left_point(i) = left, right_point(i) = right;
   GridGenerator::subdivided_hyper_cube(tr, 4, left, right);
 
-  FE_Hermite<dim> herm(regularity);
+  FE_Hermite<2> herm(regularity);
   dof.distribute_dofs(herm);
 
-  MappingCartesian<dim> mapping;
+  MappingCartesian<2> mapping;
 
-  QGauss<dim> quadr(2 * regularity + 2);
+  QGauss<2> quadr(2 * regularity + 2);
 
   Vector<double> sol(dof.n_dofs());
   Vector<double> rhs(dof.n_dofs());
 
-  Solution<dim> sol_object;
+  Solution sol_object;
 
   AffineConstraints<double> constraints;
   constraints.close();
@@ -149,11 +125,11 @@ test_fe_on_domain(const unsigned int regularity)
   mass_matrix.reinit(sp);
   MatrixCreator::create_mass_matrix(mapping, dof, quadr, mass_matrix);
 
-  FEValues<dim> fe_herm(mapping,
-                        herm,
-                        quadr,
-                        update_values | update_quadrature_points |
-                          update_JxW_values);
+  FEValues<2> fe_herm(mapping,
+                      herm,
+                      quadr,
+                      update_values | update_quadrature_points |
+                        update_JxW_values);
 
   std::vector<types::global_dof_index> local_to_global(herm.n_dofs_per_cell());
 
@@ -211,13 +187,13 @@ int
 main()
 {
   std::ofstream logfile("output");
-  deallog << std::setprecision(8) << std::fixed;
+  deallog << std::setprecision(PRECISION) << std::fixed;
   deallog.attach(logfile);
   MultithreadInfo::set_thread_limit(1);
 
-  test_fe_on_domain<2>(0);
-  test_fe_on_domain<2>(1);
-  test_fe_on_domain<2>(2);
+  test_fe_on_domain(0);
+  test_fe_on_domain(1);
+  test_fe_on_domain(2);
 
   return 0;
 }
