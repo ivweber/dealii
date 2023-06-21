@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,22 +13,26 @@
 //
 // ---------------------------------------------------------------------
 
+#include "../tests.h"
+
+#define PRECISION 8
+
+
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/mapping_cartesian.h>
 
 #include <string>
 
-#include "../tests.h"
-
 #include "derivatives.h"
 
-#define PRECISION 8
+
 
 /*
- * Tests the values of derivatives of an Hermite basis at the boundaries
- * of an element in 1D. This is important to ensure that the basis is
- * behaving as expected, and will not accidentally enforce discontinuities
- * in derivatives across element boundaries.
+ * Test case to check the values of derivatives of
+ * <code>FE_Hermite<dim>(reg)<\code> at the vertices of a hypercube reference
+ * element. This ensures the basis is behaving as expected, and will not
+ * accidentally enforce discontinuities in derivatives across element
+ * boundaries.
  */
 
 

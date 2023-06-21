@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -237,7 +237,7 @@ enum UpdateFlags
   update_transformation_values | update_transformation_gradients |
   // Volume data
   update_volume_elements |
-  // Hermite
+  // Hermite needs several DOFs to be rescaled each time
   update_rescale
 };
 

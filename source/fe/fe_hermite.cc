@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,6 +32,8 @@
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/fe_wedge_p.h>
 #include <deal.II/fe/mapping_cartesian.h>
+
+#include <deal.II/grid/reference_cell.h>
 
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/precondition.h>
@@ -539,36 +541,16 @@ FE_Hermite<dim, spacedim>::requires_update_flags(const UpdateFlags flags) const
 
 
 /**
- * A large part of the following function is copied from FE_Q_Base, the main
- * difference is that some additional constraints are needed between two
- * Hermite finite elements
+ * A large part of the following function is copied from FE_Q_Base. At present
+ * the case of two Hermite bases meeting is not implemented as it is unlikely
+ * that two different Hermite bases would be used in an hp method. This may be
+ * implemented in a later update.
  */
 template <int dim, int spacedim>
 std::vector<std::pair<unsigned int, unsigned int>>
 FE_Hermite<dim, spacedim>::hp_vertex_dof_identities(
   const FiniteElement<dim, spacedim> &fe_other) const
 {
-  /*if (const FE_Hermite<dim, spacedim> *fe_herm_other =
-        dynamic_cast<FE_Hermite<dim, spacedim> *>(&fe_other))
-    {
-      // In this case there will be several DoFs that need to be matched between
-      // the elements to ensure continuity. The number of DoFs to be matched is
-      // dependent on the polynomial degree of the lower order element, and dim
-      //
-      // Note: is this using hierarchical or lexicographic numbering at the
-  vertices? if (this->degree < fe_herm_other->degree)
-        {
-          std::vector<std::pair<unsigned int, unsigned int>> dof_matches;
-          dof_matches.reserve(this->n_dofs_per_vertex());
-
-
-        }
-      else
-        {
-
-        }
-    }
-  else */
   if (dynamic_cast<const FE_Q_Base<dim, spacedim> *>(&fe_other) != nullptr)
     {
       // there should be exactly one single DoF of FE_Q_Base at a vertex, and it
@@ -599,6 +581,12 @@ FE_Hermite<dim, spacedim>::hp_vertex_dof_identities(
       // constraints to declare
       return {};
     }
+  else if (const FE_Hermite<dim, spacedim> *fe_herm_other =
+             dynamic_cast<const FE_Hermite<dim, spacedim> *>(&fe_other))
+    {
+      Assert(false, ExcNotImplemented());
+      return {};
+    }
   else
     {
       Assert(false, ExcNotImplemented());
@@ -608,65 +596,35 @@ FE_Hermite<dim, spacedim>::hp_vertex_dof_identities(
 
 
 
+/**
+ * This function only supplies empty lists of pairs, since Hermite
+ * stores all DoFs on vertices meaning there is no continuity that
+ * could be enforced.
+ */
 template <int dim, int spacedim>
 std::vector<std::pair<unsigned int, unsigned int>>
 FE_Hermite<dim, spacedim>::hp_line_dof_identities(
   const FiniteElement<dim, spacedim> &fe_other) const
 {
-  if (dynamic_cast<const FE_Nothing<dim> *>(&fe_other) != nullptr)
-    {
-      // the FE_Nothing has no degrees of freedom, so there are no
-      // equivalencies to be recorded
-      return {};
-    }
-  else if (fe_other.n_unique_faces() == 1 && fe_other.n_dofs_per_face(0) == 0)
-    {
-      // if the other element has no elements on faces at all,
-      // then it would be impossible to enforce any kind of
-      // continuity even if we knew exactly what kind of element
-      // we have -- simply because the other element declares
-      // that it is discontinuous because it has no DoFs on
-      // its faces. in that case, just state that we have no
-      // constraints to declare
-      return {};
-    }
-  else
-    {
-      Assert(false, ExcNotImplemented());
-      return {};
-    }
+  (void)fe_other;
+  return {};
 }
 
 
 
+/**
+ * Similar to above, no continuity can be enforced on quads
+ * for Hermite.
+ */
 template <int dim, int spacedim>
 std::vector<std::pair<unsigned int, unsigned int>>
 FE_Hermite<dim, spacedim>::hp_quad_dof_identities(
   const FiniteElement<dim, spacedim> &fe_other,
   const unsigned int                  face_no) const
 {
-  if (dynamic_cast<const FE_Nothing<dim> *>(&fe_other) != nullptr)
-    {
-      // the FE_Nothing has no degrees of freedom, so there are no
-      // equivalencies to be recorded
-      return {};
-    }
-  else if (fe_other.n_unique_faces() == 1 && fe_other.n_dofs_per_face(0) == 0)
-    {
-      // if the other element has no elements on faces at all,
-      // then it would be impossible to enforce any kind of
-      // continuity even if we knew exactly what kind of element
-      // we have -- simply because the other element declares
-      // that it is discontinuous because it has no DoFs on
-      // its faces. in that case, just state that we have no
-      // constraints to declare
-      return {};
-    }
-  else
-    {
-      Assert(false, ExcNotImplemented());
-      return {};
-    }
+  (void)fe_other;
+  (void)face_no;
+  return {};
 }
 
 
@@ -927,11 +885,13 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
    * faces are stored contiguously)
    */
   const typename QProjector<dim>::DataSetDescriptor offset =
-    QProjector<dim>::DataSetDescriptor::face(face_no,
-                                             cell->face_orientation(face_no),
-                                             cell->face_flip(face_no),
-                                             cell->face_rotation(face_no),
-                                             quadrature[0].size());
+    QProjector<dim>::DataSetDescriptor::face(
+      ReferenceCells::get_hypercube<dim>(),
+      face_no,
+      cell->face_orientation(face_no),
+      cell->face_flip(face_no),
+      cell->face_rotation(face_no),
+      quadrature[0].size());
 
   const UpdateFlags flags(fe_data.update_each);
 
