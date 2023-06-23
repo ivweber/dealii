@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2023 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef DERIVATIVE_TEST_HEADER
-#define DERIVATIVE_TEST_HEADER
+#ifndef dealii_tests_derivatives_h
+#define dealii_tests_derivatives_h
 
 #include <deal.II/base/quadrature_lib.h>
 
@@ -68,8 +68,8 @@ plot_function_derivatives(Mapping<dim> &      mapping,
     std::min(((dim == 1) ? 3 : 1), static_cast<int>(degree - 1) / 2);
   const unsigned int div = 1;
 
-  QTrapez<dim>  q;
-  FEValues<dim> fe(mapping,
+  QTrapezoid<dim> q;
+  FEValues<dim>   fe(mapping,
                    finel,
                    q,
                    UpdateFlags(update_values | update_gradients |

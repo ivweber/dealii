@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef dealii_fe_hermite
-#define dealii_fe_hermite
+#ifndef dealii_fe_hermite_h
+#define dealii_fe_hermite_h
 
 #include <deal.II/base/config.h>
 
@@ -36,19 +36,19 @@ DEAL_II_NAMESPACE_OPEN
 
 /**
  * This class implements a Hermite interpolation basis of maximum regularity
- *elements (see @cite CiarletRiavart1972interpolation). These are always of odd
- *polynomial degree, have regularity $r=\frac{p-1}{2}$ and are defined up to
- *polynomial degree $p=13$.
+ * elements (see @cite CiarletRiavart1972interpolation). These bases are always
+ *of odd polynomial degree, have regularity $r=\frac{p-1}{2}$ and are defined up
+ *to polynomial degree $p=13$, with larger degrees currently being
+ *ill-conditioned.
  *
  * Each node has $(r+1)^{d}$ degrees of freedom (DoFs) assigned to it,
- * corresponding to the different combinations of directional derivatives up to
- * the required regularity at that node. DoFs at each node are not consecutive
- * in either the global or local ordering, due to the tensor product
- * construction of the basis. The ordering is determined by the direction of
- * the derivative each function corresponds to; first by $x$-derivatives, then
- * $y$, then $z$. Locally over each element the DoFs are ordered similarly. See
- * below for the local ordering for $r=1$, where DoFs are ordered
- * from 0 to $(2r+2)^{\mathtt{dim} }-1$:
+ * corresponding to various derivatives up to order $r$ in each direction.
+ * DoFs at each node are not consecutive in lexicographic ordering for
+ *<code>dim>1<\code> due to the tensor product construction of the basis. The
+ *ordering is determined by the direction of the derivative each function
+ *corresponds to; first by $x$-derivatives, then $y$, then $z$. Locally over
+ *each element the DoFs are ordered similarly. See below for the local ordering
+ *for $r=1$, where DoFs are ordered from 0 to $(2r+2)^{\mathtt{dim} }-1$:
  *
  * <code>FE_Hermite<1>(1)</code>
  *
@@ -92,16 +92,15 @@ DEAL_II_NAMESPACE_OPEN
  *  (16,17,20,21)   (18,19,22,23)      (16,17,20,21)   (18,19,22,23)
  * @endverbatim
  *
- * Note that while the number of functions defined on each cell appears large,
- * due to the increased regularity constraints many of these functions are
- * shared between elements.
+ * Due to the increased regularity constraints many of these functions are
+ * shared between elements, leading to fewer DoFs overall.
  */
 template <int dim, int spacedim = dim>
 class FE_Hermite : public FE_Poly<dim, spacedim>
 {
 public:
   /**
-   * Constructor that creates an Hermite finite element that imposes
+   * Constructor that creates an Hermite finite element object with
    * continuity in derivatives up to and including order @p regularity.
    */
   FE_Hermite<dim, spacedim>(const unsigned int regularity);
@@ -153,6 +152,40 @@ public:
                          const unsigned int codim) const override;
 
   /**
+   * @copydoc dealii::FiniteElement::requires_update_flags()
+   */
+  virtual UpdateFlags
+  requires_update_flags(const UpdateFlags update_flags) const override;
+
+  /**
+   * @copydoc dealii::FiniteElement::hp_vertex_dof_identities()
+   */
+  virtual std::vector<std::pair<unsigned int, unsigned int>>
+  hp_vertex_dof_identities(
+    const FiniteElement<dim, spacedim> &fe_other) const override;
+
+  /**
+   * @copydoc dealii::FiniteElement::hp_line_dof_identities()
+   */
+  virtual std::vector<std::pair<unsigned int, unsigned int>>
+  hp_line_dof_identities(
+    const FiniteElement<dim, spacedim> &fe_other) const override;
+
+  /**
+   * @copydoc dealii::FiniteElement::hp_quad_dof_identities()
+   */
+  virtual std::vector<std::pair<unsigned int, unsigned int>>
+  hp_quad_dof_identities(const FiniteElement<dim, spacedim> &fe_other,
+                         const unsigned int face_no = 0) const override;
+
+  /**
+   * @copydoc FiniteElement::compare_for_domination()
+   */
+  virtual FiniteElementDomination::Domination
+  compare_for_domination(const FiniteElement<dim, spacedim> &other_fe,
+                         const unsigned int codim) const override;
+
+  /**
    * Returns the mapping between lexicographic and hierarchic numbering
    * schemes for Hermite. See the class documentation for diagrams of
    * examples of lexicographic numbering for Hermite elements.
@@ -163,17 +196,16 @@ public:
   /**
    * This re-implements FiniteElement::fill_fe_values() for a Hermite
    * polynomial basis, to account for the more complicated shape function
-   * re-scaling that a Hermite basis requires. Since the idea of a Hermite
-   * basis is to strongly impose derivative continuities at the element
-   * boundaries, it is necessary to account for any changes to derivatives
-   * from those on the reference element due to the current cell mapping.
+   * re-scaling that a Hermite basis requires. On a non-uniform grid,
+   * failing to rescale function values will lead to discontinuities across
+   * element boundaries in derivatives if elements have different sizes.
    *
    * At present this is done by only allowing certain cell mappings
-   * (currently only MappingCartesian) that guarantee rectangular cells
-   * which ensures that the directions of derivatives does not change.
-   * The derivative continuity can then be enforced by re-scaling shape
-   * functions so that the magnitude of each derivative is equivalent
-   * to the derivative on the reference interval.
+   * (currently only <code>MappingCartesian<\code>) which guarantee
+   * rectangular cells, which ensures that the directions of derivatives
+   * does not change. The derivative continuity can then be enforced by
+   * re-scaling shape functions so that the magnitude of each derivative is
+   * equivalent to the derivative on the reference interval.
    */
   virtual void
   fill_fe_values(
@@ -193,9 +225,9 @@ public:
   using FiniteElement<dim, spacedim>::fill_fe_face_values;
 
   /**
-   * This re-implements FiniteElement::fill_fe_face_values() for Hermite
-   * polynomial bases, for the same reasons as described for
-   * FEHermite::fill_fe_values().
+   * This re-implements <code>FiniteElement::fill_fe_face_values()<\code> for
+   * Hermite polynomial bases, for the same reasons as described for
+   * <code>FEHermite::fill_fe_values()<\code>.
    */
   virtual void
   fill_fe_face_values(
@@ -216,7 +248,7 @@ public:
 
 protected:
   /**
-   * Wrapper function for FE_Poly::get_data() that ensures relevant
+   * Wrapper function for <code>FE_Poly::get_data()<\code> that ensures relevant
    * shape value data is copied to the new data object as well.
    */
   virtual std::unique_ptr<
@@ -252,8 +284,8 @@ protected:
 private:
   /**
    * Variable storing the order of the highest derivative that the current
-   * @p FE_Hermite object can enforce continuity for. Here the order of
-   * derivative only counts in one spatial direction, so the derivative
+   * <code>FE_Hermite<\code> object can enforce continuity for. Here the order
+   * of derivative only counts in one spatial direction, so the derivative
    * $\frac{d^{2}f}{dx \; dy}$ would be counted as a first order derivative
    * of $f$, as an example.
    */
