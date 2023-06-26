@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2023 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef vector_tools_hermite_h
-#define vector_tools_hermite_h
+#ifndef dealii_vector_tools_hermite_h
+#define dealii_vector_tools_hermite_h
 
 #include <deal.II/base/config.h>
 

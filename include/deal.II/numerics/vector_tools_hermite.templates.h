@@ -197,6 +197,7 @@ namespace VectorTools
               dof_handler.n_boundary_dofs(boundary_functions)) ||
                (regularity == 0),
              ExcInternalError());
+      (void)no_constrained_dofs;
     }
 
 

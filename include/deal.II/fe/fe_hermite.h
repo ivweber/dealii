@@ -120,37 +120,6 @@ public:
   virtual std::unique_ptr<FiniteElement<dim, spacedim>>
   clone() const override;
 
-  virtual UpdateFlags
-  requires_update_flags(const UpdateFlags update_flags) const override;
-
-  /**
-   * @copydoc dealii::FiniteElement::hp_vertex_dof_identities()
-   */
-  virtual std::vector<std::pair<unsigned int, unsigned int>>
-  hp_vertex_dof_identities(
-    const FiniteElement<dim, spacedim> &fe_other) const override;
-
-  /**
-   * @copydoc dealii::FiniteElement::hp_line_dof_identities()
-   */
-  virtual std::vector<std::pair<unsigned int, unsigned int>>
-  hp_line_dof_identities(
-    const FiniteElement<dim, spacedim> &fe_other) const override;
-
-  /**
-   * @copydoc dealii::FiniteElement::hp_quad_dof_identities()
-   */
-  virtual std::vector<std::pair<unsigned int, unsigned int>>
-  hp_quad_dof_identities(const FiniteElement<dim, spacedim> &fe_other,
-                         const unsigned int face_no = 0) const override;
-
-  /**
-   * @copydoc FiniteElement::compare_for_domination()
-   */
-  virtual FiniteElementDomination::Domination
-  compare_for_domination(const FiniteElement<dim, spacedim> &other_fe,
-                         const unsigned int codim) const override;
-
   /**
    * @copydoc dealii::FiniteElement::requires_update_flags()
    */
