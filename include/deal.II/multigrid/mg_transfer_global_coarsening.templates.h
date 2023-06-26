@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2022 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -2673,8 +2673,13 @@ MGTwoLevelTransfer<dim, LinearAlgebra::distributed::Vector<Number>>::
         (scheme.prolongation_matrix.size() == 0 &&
          scheme.prolongation_matrix_1d.size() == 0) == false;
 
-      evaluation_data_fine.resize(scheme.n_dofs_per_cell_fine);
-      evaluation_data_coarse.resize(scheme.n_dofs_per_cell_fine);
+      evaluation_data_fine.clear();
+      evaluation_data_coarse.clear();
+
+      const unsigned int max_n_dofs_per_cell =
+        std::max(scheme.n_dofs_per_cell_fine, scheme.n_dofs_per_cell_coarse);
+      evaluation_data_fine.resize(max_n_dofs_per_cell);
+      evaluation_data_coarse.resize(max_n_dofs_per_cell);
 
       CellTransferFactory cell_transfer(scheme.degree_fine,
                                         scheme.degree_coarse);
@@ -2844,8 +2849,13 @@ MGTwoLevelTransfer<dim, LinearAlgebra::distributed::Vector<Number>>::
         (scheme.prolongation_matrix.size() == 0 &&
          scheme.prolongation_matrix_1d.size() == 0) == false;
 
-      evaluation_data_fine.resize(scheme.n_dofs_per_cell_fine);
-      evaluation_data_coarse.resize(scheme.n_dofs_per_cell_fine);
+      evaluation_data_fine.clear();
+      evaluation_data_coarse.clear();
+
+      const unsigned int max_n_dofs_per_cell =
+        std::max(scheme.n_dofs_per_cell_fine, scheme.n_dofs_per_cell_coarse);
+      evaluation_data_fine.resize(max_n_dofs_per_cell);
+      evaluation_data_coarse.resize(max_n_dofs_per_cell);
 
       CellTransferFactory cell_transfer(scheme.degree_fine,
                                         scheme.degree_coarse);
@@ -3562,7 +3572,7 @@ namespace internal
         dof_handler.get_fe().n_dofs_per_cell() ==
           dof_handler_support_points.get_fe().n_dofs_per_cell(),
         ExcMessage(
-          "For now multple components are not considered and therefore DoFHandlers need the same degree."));
+          "For now multiple components are not considered and therefore DoFHandlers need the same degree."));
 
       const auto degree        = dof_handler.get_fe().degree;
       const auto dofs_per_cell = dof_handler.get_fe().n_dofs_per_cell();
@@ -3758,10 +3768,10 @@ namespace internal
       std::vector<Point<dim>> points;
       points.resize(local_support_point_indices.size());
 
-      const auto locally_onwed_support_point =
+      const auto locally_owned_support_point =
         dof_handler_support_points->locally_owned_dofs();
       std::vector<unsigned int> indices_state(
-        locally_onwed_support_point.n_elements(),
+        locally_owned_support_point.n_elements(),
         numbers::invalid_unsigned_int);
 
       AssertIndexRange(local_support_point_indices.size(),
@@ -3788,10 +3798,10 @@ namespace internal
           cell->get_dof_indices(dof_indices);
 
           for (const unsigned int q : fe_values.quadrature_point_indices())
-            if (locally_onwed_support_point.is_element(dof_indices[q]))
+            if (locally_owned_support_point.is_element(dof_indices[q]))
               {
                 const auto index =
-                  locally_onwed_support_point.index_within_set(dof_indices[q]);
+                  locally_owned_support_point.index_within_set(dof_indices[q]);
 
                 if (indices_state[index] != numbers::invalid_unsigned_int)
                   {
@@ -3827,9 +3837,6 @@ MGTwoLevelTransferNonNested<dim, LinearAlgebra::distributed::Vector<Number>>::
   Assert(dof_handler_coarse.get_fe().n_components() > 0 &&
            dof_handler_fine.get_fe().n_components() > 0,
          ExcNotImplemented());
-  Assert(dof_handler_fine.n_dofs() > dof_handler_coarse.n_dofs(),
-         ExcMessage(
-           "The coarser DoFHandler has more DoFs than the finer DoFHandler."));
 
   this->fine_element_is_continuous =
     dof_handler_fine.get_fe().n_dofs_per_vertex() > 0;

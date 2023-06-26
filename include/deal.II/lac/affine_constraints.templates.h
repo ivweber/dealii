@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2022 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -2610,11 +2610,19 @@ AffineConstraints<number>::distribute(VectorType &vec) const
       // following.
       IndexSet needed_elements = vec_owned_elements;
 
+      std::vector<types::global_dof_index> additional_elements;
       for (const ConstraintLine &line : lines)
         if (vec_owned_elements.is_element(line.index))
           for (const std::pair<size_type, number> &entry : line.entries)
             if (!vec_owned_elements.is_element(entry.first))
-              needed_elements.add_index(entry.first);
+              additional_elements.emplace_back(entry.first);
+      std::sort(additional_elements.begin(), additional_elements.end());
+      additional_elements.erase(std::unique(additional_elements.begin(),
+                                            additional_elements.end()),
+                                additional_elements.end());
+
+      needed_elements.add_indices(additional_elements.begin(),
+                                  additional_elements.end());
 
       VectorType ghosted_vector;
       internal::import_vector_with_ghost_elements(
@@ -3836,7 +3844,11 @@ AffineConstraints<number>::make_sorted_row_list(
       for (size_type q = 0; q < position.entries.size(); ++q)
         {
           const size_type new_index = position.entries[q].first;
-          if (active_dofs[active_dofs.size() - i] < new_index)
+          // in case all dofs are constrained, we might insert at
+          // active_dofs.begin(), but we should never insert before that
+          AssertIndexRange(i - 1, active_dofs.size() + 1);
+          if (i > active_dofs.size() ||
+              active_dofs[active_dofs.size() - i] < new_index)
             active_dofs.insert(active_dofs.end() - i + 1, new_index);
 
           // make binary search to find where to put the new index in order to

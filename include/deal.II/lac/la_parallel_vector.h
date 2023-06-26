@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2022 by the deal.II authors
+// Copyright (C) 2011 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -194,7 +194,8 @@ namespace LinearAlgebra
      * That means that if Kokkos was configured with a GPU backend, the data is
      * allocated on a GPU. The operations on the vector are performed on the
      * chosen memory space. From the host, there are two methods to access the
-     * elements of the Vector when using the Default memory space: <ul>
+     * elements of the Vector when using the Default memory space:
+     * <ul>
      * <li> use get_values():
      * @code
      * Vector<double, MemorySpace::Default> vector(local_range, comm);
@@ -221,7 +222,7 @@ namespace LinearAlgebra
      *
      * @note By default, the GPU @ref GlossDevice "device" id is chosen in a round-robin fashion
      * according to the local MPI rank id. To choose a different @ref GlossDevice "device", Kokkos
-     * has to be initialized explicitly providing the respective devide id
+     * has to be initialized explicitly providing the respective device id
      * explicitly.
      *
      * <h4>MPI-3 shared-memory support</h4>

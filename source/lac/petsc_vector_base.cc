@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2022 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -183,6 +183,62 @@ namespace PETScWrappers
 
 
 
+  namespace
+  {
+    template <typename Iterator, typename OutType>
+    class ConvertingIterator
+    {
+      Iterator m_iterator;
+
+    public:
+      using difference_type =
+        typename std::iterator_traits<Iterator>::difference_type;
+      using value_type        = OutType;
+      using pointer           = OutType *;
+      using reference         = OutType &;
+      using iterator_category = std::forward_iterator_tag;
+
+      ConvertingIterator(const Iterator &iterator)
+        : m_iterator(iterator)
+      {}
+
+      OutType
+      operator*() const
+      {
+        return static_cast<OutType>(std::real(*m_iterator));
+      }
+
+      ConvertingIterator &
+      operator++()
+      {
+        ++m_iterator;
+        return *this;
+      }
+
+      ConvertingIterator
+      operator++(int)
+      {
+        ConvertingIterator old = *this;
+        ++m_iterator;
+        return old;
+      }
+
+      bool
+      operator==(const ConvertingIterator &other) const
+      {
+        return this->m_iterator == other.m_iterator;
+      }
+
+      bool
+      operator!=(const ConvertingIterator &other) const
+      {
+        return this->m_iterator != other.m_iterator;
+      }
+    };
+  } // namespace
+
+
+
   void
   VectorBase::determine_ghost_indices()
   {
@@ -190,7 +246,10 @@ namespace PETScWrappers
     ghosted = false;
     ghost_indices.clear();
 
-    // There's no API to infer ghost indices from a PETSc Vec
+    // There's no API to infer ghost indices from a PETSc Vec which
+    // unfortunately doesn't allow integer entries. We use the
+    // "ConvertingIterator" class above to do an implicit conversion when
+    // sorting and adding ghost indices below.
     PetscErrorCode ierr;
     Vec            ghosted_vec;
     ierr = VecGhostGetLocalForm(vector, &ghosted_vec);
@@ -210,8 +269,20 @@ namespace PETScWrappers
         AssertThrow(ierr == 0, ExcPETScError(ierr));
         ierr = VecGetArray(tvector, &array);
         AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+        // Store the indices we care about in the vector, so that we can then
+        // exchange this information between processes. It is unfortunate that
+        // we have to store integers in floating point numbers. Let's at least
+        // make sure we do that in a way that ensures that when we get these
+        // numbers back as integers later on, we get the same thing.
         for (PetscInt i = 0; i < end_index - ghost_start_index; i++)
-          array[i] = ghost_start_index + i;
+          {
+            Assert(static_cast<PetscInt>(static_cast<PetscScalar>(
+                     ghost_start_index + i)) == (ghost_start_index + i),
+                   ExcInternalError());
+            array[i] = ghost_start_index + i;
+          }
+
         ierr = VecRestoreArray(tvector, &array);
         AssertThrow(ierr == 0, ExcPETScError(ierr));
         ierr = VecGhostUpdateBegin(tvector, INSERT_VALUES, SCATTER_FORWARD);
@@ -234,15 +305,22 @@ namespace PETScWrappers
         ghosted = true;
         ghost_indices.set_size(this->size());
 
+        ConvertingIterator<PetscScalar *, types::global_dof_index> begin_ghosts(
+          &array[end_index - ghost_start_index]);
+        ConvertingIterator<PetscScalar *, types::global_dof_index> end_ghosts(
+          &array[n_elements_stored_locally]);
         if (std::is_sorted(&array[end_index - ghost_start_index],
-                           &array[n_elements_stored_locally]))
-          ghost_indices.add_indices(&array[end_index - ghost_start_index],
-                                    &array[n_elements_stored_locally]);
+                           &array[n_elements_stored_locally],
+                           [](PetscScalar left, PetscScalar right) {
+                             return static_cast<PetscInt>(std::real(left)) <
+                                    static_cast<PetscInt>(std::real(right));
+                           }))
+          {
+            ghost_indices.add_indices(begin_ghosts, end_ghosts);
+          }
         else
           {
-            std::vector<PetscInt> sorted_indices(
-              &array[end_index - ghost_start_index],
-              &array[n_elements_stored_locally]);
+            std::vector<PetscInt> sorted_indices(begin_ghosts, end_ghosts);
             std::sort(sorted_indices.begin(), sorted_indices.end());
             ghost_indices.add_indices(sorted_indices.begin(),
                                       sorted_indices.end());

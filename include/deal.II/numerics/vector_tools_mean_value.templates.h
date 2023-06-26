@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2022 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -209,7 +209,9 @@ namespace VectorTools
                         continue;
 
                       // Then adjust its value:
-                      solution(idx) = copy(idx) + constant_adjustment;
+                      solution(idx) =
+                        typename VectorType::value_type(copy(idx)) +
+                        constant_adjustment;
                     }
                 }
             }

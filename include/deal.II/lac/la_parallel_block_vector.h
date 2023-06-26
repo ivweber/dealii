@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2022 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -361,6 +361,19 @@ namespace LinearAlgebra
       reinit(
         const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
           &             partitioners,
+        const MPI_Comm &comm_sm = MPI_COMM_SELF);
+
+      /**
+       * This function exists purely for reasons of compatibility with the
+       * PETScWrappers::MPI::Vector and TrilinosWrappers::MPI::Vector classes.
+       *
+       * It calls the function above, and ignores the parameter @p make_ghosted.
+       */
+      void
+      reinit(
+        const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+          &             partitioners,
+        const bool      make_ghosted,
         const MPI_Comm &comm_sm = MPI_COMM_SELF);
 
       /**

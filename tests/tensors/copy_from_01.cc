@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2018 by the deal.II authors
+// Copyright (C) 2017 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,7 +40,7 @@ main()
 
   myMatrix.copy_to(myTensor);
 
-  deallog << myTensor.dimension << std::endl;
+  deallog << matrix_dimension << std::endl;
   deallog.get_file_stream() << myTensor << std::endl;
 
   myTensor *= 2;

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2022 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -338,7 +338,7 @@ namespace PETScWrappers
       Mat petsc_nest_matrix;
 
       /**
-       * Utility to setup the MATNEST object
+       * Utility to set up the MATNEST object.
        */
       void
       setup_nest_mat();

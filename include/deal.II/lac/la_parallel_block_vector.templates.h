@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2022 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -216,6 +216,19 @@ namespace LinearAlgebra
 
       // update block_indices content
       this->collect_sizes();
+    }
+
+
+
+    template <typename Number>
+    void
+    BlockVector<Number>::reinit(
+      const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+        &partitioners,
+      const bool /*make_ghosted*/,
+      const MPI_Comm &comm_sm)
+    {
+      reinit(partitioners, comm_sm);
     }
 
 

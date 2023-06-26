@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2022 by the deal.II authors
+// Copyright (C) 2022 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,10 @@
 // levels and solve for a Poisson problem with the performance-oriented
 // matrix-free framework.
 //
-// Status: experimental
+// Status: stable
+//
+// Note: this test is marked "stable" and used for performance
+// instrumentation in our testsuite, https://dealii.org/performance_tests
 //
 
 #include <deal.II/base/function.h>

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2022 by the deal.II authors
+// Copyright (C) 2011 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -1709,9 +1709,17 @@ protected:
  * setting the macro `FE_EVAL_FACTORY_DEGREE_MAX` to the desired integer and
  * instantiating the classes FEEvaluationFactory and FEFaceEvaluationFactory
  * (the latter for FEFaceEvaluation) creates paths to templated functions for
- * a possibly larger set of degrees. You can check if fast
- * evaluation/integration for a given degree/n_quadrature_points pair by calling
- * FEEvaluation::fast_evaluation_supported() or
+ * a possibly larger set of degrees. This can both be set when configuring
+ * deal.II by passing the flag `-D FE_EVAL_FACTORY_DEGREE_MAX=8` (in case you
+ * want to compile all degrees up to eight; recommended setting) or by
+ * compiling `evaluation_template_factory.templates.h` and
+ * `evaluation_template_face_factory.templates.h` with the
+ * `FE_EVAL_FACTORY_DEGREE_MAX` overridden to the desired value. In the second
+ * option, symbols will be available twice, and it depends on your linker and
+ * dynamic library loader whether the user-specified setting takes precedence;
+ * use `LD_PRELOAD` to select the desired library. You can check if fast
+ * evaluation/integration for a given degree/n_quadrature_points pair by
+ * calling FEEvaluation::fast_evaluation_supported() or
  * FEFaceEvaluation::fast_evaluation_supported().
  *
  * <h3>Handling multi-component systems</h3>
@@ -3377,11 +3385,40 @@ FEEvaluationBase<dim, n_components_, Number, is_face, VectorizedArrayType>::
       AssertIndexRange(
         this->cell,
         dof_info.index_storage_variants[this->dof_access_index].size());
-      if (dof_info.index_storage_variants
-            [is_face ? this->dof_access_index :
-                       internal::MatrixFreeFunctions::DoFInfo::dof_access_cell]
-            [this->cell] >= internal::MatrixFreeFunctions::DoFInfo::
-                              IndexStorageVariants::contiguous)
+
+      bool is_contiguous = true;
+      // check if exterior cells are not contiguous (ECL case)
+      if (is_face && !this->interior_face &&
+          (this->dof_access_index ==
+           internal::MatrixFreeFunctions::DoFInfo::dof_access_cell))
+        {
+          const std::array<unsigned int, VectorizedArrayType::size()> &cells =
+            this->get_cell_ids();
+          const unsigned int n_filled_lanes =
+            dof_info.n_vectorization_lanes_filled
+              [internal::MatrixFreeFunctions::DoFInfo::dof_access_cell]
+              [this->cell];
+          // we have to check all filled lanes which are active in the mask
+          for (unsigned int v = 0; v < n_filled_lanes; ++v)
+            if (mask[v] == true &&
+                dof_info.index_storage_variants
+                    [internal::MatrixFreeFunctions::DoFInfo::dof_access_cell]
+                    [cells[v] / VectorizedArrayType::size()] <
+                  internal::MatrixFreeFunctions::DoFInfo::IndexStorageVariants::
+                    contiguous)
+              is_contiguous = false;
+        } // or if cell/face batch is not contiguous
+      else if (dof_info.index_storage_variants
+                 [is_face ?
+                    this->dof_access_index :
+                    internal::MatrixFreeFunctions::DoFInfo::dof_access_cell]
+                 [this->cell] < internal::MatrixFreeFunctions::DoFInfo::
+                                  IndexStorageVariants::contiguous)
+        {
+          is_contiguous = false;
+        }
+
+      if (is_contiguous)
         {
           read_write_operation_contiguous(operation, src, src_sm, mask);
           return;
@@ -8657,14 +8694,14 @@ FEFaceEvaluation<dim,
 template <int dim,
           int fe_degree,
           int n_q_points_1d,
-          int n_components,
+          int n_components_,
           typename Number,
           typename VectorizedArrayType>
 inline void
 FEFaceEvaluation<dim,
                  fe_degree,
                  n_q_points_1d,
-                 n_components,
+                 n_components_,
                  Number,
                  VectorizedArrayType>::evaluate(const bool evaluate_values,
                                                 const bool evaluate_gradients)
@@ -8681,14 +8718,14 @@ FEFaceEvaluation<dim,
 template <int dim,
           int fe_degree,
           int n_q_points_1d,
-          int n_components,
+          int n_components_,
           typename Number,
           typename VectorizedArrayType>
 inline void
 FEFaceEvaluation<dim,
                  fe_degree,
                  n_q_points_1d,
-                 n_components,
+                 n_components_,
                  Number,
                  VectorizedArrayType>::
   evaluate(const EvaluationFlags::EvaluationFlags evaluation_flag)
@@ -8705,14 +8742,14 @@ FEFaceEvaluation<dim,
 template <int dim,
           int fe_degree,
           int n_q_points_1d,
-          int n_components,
+          int n_components_,
           typename Number,
           typename VectorizedArrayType>
 inline void
 FEFaceEvaluation<dim,
                  fe_degree,
                  n_q_points_1d,
-                 n_components,
+                 n_components_,
                  Number,
                  VectorizedArrayType>::evaluate(const VectorizedArrayType
                                                   *        values_array,
@@ -8732,14 +8769,14 @@ FEFaceEvaluation<dim,
 template <int dim,
           int fe_degree,
           int n_q_points_1d,
-          int n_components,
+          int n_components_,
           typename Number,
           typename VectorizedArrayType>
 inline void
 FEFaceEvaluation<dim,
                  fe_degree,
                  n_q_points_1d,
-                 n_components,
+                 n_components_,
                  Number,
                  VectorizedArrayType>::
   evaluate(const VectorizedArrayType *            values_array,
@@ -8789,14 +8826,14 @@ FEFaceEvaluation<dim,
 template <int dim,
           int fe_degree,
           int n_q_points_1d,
-          int n_components,
+          int n_components_,
           typename Number,
           typename VectorizedArrayType>
 inline void
 FEFaceEvaluation<dim,
                  fe_degree,
                  n_q_points_1d,
-                 n_components,
+                 n_components_,
                  Number,
                  VectorizedArrayType>::
   integrate(const EvaluationFlags::EvaluationFlags integration_flag)
@@ -8813,14 +8850,14 @@ FEFaceEvaluation<dim,
 template <int dim,
           int fe_degree,
           int n_q_points_1d,
-          int n_components,
+          int n_components_,
           typename Number,
           typename VectorizedArrayType>
 inline void
 FEFaceEvaluation<dim,
                  fe_degree,
                  n_q_points_1d,
-                 n_components,
+                 n_components_,
                  Number,
                  VectorizedArrayType>::integrate(const bool integrate_values,
                                                  const bool integrate_gradients)
@@ -8837,14 +8874,14 @@ FEFaceEvaluation<dim,
 template <int dim,
           int fe_degree,
           int n_q_points_1d,
-          int n_components,
+          int n_components_,
           typename Number,
           typename VectorizedArrayType>
 inline void
 FEFaceEvaluation<dim,
                  fe_degree,
                  n_q_points_1d,
-                 n_components,
+                 n_components_,
                  Number,
                  VectorizedArrayType>::integrate(const bool integrate_values,
                                                  const bool integrate_gradients,
@@ -8864,14 +8901,14 @@ FEFaceEvaluation<dim,
 template <int dim,
           int fe_degree,
           int n_q_points_1d,
-          int n_components,
+          int n_components_,
           typename Number,
           typename VectorizedArrayType>
 inline void
 FEFaceEvaluation<dim,
                  fe_degree,
                  n_q_points_1d,
-                 n_components,
+                 n_components_,
                  Number,
                  VectorizedArrayType>::
   integrate(const EvaluationFlags::EvaluationFlags integration_flag,
@@ -9220,7 +9257,7 @@ FEFaceEvaluation<dim,
                             const unsigned int given_n_q_points_1d)
 {
   return fe_degree == -1 ?
-           internal::FEEvaluationFactory<dim, VectorizedArrayType>::
+           internal::FEFaceEvaluationFactory<dim, VectorizedArrayType>::
              fast_evaluation_supported(given_degree, given_n_q_points_1d) :
            true;
 }

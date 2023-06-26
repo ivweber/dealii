@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2022 by the deal.II authors
+// Copyright (C) 2001 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -802,6 +802,11 @@ namespace GridTools
    * @p seed is used for the initialization of the random engine. Its
    * default value initializes the engine with the same state as in
    * previous versions of deal.II.
+   *
+   * @note If the Triangulation is of distributed kind (derived from
+   * DistributedTriangulationBase) and computations are done in
+   * parallel, the new vertex locations will be consistently updated
+   * on all ranks.
    */
   template <int dim, int spacedim>
   void
@@ -1294,7 +1299,7 @@ namespace GridTools
      * the fields needed by
      * GridTools::internal::distributed_compute_point_locations() are filled.
      * If the input argument is set to true additional data structures are
-     * set up to be able to setup the communication pattern within
+     * set up to be able to set up the communication pattern within
      * Utilities::MPI::RemotePointEvaluation::reinit().
      */
     template <int dim, int spacedim>
@@ -1356,15 +1361,16 @@ namespace GridTools
       std::vector<unsigned int> recv_ptrs;
 
       /**
-       * Distribute quadrature points on found intersections and construct
-       * GridTools::internal::DistributedComputePointLocationsInternal from
-       * class members. This can be done without searching for points again
+       * Distribute quadrature points according to
+       * QGaussSimplex<structdim>(n_points_1D) on found intersections and
+       * construct GridTools::internal::DistributedComputePointLocationsInternal
+       * from class members. This can be done without searching for points again
        * since all information is locally known.
        *
        * The parameter @p consistent_numbering_of_sender_and_receiver can be used to ensure
        * points on sender and receiver side are numbered consistently.
        * This parameter is optional if DistributedComputePointLocationsInternal
-       * is used to setup RemotePointEvaluation, but might be helpful for
+       * is used to set up RemotePointEvaluation, but might be helpful for
        * debugging or other usage of DistributedComputePointLocationsInternal.
        * Note that setting this parameter true requires an additional
        * communication step during the setup phase.
@@ -1373,7 +1379,7 @@ namespace GridTools
       GridTools::internal::DistributedComputePointLocationsInternal<dim,
                                                                     spacedim>
       convert_to_distributed_compute_point_locations_internal(
-        const unsigned int                  n_quadrature_points,
+        const unsigned int                  n_points_1D,
         const Triangulation<dim, spacedim> &tria,
         const Mapping<dim, spacedim> &      mapping,
         const bool consistent_numbering_of_sender_and_receiver = false) const;
@@ -4294,17 +4300,18 @@ namespace GridTools
       project_to_d_linear_object(const Iterator &       object,
                                  const Point<spacedim> &trial_point)
       {
-        // let's look at this for simplicity for a quad (structdim==2) in a
-        // space with spacedim>2 (notate trial_point by y): all points on the
-        // surface are given by
+        // let's look at this for simplicity for a quadrilateral
+        // (structdim==2) in a space with spacedim>2 (notate trial_point by
+        // y): all points on the surface are given by
         //   x(\xi) = sum_i v_i phi_x(\xi)
-        // where v_i are the vertices of the quad, and \xi=(\xi_1,\xi_2) are the
-        // reference coordinates of the quad. so what we are trying to do is
-        // find a point x on the surface that is closest to the point y. there
-        // are different ways to solve this problem, but in the end it's a
-        // nonlinear problem and we have to find reference coordinates \xi so
-        // that J(\xi) = 1/2 || x(\xi)-y ||^2 is minimal. x(\xi) is a function
-        // that is structdim-linear in \xi, so J(\xi) is a polynomial of degree
+        // where v_i are the vertices of the quadrilateral, and
+        // \xi=(\xi_1,\xi_2) are the reference coordinates of the
+        // quadrilateral. so what we are trying to do is find a point x on the
+        // surface that is closest to the point y. there are different ways to
+        // solve this problem, but in the end it's a nonlinear problem and we
+        // have to find reference coordinates \xi so that J(\xi) = 1/2 ||
+        // x(\xi)-y ||^2 is minimal. x(\xi) is a function that is
+        // structdim-linear in \xi, so J(\xi) is a polynomial of degree
         // 2*structdim that we'd like to minimize. unless structdim==1, we'll
         // have to use a Newton method to find the answer. This leads to the
         // following formulation of Newton steps:

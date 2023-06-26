@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2021 by the deal.II authors
+## Copyright (C) 2012 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -126,7 +126,7 @@ file(GLOB _source_files
 foreach (_source ${_source_files})
   file(READ "${_source}" contents)
   string(REGEX MATCH "Copyright .C. +([0-9]+ - )?([0-9]+)" _copyright "${contents}")
-  if (NOT _copright STREQUAL "")
+  if (NOT "${_copyright}" STREQUAL "")
     string(REGEX MATCH "[0-9]+\$" _year "${_copyright}")
 
     if (NOT _year STREQUAL ""   AND   _year GREATER _last_year)

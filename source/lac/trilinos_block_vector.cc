@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2021 by the deal.II authors
+// Copyright (C) 2008 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -105,6 +105,29 @@ namespace TrilinosWrappers
         this->components[i].reinit(parallel_partitioning[i],
                                    ghost_values[i],
                                    communicator,
+                                   vector_writable);
+
+      // update block_indices content
+      this->collect_sizes();
+    }
+
+
+
+    void
+    BlockVector::reinit(
+      const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+        &        partitioners,
+      const bool make_ghosted,
+      const bool vector_writable)
+    {
+      // update the number of blocks
+      this->block_indices.reinit(partitioners.size(), 0);
+
+      // initialize each block
+      this->components.resize(this->n_blocks());
+      for (unsigned int i = 0; i < this->n_blocks(); ++i)
+        this->components[i].reinit(partitioners[i],
+                                   make_ghosted,
                                    vector_writable);
 
       // update block_indices content

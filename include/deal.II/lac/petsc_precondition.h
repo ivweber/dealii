@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -96,7 +96,7 @@ namespace PETScWrappers
     Tvmult(VectorBase &dst, const VectorBase &src) const;
 
     /**
-     * Explictly call setup. This is usually not needed since PETSc will
+     * Explicitly call setup. This is usually not needed since PETSc will
      * automatically call the setup function when needed.
      */
     void
@@ -1107,13 +1107,23 @@ namespace PETScWrappers
 
     /**
      * The callback for the application of the preconditioner.
+     *
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions.
      */
-    std::function<int(VectorBase &dst, const VectorBase &src)> vmult;
+    std::function<void(VectorBase &dst, const VectorBase &src)> vmult;
 
     /**
-     * The callback for the application of the transposed preconditioner.
+     * The callback for the transposed application of the preconditioner.
+     *
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions.
      */
-    std::function<int(VectorBase &dst, const VectorBase &src)> vmultT;
+    std::function<void(VectorBase &dst, const VectorBase &src)> vmultT;
 
   protected:
     /**
@@ -1134,14 +1144,20 @@ namespace PETScWrappers
     /**
      * Callback-function invoked by PCApply
      */
-    static int
+    static PetscErrorCode
     pcapply(PC pc, Vec src, Vec dst);
 
     /**
      * Callback-function invoked by PCApplyTranspose
      */
-    static int
+    static PetscErrorCode
     pcapply_transpose(PC pc, Vec src, Vec dst);
+
+    /**
+     * Callback-function invoked by PCSetUp
+     */
+    static PetscErrorCode
+    pcsetup(PC pc);
   };
 
   /**

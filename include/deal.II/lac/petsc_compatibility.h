@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,6 +16,12 @@
 /*
  * Rather than using ifdefs everywhere, try to wrap older versions of PETSc
  * functions in one place.
+ *
+ * Functions that are not inlined are:
+ * - Functions returning PetscErrorCode that are supposed to be called within
+ *   PETSc callbacks.
+ * - Functions that need access to internal PETSc headers that we don't want
+ *   to expose to deal.II users
  */
 #ifndef dealii_petsc_compatibility_h
 #define dealii_petsc_compatibility_h
@@ -98,17 +104,46 @@ namespace PETScWrappers
     set_matrix_option(matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
   }
 
+
+
   /**
    * Tell PETSc that the status of the vector has changed.
    */
   void
   petsc_increment_state_counter(Vec v);
 
+
+
   /**
    * Tell PETSc that the status of the matrix has changed.
    */
   void
   petsc_increment_state_counter(Mat A);
+
+
+  /**
+   * Set the failed reason for the preconditioner.
+   */
+  PetscErrorCode
+  pc_set_failed_reason(PC pc, PCFailedReason reason);
+
+
+
+  /**
+   * Resets internal domain error flags in the SNES object.
+   */
+  void
+  snes_reset_domain_flags(SNES snes);
+
+
+
+  /**
+   * Resets internal domain error flags in the SNES object.
+   */
+  void
+  snes_set_jacobian_domain_error(SNES snes);
+
+
 
   /**
    * Tell PETSc nonlinear solver to use matrix free finite differencing (MFFD).
@@ -122,6 +157,8 @@ namespace PETScWrappers
   void
   set_use_matrix_free(SNES snes, const bool mf_operator, const bool mf);
 
+
+
   /**
    * Tell PETSc ODE solver to use matrix free finite differencing (MFFD).
    *
@@ -134,11 +171,15 @@ namespace PETScWrappers
   void
   set_use_matrix_free(TS ts, const bool mf_operator, const bool mf);
 
+
+
   /**
    * Set final time for ODE integration.
    */
   void
   ts_set_max_time(TS ts, const PetscReal maxtime);
+
+
 
   /**
    * Set maximum number of steps for ODE integration.
@@ -146,11 +187,22 @@ namespace PETScWrappers
   void
   ts_set_max_steps(TS ts, const PetscInt maxsteps);
 
+
+
   /**
    * Return current step number.
    */
   unsigned int
   ts_get_step_number(TS ts);
+
+
+
+  /**
+   * Return true if the TS has a SNES object.
+   */
+  bool
+  ts_has_snes(TS ts);
+
 } // namespace PETScWrappers
 
 DEAL_II_NAMESPACE_CLOSE

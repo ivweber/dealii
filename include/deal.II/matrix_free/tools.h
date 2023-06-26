@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2022 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -334,7 +334,7 @@ namespace MatrixFreeTools
       matrix_free;
 
     /**
-     * Index of the valid FE. Currently, ony a single one is supported.
+     * Index of the valid FE. Currently, only a single one is supported.
      */
     unsigned int fe_index_valid;
   };
@@ -378,13 +378,13 @@ namespace MatrixFreeTools
       unsigned int c_num = 0;
       for (unsigned int i = 0; i < GeometryInfo<dim>::faces_per_cell; ++i)
         {
-          auto &face = *cell->face(i);
-          if (face.at_boundary() && !cell->has_periodic_neighbor(i))
+          const auto face = cell->face(i);
+          if (face->at_boundary() && !cell->has_periodic_neighbor(i))
             c_num +=
               factors[i] * (1 + std::distance(bids.begin(),
                                               std::find(bids.begin(),
                                                         bids.end(),
-                                                        face.boundary_id())));
+                                                        face->boundary_id())));
         }
       return c_num;
     };
@@ -444,10 +444,12 @@ namespace MatrixFreeTools
 
       ComputeDiagonalHelper()
         : phi(nullptr)
+        , dofs_per_component(0)
       {}
 
       ComputeDiagonalHelper(const ComputeDiagonalHelper &)
         : phi(nullptr)
+        , dofs_per_component(0)
       {}
 
       void
@@ -460,9 +462,11 @@ namespace MatrixFreeTools
       {
         // if we are in hp mode and the number of unknowns changed, we must
         // clear the map of entries
-        if (this->phi != nullptr &&
-            this->phi->dofs_per_component != phi.dofs_per_component)
-          locally_relevant_constraints_hn_map.clear();
+        if (dofs_per_component != phi.dofs_per_component)
+          {
+            locally_relevant_constraints_hn_map.clear();
+            dofs_per_component = phi.dofs_per_component;
+          }
         this->phi = &phi;
       }
 
@@ -474,8 +478,7 @@ namespace MatrixFreeTools
         // STEP 1: get relevant information from FEEvaluation
         const auto &       dof_info        = phi->get_dof_info();
         const unsigned int n_fe_components = dof_info.start_components.back();
-        const unsigned int dofs_per_component = phi->dofs_per_component;
-        const auto &       matrix_free        = phi->get_matrix_free();
+        const auto &       matrix_free     = phi->get_matrix_free();
 
         // if we have a block vector with components with the same DoFHandler,
         // each component is described with same set of constraints and
@@ -799,7 +802,6 @@ namespace MatrixFreeTools
         // first guess
         const unsigned int degree =
           phi->get_shape_info().data.front().fe_degree;
-        const unsigned int dofs_per_component = phi->dofs_per_component;
         constraints_hn.reserve(Utilities::pow(degree + 1, dim - 1));
 
         // 1) collect hanging-node constraints for cell assuming
@@ -873,9 +875,9 @@ namespace MatrixFreeTools
         const unsigned int n_fe_components =
           phi->get_dof_info().start_components.back();
         const unsigned int comp =
-          n_fe_components == 1 ? i / phi->dofs_per_component : 0;
+          n_fe_components == 1 ? i / dofs_per_component : 0;
         const unsigned int i_comp =
-          n_fe_components == 1 ? (i % phi->dofs_per_component) : i;
+          n_fe_components == 1 ? (i % dofs_per_component) : i;
 
         // apply local constraint matrix from left and from right:
         // loop over all rows of transposed constrained matrix
@@ -894,10 +896,9 @@ namespace MatrixFreeTools
                 // apply constraint matrix from the left
                 Number temp = 0.0;
                 for (unsigned int k = c_pool.row[j]; k < c_pool.row[j + 1]; ++k)
-                  temp +=
-                    c_pool.val[k] *
-                    phi->begin_dof_values()[comp * phi->dofs_per_component +
-                                            c_pool.col[k]][v];
+                  temp += c_pool.val[k] *
+                          phi->begin_dof_values()[comp * dofs_per_component +
+                                                  c_pool.col[k]][v];
 
                 // apply constraint matrix from the right
                 diagonals_local_constrained
@@ -943,6 +944,8 @@ namespace MatrixFreeTools
                    n_components,
                    Number,
                    VectorizedArrayType> *phi;
+
+      unsigned int dofs_per_component;
 
       unsigned int i;
 

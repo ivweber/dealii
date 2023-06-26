@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2021 by the deal.II authors
+ * Copyright (C) 2021 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -614,7 +614,7 @@ namespace Step77
           nonlinear_solver.solve_with_jacobian = [&](const Vector<double> &rhs,
                                                      Vector<double> &      dst,
                                                      const double tolerance) {
-            this->solve(rhs, dst, tolerance);
+            solve(rhs, dst, tolerance);
           };
 
           nonlinear_solver.solve(current_solution);
