@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,34 +13,31 @@
 //
 // ---------------------------------------------------------------------
 
+#include <deal.II/base/config.h>
+
+#define PRECISION 8
+
+
 #include <deal.II/base/function.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/utilities.h>
-
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/dofs/dof_handler.h>
-#include <deal.II/dofs/dof_tools.h>
-
-#include <deal.II/fe/fe_hermite.h>
-#include <deal.II/fe/fe_interface_values.h>
-#include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_cartesian.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
+#include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_handler.h>
+#include <deal.II/dofs/dof_tools.h>
+
+#include <deal.II/fe/mapping_cartesian.h>
+#include <deal.II/fe/fe_hermite.h>
+#include <deal.II/fe/fe_values.h>
+
 #include <deal.II/lac/affine_constraints.h>
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
-#include <deal.II/lac/full_matrix.h>
-#include <deal.II/lac/precondition.h>
-#include <deal.II/lac/solver_cg.h>
-#include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
 
-#include <deal.II/numerics/data_out.h>
-#include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 
 #include <cmath>
@@ -180,7 +177,7 @@ main()
 {
   std::ofstream logfile("output");
 
-  deallog << std::setprecision(8) << std::fixed;
+  deallog << std::setprecision(PRECISION) << std::fixed;
   deallog.attach(logfile);
 
   test_fe_on_domain(0);

@@ -21,7 +21,6 @@ CMakeLists.txt.user
 /compile_commands.json
 /.clang_complete
 /contrib/utilities/programs
-/include/build/
 
 # temporary and backup files
 *~
