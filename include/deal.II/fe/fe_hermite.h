@@ -50,14 +50,14 @@ DEAL_II_NAMESPACE_OPEN
  *each element the DoFs are ordered similarly. See below for the local ordering
  *for $r=1$, where DoFs are ordered from 0 to $(2r+2)^{\mathtt{dim} }-1$:
  *
- * <code>FE_Hermite<1>(1)</code>
+ * <code>FE_Hermite<1>(3)</code>
  *
  * @verbatim
  * (0)________________(2)
  * (1)                (3)
  * @endverbatim
  *
- * <code>FE_Hermite<2>(1)</code>:
+ * <code>FE_Hermite<2>(3)</code>:
  *
  * @verbatim
  * ( 8, 9)__________(10,11)
@@ -72,7 +72,7 @@ DEAL_II_NAMESPACE_OPEN
  * ( 4, 5)          ( 6, 7)
  * @endverbatim
  *
- * <code>FE_Hermite<3>(1)</code>:
+ * <code>FE_Hermite<3>(3)</code>:
  *
  * @verbatim
  *       (40,41,44,45)__(42,43,46,47)          (40,41,44,45)__(42,43,46,47)
@@ -101,14 +101,15 @@ class FE_Hermite : public FE_Poly<dim, spacedim>
 public:
   /**
    * Constructor that creates an Hermite finite element object with
-   * continuity in derivatives up to and including order @p regularity.
+   * continuity in derivatives up to and including order $(fe_degree - 1)/2$.
+   * Throws an exception if @p fe_degree is not an odd positive integer.
    */
-  FE_Hermite<dim, spacedim>(const unsigned int regularity);
+  FE_Hermite<dim, spacedim>(const unsigned int fe_degree);
 
   // Other functions
   /**
-   * Returns <code>FE_Hermite<dim,spacedim>(regularity)</code> as a
-   * <code>std::string</code> with @p dim, @p spacedim and @p regularity
+   * Returns <code>FE_Hermite<dim,spacedim>(fe_degree)</code> as a
+   * <code>std::string</code> with @p dim, @p spacedim and @p fe_degree
    * replaced with the correct values.
    */
   virtual std::string

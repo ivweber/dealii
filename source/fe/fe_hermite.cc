@@ -13,6 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
+#include <deal.II/base/config.h>
+
 #include <deal.II/base/quadrature.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/table.h>
@@ -60,6 +62,14 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace internal
 {
+  inline unsigned int
+  get_regularity_from_degree(const unsigned int fe_degree)
+  {
+    return (fe_degree == 0) ? 0 : std::floor((fe_degree - 1) / 2);
+  }
+
+
+
   inline std::vector<unsigned int>
   get_hermite_dpo_vector(const unsigned int dim, const unsigned int regularity)
   {
@@ -202,8 +212,10 @@ namespace internal
 
   template <int dim>
   TensorProductPolynomials<dim>
-  get_hermite_polynomials(const unsigned int regularity)
+  get_hermite_polynomials(const unsigned int fe_degree)
   {
+    const unsigned int regularity = get_regularity_from_degree(fe_degree);
+
     TensorProductPolynomials<dim> polynomial_basis(
       Polynomials::PolynomialsHermite::generate_complete_basis(regularity));
 
@@ -489,20 +501,30 @@ namespace internal
 
 // Constructors
 template <int dim, int spacedim>
-FE_Hermite<dim, spacedim>::FE_Hermite(const unsigned int regularity)
+FE_Hermite<dim, spacedim>::FE_Hermite(const unsigned int fe_degree)
   : FE_Poly<dim, spacedim>(
-      internal::get_hermite_polynomials<dim>(regularity),
-      FiniteElementData<dim>(internal::get_hermite_dpo_vector(dim, regularity),
+      internal::get_hermite_polynomials<dim>(fe_degree),
+      FiniteElementData<dim>(internal::get_hermite_dpo_vector(
+                               dim,
+                               internal::get_regularity_from_degree(fe_degree)),
                              1,
-                             2 * regularity + 1,
-                             (regularity > 0 ? FiniteElementData<dim>::H2 :
-
-                                               FiniteElementData<dim>::H1)),
-      std::vector<bool>(Utilities::pow(2 * (regularity + 1), dim), false),
-      std::vector<ComponentMask>(Utilities::pow(2 * (regularity + 1), dim),
+                             std::max(1U, fe_degree),
+                             ((fe_degree > 2) ? FiniteElementData<dim>::H2 :
+                                                FiniteElementData<dim>::H1)),
+      std::vector<bool>(Utilities::pow(std::max(2U, fe_degree + 1), dim),
+                        false),
+      std::vector<ComponentMask>(Utilities::pow(std::max(2U, fe_degree + 1),
+                                                dim),
                                  std::vector<bool>(1, true)))
-  , regularity(regularity)
-{}
+  , regularity(internal::get_regularity_from_degree(fe_degree))
+{
+  Assert((fe_degree % 2 == 1),
+         ExcMessage(
+           "ERROR: The current implementation of Hermite interpolation "
+           "polynomials is only defined for odd polynomial degrees. Running "
+           "in release mode will use a polynomial degree of max(1,fe_degree-1) "
+           "to protect against unexpected internal bugs."));
+}
 
 
 
@@ -511,8 +533,8 @@ std::string
 FE_Hermite<dim, spacedim>::get_name() const
 {
   std::ostringstream name_buffer;
-  name_buffer << "FE_Hermite<" << dim << "," << spacedim << ">("
-              << this->regularity << ")";
+  name_buffer << "FE_Hermite<" << dim << "," << spacedim << ">(" << this->degree
+              << ")";
   return name_buffer.str();
 }
 

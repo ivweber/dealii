@@ -54,11 +54,11 @@
 
 #define PRECISION 8
 
-/*
- * Test case for Hermite on an regular square grid to check mass matrix
- * assembly and representation of polynomials by
- * <code>FE_Hermite<dim>(reg)<\code> works as expected and polynomials have
- * exact representation.
+/**
+ * Test case for Hermite interpolation elements on an regular square grid,
+ * to check the assembly of the mass matrix works as intended and
+ * representation of polynomials up to $1D$ degree @p poly_degree by
+ * <code>FE_Hermite<dim>(poly_degree)<\code> is exact.
  */
 
 using namespace dealii;
@@ -88,7 +88,7 @@ test_fe_on_domain(const unsigned int regularity)
 {
   deallog << std::endl;
   char fname[50];
-  sprintf(fname, "Cell-%dd-Hermite-%d", 2, regularity);
+  sprintf(fname, "Cell-%dd-Hermite-%d", 2, 2 * regularity + 1);
   deallog.push(fname);
   deallog.depth_file(2);
 
@@ -101,7 +101,7 @@ test_fe_on_domain(const unsigned int regularity)
     left_point(i) = left, right_point(i) = right;
   GridGenerator::subdivided_hyper_cube(tr, 4, left, right);
 
-  FE_Hermite<2> herm(regularity);
+  FE_Hermite<2> herm(2 * regularity + 1);
   dof.distribute_dofs(herm);
 
   MappingCartesian<2> mapping;

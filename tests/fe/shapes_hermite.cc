@@ -40,37 +40,37 @@ plot_FE_Hermite_shape_functions()
 {
   MappingCartesian<dim> m;
 
-  FE_Hermite<dim> herm0(0);
-  plot_shape_functions(m, herm0, "Hermite-0");
-  plot_face_shape_functions(m, herm0, "Hermite-0");
-  test_compute_functions(m, herm0, "Hermite-0");
+  FE_Hermite<dim> herm_1(1);
+  plot_shape_functions(m, herm_1, "Hermite-1");
+  plot_face_shape_functions(m, herm_1, "Hermite-1");
+  test_compute_functions(m, herm_1, "Hermite-1");
 
-  FE_Hermite<dim> herm1(1);
-  plot_shape_functions(m, herm1, "Hermite-1");
-  plot_face_shape_functions(m, herm1, "Hermite-1");
-  test_compute_functions(m, herm1, "Hermite-1");
+  FE_Hermite<dim> herm_3(3);
+  plot_shape_functions(m, herm_3, "Hermite-3");
+  plot_face_shape_functions(m, herm_3, "Hermite-3");
+  test_compute_functions(m, herm_3, "Hermite-3");
 
   // skip the following tests to
   // reduce run-time
   if (dim < 3)
     {
-      FE_Hermite<dim> herm2(2);
-      plot_shape_functions(m, herm2, "Hermite-2");
-      plot_face_shape_functions(m, herm2, "Hermite-2");
-      test_compute_functions(m, herm2, "Hermite-2");
+      FE_Hermite<dim> herm_5(5);
+      plot_shape_functions(m, herm_5, "Hermite-5");
+      plot_face_shape_functions(m, herm_5, "Hermite-5");
+      test_compute_functions(m, herm_5, "Hermite-5");
     }
 
   if (dim == 1)
     {
-      FE_Hermite<dim> herm3(3);
-      plot_shape_functions(m, herm3, "Hermite-3");
-      plot_face_shape_functions(m, herm3, "Hermite-3");
-      test_compute_functions(m, herm3, "Hermite-3");
+      FE_Hermite<dim> herm_7(7);
+      plot_shape_functions(m, herm_7, "Hermite-7");
+      plot_face_shape_functions(m, herm_7, "Hermite-7");
+      test_compute_functions(m, herm_7, "Hermite-7");
 
-      FE_Hermite<dim> herm4(4);
-      plot_shape_functions(m, herm4, "Hermite-4");
-      plot_face_shape_functions(m, herm4, "Hermite-4");
-      test_compute_functions(m, herm4, "Hermite-4");
+      FE_Hermite<dim> herm_9(9);
+      plot_shape_functions(m, herm_9, "Hermite-9");
+      plot_face_shape_functions(m, herm_9, "Hermite-9");
+      test_compute_functions(m, herm_9, "Hermite-9");
     };
 }
 
