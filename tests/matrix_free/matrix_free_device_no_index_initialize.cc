@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -96,6 +96,18 @@ public:
 protected:
   const CUDAWrappers::MatrixFree<dim, Number> &data;
 };
+
+template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+const unsigned int
+  MatrixFreeTest<dim, fe_degree, n_q_points_1d, Number>::n_dofs_1d;
+
+template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+const unsigned int
+  MatrixFreeTest<dim, fe_degree, n_q_points_1d, Number>::n_local_dofs;
+
+template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+const unsigned int
+  MatrixFreeTest<dim, fe_degree, n_q_points_1d, Number>::n_q_points;
 
 
 

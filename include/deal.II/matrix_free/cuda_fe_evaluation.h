@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -121,7 +121,7 @@ namespace CUDAWrappers
      * the function DoFAccessor::get_interpolated_dof_values when no
      * constraints are present, but it also includes constraints from hanging
      * nodes, so once can see it as a similar function to
-     * AffineConstraints::read_dof_valuess as well.
+     * AffineConstraints::read_dof_values() as well.
      */
     DEAL_II_HOST_DEVICE void
     read_dof_values(const Number *src);
@@ -519,6 +519,19 @@ namespace CUDAWrappers
                          [&](const int &i) { func(this, i); });
     shared_data->team_member.team_barrier();
   }
+
+
+
+#ifndef DOXYGEN
+  template <int dim,
+            int fe_degree,
+            int n_q_points_1d,
+            int n_components_,
+            typename Number>
+  constexpr unsigned int
+    FEEvaluation<dim, fe_degree, n_q_points_1d, n_components_, Number>::
+      n_q_points;
+#endif
 } // namespace CUDAWrappers
 
 DEAL_II_NAMESPACE_CLOSE

@@ -101,7 +101,7 @@ test_fe_on_domain(const unsigned int regularity)
     left_point(i) = left, right_point(i) = right;
   GridGenerator::subdivided_hyper_cube(tr, 4, left, right);
 
-  FE_Hermite<2> herm(regularity);
+  FE_Hermite<2> herm(2 * regularity + 1);
   dof.distribute_dofs(herm);
 
   MappingCartesian<2> mapping;

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -246,6 +246,19 @@ namespace PETScWrappers
              const MPI_Comm               communicator);
 
       /**
+       * Initialize each block given to each parallel partitioning described in
+       * @p partitioners.
+       *
+       * You can decide whether your vector will contain ghost elements with
+       * @p make_ghosted.
+       */
+      void
+      reinit(
+        const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+          &        partitioners,
+        const bool make_ghosted = true);
+
+      /**
        * This function collects the sizes of the sub-objects and stores them
        * in internal arrays, in order to be able to relay global indices into
        * the vector to indices into the subobjects. You *must* call this
@@ -352,7 +365,7 @@ namespace PETScWrappers
       Vec petsc_nest_vector;
 
       /**
-       * Utility to setup the VECNEST object
+       * Utility to set up the VECNEST object
        */
       void
       setup_nest_vec();
@@ -562,6 +575,26 @@ namespace PETScWrappers
         this->components[i].reinit(parallel_partitioning[i],
                                    ghost_entries[i],
                                    communicator);
+
+      // update block_indices content
+      this->collect_sizes();
+    }
+
+
+
+    inline void
+    BlockVector::reinit(
+      const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+        &        partitioners,
+      const bool make_ghosted)
+    {
+      // update the number of blocks
+      this->block_indices.reinit(partitioners.size(), 0);
+
+      // initialize each block
+      this->components.resize(this->n_blocks());
+      for (unsigned int i = 0; i < this->n_blocks(); ++i)
+        this->components[i].reinit(partitioners[i], make_ghosted);
 
       // update block_indices content
       this->collect_sizes();

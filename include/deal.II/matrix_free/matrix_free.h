@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2022 by the deal.II authors
+// Copyright (C) 2011 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -1483,7 +1483,7 @@ public:
    * To be able to evaluate all face integrals (with values or gradients
    * from the neighboring cells), all ghost values from neighboring cells are
    * updated. Use
-   * FEFaceEvalution::reinit(cell, face_no) to access quantities on arbitrary
+   * FEFaceEvaluation::reinit(cell, face_no) to access quantities on arbitrary
    * faces of a cell and the respective neighbors.
    *
    * @param cell_operation Pointer to member function of `CLASS` with the

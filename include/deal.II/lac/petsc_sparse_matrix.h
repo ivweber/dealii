@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -79,7 +79,7 @@ namespace PETScWrappers
      * Initialize a Matrix from a PETSc Mat object. Note that we do not copy
      * the matrix. The Mat object is referenced by the newly created instance
      * of the class using PetscObjectReference. This is in line with the PETSc
-     * approach to object ownership, which mimicks std::shared_ptr.
+     * approach to object ownership, which mimics std::shared_ptr.
      */
     explicit SparseMatrix(const Mat &);
 
@@ -400,7 +400,7 @@ namespace PETScWrappers
        * Initialize a SparseMatrix from a PETSc Mat object. Note that we do not
        * copy the matrix. The Mat object is referenced by the newly created
        * instance of the class using PetscObjectReference. This is in line with
-       * the PETSc approach to object ownership, which mimicks std::shared_ptr.
+       * the PETSc approach to object ownership, which mimics std::shared_ptr.
        */
       explicit SparseMatrix(const Mat &);
 

@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2022 by the deal.II authors
+## Copyright (C) 2022 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -68,5 +68,13 @@ enable_if_supported(DEAL_II_WARNING_FLAGS -Wno-float-conversion)
 enable_if_supported(DEAL_II_WARNING_FLAGS -Wno-missing-field-initializers)
 enable_if_supported(DEAL_II_WARNING_FLAGS -Wno-suggest-override)
 enable_if_supported(DEAL_II_WARNING_FLAGS -Wno-unused-but-set-parameter)
+
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/algorithms/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/containers/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/core/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/simd/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/tpls/desul/include
+  )
 
 define_object_library(bundled_kokkos OBJECT ${src_kokkos})

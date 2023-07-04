@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2022 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -4367,7 +4367,7 @@ namespace DataOutBase
     float max_color_value = std::numeric_limits<float>::min();
 
     // Array for z-coordinates of points. The elevation determined by a function
-    // if spacedim=2 or the z-cooridate of the grid point if spacedim=3
+    // if spacedim=2 or the z-coordinate of the grid point if spacedim=3
     double heights[4] = {0, 0, 0, 0};
 
     // compute the cells for output and enter them into the set above note that

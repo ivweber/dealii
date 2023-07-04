@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2007 - 2021 by the deal.II authors
+ * Copyright (C) 2007 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -398,7 +398,7 @@ namespace Step29
 
   // @sect4{<code>UltrasoundProblem::make_grid</code>}
 
-  // Here we setup the grid for our domain.  As mentioned in the exposition,
+  // Here we set up the grid for our domain.  As mentioned in the exposition,
   // the geometry is just a unit square (in 2d) with the part of the boundary
   // that represents the transducer lens replaced by a sector of a circle.
   template <int dim>

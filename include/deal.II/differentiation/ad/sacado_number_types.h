@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -337,7 +337,7 @@ namespace Differentiation
           // For Sacado::Rad::ADvar numbers, we have to initialize the
           // ADNumber with an already fully-configured value. This means
           // that if this nests another ADNumber then the nested number
-          // must already be setup and ready for use.
+          // must already be set up and ready for use.
 
           // Initialize potential nested directional derivatives
           derivative_type derivative_initializer;

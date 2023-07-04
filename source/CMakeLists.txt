@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2022 by the deal.II authors
+## Copyright (C) 2012 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -37,7 +37,7 @@ endif()
 
 #
 # Automatically add the current source and binary directory as include
-# directory. The binary directory is needed in order to find the expaned
+# directory. The binary directory is needed in order to find the expanded
 # .inst include files.
 #
 set(CMAKE_INCLUDE_CURRENT_DIR true)
@@ -52,6 +52,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR true)
 #
 add_subdirectory(numerics)
 add_subdirectory(fe)
+add_subdirectory(matrix_free)
 add_subdirectory(dofs)
 add_subdirectory(lac)
 add_subdirectory(base)
@@ -63,7 +64,6 @@ add_subdirectory(multigrid)
 add_subdirectory(distributed)
 add_subdirectory(algorithms)
 add_subdirectory(integrators)
-add_subdirectory(matrix_free)
 add_subdirectory(meshworker)
 add_subdirectory(opencascade)
 add_subdirectory(particles)
@@ -77,7 +77,7 @@ add_subdirectory(arborx)
 
 #
 # Define a "dealii", i.e., "${DEAL_II_TARGET_NAME}", target that contains
-# DEAL_II_CXX_FLAGS[_DEBUG|_RELEASE] and otherwsie aliases dealii_debug or
+# DEAL_II_CXX_FLAGS[_DEBUG|_RELEASE] and otherwise aliases dealii_debug or
 # dealii_release depending on the downstream CMAKE_BUILD_TYPE.
 #
 

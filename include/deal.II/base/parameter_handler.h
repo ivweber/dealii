@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2022 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -212,7 +212,7 @@ class MultipleParameterLoop;
  *     }
  *   @endcode
  * The advantage of using json-files is that this format is natively supported
- * by Python, simplifying the running of paramter studies tremendously.
+ * by Python, simplifying the running of parameter studies tremendously.
  *
  * <h3>Including other input files</h3>
  *

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2022 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -1308,7 +1308,7 @@ private:
   bool fast_path;
 
   /**
-   * Connection to NonMatching::MappingInfo to check wheter mapping data
+   * Connection to NonMatching::MappingInfo to check whether mapping data
    * has been invalidated.
    */
   boost::signals2::connection connection_is_reinitialized;

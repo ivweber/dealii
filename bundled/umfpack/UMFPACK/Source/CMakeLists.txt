@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2021 by the deal.II authors
+## Copyright (C) 2012 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -348,6 +348,10 @@ set(src_umfpack_GENERIC
   umfpack_timer.cc
   )
 
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/../Include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../AMD/Include
+  )
 
 #-------------------------------------------------------------------------------
 # Compile each of the following files as long int routines; UMFPACK also allows

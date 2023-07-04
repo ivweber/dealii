@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2022 by the deal.II authors
+// Copyright (C) 2001 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -3665,6 +3665,11 @@ namespace GridTools
         AssertThrowMPI(ierr);
       }
 
+    // At this point, wait for all of the isend operations to finish:
+    MPI_Waitall(first_requests.size(),
+                first_requests.data(),
+                MPI_STATUSES_IGNORE);
+
 
     // Send second message
     std::vector<std::vector<char>> cellids_send_buffers(
@@ -3773,6 +3778,12 @@ namespace GridTools
               }
           }
       }
+
+    // At this point, wait for all of the isend operations of the second round
+    // to finish:
+    MPI_Waitall(second_requests.size(),
+                second_requests.data(),
+                MPI_STATUSES_IGNORE);
 #endif
 
     return local_to_global_vertex_index;
@@ -6331,7 +6342,7 @@ namespace GridTools
     DistributedComputePointLocationsInternal<dim, spacedim>
     DistributedComputeIntersectionLocationsInternal<structdim, spacedim>::
       convert_to_distributed_compute_point_locations_internal(
-        const unsigned int                  n_quadrature_points,
+        const unsigned int                  n_points_1D,
         const Triangulation<dim, spacedim> &tria,
         const Mapping<dim, spacedim> &      mapping,
         const bool consistent_numbering_of_sender_and_receiver) const
@@ -6346,7 +6357,7 @@ namespace GridTools
       // We need quadrature rules for the intersections. We are using a
       // QGaussSimplex quadrature rule since CGAL always returns simplices
       // as intersections.
-      const QGaussSimplex<structdim> quadrature(n_quadrature_points);
+      const QGaussSimplex<structdim> quadrature(n_points_1D);
 
       // Resulting quadrature points get different indices. In the case the
       // requested intersections are unique also the resulting quadrature
@@ -6760,7 +6771,7 @@ namespace GridTools
       std::stable_sort(recv_components.begin(),
                        recv_components.end(),
                        [&](const auto &a, const auto &b) {
-                         // intersecton index
+                         // intersection index
                          if (std::get<1>(a) != std::get<1>(b))
                            return std::get<1>(a) < std::get<1>(b);
 

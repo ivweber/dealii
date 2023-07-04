@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2022 by the deal.II authors
+// Copyright (C) 2017 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -228,14 +228,12 @@ namespace SUNDIALS
 
     // helper function to create N_Vectors compatible with different versions
     // of SUNDIALS
-    const auto make_compatible_nvector_view = [this](auto &v) {
-      return internal::make_nvector_view(v
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
-                                         ,
-                                         kinsol_ctx
+    const auto make_compatible_nvector_view =
+#  if DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+      [](auto &v) { return internal::make_nvector_view(v); };
+#  else
+      [this](auto &v) { return internal::make_nvector_view(v, kinsol_ctx); };
 #  endif
-      );
-    };
 
 
     VectorType ones;

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2022 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -516,9 +516,15 @@ namespace internal
         // determine range of dofs in global data structure
         const auto range =
           process_object_range(dof_handler, obj_level, obj_index, fe_index, dd);
+        if (range.second == 0)
+          return;
+
+        std::vector<types::global_dof_index> &object_dof_indices =
+          dof_handler
+            .object_dof_indices[structdim < dim ? 0 : obj_level][structdim];
+        AssertIndexRange(range.first, object_dof_indices.size());
         types::global_dof_index *DEAL_II_RESTRICT stored_indices =
-          &dof_handler.object_dof_indices[structdim < dim ? 0 : obj_level]
-                                         [structdim][range.first];
+          object_dof_indices.data() + range.first;
 
         // process dofs
         for (unsigned int i = 0; i < range.second; ++i, ++dof_indices_ptr)
@@ -1083,11 +1089,11 @@ namespace internal
         // correct (cell-local) ordering. The same applies, if the face_rotation
         // or face_orientation is non-standard
         if (structdim == 3 && fe.max_dofs_per_quad() > 0)
-          for (const auto quad : accessor.face_indices())
+          for (const auto face_no : accessor.face_indices())
             {
               const auto combined_orientation = TriaAccessorImplementation::
-                Implementation::combined_face_orientation(accessor, quad);
-              const unsigned int quad_index = accessor.quad_index(quad);
+                Implementation::combined_face_orientation(accessor, face_no);
+              const unsigned int quad_index = accessor.quad_index(face_no);
               if (combined_orientation ==
                   ReferenceCell::default_combined_face_orientation())
                 dof_operation.process_dofs(
@@ -1108,10 +1114,10 @@ namespace internal
                   [&](const auto d) {
                     return fe.adjust_quad_dof_index_for_face_orientation(
                       d,
-                      quad,
-                      accessor.face_orientation(quad),
-                      accessor.face_flip(quad),
-                      accessor.face_rotation(quad));
+                      face_no,
+                      accessor.face_orientation(face_no),
+                      accessor.face_flip(face_no),
+                      accessor.face_rotation(face_no));
                   },
                   std::integral_constant<int, 2>(),
                   dof_indices_ptr,

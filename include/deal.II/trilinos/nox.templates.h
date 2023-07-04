@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2022 by the deal.II authors
+// Copyright (C) 2022 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -354,8 +354,8 @@ namespace TrilinosWrappers
       {
       public:
         /**
-         * Constructor. The class is intialized by the solution vector and
-         * functions to compute the residual, to setup the jacobian, and
+         * Constructor. The class is initialized by the solution vector and
+         * functions to compute the residual, to set up the jacobian, and
          * to solve the Jacobian.
          */
         Group(
@@ -768,7 +768,7 @@ namespace TrilinosWrappers
         std::function<int(const VectorType &x, VectorType &f)> residual;
 
         /**
-         * A helper function to setup Jacobian.
+         * A helper function to set up Jacobian.
          */
         std::function<int(const VectorType &x)> setup_jacobian;
 
@@ -956,7 +956,7 @@ namespace TrilinosWrappers
   void
   NOXSolver<VectorType>::clear()
   {
-    // clear interal counters
+    // clear internal counters
     n_residual_evaluations   = 0;
     n_jacobian_applications  = 0;
     n_nonlinear_iterations   = 0;
@@ -987,7 +987,7 @@ namespace TrilinosWrappers
 
         n_residual_evaluations++;
 
-        // evalute residual
+        // evaluate residual
         return internal::NOXWrappers::call_and_possibly_capture_exception(
           residual, pending_exception, x, f);
       },
@@ -1161,12 +1161,21 @@ namespace TrilinosWrappers
                         ExcNOXNoConvergence());
           }
       }
-    // See if NOX returned by triggering an exception. In a sign of generally
-    // poor software design, NOX throws an exception that is not of a class
-    // derived from std::exception, but just a char*. That's a nuisance -- you
-    // just have to know :-(
+      // See if NOX returned by triggering an exception.
+#    if DEAL_II_TRILINOS_VERSION_GTE(14, 2, 0)
+    // Starting with Trilinos version 14.2.0 NOX started to throw a
+    // std::runtime_error instead of a plain char*.
+    catch (const std::runtime_error &exc)
+      {
+        const char *s = exc.what();
+#    else
+    // In a sign of generally poor software design, NOX prior to Trilinos
+    // version 14.2.0 throws an exception that is not of a class derived
+    // from std::exception, but just a char*. That's a nuisance -- you just
+    // have to know :-(
     catch (const char *s)
       {
+#    endif
         // Like above, see if NOX aborted because there was an exception
         // in a user callback. In that case, collate the errors if we can
         // (namely, if the user exception was derived from std::exception),

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2022 by the deal.II authors
+// Copyright (C) 2022 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,7 +30,11 @@ namespace internal
   void
   ensure_kokkos_initialized()
   {
-    if (!Kokkos::is_initialized())
+    if (!Kokkos::is_initialized()
+#if KOKKOS_VERSION >= 30700
+        && !Kokkos::is_finalized()
+#endif
+    )
       {
         // only execute once
         static bool dummy = [] {

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -102,7 +102,7 @@ namespace PETScWrappers
 
         /*
          * by default we set up the preconditioner only once.
-         * this can be overriden by command line.
+         * this can be overridden by command line.
          */
         AssertPETSc(KSPSetReusePreconditioner(ksp, PETSC_TRUE));
       }
@@ -755,7 +755,7 @@ namespace PETScWrappers
 
         /*
          * by default we set up the preconditioner only once.
-         * this can be overriden by command line.
+         * this can be overridden by command line.
          */
         AssertPETSc(KSPSetReusePreconditioner(ksp, PETSC_TRUE));
       }

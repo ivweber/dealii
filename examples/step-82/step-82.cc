@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2021 by the deal.II authors
+ * Copyright (C) 2021 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -1351,7 +1351,7 @@ namespace Step82
     // neighboring <code>neighbor_cell</code> of <code>cell</code>, namely we
     // fill-in the variable <code>discrete_hessians_neigh[face_no][i][q]</code>.
     // For the lifting terms, we only need to add the contribution of the
-    // face adjecent to <code>cell</code> and <code>neighbor_cell</code>.
+    // face adjacent to <code>cell</code> and <code>neighbor_cell</code>.
     for (unsigned int face_no = 0; face_no < cell->n_faces(); ++face_no)
       {
         const typename DoFHandler<dim>::face_iterator face =
