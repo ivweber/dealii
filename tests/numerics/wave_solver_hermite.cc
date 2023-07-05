@@ -52,19 +52,18 @@
 
 
 
-/*
- * Test case for Hermite with a time-stepping method for $u_{tt}=u_{xx}$
- * to check that the stability conditions have transferred correctly. Uses a
+/**
+ * Test case for Hermite elements of a time-stepping method
+ * for the wave equation $u_{tt}=u_{xx}$
+ * to check that the stability conditions are correct. This test uses a
  * manufactured solution of a plane wave entering the domain at $x=0$
  * and leaving at $x=3$. The solution uses $y = x-t-0.5$ as a local
  * coordinate and has the following Gaussian bell shape to avoid
  * discontinuities in derivatives:
- *
  * @f{align*}{
  *  u(x,t) = exp(-a y^2),
  * @f}
- *
- * where $a$ is some predefined constant. The right-most tail of the wave
+ * where @p a is some predefined constant. The right-most tail of the wave
  * is already in the domain at $t=0$. The solution is chosen so that initial
  * conditions are not uniformly zero and the wave is currently entering
  * the domain through the boundary. This allows both the use of
@@ -375,7 +374,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
 
   deallog << std::endl;
   char fname[50];
-  sprintf(fname, "Cell-%dd-Hermite-%d", dim, regularity);
+  sprintf(fname, "Cell-%dd-Hermite-%d", dim, 2 * regularity + 1);
   deallog.push(fname);
 
   deallog << "initial_time: " << initial_time << std::endl;

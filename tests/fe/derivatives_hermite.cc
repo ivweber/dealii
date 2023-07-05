@@ -27,12 +27,13 @@
 
 
 
-/*
- * Test case to check the values of derivatives of
- * <code>FE_Hermite<dim>(reg)<\code> at the vertices of a hypercube reference
- * element. This ensures the basis is behaving as expected, and will not
- * accidentally enforce discontinuities in derivatives across element
- * boundaries.
+/**
+ * Test case to check the derivative values  up to @p regularity
+ * of <code>FE_Hermite<dim>(2 \times regularity + 1)<\code> at the vertices
+ * of a hypercube reference element are calculated correctly.
+ * This checks that the basis is assembled correctly and will not
+ * accidentally enforce discontinuities rather than continuity
+ * in derivatives across element boundaries.
  */
 
 
@@ -42,25 +43,25 @@ print_hermite_endpoint_derivatives()
 {
   MappingCartesian<dim> m;
 
-  FE_Hermite<dim> herm0(1);
-  plot_function_derivatives<dim>(m, herm0, "Hermite-0");
+  FE_Hermite<dim> herm_1(1);
+  plot_function_derivatives<dim>(m, herm_1, "Hermite-1");
 
-  FE_Hermite<dim> herm1(3);
-  plot_function_derivatives<dim>(m, herm1, "Hermite-1");
+  FE_Hermite<dim> herm_3(3);
+  plot_function_derivatives<dim>(m, herm_3, "Hermite-3");
 
   // Skip the following for dim 3 or greater
   if (dim < 3)
     {
-      FE_Hermite<dim> herm2(5);
-      plot_function_derivatives<dim>(m, herm2, "Hermite-2");
+      FE_Hermite<dim> herm_5(5);
+      plot_function_derivatives<dim>(m, herm_5, "Hermite-5");
     }
   if (dim == 1)
     {
-      FE_Hermite<dim> herm3(7);
-      plot_function_derivatives<dim>(m, herm3, "Hermite-3");
+      FE_Hermite<dim> herm_7(7);
+      plot_function_derivatives<dim>(m, herm_7, "Hermite-7");
 
-      FE_Hermite<dim> herm4(9);
-      plot_function_derivatives<dim>(m, herm4, "Hermite-4");
+      FE_Hermite<dim> herm_9(9);
+      plot_function_derivatives<dim>(m, herm_9, "Hermite-9");
     }
 }
 

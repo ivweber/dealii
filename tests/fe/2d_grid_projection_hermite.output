@@ -1,13 +1,5 @@
 
 DEAL::
-DEAL:Cell-2d-Hermite-0::Test polynomial:
-DEAL:Cell-2d-Hermite-0::XY
-DEAL:Cell-2d-Hermite-0::
-DEAL:Cell-2d-Hermite-0::Interpolation error:
-DEAL:Cell-2d-Hermite-0::0.00000000
-
-
-DEAL::
 DEAL:Cell-2d-Hermite-1::Test polynomial:
 DEAL:Cell-2d-Hermite-1::XY
 DEAL:Cell-2d-Hermite-1::
@@ -16,10 +8,18 @@ DEAL:Cell-2d-Hermite-1::0.00000000
 
 
 DEAL::
-DEAL:Cell-2d-Hermite-2::Test polynomial:
-DEAL:Cell-2d-Hermite-2::XY
-DEAL:Cell-2d-Hermite-2::
-DEAL:Cell-2d-Hermite-2::Interpolation error:
-DEAL:Cell-2d-Hermite-2::0.00000000
+DEAL:Cell-2d-Hermite-3::Test polynomial:
+DEAL:Cell-2d-Hermite-3::XY
+DEAL:Cell-2d-Hermite-3::
+DEAL:Cell-2d-Hermite-3::Interpolation error:
+DEAL:Cell-2d-Hermite-3::0.00000000
+
+
+DEAL::
+DEAL:Cell-2d-Hermite-5::Test polynomial:
+DEAL:Cell-2d-Hermite-5::XY
+DEAL:Cell-2d-Hermite-5::
+DEAL:Cell-2d-Hermite-5::Interpolation error:
+DEAL:Cell-2d-Hermite-5::0.00000000
 
 

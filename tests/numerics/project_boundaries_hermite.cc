@@ -57,10 +57,10 @@
 
 
 /**
- * Test of Hermite finite elements with the Laplace equation on a regular grid
- * in 1,2,3D. <code>FE_Hermite<dim>(poly_degree)<\code> should be able to
- * perfectly
- * represent any polynomial function up to degree @p poly_degree, including
+ * Test case for Hermite finite elements with the Laplace equation on a regular
+ * grid in $1D$, $2D$, and $3D$. <code>FE_Hermite<dim>(poly_degree)<\code>
+ * should be able to
+ * perfectly represent any polynomial function up to degree @p poly_degree, including
  * on the boundaries. If all basis functions are correctly scaled according to
  * element size, then solving the Laplace equation with a polynomial solution
  * in the Hermite FE space will produce negligible pointwise errors for
@@ -141,7 +141,7 @@ test_fe_on_domain(const unsigned int regularity)
 {
   deallog << std::endl;
   char fname[50];
-  sprintf(fname, "Cell-%dd-Hermite-%d", dim, regularity);
+  sprintf(fname, "Cell-%dd-Hermite-%d", dim, 2 * regularity + 1);
   deallog.push(fname);
 
   deallog.depth_file(2);

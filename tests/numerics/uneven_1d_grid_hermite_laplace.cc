@@ -56,11 +56,11 @@
 
 
 /**
- * Test case for Hermite on an irregular 1D grid.
- * <code>FE_Hermite<1>(poly_degree)<\code> should be able to perfectly represent
- * any
- * polynomial function up to degree @p poly_degree. If all basis functions
- * are correctly scaled according to element size, then solving the Laplace
+ * Test case for solving the Poisson equation with Hermite elements on an
+ * irregular 1D grid. <code>FE_Hermite<1>(poly_degree)<\code> should be able to
+ * perfectly represent
+ * any polynomial function up to degree @p poly_degree. If all basis functions
+ * are correctly scaled according to element size, then solving the Poisson
  * equation for a polynomial solution of this form in the Hermite FE space
  * will produce negligible pointwise errors.
  */
@@ -105,7 +105,7 @@ test_fe_on_domain(const unsigned int regularity)
 {
   deallog << std::endl;
   char fname[50];
-  sprintf(fname, "Cell-1d-Hermite-%d", regularity);
+  sprintf(fname, "Cell-1d-Hermite-%d", 2 * regularity + 1);
   deallog.push(fname);
   deallog.depth_file(2);
 
