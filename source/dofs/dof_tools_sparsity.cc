@@ -517,13 +517,15 @@ namespace DoFTools
              */
             cols.clear();
             for (const auto &dof : dofs_on_this_face)
-              if (dof_to_boundary_mapping[dof] != numbers::unconstrained_boundary_dof_index)
+              if (dof_to_boundary_mapping[dof] !=
+                  numbers::unconstrained_boundary_dof_index)
                 cols.push_back(dof_to_boundary_mapping[dof]);
 
             // Like the other one: sort once.
             std::sort(cols.begin(), cols.end());
             for (const auto &dof : dofs_on_this_face)
-              if (dof_to_boundary_mapping[dof] != numbers::unconstrained_boundary_dof_index)
+              if (dof_to_boundary_mapping[dof] !=
+                  numbers::unconstrained_boundary_dof_index)
                 sparsity.add_row_entries(dof_to_boundary_mapping[dof],
                                          make_array_view(cols),
                                          true);

@@ -22,19 +22,19 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/utilities.h>
 
-#include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/tria_accessor.h>
-#include <deal.II/grid/tria_iterator.h>
-
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/fe/mapping_cartesian.h>
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_interface_values.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_cartesian.h>
+
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/tria_iterator.h>
 
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
@@ -58,8 +58,9 @@
 
 /**
  * Test of Hermite finite elements with the Laplace equation on a regular grid
- * in 1,2,3D. <code>FE_Hermite<dim>(reg)<\code> should be able to perfectly 
- * represent any polynomial function up to degree $2 \times reg+1$, including 
+ * in 1,2,3D. <code>FE_Hermite<dim>(poly_degree)<\code> should be able to
+ * perfectly
+ * represent any polynomial function up to degree @p poly_degree, including
  * on the boundaries. If all basis functions are correctly scaled according to
  * element size, then solving the Laplace equation with a polynomial solution
  * in the Hermite FE space will produce negligible pointwise errors for
@@ -153,7 +154,7 @@ test_fe_on_domain(const unsigned int regularity)
   double left = -1.0, right = 1.0;
   GridGenerator::subdivided_hyper_cube(tr, 4, left, right);
 
-  FE_Hermite<dim> herm(regularity);
+  FE_Hermite<dim> herm(2 * regularity + 1);
   dof.distribute_dofs(herm);
 
   MappingCartesian<dim> mapping;
@@ -213,13 +214,13 @@ test_fe_on_domain(const unsigned int regularity)
     bound_map.emplace(std::make_pair(1U, &sol_object));
 
   // The following is the main function being tested here
-  VectorTools::project_hermite_boundary_values(
-    mapping,
-    dof,
-    bound_map,
-    QGauss<dim - 1>(2 * regularity + 2),
-    0,
-    bound_vals);
+  VectorTools::project_hermite_boundary_values(mapping,
+                                               dof,
+                                               bound_map,
+                                               QGauss<dim - 1>(2 * regularity +
+                                                               2),
+                                               0,
+                                               bound_vals);
 
   MatrixTools::apply_boundary_values(bound_vals, stiffness_matrix, sol, rhs);
 

@@ -22,18 +22,18 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/utilities.h>
 
-#include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/tria_accessor.h>
-#include <deal.II/grid/tria_iterator.h>
-
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/fe/mapping_cartesian.h>
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_cartesian.h>
+
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/tria_iterator.h>
 
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
@@ -240,7 +240,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
   GridGenerator::subdivided_hyper_cube(tr, divisions, x_left, x_right);
 
   MappingCartesian<dim> mapping_h;
-  FE_Hermite<dim>       fe_h(regularity);
+  FE_Hermite<dim>       fe_h(2 * regularity + 1);
   dof.distribute_dofs(fe_h);
 
   AffineConstraints<double> constraints;

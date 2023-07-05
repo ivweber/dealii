@@ -22,18 +22,18 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/utilities.h>
 
-#include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/tria_accessor.h>
-#include <deal.II/grid/tria_iterator.h>
-
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/fe/mapping_cartesian.h>
 #include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_cartesian.h>
+
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/tria_iterator.h>
 
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/vector.h>
@@ -49,10 +49,11 @@
 
 
 
-/*
+/**
  * Test case for Hermite on an irregular 1D grid.
- * <code>FE_Hermite<1>(reg)<\code> should be able to perfectly represent any
- * polynomial function up to degree $2 \times reg+1$. If all basis functions
+ * <code>FE_Hermite<1>(poly_degree)<\code> should be able to perfectly represent
+ * any
+ * polynomial function up to degree @p poly_degree. If all basis functions
  * are correctly scaled according to element size, then projecting a
  * polynomial of this form onto the Hermite FE space will produce negligible
  * pointwise errors.
@@ -106,7 +107,7 @@ test_fe_on_domain(const unsigned int regularity)
       tr.execute_coarsening_and_refinement();
     }
 
-  FE_Hermite<1> herm(regularity);
+  FE_Hermite<1> herm(2 * regularity + 1);
   dof.distribute_dofs(herm);
 
   MappingCartesian<1> mapping;
