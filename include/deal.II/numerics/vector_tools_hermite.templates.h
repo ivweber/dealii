@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2023 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -80,74 +80,27 @@ namespace VectorTools
                   dof_handler.n_dofs(),
                   numbers::unconstrained_boundary_dof_index);
 
-      /*
-       * Create a look-up table for finding constrained dofs on all
-       * 2*dim faces of reference cell
-       */
       const unsigned int degree = dof_handler.get_fe().degree;
       const unsigned int regularity =
         dynamic_cast<const FE_Hermite<dim> &>(dof_handler.get_fe())
           .get_regularity();
+
       const unsigned int dofs_per_face = dof_handler.get_fe().n_dofs_per_face();
-      const unsigned int dofs_per_cell = Utilities::pow(degree + 1, dim);
       const unsigned int constrained_dofs_per_face =
         dofs_per_face / (regularity + 1);
-
       AssertDimension(dofs_per_face,
                       (regularity + 1) * Utilities::pow(degree + 1, dim - 1));
 
+      const unsigned int dofs_per_cell = Utilities::pow(degree + 1, dim);
       std::vector<types::global_dof_index> dofs_on_cell(dofs_per_cell);
-      Table<2, double>                     constrained_to_local_indices(2 * dim,
-                                                    constrained_dofs_per_face);
 
       /*
-       * Use knowledge of the local degree numbering for this version,
-       * saving expensive calls to reinit
+       * Create a table of values corresponding to normal derivatives of the chosen
+       * order, so that only those are constrained by the boundary method
        */
-      const std::vector<unsigned int> l2h =
+      Table<2, unsigned int> constrained_to_local_indices =
         dynamic_cast<const FE_Hermite<dim> &>(dof_handler.get_fe())
-          .get_lexicographic_to_hierarchic_numbering();
-
-      /*
-       * The following loop uses the variables batch_size, batch_index
-       * and local_index to simplify calculations. The idea is to find
-       * constrained d.o.f.s in batches, with each batch representing a
-       * set of constrained d.o.f.s on a given face that occur consecutively
-       * in the ordering of all d.o.f.s on the reference cell.
-       * To quickly summarise what the variables mean:
-       * constrained_index: index of a d.o.f in the list of constrained d.o.f.
-                            indices
-       * index: index of a d.o.f in the list of all d.o.f.s
-       * batch_size: Number of consecutive variables in the ordering that are
-       *             all being constrained,
-       * batch index: Index of the current batch in the list of batches
-       * local_index: Index of the current d.o.f within a batch
-       *
-       * The variable correction is used because the pattern of constrained
-       * d.o.f.s on opposite face pairs is always the same, just separated by
-       * a constant offset value in the indices, so it's easier to calculate
-       * the pattern once and find this offset value.
-       */
-      for (unsigned int d = 0, batch_size = 1; d < dim;
-           ++d, batch_size *= degree + 1)
-        for (unsigned int constrained_index = 0;
-             constrained_index < constrained_dofs_per_face;
-             ++constrained_index)
-          {
-            const unsigned int local_index = constrained_index % batch_size;
-            const unsigned int batch_index = constrained_index / batch_size;
-
-            unsigned int index =
-              local_index +
-              (batch_index * (degree + 1) + position) * batch_size;
-            unsigned int correction = batch_size * (regularity + 1);
-            Assert(index + correction < dofs_per_cell,
-                   ExcDimensionMismatch(index + correction, dofs_per_cell));
-
-            constrained_to_local_indices(2 * d, constrained_index) = l2h[index];
-            constrained_to_local_indices(2 * d + 1, constrained_index) =
-              l2h[index + correction];
-          }
+          .get_dofs_corresponding_to_outward_normal_derivatives(position);
 
       std::set<types::boundary_id> selected_boundary_components;
 
