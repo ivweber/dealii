@@ -47,10 +47,9 @@ test()
 
   dof_handler.distribute_dofs(fe);
 
-  IndexSet locally_owned_dofs;
-  locally_owned_dofs = dof_handler.locally_owned_dofs();
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet &locally_owned_dofs = dof_handler.locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   PETScWrappers::MPI::Vector force;
   force.reinit(locally_owned_dofs, mpi_communicator);
@@ -60,7 +59,7 @@ test()
   constraints.clear();
   {
     const IndexSet boundary_dofs =
-      DoFTools::extract_boundary_dofs(dof_handler, std::vector<bool>(1, true));
+      DoFTools::extract_boundary_dofs(dof_handler, ComponentMask(1, true));
 
     unsigned int first_nboundary_dof = 0;
     while (boundary_dofs.is_element(first_nboundary_dof))

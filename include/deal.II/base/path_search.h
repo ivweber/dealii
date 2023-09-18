@@ -48,7 +48,7 @@ DEAL_II_NAMESPACE_OPEN
  *
  * dealii::PathSearch search("MESH");
  * std::string full_name = search.find("grid");
- * std::ifstream in(full_name.c_str());
+ * std::ifstream in(full_name);
  * ...
  * @endcode
  *
@@ -144,12 +144,12 @@ public:
   std::string
   find(const std::string &filename,
        const std::string &suffix,
-       const char *       open_mode = "r");
+       const char        *open_mode = "r");
 
   /**
    * Show the paths and suffixes used for this object.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   show(StreamType &stream) const;
 
@@ -258,7 +258,7 @@ private:
 /* ----------------------------- inline functions ------------------------- */
 
 
-template <class StreamType>
+template <typename StreamType>
 inline void
 PathSearch::show(StreamType &out) const
 {

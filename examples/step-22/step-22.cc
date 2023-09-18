@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, Texas A&M University, 2008
  */
@@ -186,16 +185,16 @@ namespace Step22
       : Function<dim>(dim + 1)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  value) const override;
+                              Vector<double>   &value) const override;
   };
 
 
   template <int dim>
-  double BoundaryValues<dim>::value(const Point<dim> & p,
+  double BoundaryValues<dim>::value(const Point<dim>  &p,
                                     const unsigned int component) const
   {
     Assert(component < this->n_components,
@@ -217,7 +216,7 @@ namespace Step22
 
   template <int dim>
   void BoundaryValues<dim>::vector_value(const Point<dim> &p,
-                                         Vector<double> &  values) const
+                                         Vector<double>   &values) const
   {
     for (unsigned int c = 0; c < this->n_components; ++c)
       values(c) = BoundaryValues<dim>::value(p, c);
@@ -286,7 +285,7 @@ namespace Step22
   class InverseMatrix : public Subscriptor
   {
   public:
-    InverseMatrix(const MatrixType &        m,
+    InverseMatrix(const MatrixType         &m,
                   const PreconditionerType &preconditioner);
 
     void vmult(Vector<double> &dst, const Vector<double> &src) const;
@@ -299,7 +298,7 @@ namespace Step22
 
   template <class MatrixType, class PreconditionerType>
   InverseMatrix<MatrixType, PreconditionerType>::InverseMatrix(
-    const MatrixType &        m,
+    const MatrixType         &m,
     const PreconditionerType &preconditioner)
     : matrix(&m)
     , preconditioner(&preconditioner)
@@ -318,7 +317,7 @@ namespace Step22
   // tolerance, either.
   template <class MatrixType, class PreconditionerType>
   void InverseMatrix<MatrixType, PreconditionerType>::vmult(
-    Vector<double> &      dst,
+    Vector<double>       &dst,
     const Vector<double> &src) const
   {
     SolverControl            solver_control(src.size(), 1e-6 * src.l2_norm());
@@ -374,7 +373,7 @@ namespace Step22
 
   template <class PreconditionerType>
   void
-  SchurComplement<PreconditionerType>::vmult(Vector<double> &      dst,
+  SchurComplement<PreconditionerType>::vmult(Vector<double>       &dst,
                                              const Vector<double> &src) const
   {
     system_matrix->block(0, 1).vmult(tmp1, src);
@@ -405,7 +404,7 @@ namespace Step22
   StokesProblem<dim>::StokesProblem(const unsigned int degree)
     : degree(degree)
     , triangulation(Triangulation<dim>::maximum_smoothing)
-    , fe(FE_Q<dim>(degree + 1), dim, FE_Q<dim>(degree), 1)
+    , fe(FE_Q<dim>(degree + 1) ^ dim, FE_Q<dim>(degree))
     , dof_handler(triangulation)
   {}
 

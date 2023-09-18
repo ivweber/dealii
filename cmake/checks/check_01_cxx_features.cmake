@@ -18,7 +18,6 @@
 #
 # This file sets up
 #
-#   DEAL_II_HAVE_CXX14
 #   DEAL_II_HAVE_CXX17
 #   DEAL_II_HAVE_CXX20
 #
@@ -27,8 +26,6 @@
 #   DEAL_II_HAVE_CXX17_BESSEL_FUNCTIONS
 #   DEAL_II_HAVE_CXX17_LEGENDRE_FUNCTIONS
 #   DEAL_II_FALLTHROUGH
-#   DEAL_II_DEPRECATED
-#   DEAL_II_DEPRECATED_EARLY
 #   DEAL_II_CONSTEXPR
 #
 
@@ -50,6 +47,45 @@ macro(_set_up_cmake_required)
   add_flags(CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_WARNING_FLAGS}")
   add_flags(CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_FLAGS}")
   add_flags(CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_FLAGS_SAVED}")
+endmacro()
+
+
+#
+# Wrap the following checks into a macro to make it easier to rerun them.
+#
+macro(_test_cxx23_support)
+  unset_if_changed(CHECK_CXX23_FEATURES_FLAGS_SAVED
+    "${CMAKE_REQUIRED_FLAGS}${CMAKE_CXX_STANDARD}"
+    DEAL_II_HAVE_CXX23_FEATURES
+    )
+
+  # Strictly speaking "202100L" indicates support for a preliminary version
+  # of the C++23 standard (which will have "202302L" when finalized). gcc-13
+  # exports this version number when configured with C++23 support.
+  CHECK_CXX_SOURCE_COMPILES(
+    "
+    #include <version>
+
+    #if __cplusplus < 202100L && !defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    #  error \"insufficient support for C++23\"
+    #endif
+
+    struct Dummy {
+      static void operator()() {}
+    };
+
+    int main() {}
+    "
+    DEAL_II_HAVE_CXX23_FEATURES)
+
+  if(DEAL_II_HAVE_CXX23_FEATURES)
+    message(STATUS "C++23 support is enabled.")
+    set(DEAL_II_HAVE_CXX23 TRUE)
+    set(_cxx_standard 23)
+  else()
+    message(STATUS "C++23 support is disabled.")
+    set(DEAL_II_HAVE_CXX23 FALSE)
+  endif()
 endmacro()
 
 
@@ -126,6 +162,10 @@ macro(_test_cxx17_support)
     "${CMAKE_REQUIRED_FLAGS}${CMAKE_CXX_STANDARD}"
     DEAL_II_HAVE_CXX17_FEATURES
     DEAL_II_HAVE_CXX17_CONSTEXPR_LAMBDA_BUG_OK
+    DEAL_II_HAVE_CXX14_FEATURES
+    DEAL_II_HAVE_CXX14_CLANGAUTODEBUG_BUG_OK
+    DEAL_II_HAVE_CXX11_FEATURES
+    DEAL_II_HAVE_CXX11_FUNCTIONAL_LLVMBUG20084_OK
     )
 
   CHECK_CXX_SOURCE_COMPILES(
@@ -196,30 +236,6 @@ macro(_test_cxx17_support)
     "
     DEAL_II_HAVE_CXX17_CONSTEXPR_LAMBDA_BUG_OK)
 
-  if(DEAL_II_HAVE_CXX17_FEATURES AND
-     DEAL_II_HAVE_CXX17_CONSTEXPR_LAMBDA_BUG_OK)
-    message(STATUS "C++17 support is enabled.")
-    set(DEAL_II_HAVE_CXX17 TRUE)
-    set(_cxx_standard 17)
-  else()
-    message(STATUS "C++17 support is disabled.")
-    set(DEAL_II_HAVE_CXX17 FALSE)
-  endif()
-endmacro()
-
-
-#
-# Wrap the following checks into a macro to make it easier to rerun them.
-#
-macro(_test_cxx14_support)
-  unset_if_changed(CHECK_CXX14_FEATURES_FLAGS_SAVED
-    "${CMAKE_REQUIRED_FLAGS}${CMAKE_CXX_STANDARD}"
-    DEAL_II_HAVE_CXX14_FEATURES
-    DEAL_II_HAVE_CXX14_CLANGAUTODEBUG_BUG_OK
-    DEAL_II_HAVE_CXX11_FEATURES
-    DEAL_II_HAVE_CXX11_FUNCTIONAL_LLVMBUG20084_OK
-    )
-
   # Check some generic C++14 features
   CHECK_CXX_SOURCE_COMPILES(
     "
@@ -263,6 +279,7 @@ macro(_test_cxx14_support)
     }
     "
     DEAL_II_HAVE_CXX14_CLANGAUTODEBUG_BUG_OK)
+  _set_up_cmake_required()
 
   # Check some generic C++11 features
   CHECK_CXX_SOURCE_COMPILES(
@@ -305,16 +322,18 @@ macro(_test_cxx14_support)
     "
     DEAL_II_HAVE_CXX11_FUNCTIONAL_LLVMBUG20084_OK)
 
-  if(DEAL_II_HAVE_CXX14_FEATURES AND
+  if(DEAL_II_HAVE_CXX17_FEATURES AND
+     DEAL_II_HAVE_CXX17_CONSTEXPR_LAMBDA_BUG_OK AND
+     DEAL_II_HAVE_CXX14_FEATURES AND
      DEAL_II_HAVE_CXX14_CLANGAUTODEBUG_BUG_OK AND
      DEAL_II_HAVE_CXX11_FEATURES AND
      DEAL_II_HAVE_CXX11_FUNCTIONAL_LLVMBUG20084_OK)
-    message(STATUS "C++14 support is enabled.")
-    set(DEAL_II_HAVE_CXX14 TRUE)
-    set(_cxx_standard 14)
+    message(STATUS "C++17 support is enabled.")
+    set(DEAL_II_HAVE_CXX17 TRUE)
+    set(_cxx_standard 17)
   else()
-    message(STATUS "C++14 support is disabled.")
-    set(DEAL_II_HAVE_CXX14 FALSE)
+    message(STATUS "C++17 support is disabled.")
+    set(DEAL_II_HAVE_CXX17 FALSE)
   endif()
 endmacro()
 
@@ -324,36 +343,37 @@ endmacro()
 #
 
 _set_up_cmake_required()
-_test_cxx14_support()
+_test_cxx17_support()
 
-if(NOT DEAL_II_HAVE_CXX14)
+if(NOT DEAL_II_HAVE_CXX17)
   #
-  # We failed to detect C++14 support. Let's make an attempt to set the
+  # We failed to detect C++17 support. Let's make an attempt to set the
   # -std= compiler flag. (But in order to minimize confusion let's not
   # override any manually specified -std= flag or CMAKE_CXX_STANDARD
   # variable set by the user.)
   #
   if(NOT "${DEAL_II_CXX_FLAGS_SAVED}" MATCHES "-std=" AND "${CMAKE_CXX_STANDARD}" STREQUAL "")
-    message(STATUS "C++14 support not available. Try to set -std=c++14 explicitly")
-    set(CMAKE_CXX_STANDARD 14) # manually set the C++ standard
+    message(STATUS "C++17 support not available. Try to set -std=c++17 explicitly")
+    set(CMAKE_CXX_STANDARD 17) # manually set the C++ standard
     _set_up_cmake_required()
-    _test_cxx14_support()
+    _test_cxx17_support()
   endif()
 endif()
 
-if(NOT DEAL_II_HAVE_CXX14)
+if(NOT DEAL_II_HAVE_CXX17)
   message(FATAL_ERROR
     "\nThe current version of deal.II requires a compiler with enabled "
-    "C++14 support. Make sure to use a modern enough compiler (GCC version "
-    "5 onwards, Clang version 4 onwards, or Microsoft MS VS 2015 onwards) "
+    "C++17 support. Make sure to use a modern enough compiler (GCC version "
+    "9 onwards, Clang version 10 onwards, or Microsoft MS VS 2019 onwards) "
     "and check that the compiler flag \"-std=\" is either unset, or set to "
-    "at least c++14. Similarly, please make sure that the CMake variable "
-    "CMAKE_CXX_STANDARD is either unset, or set at least to 14.\n\n"
+    "at least c++17. Similarly, please make sure that the CMake variable "
+    "CMAKE_CXX_STANDARD is either unset, or set at least to 17.\n\n"
     )
 endif()
 
-_test_cxx17_support()
 _test_cxx20_support()
+
+_test_cxx23_support()
 
 set_if_empty(CMAKE_CXX_STANDARD "${_cxx_standard}")
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -395,8 +415,6 @@ unset_if_changed(CHECK_CXX_FEATURES_FLAGS_SAVED
   "${CMAKE_REQUIRED_FLAGS}${CMAKE_CXX_STANDARD}"
   DEAL_II_HAVE_FP_EXCEPTIONS
   DEAL_II_HAVE_COMPLEX_OPERATOR_OVERLOADS
-  DEAL_II_HAVE_CXX17_ATTRIBUTE_DEPRECATED
-  DEAL_II_HAVE_ATTRIBUTE_DEPRECATED
   DEAL_II_HAVE_CXX17_ATTRIBUTE_FALLTHROUGH
   DEAL_II_HAVE_ATTRIBUTE_FALLTHROUGH
   DEAL_II_HAVE_CXX17_BESSEL_FUNCTIONS
@@ -466,79 +484,6 @@ CHECK_CXX_SOURCE_COMPILES(
   }
   "
   DEAL_II_HAVE_COMPLEX_OPERATOR_OVERLOADS)
-
-
-#
-# Even though [[deprecated]] is a C++14 feature we have to check
-# whether we can actually use the [[deprecated]] attribute in all
-# cases we care about; some of the following are C++17 features.
-#
-CHECK_CXX_SOURCE_COMPILES(
-  "
-  [[deprecated]] int old_fn ();
-  int old_fn () { return 0; }
-
-  struct [[deprecated]] bob
-  {
-    [[deprecated]] bob(int i);
-    [[deprecated]] void test();
-  };
-
-  enum color
-  {
-    red [[deprecated]]
-  };
-
-  template <int dim>
-  struct foo {};
-  using bar [[deprecated]] = foo<2>;
-
-  int main () {}
-  "
-  DEAL_II_HAVE_CXX17_ATTRIBUTE_DEPRECATED
-  )
-
-#
-# Also test the corresponding GCC extension
-#
-CHECK_CXX_SOURCE_COMPILES(
-  "
-  __attribute__((deprecated)) int old_fn ();
-  int old_fn () { return 0; }
-
-  struct __attribute__((deprecated)) bob
-  {
-    __attribute__((deprecated)) bob(int i);
-    __attribute__((deprecated)) void test();
-  };
-
-  enum color
-  {
-    red __attribute__((deprecated))
-  };
-
-  template <int dim>
-  struct foo {};
-  using bar __attribute__((deprecated)) = foo<2>;
-
-  int main () {}
-  "
-  DEAL_II_HAVE_ATTRIBUTE_DEPRECATED
-  )
-
-if(DEAL_II_HAVE_CXX17_ATTRIBUTE_DEPRECATED)
-  set(DEAL_II_DEPRECATED "[[deprecated]]")
-elseif(DEAL_II_HAVE_ATTRIBUTE_DEPRECATED AND NOT DEAL_II_WITH_CUDA)
-  set(DEAL_II_DEPRECATED "__attribute__((deprecated))")
-else()
-  set(DEAL_II_DEPRECATED " ")
-endif()
-if(DEAL_II_EARLY_DEPRECATIONS)
-  set(DEAL_II_DEPRECATED_EARLY ${DEAL_II_DEPRECATED})
-else()
-  set(DEAL_II_DEPRECATED_EARLY " ")
-endif()
-
 
 #
 # Try to enable a fallthrough attribute. This is a language feature in C++17,

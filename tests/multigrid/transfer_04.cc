@@ -116,7 +116,7 @@ check_fe(FiniteElement<dim> &fe)
       const std::string filename =
         ("solution." +
          Utilities::int_to_string(tr.locally_owned_subdomain(), 4) + ".vtu");
-      std::ofstream output(filename.c_str());
+      std::ofstream output(filename);
       data_out.write_vtu(output);
     }
 
@@ -129,8 +129,8 @@ check_fe(FiniteElement<dim> &fe)
   mg_constrained_dofs.initialize(dofh);
 
   AffineConstraints<double> hanging_node_constraints;
-  IndexSet                  locally_relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dofh, locally_relevant_set);
+  const IndexSet            locally_relevant_set =
+    DoFTools::extract_locally_relevant_dofs(dofh);
   hanging_node_constraints.reinit(locally_relevant_set);
   DoFTools::make_hanging_node_constraints(dofh, hanging_node_constraints);
   hanging_node_constraints.close();

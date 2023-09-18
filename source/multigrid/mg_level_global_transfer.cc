@@ -160,16 +160,13 @@ namespace
   template <int dim, int spacedim, typename Number>
   void
   fill_internal(
-    const DoFHandler<dim, spacedim> &mg_dof,
-    SmartPointer<
-      const MGConstrainedDoFs,
-      MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>>
-                                                mg_constrained_dofs,
+    const DoFHandler<dim, spacedim>            &mg_dof,
+    SmartPointer<const MGConstrainedDoFs>       mg_constrained_dofs,
     const MPI_Comm                              mpi_communicator,
     const bool                                  transfer_solution_vectors,
-    std::vector<Table<2, unsigned int>> &       copy_indices,
-    std::vector<Table<2, unsigned int>> &       copy_indices_global_mine,
-    std::vector<Table<2, unsigned int>> &       copy_indices_level_mine,
+    std::vector<Table<2, unsigned int>>        &copy_indices,
+    std::vector<Table<2, unsigned int>>        &copy_indices_global_mine,
+    std::vector<Table<2, unsigned int>>        &copy_indices_level_mine,
     LinearAlgebra::distributed::Vector<Number> &ghosted_global_vector,
     MGLevelObject<LinearAlgebra::distributed::Vector<Number>>
       &ghosted_level_vector)
@@ -252,7 +249,7 @@ namespace
         auto translate_indices =
           [&](const std::vector<
                 std::pair<types::global_dof_index, types::global_dof_index>>
-                &                     global_copy_indices,
+                                     &global_copy_indices,
               Table<2, unsigned int> &local_copy_indices) {
             local_copy_indices.reinit(2, global_copy_indices.size());
             for (unsigned int i = 0; i < global_copy_indices.size(); ++i)
@@ -312,22 +309,27 @@ MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::
           break;
         }
   if (Utilities::MPI::max(have_refinement_edge_dofs, mpi_communicator) == 1)
-    fill_internal(mg_dof,
-                  mg_constrained_dofs,
-                  mpi_communicator,
-                  true,
-                  this->solution_copy_indices,
-                  this->solution_copy_indices_global_mine,
-                  this->solution_copy_indices_level_mine,
-                  solution_ghosted_global_vector,
-                  solution_ghosted_level_vector);
+    {
+      // note: variables not needed
+      std::vector<Table<2, unsigned int>> solution_copy_indices_global_mine;
+      MGLevelObject<LinearAlgebra::distributed::Vector<Number>>
+        solution_ghosted_level_vector;
+
+      fill_internal(mg_dof,
+                    mg_constrained_dofs,
+                    mpi_communicator,
+                    true,
+                    this->solution_copy_indices,
+                    solution_copy_indices_global_mine,
+                    this->solution_copy_indices_level_mine,
+                    solution_ghosted_global_vector,
+                    solution_ghosted_level_vector);
+    }
   else
     {
-      this->solution_copy_indices             = this->copy_indices;
-      this->solution_copy_indices_global_mine = this->copy_indices_global_mine;
-      this->solution_copy_indices_level_mine  = this->copy_indices_level_mine;
-      solution_ghosted_global_vector          = ghosted_global_vector;
-      solution_ghosted_level_vector           = ghosted_level_vector;
+      this->solution_copy_indices            = this->copy_indices;
+      this->solution_copy_indices_level_mine = this->copy_indices_level_mine;
+      solution_ghosted_global_vector         = ghosted_global_vector;
     }
 
   // Check if we can perform a cheaper "plain copy" (with or without
@@ -375,7 +377,6 @@ MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::
       ghosted_global_vector.reinit(0);
       ghosted_level_vector.resize(0, 0);
       solution_ghosted_global_vector.reinit(0);
-      solution_ghosted_level_vector.resize(0, 0);
     }
 }
 
@@ -389,7 +390,6 @@ MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::clear()
   copy_indices.clear();
   solution_copy_indices.clear();
   copy_indices_global_mine.clear();
-  solution_copy_indices_global_mine.clear();
   copy_indices_level_mine.clear();
   solution_copy_indices_level_mine.clear();
   component_to_block_map.resize(0);
@@ -397,7 +397,6 @@ MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::clear()
   ghosted_global_vector.reinit(0);
   solution_ghosted_global_vector.reinit(0);
   ghosted_level_vector.resize(0, 0);
-  solution_ghosted_level_vector.resize(0, 0);
   perform_plain_copy            = false;
   perform_renumbered_plain_copy = false;
   initialize_dof_vector         = nullptr;

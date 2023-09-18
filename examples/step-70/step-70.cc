@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Luca Heltai, Bruno Blais, Rene Gassmoeller, 2020
  */
@@ -144,6 +143,7 @@ namespace LA
 #endif
 
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -769,8 +769,11 @@ namespace Step70
 
   // In the constructor, we create the mpi_communicator as well as
   // the triangulations and dof_handler for both the fluid and the solid.
-  // Using the mpi_communicator, both the ConditionalOStream and TimerOutput
+  // Using the `mpi_communicator`, both the ConditionalOStream and TimerOutput
   // object are constructed.
+  //
+  // In the constructor, we also check whether the output directory
+  // specified in the input file exists and, if not, create it.
   template <int dim, int spacedim>
   StokesImmersedProblem<dim, spacedim>::StokesImmersedProblem(
     const StokesImmersedProblemParameters<dim, spacedim> &par)
@@ -792,7 +795,17 @@ namespace Step70
                    Triangulation<dim, spacedim>::smoothing_on_coarsening))
     , fluid_dh(fluid_tria)
     , solid_dh(solid_tria)
-  {}
+  {
+    if (std::filesystem::exists(par.output_directory))
+      {
+        Assert(std::filesystem::is_directory(par.output_directory),
+               ExcMessage("You specified <" + par.output_directory +
+                          "> as the output directory in the input file, "
+                          "but this is not in fact a directory."));
+      }
+    else
+      std::filesystem::create_directory(par.output_directory);
+  }
 
 
   // In order to generate the grid, we first try to use the functions in the
@@ -1191,12 +1204,9 @@ namespace Step70
   {
     TimerOutput::Scope t(computing_timer, "Initial setup");
 
-    fluid_fe =
-      std::make_unique<FESystem<spacedim>>(FE_Q<spacedim>(par.velocity_degree),
-                                           spacedim,
-                                           FE_Q<spacedim>(par.velocity_degree -
-                                                          1),
-                                           1);
+    fluid_fe = std::make_unique<FESystem<spacedim>>(
+      FE_Q<spacedim>(par.velocity_degree) ^ spacedim,
+      FE_Q<spacedim>(par.velocity_degree - 1));
 
 
     solid_fe = std::make_unique<FE_Nothing<dim, spacedim>>();
@@ -1749,7 +1759,7 @@ namespace Step70
     static std::map<std::string, std::vector<std::pair<double, std::string>>>
       times_and_names;
     if (times_and_names.find(fprefix) != times_and_names.end())
-      times_and_names[fprefix].push_back(std::make_pair(time, filename));
+      times_and_names[fprefix].emplace_back(time, filename);
     else
       times_and_names[fprefix] = {std::make_pair(time, filename)};
     std::ofstream ofile(par.output_directory + "/" + fprefix + ".pvd");

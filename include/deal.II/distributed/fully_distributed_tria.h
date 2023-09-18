@@ -120,9 +120,6 @@ namespace parallel
       using active_cell_iterator =
         typename dealii::Triangulation<dim, spacedim>::active_cell_iterator;
 
-      using CellStatus =
-        typename dealii::Triangulation<dim, spacedim>::CellStatus;
-
       /**
        * Constructor.
        *
@@ -155,7 +152,7 @@ namespace parallel
        *       triangulation.
        */
       virtual void
-      create_triangulation(const std::vector<Point<spacedim>> &      vertices,
+      create_triangulation(const std::vector<Point<spacedim>>       &vertices,
                            const std::vector<dealii::CellData<dim>> &cells,
                            const SubCellData &subcelldata) override;
 
@@ -194,7 +191,7 @@ namespace parallel
       set_partitioner(
         const std::function<void(dealii::Triangulation<dim, spacedim> &,
                                  const unsigned int)> &partitioner,
-        const TriangulationDescription::Settings &     settings);
+        const TriangulationDescription::Settings      &settings);
 
       /**
        * Register a partitioner, which is used within the method
@@ -203,7 +200,7 @@ namespace parallel
       void
       set_partitioner(
         const RepartitioningPolicyTools::Base<dim, spacedim> &partitioner,
-        const TriangulationDescription::Settings &            settings);
+        const TriangulationDescription::Settings             &settings);
 
       /**
        * Execute repartitioning and use the partitioner attached by the
@@ -285,7 +282,7 @@ namespace parallel
        * will change in the private member vector local_cell_relations.
        *
        * As no adaptive mesh refinement is supported at the moment for this
-       * class, all cells will be flagged with the CellStatus CELL_PERSIST.
+       * class, all cells will be flagged with CellStatus::cell_will_persist.
        * These relations will currently only be used for serialization.
        *
        * The stored vector will have a size equal to the number of locally owned

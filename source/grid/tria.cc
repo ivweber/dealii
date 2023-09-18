@@ -16,7 +16,11 @@
 
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/base/memory_consumption.h>
+#include <deal.II/base/mpi.templates.h>
+#include <deal.II/base/mpi_large_count.h>
+#include <deal.II/base/mpi_stub.h>
 #include <deal.II/base/thread_management.h>
+#include <deal.II/base/utilities.h>
 
 #include <deal.II/grid/connectivity.h>
 #include <deal.II/grid/grid_tools.h>
@@ -28,10 +32,16 @@
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/grid/tria_levels.h>
 
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <fstream>
 #include <functional>
+#include <limits>
 #include <list>
 #include <map>
 #include <memory>
@@ -116,6 +126,1029 @@ namespace internal
               MemoryConsumption::memory_consumption(n_active_hexes_level));
     }
   } // namespace TriangulationImplementation
+
+
+  template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  CellAttachedDataSerializer<dim, spacedim>::CellAttachedDataSerializer()
+    : variable_size_data_stored(false)
+  {}
+
+
+  template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void CellAttachedDataSerializer<dim, spacedim>::pack_data(
+    const std::vector<cell_relation_t> &cell_relations,
+    const std::vector<
+      typename internal::CellAttachedData<dim, spacedim>::pack_callback_t>
+      &pack_callbacks_fixed,
+    const std::vector<
+      typename internal::CellAttachedData<dim, spacedim>::pack_callback_t>
+                   &pack_callbacks_variable,
+    const MPI_Comm &mpi_communicator)
+  {
+    Assert(src_data_fixed.empty(),
+           ExcMessage("Previously packed data has not been released yet!"));
+    Assert(src_sizes_variable.empty(), ExcInternalError());
+
+    const unsigned int n_callbacks_fixed    = pack_callbacks_fixed.size();
+    const unsigned int n_callbacks_variable = pack_callbacks_variable.size();
+
+    // Store information that we packed variable size data in
+    // a member variable for later.
+    variable_size_data_stored = (n_callbacks_variable > 0);
+
+    // If variable transfer is scheduled, we will store the data size that
+    // each variable size callback function writes in this auxiliary
+    // container. The information will be stored by each cell in this vector
+    // temporarily.
+    std::vector<unsigned int> cell_sizes_variable_cumulative(
+      n_callbacks_variable);
+
+    // Prepare the buffer structure, in which each callback function will
+    // store its data for each active cell.
+    // The outmost shell in this container construct corresponds to the
+    // data packed per cell. The next layer resembles the data that
+    // each callback function packs on the corresponding cell. These
+    // buffers are chains of chars stored in an std::vector<char>.
+    // A visualisation of the data structure:
+    /* clang-format off */
+      // |             cell_1                | |             cell_2                | ...
+      // ||  callback_1  ||  callback_2  |...| ||  callback_1  ||  callback_2  |...| ...
+      // |||char|char|...|||char|char|...|...| |||char|char|...|||char|char|...|...| ...
+    /* clang-format on */
+    std::vector<std::vector<std::vector<char>>> packed_fixed_size_data(
+      cell_relations.size());
+    std::vector<std::vector<std::vector<char>>> packed_variable_size_data(
+      variable_size_data_stored ? cell_relations.size() : 0);
+
+    //
+    // --------- Pack data for fixed and variable size transfer ---------
+    //
+    // Iterate over all cells, call all callback functions on each cell,
+    // and store their data in the corresponding buffer scope.
+    {
+      auto cell_rel_it           = cell_relations.cbegin();
+      auto data_cell_fixed_it    = packed_fixed_size_data.begin();
+      auto data_cell_variable_it = packed_variable_size_data.begin();
+      for (; cell_rel_it != cell_relations.cend(); ++cell_rel_it)
+        {
+          const auto &dealii_cell = cell_rel_it->first;
+          const auto &cell_status = cell_rel_it->second;
+
+          // Assertions about the tree structure.
+          switch (cell_status)
+            {
+              case CellStatus::cell_will_persist:
+              case CellStatus::cell_will_be_refined:
+                // double check the condition that we will only ever attach
+                // data to active cells when we get here
+                Assert(dealii_cell->is_active(), ExcInternalError());
+                break;
+
+              case CellStatus::children_will_be_coarsened:
+                // double check the condition that we will only ever attach
+                // data to cells with children when we get here. however, we
+                // can only tolerate one level of coarsening at a time, so
+                // check that the children are all active
+                Assert(dealii_cell->is_active() == false, ExcInternalError());
+                for (unsigned int c = 0;
+                     c < GeometryInfo<dim>::max_children_per_cell;
+                     ++c)
+                  Assert(dealii_cell->child(c)->is_active(),
+                         ExcInternalError());
+                break;
+
+              case CellStatus::cell_invalid:
+                // do nothing on invalid cells
+                break;
+
+              default:
+                Assert(false, ExcInternalError());
+                break;
+            }
+
+          // Reserve memory corresponding to the number of callback
+          // functions that will be called.
+          // If variable size transfer is scheduled, we need to leave
+          // room for an array that holds information about how many
+          // bytes each of the variable size callback functions will
+          // write.
+          // On cells flagged with CellStatus::cell_invalid, only its CellStatus
+          // will be stored.
+          const unsigned int n_fixed_size_data_sets_on_cell =
+            1 + ((cell_status == CellStatus::cell_invalid) ?
+                   0 :
+                   ((variable_size_data_stored ? 1 : 0) + n_callbacks_fixed));
+          data_cell_fixed_it->resize(n_fixed_size_data_sets_on_cell);
+
+          // We continue with packing all data on this specific cell.
+          auto data_fixed_it = data_cell_fixed_it->begin();
+
+          // First, we pack the CellStatus information.
+          // to get consistent data sizes on each cell for the fixed size
+          // transfer, we won't allow compression
+          *data_fixed_it =
+            Utilities::pack(cell_status, /*allow_compression=*/false);
+          ++data_fixed_it;
+
+          // Proceed with all registered callback functions.
+          // Skip cells with the CellStatus::cell_invalid flag.
+          if (cell_status != CellStatus::cell_invalid)
+            {
+              // Pack fixed size data.
+              for (auto callback_it = pack_callbacks_fixed.cbegin();
+                   callback_it != pack_callbacks_fixed.cend();
+                   ++callback_it, ++data_fixed_it)
+                {
+                  *data_fixed_it = (*callback_it)(dealii_cell, cell_status);
+                }
+
+              // Pack variable size data.
+              // If we store variable size data, we need to transfer
+              // the sizes of each corresponding callback function
+              // via fixed size transfer as well.
+              if (variable_size_data_stored)
+                {
+                  const unsigned int n_variable_size_data_sets_on_cell =
+                    ((cell_status == CellStatus::cell_invalid) ?
+                       0 :
+                       n_callbacks_variable);
+                  data_cell_variable_it->resize(
+                    n_variable_size_data_sets_on_cell);
+
+                  auto callback_it      = pack_callbacks_variable.cbegin();
+                  auto data_variable_it = data_cell_variable_it->begin();
+                  auto sizes_variable_it =
+                    cell_sizes_variable_cumulative.begin();
+                  for (; callback_it != pack_callbacks_variable.cend();
+                       ++callback_it, ++data_variable_it, ++sizes_variable_it)
+                    {
+                      *data_variable_it =
+                        (*callback_it)(dealii_cell, cell_status);
+
+                      // Store data sizes for each callback function first.
+                      // Make it cumulative below.
+                      *sizes_variable_it = data_variable_it->size();
+                    }
+
+                  // Turn size vector into its cumulative representation.
+                  std::partial_sum(cell_sizes_variable_cumulative.begin(),
+                                   cell_sizes_variable_cumulative.end(),
+                                   cell_sizes_variable_cumulative.begin());
+
+                  // Serialize cumulative variable size vector
+                  // value-by-value. This way we can circumvent the overhead
+                  // of storing the container object as a whole, since we
+                  // know its size by the number of registered callback
+                  // functions.
+                  data_fixed_it->resize(n_callbacks_variable *
+                                        sizeof(unsigned int));
+                  for (unsigned int i = 0; i < n_callbacks_variable; ++i)
+                    std::memcpy(&(data_fixed_it->at(i * sizeof(unsigned int))),
+                                &(cell_sizes_variable_cumulative.at(i)),
+                                sizeof(unsigned int));
+
+                  ++data_fixed_it;
+                }
+
+              // Double check that we packed everything we wanted
+              // in the fixed size buffers.
+              Assert(data_fixed_it == data_cell_fixed_it->end(),
+                     ExcInternalError());
+            }
+
+          ++data_cell_fixed_it;
+
+          // Increment the variable size data iterator
+          // only if we actually pack this kind of data
+          // to avoid getting out of bounds.
+          if (variable_size_data_stored)
+            ++data_cell_variable_it;
+        } // loop over cell_relations
+    }
+
+    //
+    // ----------- Gather data sizes for fixed size transfer ------------
+    //
+    // Generate a vector which stores the sizes of each callback function,
+    // including the packed CellStatus transfer.
+    // Find the very first cell that we wrote to with all callback
+    // functions (i.e. a cell that was not flagged with
+    // CellStatus::cell_invalid) and store the sizes of each buffer.
+    //
+    // To deal with the case that at least one of the processors does not
+    // own any cell at all, we will exchange the information about the data
+    // sizes among them later. The code in between is still well-defined,
+    // since the following loops will be skipped.
+    std::vector<unsigned int> local_sizes_fixed(
+      1 + n_callbacks_fixed + (variable_size_data_stored ? 1 : 0));
+    for (const auto &data_cell : packed_fixed_size_data)
+      {
+        if (data_cell.size() == local_sizes_fixed.size())
+          {
+            auto sizes_fixed_it = local_sizes_fixed.begin();
+            auto data_fixed_it  = data_cell.cbegin();
+            for (; data_fixed_it != data_cell.cend();
+                 ++data_fixed_it, ++sizes_fixed_it)
+              {
+                *sizes_fixed_it = data_fixed_it->size();
+              }
+
+            break;
+          }
+      }
+
+    // Check if all cells have valid sizes.
+    for (auto data_cell_fixed_it = packed_fixed_size_data.cbegin();
+         data_cell_fixed_it != packed_fixed_size_data.cend();
+         ++data_cell_fixed_it)
+      {
+        Assert((data_cell_fixed_it->size() == 1) ||
+                 (data_cell_fixed_it->size() == local_sizes_fixed.size()),
+               ExcInternalError());
+      }
+
+    // Share information about the packed data sizes
+    // of all callback functions across all processors, in case one
+    // of them does not own any cells at all.
+    std::vector<unsigned int> global_sizes_fixed(local_sizes_fixed.size());
+    Utilities::MPI::max(local_sizes_fixed,
+                        mpi_communicator,
+                        global_sizes_fixed);
+
+    // Construct cumulative sizes, since this is the only information
+    // we need from now on.
+    sizes_fixed_cumulative.resize(global_sizes_fixed.size());
+    std::partial_sum(global_sizes_fixed.begin(),
+                     global_sizes_fixed.end(),
+                     sizes_fixed_cumulative.begin());
+
+    //
+    // ---------- Gather data sizes for variable size transfer ----------
+    //
+    if (variable_size_data_stored)
+      {
+        src_sizes_variable.reserve(packed_variable_size_data.size());
+        for (const auto &data_cell : packed_variable_size_data)
+          {
+            int variable_data_size_on_cell = 0;
+
+            for (const auto &data : data_cell)
+              variable_data_size_on_cell += data.size();
+
+            src_sizes_variable.push_back(variable_data_size_on_cell);
+          }
+      }
+
+    //
+    // ------------------------ Build buffers ---------------------------
+    //
+    const unsigned int expected_size_fixed =
+      cell_relations.size() * sizes_fixed_cumulative.back();
+    const unsigned int expected_size_variable =
+      std::accumulate(src_sizes_variable.begin(),
+                      src_sizes_variable.end(),
+                      std::vector<int>::size_type(0));
+
+    // Move every piece of packed fixed size data into the consecutive
+    // buffer.
+    src_data_fixed.reserve(expected_size_fixed);
+    for (const auto &data_cell_fixed : packed_fixed_size_data)
+      {
+        // Move every fraction of packed data into the buffer
+        // reserved for this particular cell.
+        for (const auto &data_fixed : data_cell_fixed)
+          std::move(data_fixed.begin(),
+                    data_fixed.end(),
+                    std::back_inserter(src_data_fixed));
+
+        // If we only packed the CellStatus information
+        // (i.e. encountered a cell flagged CellStatus::cell_invalid),
+        // fill the remaining space with invalid entries.
+        // We can skip this if there is nothing else to pack.
+        if ((data_cell_fixed.size() == 1) &&
+            (sizes_fixed_cumulative.size() > 1))
+          {
+            const std::size_t bytes_skipped =
+              sizes_fixed_cumulative.back() - sizes_fixed_cumulative.front();
+
+            src_data_fixed.insert(src_data_fixed.end(),
+                                  bytes_skipped,
+                                  static_cast<char>(-1)); // invalid_char
+          }
+      }
+
+    // Move every piece of packed variable size data into the consecutive
+    // buffer.
+    if (variable_size_data_stored)
+      {
+        src_data_variable.reserve(expected_size_variable);
+        for (const auto &data_cell : packed_variable_size_data)
+          {
+            // Move every fraction of packed data into the buffer
+            // reserved for this particular cell.
+            for (const auto &data : data_cell)
+              std::move(data.begin(),
+                        data.end(),
+                        std::back_inserter(src_data_variable));
+          }
+      }
+
+    // Double check that we packed everything correctly.
+    Assert(src_data_fixed.size() == expected_size_fixed, ExcInternalError());
+    Assert(src_data_variable.size() == expected_size_variable,
+           ExcInternalError());
+  }
+
+
+
+  template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void CellAttachedDataSerializer<dim, spacedim>::unpack_cell_status(
+    std::vector<
+      typename CellAttachedDataSerializer<dim, spacedim>::cell_relation_t>
+      &cell_relations) const
+  {
+    Assert(sizes_fixed_cumulative.size() > 0,
+           ExcMessage("No data has been packed!"));
+    if (cell_relations.size() > 0)
+      {
+        Assert(dest_data_fixed.size() > 0,
+               ExcMessage("No data has been received!"));
+      }
+
+    // Size of CellStatus object that will be unpacked on each cell.
+    const unsigned int size = sizes_fixed_cumulative.front();
+
+    // Iterate over all cells and overwrite the CellStatus
+    // information from the transferred data.
+    // Proceed buffer iterator position to next cell after
+    // each iteration.
+    auto cell_rel_it   = cell_relations.begin();
+    auto dest_fixed_it = dest_data_fixed.cbegin();
+    for (; cell_rel_it != cell_relations.end();
+         ++cell_rel_it, dest_fixed_it += sizes_fixed_cumulative.back())
+      {
+        cell_rel_it->second = // cell_status
+          Utilities::unpack<CellStatus>(dest_fixed_it,
+                                        dest_fixed_it + size,
+                                        /*allow_compression=*/false);
+      }
+  }
+
+
+
+  template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void CellAttachedDataSerializer<dim, spacedim>::unpack_data(
+    const std::vector<
+      typename CellAttachedDataSerializer<dim, spacedim>::cell_relation_t>
+                      &cell_relations,
+    const unsigned int handle,
+    const std::function<
+      void(const cell_iterator &,
+           const CellStatus &,
+           const boost::iterator_range<std::vector<char>::const_iterator> &)>
+      &unpack_callback) const
+  {
+    // We decode the handle returned by register_data_attach() back into
+    // a format we can use. All even handles belong to those callback
+    // functions which write/read variable size data, all odd handles
+    // interact with fixed size buffers.
+    const bool         callback_variable_transfer = (handle % 2 == 0);
+    const unsigned int callback_index             = handle / 2;
+
+    // Cells will always receive fixed size data (i.e., CellStatus
+    // information), but not necessarily variable size data (e.g., with a
+    // ParticleHandler a cell might not contain any particle at all).
+    // Thus it is sufficient to check if fixed size data has been received.
+    Assert(sizes_fixed_cumulative.size() > 0,
+           ExcMessage("No data has been packed!"));
+    if (cell_relations.size() > 0)
+      {
+        Assert(dest_data_fixed.size() > 0,
+               ExcMessage("No data has been received!"));
+      }
+
+    std::vector<char>::const_iterator dest_data_it;
+    std::vector<char>::const_iterator dest_sizes_cell_it;
+
+    // Depending on whether our callback function unpacks fixed or
+    // variable size data, we have to pursue different approaches
+    // to localize the correct fraction of the buffer from which
+    // we are allowed to read.
+    unsigned int offset         = numbers::invalid_unsigned_int;
+    unsigned int size           = numbers::invalid_unsigned_int;
+    unsigned int data_increment = numbers::invalid_unsigned_int;
+
+    if (callback_variable_transfer)
+      {
+        // For the variable size data, we need to extract the
+        // data size from the fixed size buffer on each cell.
+        //
+        // We packed this information last, so the last packed
+        // object in the fixed size buffer corresponds to the
+        // variable data sizes.
+        //
+        // The last entry of sizes_fixed_cumulative corresponds
+        // to the size of all fixed size data packed on the cell.
+        // To get the offset for the last packed object, we need
+        // to get the next-to-last entry.
+        const unsigned int offset_variable_data_sizes =
+          sizes_fixed_cumulative[sizes_fixed_cumulative.size() - 2];
+
+        // This iterator points to the data size that the
+        // callback_function packed for each specific cell.
+        // Adjust buffer iterator to the offset of the callback
+        // function so that we only have to advance its position
+        // to the next cell after each iteration.
+        dest_sizes_cell_it = dest_data_fixed.cbegin() +
+                             offset_variable_data_sizes +
+                             callback_index * sizeof(unsigned int);
+
+        // Let the data iterator point to the correct buffer.
+        dest_data_it = dest_data_variable.cbegin();
+      }
+    else
+      {
+        // For the fixed size data, we can get the information about
+        // the buffer location on each cell directly from the
+        // sizes_fixed_cumulative vector.
+        offset         = sizes_fixed_cumulative[callback_index];
+        size           = sizes_fixed_cumulative[callback_index + 1] - offset;
+        data_increment = sizes_fixed_cumulative.back();
+
+        // Let the data iterator point to the correct buffer.
+        // Adjust buffer iterator to the offset of the callback
+        // function so that we only have to advance its position
+        // to the next cell after each iteration.
+        if (cell_relations.begin() != cell_relations.end())
+          dest_data_it = dest_data_fixed.cbegin() + offset;
+      }
+
+    // Iterate over all cells and unpack the transferred data.
+    auto cell_rel_it   = cell_relations.begin();
+    auto dest_sizes_it = dest_sizes_variable.cbegin();
+    for (; cell_rel_it != cell_relations.end(); ++cell_rel_it)
+      {
+        const auto &dealii_cell = cell_rel_it->first;
+        const auto &cell_status = cell_rel_it->second;
+
+        if (callback_variable_transfer)
+          {
+            // Update the increment according to the whole data size
+            // of the current cell.
+            data_increment = *dest_sizes_it;
+
+            if (cell_status != CellStatus::cell_invalid)
+              {
+                // Extract the corresponding values for offset and size from
+                // the cumulative sizes array stored in the fixed size
+                // buffer.
+                if (callback_index == 0)
+                  offset = 0;
+                else
+                  std::memcpy(&offset,
+                              &(*(dest_sizes_cell_it - sizeof(unsigned int))),
+                              sizeof(unsigned int));
+
+                std::memcpy(&size,
+                            &(*dest_sizes_cell_it),
+                            sizeof(unsigned int));
+
+                size -= offset;
+
+                // Move the data iterator to the corresponding position
+                // of the callback function and adjust the increment
+                // accordingly.
+                dest_data_it += offset;
+                data_increment -= offset;
+              }
+
+            // Advance data size iterators to the next cell, avoid iterating
+            // past the end of dest_sizes_cell_it
+            if (cell_rel_it != cell_relations.end() - 1)
+              dest_sizes_cell_it += sizes_fixed_cumulative.back();
+            ++dest_sizes_it;
+          }
+
+        switch (cell_status)
+          {
+            case CellStatus::cell_will_persist:
+            case CellStatus::children_will_be_coarsened:
+              unpack_callback(dealii_cell,
+                              cell_status,
+                              boost::make_iterator_range(dest_data_it,
+                                                         dest_data_it + size));
+              break;
+
+            case CellStatus::cell_will_be_refined:
+              unpack_callback(dealii_cell->parent(),
+                              cell_status,
+                              boost::make_iterator_range(dest_data_it,
+                                                         dest_data_it + size));
+              break;
+
+            case CellStatus::cell_invalid:
+              // Skip this cell.
+              break;
+
+            default:
+              Assert(false, ExcInternalError());
+              break;
+          }
+
+        if (cell_rel_it != cell_relations.end() - 1)
+          dest_data_it += data_increment;
+      }
+  }
+
+
+
+  template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void CellAttachedDataSerializer<dim, spacedim>::save(
+    const unsigned int global_first_cell,
+    const unsigned int global_num_cells,
+    const std::string &filename,
+    const MPI_Comm    &mpi_communicator) const
+  {
+    Assert(sizes_fixed_cumulative.size() > 0,
+           ExcMessage("No data has been packed!"));
+
+#ifdef DEAL_II_WITH_MPI
+    // Large fractions of this function have been copied from
+    // DataOutInterface::write_vtu_in_parallel.
+    // TODO: Write general MPIIO interface.
+
+    const int myrank  = Utilities::MPI::this_mpi_process(mpi_communicator);
+    const int mpisize = Utilities::MPI::n_mpi_processes(mpi_communicator);
+
+    if (mpisize > 1)
+      {
+        const unsigned int bytes_per_cell = sizes_fixed_cumulative.back();
+
+        //
+        // ---------- Fixed size data ----------
+        //
+        {
+          const std::string fname_fixed = std::string(filename) + "_fixed.data";
+
+          MPI_Info info;
+          int      ierr = MPI_Info_create(&info);
+          AssertThrowMPI(ierr);
+
+          MPI_File fh;
+          ierr = MPI_File_open(mpi_communicator,
+                               fname_fixed.c_str(),
+                               MPI_MODE_CREATE | MPI_MODE_WRONLY,
+                               info,
+                               &fh);
+          AssertThrowMPI(ierr);
+
+          ierr = MPI_File_set_size(fh, 0); // delete the file contents
+          AssertThrowMPI(ierr);
+          // this barrier is necessary, because otherwise others might already
+          // write while one core is still setting the size to zero.
+          ierr = MPI_Barrier(mpi_communicator);
+          AssertThrowMPI(ierr);
+          ierr = MPI_Info_free(&info);
+          AssertThrowMPI(ierr);
+          // ------------------
+
+          // Write cumulative sizes to file.
+          // Since each processor owns the same information about the data
+          // sizes, it is sufficient to let only the first processor perform
+          // this task.
+          if (myrank == 0)
+            {
+              ierr = Utilities::MPI::LargeCount::File_write_at_c(
+                fh,
+                0,
+                sizes_fixed_cumulative.data(),
+                sizes_fixed_cumulative.size(),
+                MPI_UNSIGNED,
+                MPI_STATUS_IGNORE);
+              AssertThrowMPI(ierr);
+            }
+
+          // Write packed data to file simultaneously.
+          const MPI_Offset size_header =
+            sizes_fixed_cumulative.size() * sizeof(unsigned int);
+
+          // Make sure we do the following computation in 64bit integers to be
+          // able to handle 4GB+ files:
+          const MPI_Offset my_global_file_position =
+            size_header +
+            static_cast<MPI_Offset>(global_first_cell) * bytes_per_cell;
+
+          ierr =
+            Utilities::MPI::LargeCount::File_write_at_c(fh,
+                                                        my_global_file_position,
+                                                        src_data_fixed.data(),
+                                                        src_data_fixed.size(),
+                                                        MPI_BYTE,
+                                                        MPI_STATUS_IGNORE);
+          AssertThrowMPI(ierr);
+
+          ierr = MPI_File_close(&fh);
+          AssertThrowMPI(ierr);
+        }
+
+
+
+        //
+        // ---------- Variable size data ----------
+        //
+        if (variable_size_data_stored)
+          {
+            const std::string fname_variable =
+              std::string(filename) + "_variable.data";
+
+            MPI_Info info;
+            int      ierr = MPI_Info_create(&info);
+            AssertThrowMPI(ierr);
+
+            MPI_File fh;
+            ierr = MPI_File_open(mpi_communicator,
+                                 fname_variable.c_str(),
+                                 MPI_MODE_CREATE | MPI_MODE_WRONLY,
+                                 info,
+                                 &fh);
+            AssertThrowMPI(ierr);
+
+            ierr = MPI_File_set_size(fh, 0); // delete the file contents
+            AssertThrowMPI(ierr);
+            // this barrier is necessary, because otherwise others might already
+            // write while one core is still setting the size to zero.
+            ierr = MPI_Barrier(mpi_communicator);
+            AssertThrowMPI(ierr);
+            ierr = MPI_Info_free(&info);
+            AssertThrowMPI(ierr);
+
+            // Write sizes of each cell into file simultaneously.
+            {
+              const MPI_Offset my_global_file_position =
+                static_cast<MPI_Offset>(global_first_cell) *
+                sizeof(unsigned int);
+
+              // It is very unlikely that a single process has more than
+              // 2 billion cells, but we might as well check.
+              AssertThrow(src_sizes_variable.size() <
+                            static_cast<std::size_t>(
+                              std::numeric_limits<int>::max()),
+                          ExcNotImplemented());
+
+              ierr = Utilities::MPI::LargeCount::File_write_at_c(
+                fh,
+                my_global_file_position,
+                src_sizes_variable.data(),
+                src_sizes_variable.size(),
+                MPI_INT,
+                MPI_STATUS_IGNORE);
+              AssertThrowMPI(ierr);
+            }
+
+            // Gather size of data in bytes we want to store from this
+            // processor and compute the prefix sum. We do this in 64 bit
+            // to avoid overflow for files larger than 4GB:
+            const std::uint64_t size_on_proc = src_data_variable.size();
+            std::uint64_t       prefix_sum   = 0;
+            ierr                             = MPI_Exscan(&size_on_proc,
+                              &prefix_sum,
+                              1,
+                              MPI_UINT64_T,
+                              MPI_SUM,
+                              mpi_communicator);
+            AssertThrowMPI(ierr);
+
+            const MPI_Offset my_global_file_position =
+              static_cast<MPI_Offset>(global_num_cells) * sizeof(unsigned int) +
+              prefix_sum;
+
+            // Write data consecutively into file.
+            ierr = Utilities::MPI::LargeCount::File_write_at_c(
+              fh,
+              my_global_file_position,
+              src_data_variable.data(),
+              src_data_variable.size(),
+              MPI_BYTE,
+              MPI_STATUS_IGNORE);
+            AssertThrowMPI(ierr);
+
+
+            ierr = MPI_File_close(&fh);
+            AssertThrowMPI(ierr);
+          }
+      } // if (mpisize > 1)
+    else
+#endif
+      {
+        (void)global_first_cell;
+        (void)global_num_cells;
+        (void)mpi_communicator;
+
+        //
+        // ---------- Fixed size data ----------
+        //
+        {
+          const std::string fname_fixed = std::string(filename) + "_fixed.data";
+
+          std::ofstream file(fname_fixed, std::ios::binary | std::ios::out);
+
+          // Write header data.
+          file.write(reinterpret_cast<const char *>(
+                       sizes_fixed_cumulative.data()),
+                     sizes_fixed_cumulative.size() * sizeof(unsigned int));
+
+          // Write packed data.
+          file.write(reinterpret_cast<const char *>(src_data_fixed.data()),
+                     src_data_fixed.size() * sizeof(char));
+
+          file.close();
+        }
+
+        //
+        // ---------- Variable size data ----------
+        //
+        if (variable_size_data_stored)
+          {
+            const std::string fname_variable =
+              std::string(filename) + "_variable.data";
+
+            std::ofstream file(fname_variable,
+                               std::ios::binary | std::ios::out);
+
+            // Write header data.
+            file.write(reinterpret_cast<const char *>(
+                         src_sizes_variable.data()),
+                       src_sizes_variable.size() * sizeof(int));
+
+            // Write packed data.
+            file.write(reinterpret_cast<const char *>(src_data_variable.data()),
+                       src_data_variable.size() * sizeof(char));
+
+            file.close();
+          }
+      }
+  }
+
+
+  template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void CellAttachedDataSerializer<dim, spacedim>::load(
+    const unsigned int global_first_cell,
+    const unsigned int global_num_cells,
+    const unsigned int local_num_cells,
+    const std::string &filename,
+    const unsigned int n_attached_deserialize_fixed,
+    const unsigned int n_attached_deserialize_variable,
+    const MPI_Comm    &mpi_communicator)
+  {
+    Assert(dest_data_fixed.empty(),
+           ExcMessage("Previously loaded data has not been released yet!"));
+
+    variable_size_data_stored = (n_attached_deserialize_variable > 0);
+
+#ifdef DEAL_II_WITH_MPI
+    // Large fractions of this function have been copied from
+    // DataOutInterface::write_vtu_in_parallel.
+    // TODO: Write general MPIIO interface.
+
+    const int mpisize = Utilities::MPI::n_mpi_processes(mpi_communicator);
+
+    if (mpisize > 1)
+      {
+        //
+        // ---------- Fixed size data ----------
+        //
+        {
+          const std::string fname_fixed = std::string(filename) + "_fixed.data";
+
+          MPI_Info info;
+          int      ierr = MPI_Info_create(&info);
+          AssertThrowMPI(ierr);
+
+          MPI_File fh;
+          ierr = MPI_File_open(
+            mpi_communicator, fname_fixed.c_str(), MPI_MODE_RDONLY, info, &fh);
+          AssertThrowMPI(ierr);
+
+          ierr = MPI_Info_free(&info);
+          AssertThrowMPI(ierr);
+
+          // Read cumulative sizes from file.
+          // Since all processors need the same information about the data
+          // sizes, let each of them retrieve it by reading from the same
+          // location in the file.
+          sizes_fixed_cumulative.resize(1 + n_attached_deserialize_fixed +
+                                        (variable_size_data_stored ? 1 : 0));
+          ierr = Utilities::MPI::LargeCount::File_read_at_c(
+            fh,
+            0,
+            sizes_fixed_cumulative.data(),
+            sizes_fixed_cumulative.size(),
+            MPI_UNSIGNED,
+            MPI_STATUS_IGNORE);
+          AssertThrowMPI(ierr);
+
+          // Allocate sufficient memory.
+          const unsigned int bytes_per_cell = sizes_fixed_cumulative.back();
+          dest_data_fixed.resize(static_cast<size_t>(local_num_cells) *
+                                 bytes_per_cell);
+
+          // Read packed data from file simultaneously.
+          const MPI_Offset size_header =
+            sizes_fixed_cumulative.size() * sizeof(unsigned int);
+
+          // Make sure we do the following computation in 64bit integers to be
+          // able to handle 4GB+ files:
+          const MPI_Offset my_global_file_position =
+            size_header +
+            static_cast<MPI_Offset>(global_first_cell) * bytes_per_cell;
+
+          ierr =
+            Utilities::MPI::LargeCount::File_read_at_c(fh,
+                                                       my_global_file_position,
+                                                       dest_data_fixed.data(),
+                                                       dest_data_fixed.size(),
+                                                       MPI_BYTE,
+                                                       MPI_STATUS_IGNORE);
+          AssertThrowMPI(ierr);
+
+
+          ierr = MPI_File_close(&fh);
+          AssertThrowMPI(ierr);
+        }
+
+        //
+        // ---------- Variable size data ----------
+        //
+        if (variable_size_data_stored)
+          {
+            const std::string fname_variable =
+              std::string(filename) + "_variable.data";
+
+            MPI_Info info;
+            int      ierr = MPI_Info_create(&info);
+            AssertThrowMPI(ierr);
+
+            MPI_File fh;
+            ierr = MPI_File_open(mpi_communicator,
+                                 fname_variable.c_str(),
+                                 MPI_MODE_RDONLY,
+                                 info,
+                                 &fh);
+            AssertThrowMPI(ierr);
+
+            ierr = MPI_Info_free(&info);
+            AssertThrowMPI(ierr);
+
+            // Read sizes of all locally owned cells.
+            dest_sizes_variable.resize(local_num_cells);
+
+            const MPI_Offset my_global_file_position_sizes =
+              static_cast<MPI_Offset>(global_first_cell) * sizeof(unsigned int);
+
+            ierr = Utilities::MPI::LargeCount::File_read_at_c(
+              fh,
+              my_global_file_position_sizes,
+              dest_sizes_variable.data(),
+              dest_sizes_variable.size(),
+              MPI_INT,
+              MPI_STATUS_IGNORE);
+            AssertThrowMPI(ierr);
+
+
+            // Compute my data size in bytes and compute prefix sum. We do this
+            // in 64 bit to avoid overflow for files larger than 4 GB:
+            const std::uint64_t size_on_proc =
+              std::accumulate(dest_sizes_variable.begin(),
+                              dest_sizes_variable.end(),
+                              0ULL);
+
+            std::uint64_t prefix_sum = 0;
+            ierr                     = MPI_Exscan(&size_on_proc,
+                              &prefix_sum,
+                              1,
+                              MPI_UINT64_T,
+                              MPI_SUM,
+                              mpi_communicator);
+            AssertThrowMPI(ierr);
+
+            const MPI_Offset my_global_file_position =
+              static_cast<MPI_Offset>(global_num_cells) * sizeof(unsigned int) +
+              prefix_sum;
+
+            dest_data_variable.resize(size_on_proc);
+
+            ierr = Utilities::MPI::LargeCount::File_read_at_c(
+              fh,
+              my_global_file_position,
+              dest_data_variable.data(),
+              dest_data_variable.size(),
+              MPI_BYTE,
+              MPI_STATUS_IGNORE);
+            AssertThrowMPI(ierr);
+
+            ierr = MPI_File_close(&fh);
+            AssertThrowMPI(ierr);
+          }
+      }
+    else // if (mpisize > 1)
+#endif
+      {
+        (void)global_first_cell;
+        (void)global_num_cells;
+        (void)mpi_communicator;
+
+        //
+        // ---------- Fixed size data ----------
+        //
+        {
+          const std::string fname_fixed = std::string(filename) + "_fixed.data";
+
+          std::ifstream file(fname_fixed, std::ios::binary | std::ios::in);
+          sizes_fixed_cumulative.resize(1 + n_attached_deserialize_fixed +
+                                        (variable_size_data_stored ? 1 : 0));
+
+          // Read header data.
+          file.read(reinterpret_cast<char *>(sizes_fixed_cumulative.data()),
+                    sizes_fixed_cumulative.size() * sizeof(unsigned int));
+
+          const unsigned int bytes_per_cell = sizes_fixed_cumulative.back();
+          dest_data_fixed.resize(static_cast<size_t>(local_num_cells) *
+                                 bytes_per_cell);
+
+          // Read packed data.
+          file.read(reinterpret_cast<char *>(dest_data_fixed.data()),
+                    dest_data_fixed.size() * sizeof(char));
+
+          file.close();
+        }
+
+        //
+        // ---------- Variable size data ----------
+        //
+        if (variable_size_data_stored)
+          {
+            const std::string fname_variable =
+              std::string(filename) + "_variable.data";
+
+            std::ifstream file(fname_variable, std::ios::binary | std::ios::in);
+
+            // Read header data.
+            dest_sizes_variable.resize(local_num_cells);
+            file.read(reinterpret_cast<char *>(dest_sizes_variable.data()),
+                      dest_sizes_variable.size() * sizeof(int));
+
+            // Read packed data.
+            const std::uint64_t size =
+              std::accumulate(dest_sizes_variable.begin(),
+                              dest_sizes_variable.end(),
+                              0ULL);
+            dest_data_variable.resize(size);
+            file.read(reinterpret_cast<char *>(dest_data_variable.data()),
+                      dest_data_variable.size() * sizeof(char));
+
+            file.close();
+          }
+      }
+  }
+
+
+  template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  void CellAttachedDataSerializer<dim, spacedim>::clear()
+  {
+    variable_size_data_stored = false;
+
+    // free information about data sizes
+    sizes_fixed_cumulative.clear();
+    sizes_fixed_cumulative.shrink_to_fit();
+
+    // free fixed size transfer data
+    src_data_fixed.clear();
+    src_data_fixed.shrink_to_fit();
+
+    dest_data_fixed.clear();
+    dest_data_fixed.shrink_to_fit();
+
+    // free variable size transfer data
+    src_sizes_variable.clear();
+    src_sizes_variable.shrink_to_fit();
+
+    src_data_variable.clear();
+    src_data_variable.shrink_to_fit();
+
+    dest_sizes_variable.clear();
+    dest_sizes_variable.shrink_to_fit();
+
+    dest_data_variable.clear();
+    dest_data_variable.shrink_to_fit();
+  }
+
 } // namespace internal
 
 // anonymous namespace for internal helper functions
@@ -415,59 +1448,6 @@ namespace
 
 
   /**
-   * A set of three functions that
-   * reorder the data given to
-   * create_triangulation_compatibility
-   * from the "classic" to the
-   * "current" format of vertex
-   * numbering of cells and
-   * faces. These functions do the
-   * reordering of their arguments
-   * in-place.
-   */
-  void
-  reorder_compatibility(const std::vector<CellData<1>> &, const SubCellData &)
-  {
-    // nothing to do here: the format
-    // hasn't changed for 1d
-  }
-
-
-  void
-  reorder_compatibility(std::vector<CellData<2>> &cells, const SubCellData &)
-  {
-    for (auto &cell : cells)
-      if (cell.vertices.size() == GeometryInfo<2>::vertices_per_cell)
-        std::swap(cell.vertices[2], cell.vertices[3]);
-  }
-
-
-  void
-  reorder_compatibility(std::vector<CellData<3>> &cells,
-                        SubCellData &             subcelldata)
-  {
-    unsigned int tmp[GeometryInfo<3>::vertices_per_cell];
-    static constexpr std::array<unsigned int,
-                                GeometryInfo<3>::vertices_per_cell>
-      local_vertex_numbering{{0, 1, 5, 4, 2, 3, 7, 6}};
-    for (auto &cell : cells)
-      if (cell.vertices.size() == GeometryInfo<3>::vertices_per_cell)
-        {
-          for (const unsigned int i : GeometryInfo<3>::vertex_indices())
-            tmp[i] = cell.vertices[i];
-          for (const unsigned int i : GeometryInfo<3>::vertex_indices())
-            cell.vertices[local_vertex_numbering[i]] = tmp[i];
-        }
-
-    // now points in boundary quads
-    for (auto &boundary_quad : subcelldata.boundary_quads)
-      if (boundary_quad.vertices.size() == GeometryInfo<2>::vertices_per_cell)
-        std::swap(boundary_quad.vertices[2], boundary_quad.vertices[3]);
-  }
-
-
-
-  /**
    * Return the index of the vertex
    * in the middle of this object,
    * if it exists. In order to
@@ -663,7 +1643,7 @@ namespace
     const typename Triangulation<dim, spacedim>::cell_iterator &cell_2,
     unsigned int                                                n_face_1,
     unsigned int                                                n_face_2,
-    const std::bitset<3> &                                      orientation,
+    const std::bitset<3>                                       &orientation,
     typename std::map<
       std::pair<typename Triangulation<dim, spacedim>::cell_iterator,
                 unsigned int>,
@@ -1066,7 +2046,7 @@ namespace internal
      * @note Used only for dim=3.
      */
     void
-    reserve_space(TriaFaces &        tria_faces,
+    reserve_space(TriaFaces         &tria_faces,
                   const unsigned int new_quads_in_pairs,
                   const unsigned int new_quads_single)
     {
@@ -1147,7 +2127,7 @@ namespace internal
      */
 
     void
-    reserve_space(TriaLevel &        tria_level,
+    reserve_space(TriaLevel         &tria_level,
                   const unsigned int total_cells,
                   const unsigned int dimension,
                   const unsigned int space_dimension)
@@ -1258,7 +2238,7 @@ namespace internal
      * should be called from the functions of the higher TriaLevel classes.
      */
     void
-    monitor_memory(const TriaLevel &  tria_level,
+    monitor_memory(const TriaLevel   &tria_level,
                    const unsigned int true_dimension)
     {
       (void)tria_level;
@@ -1288,7 +2268,7 @@ namespace internal
      * lines in the interior of refined cells can be stored as single lines.
      */
     void
-    reserve_space(TriaObjects &      tria_objects,
+    reserve_space(TriaObjects       &tria_objects,
                   const unsigned int new_objects_in_pairs,
                   const unsigned int new_objects_single = 0)
     {
@@ -1542,9 +2522,9 @@ namespace internal
        */
       virtual void
       delete_children(
-        Triangulation<dim, spacedim> &                        triangulation,
+        Triangulation<dim, spacedim>                         &triangulation,
         typename Triangulation<dim, spacedim>::cell_iterator &cell,
-        std::vector<unsigned int> &                           line_cell_count,
+        std::vector<unsigned int>                            &line_cell_count,
         std::vector<unsigned int> &quad_cell_count) = 0;
 
       /**
@@ -1604,9 +2584,9 @@ namespace internal
 
       void
       delete_children(
-        Triangulation<dim, spacedim> &                        tria,
+        Triangulation<dim, spacedim>                         &tria,
         typename Triangulation<dim, spacedim>::cell_iterator &cell,
-        std::vector<unsigned int> &                           line_cell_count,
+        std::vector<unsigned int>                            &line_cell_count,
         std::vector<unsigned int> &quad_cell_count) override
       {
         T::delete_children(tria, cell, line_cell_count, quad_cell_count);
@@ -1761,7 +2741,7 @@ namespace internal
       template <int dim, int spacedim>
       static void
       compute_number_cache_dim(
-        const Triangulation<dim, spacedim> &                   triangulation,
+        const Triangulation<dim, spacedim>                    &triangulation,
         const unsigned int                                     level_objects,
         internal::TriangulationImplementation::NumberCache<1> &number_cache)
       {
@@ -1849,7 +2829,7 @@ namespace internal
       template <int dim, int spacedim>
       static void
       compute_number_cache_dim(
-        const Triangulation<dim, spacedim> &                   triangulation,
+        const Triangulation<dim, spacedim>                    &triangulation,
         const unsigned int                                     level_objects,
         internal::TriangulationImplementation::NumberCache<2> &number_cache)
       {
@@ -1956,7 +2936,7 @@ namespace internal
       template <int dim, int spacedim>
       static void
       compute_number_cache_dim(
-        const Triangulation<dim, spacedim> &                   triangulation,
+        const Triangulation<dim, spacedim>                    &triangulation,
         const unsigned int                                     level_objects,
         internal::TriangulationImplementation::NumberCache<3> &number_cache)
       {
@@ -2049,7 +3029,7 @@ namespace internal
       template <int dim, int spacedim>
       static void
       compute_number_cache(
-        const Triangulation<dim, spacedim> &                     triangulation,
+        const Triangulation<dim, spacedim>                      &triangulation,
         const unsigned int                                       level_objects,
         internal::TriangulationImplementation::NumberCache<dim> &number_cache)
       {
@@ -2256,9 +3236,9 @@ namespace internal
       template <int dim, int spacedim>
       static void
       create_triangulation(const std::vector<Point<spacedim>> &vertices,
-                           const std::vector<CellData<dim>> &  cells,
-                           const SubCellData &                 subcelldata,
-                           Triangulation<dim, spacedim> &      tria)
+                           const std::vector<CellData<dim>>   &cells,
+                           const SubCellData                  &subcelldata,
+                           Triangulation<dim, spacedim>       &tria)
       {
         AssertThrow(vertices.size() > 0, ExcMessage("No vertices given"));
         AssertThrow(cells.size() > 0, ExcMessage("No cells given"));
@@ -2308,7 +3288,7 @@ namespace internal
             auto &lines_0 = tria.faces->lines; // data structure to be filled
 
             // get connectivity between quads and lines
-            const auto &       crs     = connectivity.entity_to_entities(1, 0);
+            const auto        &crs     = connectivity.entity_to_entities(1, 0);
             const unsigned int n_lines = crs.ptr.size() - 1;
 
             // allocate memory
@@ -2329,7 +3309,7 @@ namespace internal
             auto &faces   = *tria.faces;
 
             // get connectivity between quads and lines
-            const auto &       crs     = connectivity.entity_to_entities(2, 1);
+            const auto        &crs     = connectivity.entity_to_entities(2, 1);
             const unsigned int n_quads = crs.ptr.size() - 1;
 
             // allocate memory
@@ -2519,14 +3499,14 @@ namespace internal
       template <int structdim, int spacedim, typename T>
       static void
       process_subcelldata(
-        const CRS<T> &                          crs,
-        TriaObjects &                           obj,
+        const CRS<T>                           &crs,
+        TriaObjects                            &obj,
         const std::vector<CellData<structdim>> &boundary_objects_in,
-        const std::vector<Point<spacedim>> &    vertex_locations)
+        const std::vector<Point<spacedim>>     &vertex_locations)
       {
         AssertDimension(obj.structdim, structdim);
 
-        if (boundary_objects_in.size() == 0)
+        if (boundary_objects_in.empty())
           return; // empty subcelldata -> nothing to do
 
         // pre-sort subcelldata
@@ -2626,7 +3606,7 @@ namespace internal
 
 
       static void
-      reserve_space_(TriaFaces &        faces,
+      reserve_space_(TriaFaces         &faces,
                      const unsigned     structdim,
                      const unsigned int size)
       {
@@ -2648,7 +3628,7 @@ namespace internal
 
 
       static void
-      reserve_space_(TriaLevel &        level,
+      reserve_space_(TriaLevel         &level,
                      const unsigned int spacedim,
                      const unsigned int size,
                      const bool         orientation_needed)
@@ -3611,7 +4591,7 @@ namespace internal
       static void
       create_children(
         Triangulation<2, spacedim> &triangulation,
-        unsigned int &              next_unused_vertex,
+        unsigned int               &next_unused_vertex,
         typename Triangulation<2, spacedim>::raw_line_iterator
           &next_unused_line,
         typename Triangulation<2, spacedim>::raw_cell_iterator
@@ -4160,11 +5140,11 @@ namespace internal
         typename Triangulation<dim, spacedim>::raw_line_iterator
           next_unused_line = triangulation.begin_raw_line();
 
-        const auto create_children = [](auto &        triangulation,
+        const auto create_children = [](auto         &triangulation,
                                         unsigned int &next_unused_vertex,
-                                        auto &        next_unused_line,
-                                        auto &        next_unused_cell,
-                                        const auto &  cell) {
+                                        auto         &next_unused_line,
+                                        auto         &next_unused_cell,
+                                        const auto   &cell) {
           const auto ref_case = cell->refine_flag_set();
           cell->clear_refine_flag();
 
@@ -4577,7 +5557,9 @@ namespace internal
                   Assert(
                     next_unused_vertex < triangulation.vertices.size(),
                     ExcMessage(
-                      "Internal error: During refinement, the triangulation wants to access an element of the 'vertices' array but it turns out that the array is not large enough."));
+                      "Internal error: During refinement, the triangulation "
+                      "wants to access an element of the 'vertices' array "
+                      "but it turns out that the array is not large enough."));
 
                   // Now we always ask the cell itself where to put
                   // the new point. The cell in turn will query the
@@ -4713,7 +5695,6 @@ namespace internal
       {
         const unsigned int dim = 2;
 
-
         // First check whether we can get away with isotropic refinement, or
         // whether we need to run through the full anisotropic algorithm
         {
@@ -4730,6 +5711,8 @@ namespace internal
             return execute_refinement_isotropic(triangulation,
                                                 check_for_distorted_cells);
         }
+
+        // If we get here, we are doing anisotropic refinement.
 
         // Check whether a new level is needed. We have to check for
         // this on the highest level only
@@ -11040,10 +12023,10 @@ namespace internal
       template <int dim, int spacedim>
       static void
       delete_children(
-        Triangulation<dim, spacedim> &                        triangulation,
+        Triangulation<dim, spacedim>                         &triangulation,
         typename Triangulation<dim, spacedim>::cell_iterator &cell,
-        std::vector<unsigned int> &                           line_cell_count,
-        std::vector<unsigned int> &                           quad_cell_count)
+        std::vector<unsigned int>                            &line_cell_count,
+        std::vector<unsigned int>                            &quad_cell_count)
       {
         AssertThrow(false, ExcNotImplemented());
         (void)triangulation;
@@ -11113,7 +12096,8 @@ DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 Triangulation<dim, spacedim>::Triangulation(
   const MeshSmoothing smooth_grid,
   const bool          check_for_distorted_cells)
-  : smooth_grid(smooth_grid)
+  : cell_attached_data({0, 0, {}, {}})
+  , smooth_grid(smooth_grid)
   , anisotropic_refinement(false)
   , check_for_distorted_cells(check_for_distorted_cells)
 {
@@ -11233,6 +12217,9 @@ void Triangulation<dim, spacedim>::clear()
   periodic_face_pairs_level_0.clear();
   periodic_face_map.clear();
   reference_cells.clear();
+
+  cell_attached_data = {0, 0, {}, {}};
+  data_serializer.clear();
 }
 
 
@@ -11247,9 +12234,8 @@ MPI_Comm Triangulation<dim, spacedim>::get_communicator() const
 
 template <int dim, int spacedim>
 DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
-const std::weak_ptr<const Utilities::MPI::Partitioner> Triangulation<
-  dim,
-  spacedim>::global_active_cell_index_partitioner() const
+std::weak_ptr<const Utilities::MPI::Partitioner> Triangulation<dim, spacedim>::
+  global_active_cell_index_partitioner() const
 {
   return number_cache.active_cell_index_partitioner;
 }
@@ -11258,9 +12244,8 @@ const std::weak_ptr<const Utilities::MPI::Partitioner> Triangulation<
 
 template <int dim, int spacedim>
 DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
-const std::weak_ptr<const Utilities::MPI::Partitioner> Triangulation<
-  dim,
-  spacedim>::global_level_cell_index_partitioner(const unsigned int level) const
+std::weak_ptr<const Utilities::MPI::Partitioner> Triangulation<dim, spacedim>::
+  global_level_cell_index_partitioner(const unsigned int level) const
 {
   AssertIndexRange(level, this->n_levels());
 
@@ -11274,8 +12259,6 @@ DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 void Triangulation<dim, spacedim>::set_mesh_smoothing(
   const MeshSmoothing mesh_smoothing)
 {
-  Assert(n_levels() == 0,
-         ExcTriangulationNotEmpty(vertices.size(), levels.size()));
   smooth_grid = mesh_smoothing;
 }
 
@@ -11487,7 +12470,7 @@ DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 void Triangulation<dim, spacedim>::copy_triangulation(
   const Triangulation<dim, spacedim> &other_tria)
 {
-  Assert((vertices.size() == 0) && (levels.size() == 0) && (faces == nullptr),
+  Assert((vertices.empty()) && (levels.empty()) && (faces == nullptr),
          ExcTriangulationNotEmpty(vertices.size(), levels.size()));
   Assert((other_tria.levels.size() != 0) && (other_tria.vertices.size() != 0) &&
            (dim == 1 || other_tria.faces != nullptr),
@@ -11550,25 +12533,6 @@ void Triangulation<dim, spacedim>::copy_triangulation(
 
 template <int dim, int spacedim>
 DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
-void Triangulation<dim, spacedim>::create_triangulation_compatibility(
-  const std::vector<Point<spacedim>> &v,
-  const std::vector<CellData<dim>> &  cells,
-  const SubCellData &                 subcelldata)
-{
-  std::vector<CellData<dim>> reordered_cells(cells);             // NOLINT
-  SubCellData                reordered_subcelldata(subcelldata); // NOLINT
-
-  // in-place reordering of data
-  reorder_compatibility(reordered_cells, reordered_subcelldata);
-
-  // now create triangulation from
-  // reordered data
-  create_triangulation(v, reordered_cells, reordered_subcelldata);
-}
-
-
-template <int dim, int spacedim>
-DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 void Triangulation<dim, spacedim>::reset_policy()
 {
   this->update_reference_cells();
@@ -11597,10 +12561,10 @@ template <int dim, int spacedim>
 DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 void Triangulation<dim, spacedim>::create_triangulation(
   const std::vector<Point<spacedim>> &v,
-  const std::vector<CellData<dim>> &  cells,
-  const SubCellData &                 subcelldata)
+  const std::vector<CellData<dim>>   &cells,
+  const SubCellData                  &subcelldata)
 {
-  Assert((vertices.size() == 0) && (levels.size() == 0) && (faces == nullptr),
+  Assert((vertices.empty()) && (levels.empty()) && (faces == nullptr),
          ExcTriangulationNotEmpty(vertices.size(), levels.size()));
   // check that no forbidden arrays
   // are used
@@ -11639,7 +12603,7 @@ void Triangulation<dim, spacedim>::create_triangulation(
       // throw the array (and fill the various location fields) if
       // there are distorted cells. otherwise, just fall off the end
       // of the function
-      AssertThrow(distorted_cells.distorted_cells.size() == 0, distorted_cells);
+      AssertThrow(distorted_cells.distorted_cells.empty(), distorted_cells);
     }
 
 
@@ -11756,7 +12720,7 @@ void Triangulation<dim, spacedim>::create_triangulation(
 
           // Before we quit let's check that if the triangulation is
           // disconnected that we still get all cells
-          if (next_round.size() == 0)
+          if (next_round.empty())
             for (const auto &cell : this->active_cell_iterators())
               if (cell->user_flag_set() == false)
                 {
@@ -12196,7 +13160,7 @@ namespace
     unsigned int dim,
     std::vector<
       std::unique_ptr<internal::TriangulationImplementation::TriaLevel>>
-      &                                               levels,
+                                                     &levels,
     internal::TriangulationImplementation::TriaFaces *faces)
   {
     if (dim == 1)
@@ -12232,7 +13196,7 @@ namespace
     unsigned int dim,
     std::vector<
       std::unique_ptr<internal::TriangulationImplementation::TriaLevel>>
-      &                                               levels,
+                                                     &levels,
     internal::TriangulationImplementation::TriaFaces *faces)
   {
     if (dim == 1)
@@ -12751,7 +13715,25 @@ void Triangulation<dim, spacedim>::load_user_indices(
     Assert(false, ExcNotImplemented());
 }
 
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+void Triangulation<dim, spacedim>::save(const std::string &filename) const
+{
+  // Create boost archive then call alternative version of the save function
+  std::ofstream                 ofs(filename);
+  boost::archive::text_oarchive oa(ofs, boost::archive::no_header);
+  save(oa, 0);
+}
 
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+void Triangulation<dim, spacedim>::load(const std::string &filename)
+{
+  // Create boost archive then call alternative version of the load function
+  std::ifstream                 ifs(filename);
+  boost::archive::text_iarchive ia(ifs, boost::archive::no_header);
+  load(ia, 0);
+}
 
 namespace
 {
@@ -13229,23 +14211,48 @@ typename Triangulation<dim, spacedim>::cell_iterator
   Triangulation<dim, spacedim>::create_cell_iterator(
     const CellId &cell_id) const
 {
+  Assert(
+    this->contains_cell(cell_id),
+    ExcMessage(
+      "CellId is invalid for this triangulation.\n"
+      "Either the provided CellId does not correspond to a cell in this "
+      "triangulation object, or, in case you are using a parallel "
+      "triangulation, may correspond to an artificial cell that is less "
+      "refined on this processor. In the case of "
+      "parallel::fullydistributed::Triangulation, the corresponding coarse "
+      "cell might not be accessible by the current process."));
+
   cell_iterator cell(
     this, 0, coarse_cell_id_to_coarse_cell_index(cell_id.get_coarse_cell_id()));
 
   for (const auto &child_index : cell_id.get_child_indices())
+    cell = cell->child(static_cast<unsigned int>(child_index));
+
+  return cell;
+}
+
+
+
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+bool Triangulation<dim, spacedim>::contains_cell(const CellId &cell_id) const
+{
+  const auto coarse_cell_index =
+    coarse_cell_id_to_coarse_cell_index(cell_id.get_coarse_cell_id());
+
+  if (coarse_cell_index == numbers::invalid_unsigned_int)
+    return false;
+
+  cell_iterator cell(this, 0, coarse_cell_index);
+
+  for (const auto &child_index : cell_id.get_child_indices())
     {
-      Assert(
-        cell->has_children(),
-        ExcMessage(
-          "CellId is invalid for this triangulation.\n"
-          "Either the provided CellId does not correspond to a cell in this "
-          "triangulation object, or, in case you are using a parallel "
-          "triangulation, may correspond to an artificial cell that is less "
-          "refined on this processor."));
+      if (cell->has_children() == false)
+        return false;
       cell = cell->child(static_cast<unsigned int>(child_index));
     }
 
-  return cell;
+  return true;
 }
 
 
@@ -14615,10 +15622,55 @@ void Triangulation<dim, spacedim>::execute_coarsening_and_refinement()
   // Inform all listeners about end of refinement.
   signals.post_refinement();
 
-  AssertThrow(cells_with_distorted_children.distorted_cells.size() == 0,
+  AssertThrow(cells_with_distorted_children.distorted_cells.empty(),
               cells_with_distorted_children);
 
   update_periodic_face_map();
+
+#ifdef DEBUG
+
+  // In debug mode, we want to check for some consistency of the
+  // result of this function. Because there are multiple exit
+  // paths, put this check into a ScopeExit object that is
+  // executed on each of the exit paths.
+  //
+  // Specifically, check on exit of this function that if a quad
+  // cell has been refined, all of its children have neighbors
+  // in all directions in which the parent cell has neighbors as
+  // well. The children's neighbors are either the parent
+  // neighbor or the parent neigbor's children, or simply one of
+  // the other children of the current cell. This check is
+  // useful because if one creates a triangulation with an
+  // inconsistently ordered set of cells (e.g., because one has
+  // forgotten to call GridTools::consistently_order_cells()),
+  // then this relatively simple invariant is violated -- so the
+  // check here can be used to catch that case, at least
+  // sometimes.
+  //
+  // In 1d, this situation cannot happen. In 3d, we have explicit
+  // orientation flags to ensure that it is not necessary to re-orient
+  // cells at the beginning. But in both cases, the invariant should
+  // still hold as long as the cell is a hypercube.
+  for (const auto &cell : cell_iterators())
+    {
+      if (cell->has_children() && cell->reference_cell().is_hyper_cube())
+        for (const unsigned int f : cell->face_indices())
+          if (cell->at_boundary(f) == false)
+            {
+              for (const auto &child : cell->child_iterators())
+                {
+                  Assert(
+                    child->at_boundary(f) == false,
+                    ExcMessage(
+                      "We ended up with a triangulation whose child cells "
+                      "are not connected to their neighbors as expected. "
+                      "When you created the triangulation, did you forget "
+                      "to call GridTools::consistently_order_cells() "
+                      "before calling Triangulation::create_triangulation()?"));
+                }
+            }
+    }
+#endif
 }
 
 
@@ -14870,6 +15922,155 @@ bool Triangulation<dim, spacedim>::is_mixed_mesh() const
 
 template <int dim, int spacedim>
 DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+unsigned int Triangulation<dim, spacedim>::register_data_attach(
+  const std::function<std::vector<char>(const cell_iterator &,
+                                        const ::dealii::CellStatus)>
+            &pack_callback,
+  const bool returns_variable_size_data)
+{
+  unsigned int handle = numbers::invalid_unsigned_int;
+
+  // Add new callback function to the corresponding register.
+  // Encode handles according to returns_variable_size_data.
+  if (returns_variable_size_data)
+    {
+      handle = 2 * this->cell_attached_data.pack_callbacks_variable.size();
+      this->cell_attached_data.pack_callbacks_variable.push_back(pack_callback);
+    }
+  else
+    {
+      handle = 2 * this->cell_attached_data.pack_callbacks_fixed.size() + 1;
+      this->cell_attached_data.pack_callbacks_fixed.push_back(pack_callback);
+    }
+
+  // Increase overall counter.
+  ++this->cell_attached_data.n_attached_data_sets;
+
+  return handle;
+}
+
+
+
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+void Triangulation<dim, spacedim>::notify_ready_to_unpack(
+  const unsigned int handle,
+  const std::function<
+    void(const cell_iterator &,
+         const ::dealii::CellStatus,
+         const boost::iterator_range<std::vector<char>::const_iterator> &)>
+    &unpack_callback)
+{
+  // perform unpacking
+  this->data_serializer.unpack_data(this->local_cell_relations,
+                                    handle,
+                                    unpack_callback);
+
+  // decrease counters
+  --this->cell_attached_data.n_attached_data_sets;
+  if (this->cell_attached_data.n_attached_deserialize > 0)
+    --this->cell_attached_data.n_attached_deserialize;
+
+  // important: only remove data if we are not in the deserialization
+  // process. There, each SolutionTransfer registers and unpacks before
+  // the next one does this, so n_attached_data_sets is only 1 here.  This
+  // would destroy the saved data before the second SolutionTransfer can
+  // get it. This created a bug that is documented in
+  // tests/mpi/p4est_save_03 with more than one SolutionTransfer.
+
+  if (this->cell_attached_data.n_attached_data_sets == 0 &&
+      this->cell_attached_data.n_attached_deserialize == 0)
+    {
+      // everybody got their data, time for cleanup!
+      this->cell_attached_data.pack_callbacks_fixed.clear();
+      this->cell_attached_data.pack_callbacks_variable.clear();
+      this->data_serializer.clear();
+
+      // reset all cell_status entries after coarsening/refinement
+      for (auto &cell_rel : this->local_cell_relations)
+        cell_rel.second = ::dealii::CellStatus::cell_will_persist;
+    }
+}
+
+
+
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+void Triangulation<dim, spacedim>::save_attached_data(
+  const unsigned int global_first_cell,
+  const unsigned int global_num_cells,
+  const std::string &filename) const
+{
+  // cast away constness
+  auto tria = const_cast<Triangulation<dim, spacedim> *>(this);
+
+  if (this->cell_attached_data.n_attached_data_sets > 0)
+    {
+      // pack attached data first
+      tria->data_serializer.pack_data(
+        tria->local_cell_relations,
+        tria->cell_attached_data.pack_callbacks_fixed,
+        tria->cell_attached_data.pack_callbacks_variable,
+        this->get_communicator());
+
+      // then store buffers in file
+      tria->data_serializer.save(global_first_cell,
+                                 global_num_cells,
+                                 filename,
+                                 this->get_communicator());
+
+      // and release the memory afterwards
+      tria->data_serializer.clear();
+    }
+
+  // clear all of the callback data, as explained in the documentation of
+  // register_data_attach()
+  {
+    tria->cell_attached_data.n_attached_data_sets = 0;
+    tria->cell_attached_data.pack_callbacks_fixed.clear();
+    tria->cell_attached_data.pack_callbacks_variable.clear();
+  }
+}
+
+
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+void Triangulation<dim, spacedim>::load_attached_data(
+  const unsigned int global_first_cell,
+  const unsigned int global_num_cells,
+  const unsigned int local_num_cells,
+  const std::string &filename,
+  const unsigned int n_attached_deserialize_fixed,
+  const unsigned int n_attached_deserialize_variable)
+{
+  // load saved data, if any was stored
+  if (this->cell_attached_data.n_attached_deserialize > 0)
+    {
+      this->data_serializer.load(global_first_cell,
+                                 global_num_cells,
+                                 local_num_cells,
+                                 filename,
+                                 n_attached_deserialize_fixed,
+                                 n_attached_deserialize_variable,
+                                 this->get_communicator());
+
+      this->data_serializer.unpack_cell_status(this->local_cell_relations);
+
+      // the CellStatus of all stored cells should always be
+      // CellStatus::cell_will_persist.
+      for (const auto &cell_rel : this->local_cell_relations)
+        {
+          (void)cell_rel;
+          Assert((cell_rel.second == // cell_status
+                  ::dealii::CellStatus::cell_will_persist),
+                 ExcInternalError());
+        }
+    }
+}
+
+
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 void Triangulation<dim, spacedim>::clear_despite_subscriptions()
 {
   levels.clear();
@@ -14879,6 +16080,23 @@ void Triangulation<dim, spacedim>::clear_despite_subscriptions()
   vertices_used.clear();
 
   manifolds.clear();
+
+  // In 1d, also reset vertex-to-(boundary|manifold) maps to empty maps
+  if (dim == 1)
+    {
+      Assert(vertex_to_boundary_id_map_1d != nullptr, ExcInternalError());
+      vertex_to_boundary_id_map_1d->clear();
+
+      Assert(vertex_to_manifold_id_map_1d != nullptr, ExcInternalError());
+      vertex_to_manifold_id_map_1d->clear();
+    }
+  else
+    {
+      // For dim>1, these maps should simply not exist.
+      Assert(vertex_to_boundary_id_map_1d == nullptr, ExcInternalError());
+      Assert(vertex_to_manifold_id_map_1d == nullptr, ExcInternalError());
+    }
+
 
   number_cache = internal::TriangulationImplementation::NumberCache<dim>();
 }
@@ -16417,10 +17635,10 @@ void Triangulation<dim, spacedim>::write_bool_vector(
   const unsigned int       magic_number1,
   const std::vector<bool> &v,
   const unsigned int       magic_number2,
-  std::ostream &           out)
+  std::ostream            &out)
 {
   const unsigned int N     = v.size();
-  unsigned char *    flags = new unsigned char[N / 8 + 1];
+  unsigned char     *flags = new unsigned char[N / 8 + 1];
   for (unsigned int i = 0; i < N / 8 + 1; ++i)
     flags[i] = 0;
 
@@ -16452,7 +17670,7 @@ void Triangulation<dim, spacedim>::read_bool_vector(
   const unsigned int magic_number1,
   std::vector<bool> &v,
   const unsigned int magic_number2,
-  std::istream &     in)
+  std::istream      &in)
 {
   AssertThrow(in.fail() == false, ExcIO());
 
@@ -16464,7 +17682,7 @@ void Triangulation<dim, spacedim>::read_bool_vector(
   in >> N;
   v.resize(N);
 
-  unsigned char *    flags = new unsigned char[N / 8 + 1];
+  unsigned char     *flags = new unsigned char[N / 8 + 1];
   unsigned short int tmp;
   for (unsigned int i = 0; i < N / 8 + 1; ++i)
     {

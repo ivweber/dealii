@@ -46,7 +46,7 @@ namespace PETScWrappers
 
       // get a representation of the present row
       PetscInt           ncols;
-      const PetscInt *   colnums;
+      const PetscInt    *colnums;
       const PetscScalar *values;
 
       PetscErrorCode ierr =
@@ -168,16 +168,18 @@ namespace PETScWrappers
     // since this is a collective operation
     IS index_set;
 
-    ISCreateGeneral(get_mpi_communicator(),
-                    rows.size(),
-                    petsc_rows.data(),
-                    PETSC_COPY_VALUES,
-                    &index_set);
-
-    const PetscErrorCode ierr =
-      MatZeroRowsIS(matrix, index_set, new_diag_value, nullptr, nullptr);
+    PetscErrorCode ierr;
+    ierr = ISCreateGeneral(get_mpi_communicator(),
+                           rows.size(),
+                           petsc_rows.data(),
+                           PETSC_COPY_VALUES,
+                           &index_set);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
-    ISDestroy(&index_set);
+
+    ierr = MatZeroRowsIS(matrix, index_set, new_diag_value, nullptr, nullptr);
+    AssertThrow(ierr == 0, ExcPETScError(ierr));
+    ierr = ISDestroy(&index_set);
+    AssertThrow(ierr == 0, ExcPETScError(ierr));
   }
 
   void
@@ -195,16 +197,19 @@ namespace PETScWrappers
     // since this is a collective operation
     IS index_set;
 
-    ISCreateGeneral(get_mpi_communicator(),
-                    rows.size(),
-                    petsc_rows.data(),
-                    PETSC_COPY_VALUES,
-                    &index_set);
+    PetscErrorCode ierr;
+    ierr = ISCreateGeneral(get_mpi_communicator(),
+                           rows.size(),
+                           petsc_rows.data(),
+                           PETSC_COPY_VALUES,
+                           &index_set);
+    AssertThrow(ierr == 0, ExcPETScError(ierr));
 
-    const PetscErrorCode ierr =
+    ierr =
       MatZeroRowsColumnsIS(matrix, index_set, new_diag_value, nullptr, nullptr);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
-    ISDestroy(&index_set);
+    ierr = ISDestroy(&index_set);
+    AssertThrow(ierr == 0, ExcPETScError(ierr));
   }
 
 
@@ -242,7 +247,6 @@ namespace PETScWrappers
   {
     {
 #  ifdef DEBUG
-#    ifdef DEAL_II_WITH_MPI
       // Check that all processors agree that last_action is the same (or none!)
 
       int my_int_last_action = last_action;
@@ -260,7 +264,6 @@ namespace PETScWrappers
                     (VectorOperation::add | VectorOperation::insert),
                   ExcMessage("Error: not all processors agree on the last "
                              "VectorOperation before this compress() call."));
-#    endif
 #  endif
     }
 
@@ -392,7 +395,7 @@ namespace PETScWrappers
     // get a representation of the present
     // row
     PetscInt           ncols;
-    const PetscInt *   colnums;
+    const PetscInt    *colnums;
     const PetscScalar *values;
 
     // TODO: this is probably horribly inefficient; we should lobby for a way to
@@ -565,7 +568,7 @@ namespace PETScWrappers
     void
     perform_mmult(const MatrixBase &inputleft,
                   const MatrixBase &inputright,
-                  MatrixBase &      result,
+                  MatrixBase       &result,
                   const VectorBase &V,
                   const bool        transpose_left)
     {
@@ -635,7 +638,7 @@ namespace PETScWrappers
   } // namespace internals
 
   void
-  MatrixBase::mmult(MatrixBase &      C,
+  MatrixBase::mmult(MatrixBase       &C,
                     const MatrixBase &B,
                     const VectorBase &V) const
   {
@@ -643,7 +646,7 @@ namespace PETScWrappers
   }
 
   void
-  MatrixBase::Tmmult(MatrixBase &      C,
+  MatrixBase::Tmmult(MatrixBase       &C,
                      const MatrixBase &B,
                      const VectorBase &V) const
   {
@@ -651,7 +654,7 @@ namespace PETScWrappers
   }
 
   PetscScalar
-  MatrixBase::residual(VectorBase &      dst,
+  MatrixBase::residual(VectorBase       &dst,
                        const VectorBase &x,
                        const VectorBase &b) const
   {
@@ -747,7 +750,7 @@ namespace PETScWrappers
       local_range();
 
     PetscInt           ncols;
-    const PetscInt *   colnums;
+    const PetscInt    *colnums;
     const PetscScalar *values;
 
     MatrixBase::size_type row;

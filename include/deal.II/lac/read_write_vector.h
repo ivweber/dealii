@@ -27,6 +27,7 @@
 #include <deal.II/base/template_constraints.h>
 #include <deal.II/base/types.h>
 
+#include <deal.II/lac/read_vector.h>
 #include <deal.II/lac/vector_operation.h>
 
 #include <cstdlib>
@@ -103,18 +104,17 @@ namespace LinearAlgebra
    * ReadWriteVector is intended to represent vectors in ${\mathbb R}^N$ for
    * which it stores all or a subset of elements. The latter case in important
    * in parallel computations, where $N$ may be so large that no processor can
-   * actually all elements of a solution vector, but where this is also not
-   * necessary: one typically only has to store the values of degrees of
+   * actually store all elements of a solution vector, but where this is also
+   * not necessary: one typically only has to store the values of degrees of
    * freedom that live on cells that are locally owned plus potentially those
    * degrees of freedom that live on ghost cells.
    *
-   * This class allows to access individual elements to be read or written.
-   * However, it does not allow global operations such as taking the norm.
-   * ReadWriteVector can be used to read and write elements in vectors derived
-   * from VectorSpaceVector such as TrilinosWrappers::MPI::Vector and
-   * PETScWrappers::MPI::Vector.
+   * This class provides access to individual elements to be read or written.
+   * However, it does not allow global operations such as taking the norm
+   * or dot products between vectors.
    *
-   * <h3>Storing elements</h3> Most of the time, one will simply read from or
+   * <h3>Storing elements</h3>
+   * Most of the time, one will simply read from or
    * write into a vector of the current class using the global numbers of
    * these degrees of freedom. This is done using operator()() or operator[]()
    * which call global_to_local() to transform the <i>global</i> index into a
@@ -133,7 +133,7 @@ namespace LinearAlgebra
    * get the first index of the largest range.
    */
   template <typename Number>
-  class ReadWriteVector : public Subscriptor
+  class ReadWriteVector : public Subscriptor, public ReadVector<Number>
   {
   public:
     /**
@@ -307,39 +307,10 @@ namespace LinearAlgebra
     /**
      * @deprecated Use import_elements() instead.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     import(const dealii::Vector<Number> &V,
            VectorOperation::values       operation,
-           const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-             &communication_pattern = {})
-    {
-      import_elements(V, operation, communication_pattern);
-    }
-
-    /**
-     * Imports all the elements present in the vector's IndexSet from the
-     * input vector @p vec. VectorOperation::values @p operation
-     * is used to decide if the elements in @p V should be added to the
-     * current vector or replace the current elements.
-     *
-     * @note The parameter @p communication_pattern is ignored since we are
-     *   dealing with a serial vector here.
-     */
-    void
-    import_elements(
-      const LinearAlgebra::Vector<Number> &vec,
-      VectorOperation::values              operation,
-      const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-        &communication_pattern = {});
-
-    /**
-     * @deprecated Use import_elements() instead.
-     */
-    DEAL_II_DEPRECATED_EARLY
-    void
-    import(const LinearAlgebra::Vector<Number> &V,
-           VectorOperation::values              operation,
            const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
              &communication_pattern = {})
     {
@@ -366,7 +337,7 @@ namespace LinearAlgebra
      * @deprecated Use import_elements() instead.
      */
     template <typename MemorySpace>
-    DEAL_II_DEPRECATED_EARLY void
+    DEAL_II_DEPRECATED void
     import(const distributed::Vector<Number, MemorySpace> &V,
            VectorOperation::values                         operation,
            const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
@@ -395,7 +366,7 @@ namespace LinearAlgebra
     /**
      * @deprecated Use import_elements() instead.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     import(const PETScWrappers::MPI::Vector &V,
            VectorOperation::values           operation,
@@ -427,7 +398,7 @@ namespace LinearAlgebra
     /**
      * @deprecated Use import_elements() instead.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     import(const TrilinosWrappers::MPI::Vector &V,
            VectorOperation::values              operation,
@@ -447,7 +418,7 @@ namespace LinearAlgebra
      * performance.
      */
     template <typename Dummy = Number>
-    std::enable_if_t<std::is_same<Dummy, Number>::value &&
+    std::enable_if_t<std::is_same_v<Dummy, Number> &&
                      dealii::is_tpetra_type<Number>::value>
     import_elements(
       const TpetraWrappers::Vector<Number> &tpetra_vec,
@@ -459,14 +430,12 @@ namespace LinearAlgebra
      * @deprecated Use import_elements() instead.
      */
     template <typename Dummy = Number>
-    DEAL_II_DEPRECATED_EARLY
-      std::enable_if_t<std::is_same<Dummy, Number>::value &&
-                       dealii::is_tpetra_type<Number>::value>
-      import(
-        const TpetraWrappers::Vector<Number> &V,
-        VectorOperation::values               operation,
-        const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-          &communication_pattern = {})
+    DEAL_II_DEPRECATED std::enable_if_t<std::is_same_v<Dummy, Number> &&
+                                        dealii::is_tpetra_type<Number>::value>
+                       import(const TpetraWrappers::Vector<Number> &V,
+                              VectorOperation::values               operation,
+                              const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
+                                &communication_pattern = {})
     {
       import_elements(V, operation, communication_pattern);
     }
@@ -490,7 +459,7 @@ namespace LinearAlgebra
     /**
      * @deprecated Use import_elements() instead.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     import(const EpetraWrappers::Vector &V,
            VectorOperation::values       operation,
@@ -519,7 +488,7 @@ namespace LinearAlgebra
     /**
      * @deprecated Use import_elements() instead.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     import(const CUDAWrappers::Vector<Number> &V,
            VectorOperation::values             operation,
@@ -539,18 +508,7 @@ namespace LinearAlgebra
      * number returned by the current function.
      */
     size_type
-    size() const;
-
-    /**
-     * This function returns the number of elements stored. It is smaller or
-     * equal to the dimension of the vector space that is modeled by an object
-     * of this kind. This dimension is return by size().
-     *
-     * @deprecated use locally_owned_size() instead.
-     */
-    DEAL_II_DEPRECATED
-    size_type
-    n_elements() const;
+    size() const override;
 
     /**
      * Return the local size of the vector, i.e., the number of indices
@@ -655,7 +613,15 @@ namespace LinearAlgebra
     template <typename Number2>
     void
     extract_subvector_to(const std::vector<size_type> &indices,
-                         std::vector<Number2> &        values) const;
+                         std::vector<Number2>         &values) const;
+
+    /**
+     * Extract a range of elements all at once.
+     */
+    virtual void
+    extract_subvector_to(
+      const ArrayView<const types::global_dof_index> &indices,
+      ArrayView<Number>                              &entries) const override;
 
     /**
      * Instead of getting individual elements of a vector via operator(),
@@ -730,7 +696,7 @@ namespace LinearAlgebra
     template <typename Number2>
     void
     add(const std::vector<size_type> &indices,
-        const std::vector<Number2> &  values);
+        const std::vector<Number2>   &values);
 
     /**
      * This function is similar to the previous one but takes a
@@ -738,7 +704,7 @@ namespace LinearAlgebra
      */
     template <typename Number2>
     void
-    add(const std::vector<size_type> &  indices,
+    add(const std::vector<size_type>   &indices,
         const ReadWriteVector<Number2> &values);
 
     /**
@@ -750,13 +716,13 @@ namespace LinearAlgebra
     void
     add(const size_type  n_elements,
         const size_type *indices,
-        const Number2 *  values);
+        const Number2   *values);
 
     /**
      * Prints the vector to the output stream @p out.
      */
     void
-    print(std::ostream &     out,
+    print(std::ostream      &out,
           const unsigned int precision  = 3,
           const bool         scientific = true) const;
 
@@ -776,12 +742,12 @@ namespace LinearAlgebra
      * used directly.
      */
     template <typename Dummy = Number>
-    std::enable_if_t<std::is_same<Dummy, Number>::value &&
+    std::enable_if_t<std::is_same_v<Dummy, Number> &&
                      dealii::is_tpetra_type<Number>::value>
     import_elements(
       const Tpetra::Vector<Number, int, types::signed_global_dof_index>
-        &                     tpetra_vector,
-      const IndexSet &        locally_owned_elements,
+                             &tpetra_vector,
+      const IndexSet         &locally_owned_elements,
       VectorOperation::values operation,
       const MPI_Comm          mpi_comm,
       const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
@@ -796,7 +762,7 @@ namespace LinearAlgebra
     void
     import_elements(
       const Epetra_MultiVector &multivector,
-      const IndexSet &          locally_owned_elements,
+      const IndexSet           &locally_owned_elements,
       VectorOperation::values   operation,
       const MPI_Comm            mpi_comm,
       const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
@@ -972,15 +938,6 @@ namespace LinearAlgebra
 
   template <typename Number>
   inline typename ReadWriteVector<Number>::size_type
-  ReadWriteVector<Number>::n_elements() const
-  {
-    return stored_elements.n_elements();
-  }
-
-
-
-  template <typename Number>
-  inline typename ReadWriteVector<Number>::size_type
   ReadWriteVector<Number>::locally_owned_size() const
   {
     return stored_elements.n_elements();
@@ -1074,10 +1031,23 @@ namespace LinearAlgebra
   inline void
   ReadWriteVector<Number>::extract_subvector_to(
     const std::vector<size_type> &indices,
-    std::vector<Number2> &        extracted_values) const
+    std::vector<Number2>         &extracted_values) const
   {
     for (size_type i = 0; i < indices.size(); ++i)
       extracted_values[i] = operator()(indices[i]);
+  }
+
+
+
+  template <typename Number>
+  void
+  ReadWriteVector<Number>::extract_subvector_to(
+    const ArrayView<const types::global_dof_index> &indices,
+    ArrayView<Number>                              &entries) const
+  {
+    AssertDimension(indices.size(), entries.size());
+    for (unsigned int i = 0; i < indices.size(); ++i)
+      entries[i] = (*this)[indices[i]];
   }
 
 
@@ -1126,7 +1096,7 @@ namespace LinearAlgebra
   template <typename Number2>
   inline void
   ReadWriteVector<Number>::add(const std::vector<size_type> &indices,
-                               const std::vector<Number2> &  values)
+                               const std::vector<Number2>   &values)
   {
     AssertDimension(indices.size(), values.size());
     add(indices.size(), indices.data(), values.data());
@@ -1137,7 +1107,7 @@ namespace LinearAlgebra
   template <typename Number>
   template <typename Number2>
   inline void
-  ReadWriteVector<Number>::add(const std::vector<size_type> &  indices,
+  ReadWriteVector<Number>::add(const std::vector<size_type>   &indices,
                                const ReadWriteVector<Number2> &values)
   {
     const size_type size = indices.size();
@@ -1158,7 +1128,7 @@ namespace LinearAlgebra
   inline void
   ReadWriteVector<Number>::add(const size_type  n_indices,
                                const size_type *indices,
-                               const Number2 *  values_to_add)
+                               const Number2   *values_to_add)
   {
     for (size_type i = 0; i < n_indices; ++i)
       {
@@ -1189,7 +1159,7 @@ namespace LinearAlgebra
   template <typename Functor>
   inline ReadWriteVector<Number>::FunctorTemplate<Functor>::FunctorTemplate(
     ReadWriteVector<Number> &parent,
-    const Functor &          functor)
+    const Functor           &functor)
     : parent(parent)
     , functor(functor)
   {}

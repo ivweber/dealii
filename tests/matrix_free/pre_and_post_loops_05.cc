@@ -56,7 +56,7 @@ public:
   {}
 
   void
-  vmult(LinearAlgebra::distributed::Vector<Number> &      dst,
+  vmult(LinearAlgebra::distributed::Vector<Number>       &dst,
         const LinearAlgebra::distributed::Vector<Number> &src) const
   {
     dst = 0;
@@ -115,9 +115,9 @@ private:
 
   void
   local_apply(const MatrixFree<dim, Number> &,
-              LinearAlgebra::distributed::Vector<Number> &      dst,
+              LinearAlgebra::distributed::Vector<Number>       &dst,
               const LinearAlgebra::distributed::Vector<Number> &src,
-              const std::pair<unsigned int, unsigned int> &     range) const
+              const std::pair<unsigned int, unsigned int>      &range) const
   {
     FEEvaluation<dim, fe_degree, n_q_points_1d, 1, Number> fe_eval(data, 1);
 
@@ -174,7 +174,7 @@ test()
   mf_data.initialize_dof_vector(vec2, 1);
   mf_data.initialize_dof_vector(vec3, 1);
 
-  for (unsigned int i = 0; i < vec1.local_size(); ++i)
+  for (unsigned int i = 0; i < vec1.locally_owned_size(); ++i)
     {
       // Multiply by 0.01 to make float error with roundoff less than the
       // numdiff absolute tolerance

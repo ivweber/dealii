@@ -203,7 +203,7 @@ namespace Step18
     vector_value(const Point<dim> &p, Vector<double> &values) const;
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const;
+                      std::vector<Vector<double>>   &value_list) const;
   };
   template <int dim>
   BodyForce<dim>::BodyForce()
@@ -224,7 +224,7 @@ namespace Step18
   void
   BodyForce<dim>::vector_value_list(
     const std::vector<Point<dim>> &points,
-    std::vector<Vector<double>> &  value_list) const
+    std::vector<Vector<double>>   &value_list) const
   {
     const unsigned int n_points = points.size();
     Assert(value_list.size() == n_points,
@@ -242,7 +242,7 @@ namespace Step18
     vector_value(const Point<dim> &p, Vector<double> &values) const;
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const;
+                      std::vector<Vector<double>>   &value_list) const;
 
   private:
     const double velocity;
@@ -271,7 +271,7 @@ namespace Step18
   void
   IncrementalBoundaryValues<dim>::vector_value_list(
     const std::vector<Point<dim>> &points,
-    std::vector<Vector<double>> &  value_list) const
+    std::vector<Vector<double>>   &value_list) const
   {
     const unsigned int n_points = points.size();
     Assert(value_list.size() == n_points,
@@ -352,7 +352,8 @@ namespace Step18
   {
     dof_handler.distribute_dofs(fe);
     locally_owned_dofs = dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
     hanging_node_constraints.clear();
     DoFTools::make_hanging_node_constraints(dof_handler,
                                             hanging_node_constraints);
@@ -548,7 +549,7 @@ namespace Step18
       "solution-" + Utilities::int_to_string(timestep_no, 4) + "." +
       Utilities::int_to_string(this_mpi_process, 3) + ".vtu";
     AssertThrow(n_mpi_processes < 1000, ExcNotImplemented());
-    std::ofstream output(filename.c_str());
+    std::ofstream output(filename);
     data_out.write_vtu(output);
     if (this_mpi_process == 0)
       {
@@ -559,12 +560,12 @@ namespace Step18
                               Utilities::int_to_string(i, 3) + ".vtu");
         const std::string visit_filename =
           ("solution-" + Utilities::int_to_string(timestep_no, 4) + ".visit");
-        std::ofstream visit_output(visit_filename.c_str());
+        std::ofstream visit_output(visit_filename);
         DataOutBase::write_visit_record(visit_output, filenames);
 
         const std::string pvtu_filename =
           ("solution-" + Utilities::int_to_string(timestep_no, 4) + ".pvtu");
-        std::ofstream pvtu_output(pvtu_filename.c_str());
+        std::ofstream pvtu_output(pvtu_filename);
         data_out.write_pvtu_record(pvtu_output, filenames);
         static std::vector<std::pair<double, std::string>> times_and_names;
         times_and_names.push_back(
@@ -786,7 +787,7 @@ main(int argc, char **argv)
       TopLevel<3>                      elastic_problem;
       elastic_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

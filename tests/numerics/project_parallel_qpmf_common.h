@@ -103,7 +103,7 @@ private:
 template <int fe_degree, int n_q_points_1d, int dim>
 void
 do_project(const parallel::distributed::Triangulation<dim> &triangulation,
-           const std::vector<const FiniteElement<dim> *> &  fes,
+           const std::vector<const FiniteElement<dim> *>   &fes,
            const unsigned int                               p,
            const unsigned int                               fe_index = 0)
 {
@@ -124,8 +124,8 @@ do_project(const parallel::distributed::Triangulation<dim> &triangulation,
       dof_handlers[i]->distribute_dofs(*fes[i]);
       deallog << "n_dofs=" << dof_handlers[i]->n_dofs() << std::endl;
 
-      DoFTools::extract_locally_relevant_dofs(*dof_handlers[i],
-                                              locally_relevant_dofs[i]);
+      locally_relevant_dofs[i] =
+        DoFTools::extract_locally_relevant_dofs(*dof_handlers[i]);
 
       constraints[i].reinit(locally_relevant_dofs[i]);
       DoFTools::make_hanging_node_constraints(*dof_handlers[i], constraints[i]);

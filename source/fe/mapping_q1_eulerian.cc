@@ -25,7 +25,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -38,10 +37,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 MappingQ1Eulerian<dim, VectorType, spacedim>::MappingQ1Eulerian(
   const DoFHandler<dim, spacedim> &shiftmap_dof_handler,
-  const VectorType &               euler_transform_vectors)
+  const VectorType                &euler_transform_vectors)
   : MappingQ<dim, spacedim>(1)
   , euler_transform_vectors(&euler_transform_vectors)
   , shiftmap_dof_handler(&shiftmap_dof_handler)
@@ -49,7 +48,7 @@ MappingQ1Eulerian<dim, VectorType, spacedim>::MappingQ1Eulerian(
 
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 boost::container::small_vector<Point<spacedim>,
                                GeometryInfo<dim>::vertices_per_cell>
 MappingQ1Eulerian<dim, VectorType, spacedim>::get_vertices(
@@ -103,7 +102,7 @@ MappingQ1Eulerian<dim, VectorType, spacedim>::get_vertices(
 
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 std::vector<Point<spacedim>>
 MappingQ1Eulerian<dim, VectorType, spacedim>::compute_mapping_support_points(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell) const
@@ -119,7 +118,7 @@ MappingQ1Eulerian<dim, VectorType, spacedim>::compute_mapping_support_points(
 
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 std::unique_ptr<Mapping<dim, spacedim>>
 MappingQ1Eulerian<dim, VectorType, spacedim>::clone() const
 {
@@ -128,12 +127,12 @@ MappingQ1Eulerian<dim, VectorType, spacedim>::clone() const
 
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 CellSimilarity::Similarity
 MappingQ1Eulerian<dim, VectorType, spacedim>::fill_fe_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const CellSimilarity::Similarity,
-  const Quadrature<dim> &                                  quadrature,
+  const Quadrature<dim>                                   &quadrature,
   const typename Mapping<dim, spacedim>::InternalDataBase &internal_data,
   internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &output_data) const

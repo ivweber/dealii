@@ -56,7 +56,7 @@ IndexSet::IndexSet(const Epetra_BlockMap &map)
   else
     {
       const size_type n_indices = map.NumMyElements();
-      size_type *     indices =
+      size_type      *indices =
         reinterpret_cast<size_type *>(map.MyGlobalElements64());
       add_indices(indices, indices + n_indices);
     }
@@ -83,7 +83,7 @@ IndexSet::IndexSet(const Epetra_BlockMap &map)
   else
     {
       const size_type n_indices = map.NumMyElements();
-      unsigned int *  indices =
+      unsigned int   *indices =
         reinterpret_cast<unsigned int *>(map.MyGlobalElements());
       add_indices(indices, indices + n_indices);
     }
@@ -99,64 +99,84 @@ IndexSet::IndexSet(const Epetra_BlockMap &map)
 void
 IndexSet::do_compress() const
 {
-  // we will, in the following, modify mutable variables. this can only
-  // work in multithreaded applications if we lock the data structures
-  // via a mutex, so that users can call 'const' functions from threads
-  // in parallel (and these 'const' functions can then call compress()
-  // which itself calls the current function)
-  std::lock_guard<std::mutex> lock(compress_mutex);
+  {
+    // we will, in the following, modify mutable variables. this can only
+    // work in multithreaded applications if we lock the data structures
+    // via a mutex, so that users can call 'const' functions from threads
+    // in parallel (and these 'const' functions can then call compress()
+    // which itself calls the current function)
+    std::lock_guard<std::mutex> lock(compress_mutex);
 
-  // see if any of the contiguous ranges can be merged. do not use
-  // std::vector::erase in-place as it is quadratic in the number of
-  // ranges. since the ranges are sorted by their first index, determining
-  // overlap isn't all that hard
-  std::vector<Range>::iterator store = ranges.begin();
-  for (std::vector<Range>::iterator i = ranges.begin(); i != ranges.end();)
-    {
-      std::vector<Range>::iterator next = i;
-      ++next;
+    // see if any of the contiguous ranges can be merged. do not use
+    // std::vector::erase in-place as it is quadratic in the number of
+    // ranges. since the ranges are sorted by their first index, determining
+    // overlap isn't all that hard
+    std::vector<Range>::iterator store = ranges.begin();
+    for (std::vector<Range>::iterator i = ranges.begin(); i != ranges.end();)
+      {
+        std::vector<Range>::iterator next = i;
+        ++next;
 
-      size_type first_index = i->begin;
-      size_type last_index  = i->end;
+        size_type first_index = i->begin;
+        size_type last_index  = i->end;
 
-      // see if we can merge any of the following ranges
-      while (next != ranges.end() && (next->begin <= last_index))
-        {
-          last_index = std::max(last_index, next->end);
-          ++next;
-        }
-      i = next;
+        // see if we can merge any of the following ranges
+        while (next != ranges.end() && (next->begin <= last_index))
+          {
+            last_index = std::max(last_index, next->end);
+            ++next;
+          }
+        i = next;
 
-      // store the new range in the slot we last occupied
-      *store = Range(first_index, last_index);
-      ++store;
-    }
-  // use a compact array with exactly the right amount of storage
-  if (store != ranges.end())
-    {
-      std::vector<Range> new_ranges(ranges.begin(), store);
-      ranges.swap(new_ranges);
-    }
+        // store the new range in the slot we last occupied
+        *store = Range(first_index, last_index);
+        ++store;
+      }
+    // use a compact array with exactly the right amount of storage
+    if (store != ranges.end())
+      {
+        std::vector<Range> new_ranges(ranges.begin(), store);
+        ranges.swap(new_ranges);
+      }
 
-  // now compute indices within set and the range with most elements
-  size_type next_index = 0, largest_range_size = 0;
-  for (std::vector<Range>::iterator i = ranges.begin(); i != ranges.end(); ++i)
-    {
-      Assert(i->begin < i->end, ExcInternalError());
+    // now compute indices within set and the range with most elements
+    size_type next_index = 0, largest_range_size = 0;
+    for (std::vector<Range>::iterator i = ranges.begin(); i != ranges.end();
+         ++i)
+      {
+        Assert(i->begin < i->end, ExcInternalError());
 
-      i->nth_index_in_set = next_index;
-      next_index += (i->end - i->begin);
-      if (i->end - i->begin > largest_range_size)
-        {
-          largest_range_size = i->end - i->begin;
-          largest_range      = i - ranges.begin();
-        }
-    }
-  is_compressed = true;
+        i->nth_index_in_set = next_index;
+        next_index += (i->end - i->begin);
+        if (i->end - i->begin > largest_range_size)
+          {
+            largest_range_size = i->end - i->begin;
+            largest_range      = i - ranges.begin();
+          }
+      }
+    is_compressed = true;
 
-  // check that next_index is correct. needs to be after the previous
-  // statement because we otherwise will get into an endless loop
-  Assert(next_index == n_elements(), ExcInternalError());
+    // check that next_index is correct. needs to be after the previous
+    // statement because we otherwise will get into an endless loop
+    Assert(next_index == n_elements(), ExcInternalError());
+  }
+
+#ifdef DEBUG
+  // A consistency check: We should only ever have added indices
+  // that are within the range of the index set. Instead of doing
+  // this in every one of the many functions that add indices,
+  // do this in the current, central location
+  for (const auto &range : ranges)
+    Assert((range.begin < index_space_size) && (range.end <= index_space_size),
+           ExcMessage("In the process of creating the current IndexSet "
+                      "object, you added indices beyond the size of the index "
+                      "space. Specifically, you added elements that form the "
+                      "range [" +
+                      std::to_string(range.begin) + "," +
+                      std::to_string(range.end) +
+                      "), but the size of the index space is only " +
+                      std::to_string(index_space_size) + "."));
+#endif
 }
 
 
@@ -388,8 +408,15 @@ IndexSet::pop_front()
 void
 IndexSet::add_range_lower_bound(const Range &new_range)
 {
-  ranges.insert(Utilities::lower_bound(ranges.begin(), ranges.end(), new_range),
-                new_range);
+  // if the inserted range is already within the range we find by lower_bound,
+  // there is no need to do anything; we do not try to be clever here and
+  // leave all other work to compress().
+  const auto insert_position =
+    Utilities::lower_bound(ranges.begin(), ranges.end(), new_range);
+  if (insert_position == ranges.end() ||
+      insert_position->begin > new_range.begin ||
+      insert_position->end < new_range.end)
+    ranges.insert(insert_position, new_range);
 }
 
 
@@ -397,7 +424,7 @@ IndexSet::add_range_lower_bound(const Range &new_range)
 void
 IndexSet::add_ranges_internal(
   boost::container::small_vector<std::pair<size_type, size_type>, 200>
-    &        tmp_ranges,
+            &tmp_ranges,
   const bool ranges_are_sorted)
 {
   if (!ranges_are_sorted)
@@ -486,6 +513,23 @@ IndexSet::add_indices(const IndexSet &other, const size_type offset)
 
   is_compressed = false;
   compress();
+}
+
+
+
+bool
+IndexSet::is_subset_of(const IndexSet &other) const
+{
+  // See whether there are indices in the current set that are not in 'other'.
+  // If so, then this is clearly not a subset of 'other'.
+  IndexSet A_minus_B = *this;
+  A_minus_B.subtract_set(other);
+  if (A_minus_B.n_elements() > 0)
+    return false;
+  else
+    // Else, every index in 'this' is also in 'other', since we ended up
+    // with an empty set upon subtraction. This means that we have a subset:
+    return true;
 }
 
 

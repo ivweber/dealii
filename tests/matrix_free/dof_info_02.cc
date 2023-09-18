@@ -75,9 +75,8 @@ test(const bool adaptive_ref = true)
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints(relevant_set);
   DoFTools::make_hanging_node_constraints(dof, constraints);
@@ -101,7 +100,7 @@ test(const bool adaptive_ref = true)
   }
 
   const unsigned int     n_cells         = mf_data->n_cell_batches();
-  const auto &           dof_info        = mf_data->get_dof_info();
+  const auto            &dof_info        = mf_data->get_dof_info();
   constexpr unsigned int n_vectorization = VectorizedArray<number>::size();
 
   std::vector<unsigned int> my_rows;
@@ -147,7 +146,7 @@ test(const bool adaptive_ref = true)
       DoFTools::map_dofs_to_support_points(mapping, dof, support_points);
 
       const std::string prefix =
-        std::is_same<float, number>::value ? "float_" : "double_";
+        std::is_same_v<float, number> ? "float_" : "double_";
       const std::string href = (adaptive_ref ? "" : "global_");
       const std::string base_filename =
         prefix + href + "grid" + dealii::Utilities::int_to_string(dim) + "_" +
@@ -155,7 +154,7 @@ test(const bool adaptive_ref = true)
         dealii::Utilities::int_to_string(this_mpi_core);
 
       const std::string filename = base_filename + ".gp";
-      std::ofstream     f(filename.c_str());
+      std::ofstream     f(filename);
 
       f << "set terminal png size 400,410 enhanced font \"Helvetica,8\""
         << std::endl

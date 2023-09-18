@@ -36,10 +36,10 @@ template <typename SolverType,
           typename VectorType,
           class PRECONDITION>
 double
-check_solve(SolverType &        solver,
-            const MatrixType &  A,
-            VectorType &        u,
-            VectorType &        f,
+check_solve(SolverType         &solver,
+            const MatrixType   &A,
+            VectorType         &u,
+            VectorType         &f,
             const PRECONDITION &P)
 {
   double result = 0.;
@@ -60,7 +60,7 @@ int
 main()
 {
   const std::string logname = "output";
-  std::ofstream     logfile(logname.c_str());
+  std::ofstream     logfile(logname);
   //  logfile.setf(std::ios::fixed);
   deallog << std::setprecision(4);
   deallog.attach(logfile);
@@ -204,7 +204,7 @@ main()
               deallog << "diff " << std::fabs(r1 - r2) / r1 << std::endl;
               deallog.pop();
             }
-          catch (std::exception &e)
+          catch (const std::exception &e)
             {
               std::cerr << "Exception: " << e.what() << std::endl;
             }

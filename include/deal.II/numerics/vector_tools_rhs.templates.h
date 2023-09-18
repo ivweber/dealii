@@ -23,7 +23,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -39,12 +38,12 @@ namespace VectorTools
   template <int dim, int spacedim, typename VectorType>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
   void create_boundary_right_hand_side(
-    const Mapping<dim, spacedim> &                             mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const Quadrature<dim - 1> &                                quadrature,
+    const Mapping<dim, spacedim>                              &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const Quadrature<dim - 1>                                 &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const std::set<types::boundary_id> &                       boundary_ids)
+    VectorType                                                &rhs_vector,
+    const std::set<types::boundary_id>                        &boundary_ids)
   {
     const FiniteElement<dim> &fe = dof_handler.get_fe();
     AssertDimension(fe.n_components(), rhs_function.n_components);
@@ -161,11 +160,11 @@ namespace VectorTools
   template <int dim, int spacedim, typename VectorType>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
   void create_boundary_right_hand_side(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const Quadrature<dim - 1> &                                quadrature,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const Quadrature<dim - 1>                                 &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const std::set<types::boundary_id> &                       boundary_ids)
+    VectorType                                                &rhs_vector,
+    const std::set<types::boundary_id>                        &boundary_ids)
   {
     create_boundary_right_hand_side(StaticMappingQ1<dim>::mapping,
                                     dof_handler,
@@ -180,12 +179,12 @@ namespace VectorTools
   template <int dim, int spacedim, typename VectorType>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
   void create_boundary_right_hand_side(
-    const hp::MappingCollection<dim, spacedim> &               mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const hp::QCollection<dim - 1> &                           quadrature,
+    const hp::MappingCollection<dim, spacedim>                &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const hp::QCollection<dim - 1>                            &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const std::set<types::boundary_id> &                       boundary_ids)
+    VectorType                                                &rhs_vector,
+    const std::set<types::boundary_id>                        &boundary_ids)
   {
     const hp::FECollection<dim> &fe = dof_handler.get_fe_collection();
     AssertDimension(fe.n_components(), rhs_function.n_components);
@@ -314,11 +313,11 @@ namespace VectorTools
   template <int dim, int spacedim, typename VectorType>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
   void create_boundary_right_hand_side(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const hp::QCollection<dim - 1> &                           quadrature,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const hp::QCollection<dim - 1>                            &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const std::set<types::boundary_id> &                       boundary_ids)
+    VectorType                                                &rhs_vector,
+    const std::set<types::boundary_id>                        &boundary_ids)
   {
     create_boundary_right_hand_side(
       hp::StaticMappingQ1<dim>::mapping_collection,
@@ -334,12 +333,12 @@ namespace VectorTools
   template <int dim, int spacedim, typename VectorType>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
   void create_right_hand_side(
-    const Mapping<dim, spacedim> &                             mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const Quadrature<dim> &                                    quadrature,
+    const Mapping<dim, spacedim>                              &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const Quadrature<dim>                                     &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const AffineConstraints<typename VectorType::value_type> & constraints)
+    VectorType                                                &rhs_vector,
+    const AffineConstraints<typename VectorType::value_type>  &constraints)
   {
     using Number = typename VectorType::value_type;
 
@@ -451,11 +450,11 @@ namespace VectorTools
   template <int dim, int spacedim, typename VectorType>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
   void create_right_hand_side(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const Quadrature<dim> &                                    quadrature,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const Quadrature<dim>                                     &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const AffineConstraints<typename VectorType::value_type> & constraints)
+    VectorType                                                &rhs_vector,
+    const AffineConstraints<typename VectorType::value_type>  &constraints)
   {
     create_right_hand_side(get_default_linear_mapping(
                              dof_handler.get_triangulation()),
@@ -471,12 +470,12 @@ namespace VectorTools
   template <int dim, int spacedim, typename VectorType>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
   void create_right_hand_side(
-    const hp::MappingCollection<dim, spacedim> &               mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const hp::QCollection<dim> &                               quadrature,
+    const hp::MappingCollection<dim, spacedim>                &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const hp::QCollection<dim>                                &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const AffineConstraints<typename VectorType::value_type> & constraints)
+    VectorType                                                &rhs_vector,
+    const AffineConstraints<typename VectorType::value_type>  &constraints)
   {
     using Number = typename VectorType::value_type;
 
@@ -607,11 +606,11 @@ namespace VectorTools
   template <int dim, int spacedim, typename VectorType>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
   void create_right_hand_side(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const hp::QCollection<dim> &                               quadrature,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const hp::QCollection<dim>                                &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const AffineConstraints<typename VectorType::value_type> & constraints)
+    VectorType                                                &rhs_vector,
+    const AffineConstraints<typename VectorType::value_type>  &constraints)
   {
     create_right_hand_side(
       hp::StaticMappingQ1<dim, spacedim>::mapping_collection,

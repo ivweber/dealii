@@ -178,8 +178,8 @@ namespace Step77
         dof_handler.distribute_dofs(fe);
       }
 
-    IndexSet locally_owned_dofs = dof_handler.locally_owned_dofs();
-    IndexSet locally_relevant_dofs =
+    const IndexSet &locally_owned_dofs = dof_handler.locally_owned_dofs();
+    const IndexSet  locally_relevant_dofs =
       DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     // Specifically, we need two types of AffineConstraints.
@@ -245,7 +245,7 @@ namespace Step77
   void
   MinimalSurfaceProblem<dim>::compute_residual(
     const VectorType &evaluation_point,
-    VectorType &      residual)
+    VectorType       &residual)
   {
     deallog << "  Computing residual vector " << std::endl;
     const QGauss<dim> quadrature_formula(fe.degree + 1);
@@ -526,7 +526,7 @@ namespace Step77
           // Here we inform the nonlinear_solver about how to sample the
           // residual of our nonlinear equations.
           nonlinear_solver.residual = [&](const VectorType &evaluation_point,
-                                          VectorType &      residual) {
+                                          VectorType       &residual) {
             compute_residual(evaluation_point, residual);
             return 0;
           };
@@ -546,7 +546,7 @@ namespace Step77
               // system.
               nonlinear_solver.solve_with_jacobian = [&](const VectorType &rhs,
                                                          VectorType &dst) {
-                this->solve(rhs, dst);
+                solve(rhs, dst);
 
                 return 0;
               };

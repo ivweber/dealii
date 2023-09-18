@@ -62,7 +62,7 @@ Vector<Number>::apply_givens_rotation(const std::array<Number, 3> &csr,
                                       const size_type              i,
                                       const size_type              k)
 {
-  auto &       V = *this;
+  auto        &V = *this;
   const Number t = V(i);
   V(i)           = csr[0] * V(i) + csr[1] * V(k);
   V(k)           = -csr[1] * t + csr[0] * V(k);
@@ -85,7 +85,7 @@ namespace internal
   template <typename Number>
   void
   copy_petsc_vector(const PETScWrappers::VectorBase &v,
-                    ::dealii::Vector<Number> &       out)
+                    ::dealii::Vector<Number>        &out)
   {
     if (v.size() == 0)
       {
@@ -558,6 +558,22 @@ Vector<Number>::add_and_dot(const Number          a,
 
 
 template <typename Number>
+void
+Vector<Number>::extract_subvector_to(
+  const ArrayView<const types::global_dof_index> &indices,
+  ArrayView<Number>                              &elements) const
+{
+  AssertDimension(indices.size(), elements.size());
+  for (unsigned int i = 0; i < indices.size(); ++i)
+    {
+      AssertIndexRange(indices[i], size());
+      elements[i] = (*this)[indices[i]];
+    }
+}
+
+
+
+template <typename Number>
 Vector<Number> &
 Vector<Number>::operator+=(const Vector<Number> &v)
 {
@@ -817,7 +833,7 @@ Vector<Number>::operator==(const Vector<Number2> &v) const
 
 template <typename Number>
 void
-Vector<Number>::print(std::ostream &     out,
+Vector<Number>::print(std::ostream      &out,
                       const unsigned int precision,
                       const bool         scientific,
                       const bool         across) const

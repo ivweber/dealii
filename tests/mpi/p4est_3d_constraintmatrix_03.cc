@@ -85,7 +85,7 @@ TemperatureInitialValues<dim>::value(const Point<dim> &p,
 template <int dim>
 void
 TemperatureInitialValues<dim>::vector_value(const Point<dim> &p,
-                                            Vector<double> &  values) const
+                                            Vector<double>   &values) const
 {
   for (unsigned int c = 0; c < this->n_components; ++c)
     values(c) = TemperatureInitialValues<dim>::value(p, c);
@@ -130,13 +130,9 @@ test()
 
   dofh.distribute_dofs(fe);
 
-  IndexSet owned_set = dofh.locally_owned_dofs();
-
-  IndexSet dof_set;
-  DoFTools::extract_locally_active_dofs(dofh, dof_set);
-
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dofh, relevant_set);
+  IndexSet owned_set    = dofh.locally_owned_dofs();
+  IndexSet dof_set      = DoFTools::extract_locally_active_dofs(dofh);
+  IndexSet relevant_set = DoFTools::extract_locally_relevant_dofs(dofh);
 
   TrilinosWrappers::MPI::Vector x;
   x.reinit(owned_set, MPI_COMM_WORLD);
@@ -203,11 +199,9 @@ test()
 
       dofh.distribute_dofs(fe);
 
-      owned_set = dofh.locally_owned_dofs();
-
-      DoFTools::extract_locally_active_dofs(dofh, dof_set);
-
-      DoFTools::extract_locally_relevant_dofs(dofh, relevant_set);
+      owned_set    = dofh.locally_owned_dofs();
+      dof_set      = DoFTools::extract_locally_active_dofs(dofh);
+      relevant_set = DoFTools::extract_locally_relevant_dofs(dofh);
 
       x.reinit(owned_set, MPI_COMM_WORLD);
 
@@ -260,7 +254,7 @@ test()
       return cell;
     },
 
-    [](const Triangulation<dim> &                        t,
+    [](const Triangulation<dim>                         &t,
        const typename Triangulation<dim>::cell_iterator &old_cell) ->
     typename Triangulation<dim>::cell_iterator {
       if (old_cell != t.end())
@@ -283,7 +277,7 @@ test()
   const std::string filename =
     ("solution." + Utilities::int_to_string(tr.locally_owned_subdomain(), 4) +
      ".vtu");
-  std::ofstream output(filename.c_str());
+  std::ofstream output(filename);
   data_out.write_vtu(output);
 
   tr.reset_manifold(0);

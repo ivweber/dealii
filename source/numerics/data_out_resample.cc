@@ -33,7 +33,7 @@ DEAL_II_NAMESPACE_OPEN
 template <int dim, int patch_dim, int spacedim>
 DataOutResample<dim, patch_dim, spacedim>::DataOutResample(
   const Triangulation<patch_dim, spacedim> &patch_tria,
-  const Mapping<patch_dim, spacedim> &      patch_mapping)
+  const Mapping<patch_dim, spacedim>       &patch_mapping)
   : patch_dof_handler(patch_tria)
   , patch_mapping(&patch_mapping)
 {}
@@ -64,8 +64,8 @@ DataOutResample<dim, patch_dim, spacedim>::update_mapping(
 
   std::vector<types::global_dof_index> dof_indices(fe.n_dofs_per_cell());
 
-  IndexSet active_dofs;
-  DoFTools::extract_locally_active_dofs(patch_dof_handler, active_dofs);
+  const IndexSet active_dofs =
+    DoFTools::extract_locally_active_dofs(patch_dof_handler);
   partitioner = std::make_shared<Utilities::MPI::Partitioner>(
     patch_dof_handler.locally_owned_dofs(), active_dofs, MPI_COMM_WORLD);
 
@@ -107,7 +107,7 @@ DataOutResample<dim, patch_dim, spacedim>::update_mapping(
 template <int dim, int patch_dim, int spacedim>
 void
 DataOutResample<dim, patch_dim, spacedim>::build_patches(
-  const Mapping<dim, spacedim> &                                mapping,
+  const Mapping<dim, spacedim>                                 &mapping,
   const unsigned int                                            n_subdivisions,
   const typename DataOut<patch_dim, spacedim>::CurvedCellRegion curved_region)
 {

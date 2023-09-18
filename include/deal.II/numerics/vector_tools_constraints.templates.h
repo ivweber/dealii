@@ -38,7 +38,7 @@ namespace VectorTools
     template <int dim>
     struct VectorDoFTuple
     {
-      types::global_dof_index dof_indices[dim];
+      std::array<types::global_dof_index, dim> dof_indices;
 
       VectorDoFTuple()
       {
@@ -50,28 +50,19 @@ namespace VectorTools
       bool
       operator<(const VectorDoFTuple<dim> &other) const
       {
-        for (unsigned int i = 0; i < dim; ++i)
-          if (dof_indices[i] < other.dof_indices[i])
-            return true;
-          else if (dof_indices[i] > other.dof_indices[i])
-            return false;
-        return false;
+        return (dof_indices < other.dof_indices);
       }
 
       bool
       operator==(const VectorDoFTuple<dim> &other) const
       {
-        for (unsigned int i = 0; i < dim; ++i)
-          if (dof_indices[i] != other.dof_indices[i])
-            return false;
-
-        return true;
+        return (dof_indices == other.dof_indices);
       }
 
       bool
       operator!=(const VectorDoFTuple<dim> &other) const
       {
-        return !(*this == other);
+        return (dof_indices != other.dof_indices);
       }
     };
 
@@ -95,33 +86,24 @@ namespace VectorTools
     {
       static const unsigned int size = 3;
       // store active fe indeX, face number, DoF index
-      unsigned int indices[size];
+      std::array<unsigned int, size> indices;
 
       bool
       operator<(const FaceDoFInfo &other) const
       {
-        for (unsigned int i = 0; i < size; ++i)
-          if (indices[i] < other.indices[i])
-            return true;
-          else if (indices[i] > other.indices[i])
-            return false;
-        return false;
+        return (indices < other.indices);
       }
 
       bool
       operator==(const FaceDoFInfo &other) const
       {
-        for (unsigned int i = 0; i < size; ++i)
-          if (indices[i] != other.indices[i])
-            return false;
-
-        return true;
+        return (indices == other.indices);
       }
 
       bool
       operator!=(const FaceDoFInfo &other) const
       {
-        return !(*this == other);
+        return (indices != other.indices);
       }
     };
 
@@ -140,7 +122,7 @@ namespace VectorTools
     template <int dim>
     void
     add_constraint(const VectorDoFTuple<dim> &dof_indices,
-                   const Tensor<1, dim> &     constraining_vector,
+                   const Tensor<1, dim>      &constraining_vector,
                    AffineConstraints<double> &constraints,
                    const double               inhomogeneity = 0)
     {
@@ -353,9 +335,9 @@ namespace VectorTools
     void
     add_tangentiality_constraints(
       const VectorDoFTuple<dim> &dof_indices,
-      const Tensor<1, dim> &     tangent_vector,
+      const Tensor<1, dim>      &tangent_vector,
       AffineConstraints<double> &constraints,
-      const Vector<double> &     b_values = Vector<double>(dim))
+      const Vector<double>      &b_values = Vector<double>(dim))
     {
       // choose the DoF that has the
       // largest component in the
@@ -517,8 +499,8 @@ namespace VectorTools
       const typename DoFHandler<dim, spacedim>::cell_iterator &cell,
       const unsigned int                  first_vector_component,
       const std::set<types::boundary_id> &boundary_ids,
-      hp::FEFaceValues<dim, spacedim> &   x_fe_face_values,
-      const IndexSet &                    refinement_edge_indices,
+      hp::FEFaceValues<dim, spacedim>    &x_fe_face_values,
+      const IndexSet                     &refinement_edge_indices,
       const unsigned int                  level,
       std::map<FaceDoFInfo, std::array<unsigned int, dim>> &dof_to_vector_dof)
     {
@@ -557,7 +539,7 @@ namespace VectorTools
                     {
                       local_vector_indices[0]               = i;
                       const FaceDoFInfo local_face_dof_info = {
-                        {cell->active_fe_index(), face_no, i}};
+                        {{cell->active_fe_index(), face_no, i}}};
                       for (unsigned int k = 0; k < fe.n_dofs_per_face(face_no);
                            ++k)
                         if ((k != i) &&
@@ -596,16 +578,16 @@ namespace VectorTools
       const unsigned int                  first_vector_component,
       const std::set<types::boundary_id> &boundary_ids,
       const std::map<types::boundary_id, const Function<spacedim> *>
-        &                              function_map,
+                                      &function_map,
       hp::FEFaceValues<dim, spacedim> &x_fe_face_values,
       const unsigned int               n_dofs,
-      const IndexSet &                 refinement_edge_indices,
+      const IndexSet                  &refinement_edge_indices,
       const unsigned int               level,
       std::multimap<
         VectorDoFTuple<dim>,
         std::pair<Tensor<1, dim>,
                   typename DoFHandler<dim, spacedim>::cell_iterator>>
-        &                                            dof_to_normals_map,
+                                                    &dof_to_normals_map,
       std::map<VectorDoFTuple<dim>, Vector<double>> &dof_vector_to_b_values)
     {
       // mapping from (active_fe_index, face_no and local
@@ -657,7 +639,7 @@ namespace VectorTools
                     !refinement_edge_indices.is_element(face_dofs[i]))
                   {
                     const FaceDoFInfo face_dof_info = {
-                      {cell->active_fe_index(), face_no, i}};
+                      {{cell->active_fe_index(), face_no, i}}};
                     const auto it = dof_to_vector_dof.find(face_dof_info);
                     Assert(it != dof_to_vector_dof.end(), ExcInternalError());
                     const std::array<unsigned int, dim> local_vector_indices =
@@ -777,14 +759,14 @@ namespace VectorTools
     template <int dim, int spacedim>
     void
     compute_nonzero_normal_flux_constraints_active_or_level(
-      const DoFHandler<dim, spacedim> &   dof_handler,
+      const DoFHandler<dim, spacedim>    &dof_handler,
       const unsigned int                  first_vector_component,
       const std::set<types::boundary_id> &boundary_ids,
       const std::map<types::boundary_id, const Function<spacedim> *>
-        &                           function_map,
-      AffineConstraints<double> &   constraints,
+                                   &function_map,
+      AffineConstraints<double>    &constraints,
       const Mapping<dim, spacedim> &mapping,
-      const IndexSet &              refinement_edge_indices = IndexSet(),
+      const IndexSet               &refinement_edge_indices = IndexSet(),
       const unsigned int            level = numbers::invalid_unsigned_int)
     {
       Assert(dim > 1,
@@ -1260,12 +1242,12 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   compute_nonzero_normal_flux_constraints(
-    const DoFHandler<dim, spacedim> &   dof_handler,
+    const DoFHandler<dim, spacedim>    &dof_handler,
     const unsigned int                  first_vector_component,
     const std::set<types::boundary_id> &boundary_ids,
     const std::map<types::boundary_id, const Function<spacedim> *>
-      &                           function_map,
-    AffineConstraints<double> &   constraints,
+                                 &function_map,
+    AffineConstraints<double>    &constraints,
     const Mapping<dim, spacedim> &mapping)
   {
     internal::compute_nonzero_normal_flux_constraints_active_or_level(
@@ -1282,14 +1264,14 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   compute_nonzero_normal_flux_constraints_on_level(
-    const DoFHandler<dim, spacedim> &   dof_handler,
+    const DoFHandler<dim, spacedim>    &dof_handler,
     const unsigned int                  first_vector_component,
     const std::set<types::boundary_id> &boundary_ids,
     const std::map<types::boundary_id, const Function<spacedim> *>
-      &                           function_map,
-    AffineConstraints<double> &   constraints,
+                                 &function_map,
+    AffineConstraints<double>    &constraints,
     const Mapping<dim, spacedim> &mapping,
-    const IndexSet &              refinement_edge_indices,
+    const IndexSet               &refinement_edge_indices,
     const unsigned int            level)
   {
     internal::compute_nonzero_normal_flux_constraints_active_or_level(
@@ -1323,12 +1305,12 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   compute_nonzero_tangential_flux_constraints(
-    const DoFHandler<dim, spacedim> &   dof_handler,
+    const DoFHandler<dim, spacedim>    &dof_handler,
     const unsigned int                  first_vector_component,
     const std::set<types::boundary_id> &boundary_ids,
     const std::map<types::boundary_id, const Function<spacedim> *>
-      &                           function_map,
-    AffineConstraints<double> &   constraints,
+                                 &function_map,
+    AffineConstraints<double>    &constraints,
     const Mapping<dim, spacedim> &mapping)
   {
     AffineConstraints<double> no_normal_flux_constraints(
@@ -1539,11 +1521,11 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   compute_no_normal_flux_constraints(
-    const DoFHandler<dim, spacedim> &   dof_handler,
+    const DoFHandler<dim, spacedim>    &dof_handler,
     const unsigned int                  first_vector_component,
     const std::set<types::boundary_id> &boundary_ids,
-    AffineConstraints<double> &         constraints,
-    const Mapping<dim, spacedim> &      mapping)
+    AffineConstraints<double>          &constraints,
+    const Mapping<dim, spacedim>       &mapping)
   {
     Functions::ZeroFunction<dim>                             zero_function(dim);
     std::map<types::boundary_id, const Function<spacedim> *> function_map;
@@ -1563,12 +1545,12 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   compute_no_normal_flux_constraints_on_level(
-    const DoFHandler<dim, spacedim> &   dof_handler,
+    const DoFHandler<dim, spacedim>    &dof_handler,
     const unsigned int                  first_vector_component,
     const std::set<types::boundary_id> &boundary_ids,
-    AffineConstraints<double> &         constraints,
-    const Mapping<dim, spacedim> &      mapping,
-    const IndexSet &                    refinement_edge_indices,
+    AffineConstraints<double>          &constraints,
+    const Mapping<dim, spacedim>       &mapping,
+    const IndexSet                     &refinement_edge_indices,
     const unsigned int                  level)
   {
     Functions::ZeroFunction<dim>                             zero_function(dim);
@@ -1591,11 +1573,11 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   compute_normal_flux_constraints(
-    const DoFHandler<dim, spacedim> &   dof_handler,
+    const DoFHandler<dim, spacedim>    &dof_handler,
     const unsigned int                  first_vector_component,
     const std::set<types::boundary_id> &boundary_ids,
-    AffineConstraints<double> &         constraints,
-    const Mapping<dim, spacedim> &      mapping)
+    AffineConstraints<double>          &constraints,
+    const Mapping<dim, spacedim>       &mapping)
   {
     Functions::ZeroFunction<dim>                             zero_function(dim);
     std::map<types::boundary_id, const Function<spacedim> *> function_map;

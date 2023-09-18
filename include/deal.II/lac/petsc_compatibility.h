@@ -32,12 +32,14 @@
 
 #ifdef DEAL_II_WITH_PETSC
 
-#  include <petscconf.h>
 #  include <petscksp.h>
 #  include <petscmat.h>
 #  include <petscpc.h>
 #  include <petscsnes.h>
 #  include <petscts.h>
+#  if DEAL_II_PETSC_VERSION_LT(3, 19, 0)
+#    define PETSC_SUCCESS 0
+#  endif
 
 #  include <string>
 
@@ -67,7 +69,7 @@ namespace PETScWrappers
    * before 3.0.0 since the corresponding function did not take this argument.
    */
   inline void
-  set_matrix_option(Mat &           matrix,
+  set_matrix_option(Mat            &matrix,
                     const MatOption option_name,
                     const PetscBool option_value = PETSC_FALSE)
   {
@@ -170,6 +172,14 @@ namespace PETScWrappers
    */
   void
   set_use_matrix_free(TS ts, const bool mf_operator, const bool mf);
+
+
+
+  /**
+   * Reset DM (no public API).
+   */
+  void
+  ts_reset_dm(TS ts);
 
 
 

@@ -18,7 +18,7 @@
 
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/function.h>
-#include <deal.II/base/function_level_set.h>
+#include <deal.II/base/function_signed_distance.h>
 #include <deal.II/base/point.h>
 
 #include <deal.II/dofs/dof_handler.h>
@@ -70,7 +70,7 @@ location_to_string(const NonMatching::LocationToLevelSet location)
 template <int dim>
 void
 print_cell_and_face_locations(
-  const NonMatching::MeshClassifier<dim> &                 classifier,
+  const NonMatching::MeshClassifier<dim>                  &classifier,
   const typename Triangulation<dim>::active_cell_iterator &cell)
 {
   const NonMatching::LocationToLevelSet cell_location =
@@ -202,7 +202,7 @@ test_intersection_x_eq_0_plane()
   plane_normal[0] = 1;
   const Point<dim> origo;
 
-  const Functions::LevelSet::Plane<dim> level_set(origo, plane_normal);
+  const Functions::SignedDistance::Plane<dim> level_set(origo, plane_normal);
 
   classify_with_discrete_and_analytic_level_set(level_set);
 }

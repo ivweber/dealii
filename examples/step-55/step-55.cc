@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Timo Heister, Clemson University, 2016
  */
@@ -106,13 +105,13 @@ namespace Step55
 
     private:
       const SmartPointer<const Matrix> matrix;
-      const Preconditioner &           preconditioner;
+      const Preconditioner            &preconditioner;
     };
 
 
     template <class Matrix, class Preconditioner>
     InverseMatrix<Matrix, Preconditioner>::InverseMatrix(
-      const Matrix &        m,
+      const Matrix         &m,
       const Preconditioner &preconditioner)
       : matrix(&m)
       , preconditioner(preconditioner)
@@ -123,7 +122,7 @@ namespace Step55
     template <class Matrix, class Preconditioner>
     template <typename VectorType>
     void
-    InverseMatrix<Matrix, Preconditioner>::vmult(VectorType &      dst,
+    InverseMatrix<Matrix, Preconditioner>::vmult(VectorType       &dst,
                                                  const VectorType &src) const
     {
       SolverControl        solver_control(src.size(), 1e-8 * src.l2_norm());
@@ -150,7 +149,7 @@ namespace Step55
       BlockDiagonalPreconditioner(const PreconditionerA &preconditioner_A,
                                   const PreconditionerS &preconditioner_S);
 
-      void vmult(LA::MPI::BlockVector &      dst,
+      void vmult(LA::MPI::BlockVector       &dst,
                  const LA::MPI::BlockVector &src) const;
 
     private:
@@ -169,7 +168,7 @@ namespace Step55
 
     template <class PreconditionerA, class PreconditionerS>
     void BlockDiagonalPreconditioner<PreconditionerA, PreconditionerS>::vmult(
-      LA::MPI::BlockVector &      dst,
+      LA::MPI::BlockVector       &dst,
       const LA::MPI::BlockVector &src) const
     {
       preconditioner_A.vmult(dst.block(0), src.block(0));
@@ -192,13 +191,13 @@ namespace Step55
     {}
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  value) const override;
+                              Vector<double>   &value) const override;
   };
 
 
   template <int dim>
   void RightHandSide<dim>::vector_value(const Point<dim> &p,
-                                        Vector<double> &  values) const
+                                        Vector<double>   &values) const
   {
     const double R_x = p[0];
     const double R_y = p[1];
@@ -206,6 +205,7 @@ namespace Step55
     constexpr double pi  = numbers::PI;
     constexpr double pi2 = numbers::PI * numbers::PI;
 
+    // velocity
     values[0] = -1.0L / 2.0L * (-2 * std::sqrt(25.0 + 4 * pi2) + 10.0) *
                   std::exp(R_x * (-2 * std::sqrt(25.0 + 4 * pi2) + 10.0)) -
                 0.4 * pi2 * std::exp(R_x * (-std::sqrt(25.0 + 4 * pi2) + 5.0)) *
@@ -219,7 +219,9 @@ namespace Step55
                 0.05 * std::pow(-std::sqrt(25.0 + 4 * pi2) + 5.0, 3) *
                   std::exp(R_x * (-std::sqrt(25.0 + 4 * pi2) + 5.0)) *
                   std::sin(2 * R_y * pi) / pi;
-    values[2] = 0;
+
+    // pressure
+    values[dim] = 0;
   }
 
 
@@ -232,12 +234,12 @@ namespace Step55
     {}
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  values) const override;
+                              Vector<double>   &values) const override;
   };
 
   template <int dim>
   void ExactSolution<dim>::vector_value(const Point<dim> &p,
-                                        Vector<double> &  values) const
+                                        Vector<double>   &values) const
   {
     const double R_x = p[0];
     const double R_y = p[1];
@@ -245,13 +247,16 @@ namespace Step55
     constexpr double pi  = numbers::PI;
     constexpr double pi2 = numbers::PI * numbers::PI;
 
+    // velocity
     values[0] = -std::exp(R_x * (-std::sqrt(25.0 + 4 * pi2) + 5.0)) *
                   std::cos(2 * R_y * pi) +
                 1;
     values[1] = (1.0L / 2.0L) * (-std::sqrt(25.0 + 4 * pi2) + 5.0) *
                 std::exp(R_x * (-std::sqrt(25.0 + 4 * pi2) + 5.0)) *
                 std::sin(2 * R_y * pi) / pi;
-    values[2] =
+
+    // pressure
+    values[dim] =
       -1.0L / 2.0L * std::exp(R_x * (-2 * std::sqrt(25.0 + 4 * pi2) + 10.0)) -
       2.0 *
         (-6538034.74494422 +
@@ -322,7 +327,7 @@ namespace Step55
     : velocity_degree(velocity_degree)
     , viscosity(0.1)
     , mpi_communicator(MPI_COMM_WORLD)
-    , fe(FE_Q<dim>(velocity_degree), dim, FE_Q<dim>(velocity_degree - 1), 1)
+    , fe(FE_Q<dim>(velocity_degree) ^ dim, FE_Q<dim>(velocity_degree - 1))
     , triangulation(mpi_communicator,
                     typename Triangulation<dim>::MeshSmoothing(
                       Triangulation<dim>::smoothing_on_refinement |

@@ -115,7 +115,7 @@ class PETScInverse
 {
 public:
   PETScInverse(const dealii::PETScWrappers::MatrixBase &A,
-               dealii::SolverControl &                  cn,
+               dealii::SolverControl                   &cn,
                const MPI_Comm mpi_communicator = PETSC_COMM_SELF)
     : solver(cn)
     , matrix(A)
@@ -123,7 +123,7 @@ public:
   {}
 
   void
-  vmult(dealii::PETScWrappers::MPI::Vector &      dst,
+  vmult(dealii::PETScWrappers::MPI::Vector       &dst,
         const dealii::PETScWrappers::MPI::Vector &src) const
   {
     ;
@@ -190,9 +190,8 @@ test()
   std::vector<dealii::IndexSet> locally_owned_dofs_per_processor =
     locally_owned_dofs_per_subdomain(dof_handler);
   locally_owned_dofs = locally_owned_dofs_per_processor[this_mpi_process];
-  locally_relevant_dofs.clear();
-  dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
-                                                  locally_relevant_dofs);
+  locally_relevant_dofs =
+    dealii::DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   constraints.clear();
   constraints.reinit(locally_relevant_dofs);
@@ -377,7 +376,7 @@ main(int argc, char **argv)
         test();
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

@@ -51,7 +51,7 @@ namespace MeshWorker
      * A helper class to provide a type definition for the underlying cell
      * iterator type.
      */
-    template <class CellIteratorType>
+    template <typename CellIteratorType>
     struct CellIteratorBaseType
     {
       /**
@@ -67,7 +67,7 @@ namespace MeshWorker
      * This specialization is for IteratorRange, which may have either a
      * TriaActiveIterator or a FilteredIterator as its base type.
      */
-    template <class CellIteratorType>
+    template <typename CellIteratorType>
     struct CellIteratorBaseType<IteratorOverIterators<CellIteratorType>>
     {
       /**
@@ -87,7 +87,7 @@ namespace MeshWorker
      * TriaActiveIterator as its base type, or may be nested with another
      * FilteredIterator as the type to iterate over.
      */
-    template <class CellIteratorType>
+    template <typename CellIteratorType>
     struct CellIteratorBaseType<FilteredIterator<CellIteratorType>>
     {
       /**
@@ -273,10 +273,10 @@ namespace MeshWorker
    *
    * @ingroup MeshWorker
    */
-  template <class CellIteratorType,
+  template <typename CellIteratorType,
             class ScratchData,
             class CopyData,
-            class CellIteratorBaseType =
+            typename CellIteratorBaseType =
               typename internal::CellIteratorBaseType<CellIteratorType>::type>
   void
   mesh_loop(
@@ -285,10 +285,10 @@ namespace MeshWorker
     const CellIteratorType &end,
 
     const CellWorkerFunctionType &cell_worker,
-    const CopierType &            copier,
+    const CopierType             &copier,
 
     const ScratchData &sample_scratch_data,
-    const CopyData &   sample_copy_data,
+    const CopyData    &sample_copy_data,
 
     const AssembleFlags flags = assemble_own_cells,
 
@@ -299,7 +299,7 @@ namespace MeshWorker
     const unsigned int queue_length = 2 * MultithreadInfo::n_threads(),
     const unsigned int chunk_size   = 8
 #else
-    const CellIteratorType &                            begin,
+    const CellIteratorType                             &begin,
     const std_cxx20::type_identity_t<CellIteratorType> &end,
 
     const std_cxx20::type_identity_t<std::function<
@@ -309,7 +309,7 @@ namespace MeshWorker
       &copier,
 
     const ScratchData &sample_scratch_data,
-    const CopyData &   sample_copy_data,
+    const CopyData    &sample_copy_data,
 
     const AssembleFlags flags = assemble_own_cells,
 
@@ -399,8 +399,8 @@ namespace MeshWorker
         "conditions is not satisfied."));
 
     auto cell_action = [&](const CellIteratorBaseType &cell,
-                           ScratchData &               scratch,
-                           CopyData &                  copy) {
+                           ScratchData                &scratch,
+                           CopyData                   &copy) {
       // First reset the CopyData class to the empty copy_data given by the
       // user.
       copy = sample_copy_data;
@@ -707,10 +707,10 @@ namespace MeshWorker
    *
    * @ingroup MeshWorker
    */
-  template <class CellIteratorType,
+  template <typename CellIteratorType,
             class ScratchData,
             class CopyData,
-            class CellIteratorBaseType =
+            typename CellIteratorBaseType =
               typename internal::CellIteratorBaseType<CellIteratorType>::type>
   void
   mesh_loop(
@@ -722,7 +722,7 @@ namespace MeshWorker
       &copier,
 
     const ScratchData &sample_scratch_data,
-    const CopyData &   sample_copy_data,
+    const CopyData    &sample_copy_data,
 
     const AssembleFlags flags = assemble_own_cells,
 
@@ -833,20 +833,20 @@ namespace MeshWorker
    *
    * @ingroup MeshWorker
    */
-  template <class CellIteratorType,
+  template <typename CellIteratorType,
             class ScratchData,
             class CopyData,
             class MainClass>
   void
-  mesh_loop(const CellIteratorType &                            begin,
+  mesh_loop(const CellIteratorType                             &begin,
             const std_cxx20::type_identity_t<CellIteratorType> &end,
-            MainClass &                                         main_class,
+            MainClass                                          &main_class,
             void (MainClass::*cell_worker)(const CellIteratorType &,
                                            ScratchData &,
                                            CopyData &),
             void (MainClass::*copier)(const CopyData &),
-            const ScratchData & sample_scratch_data,
-            const CopyData &    sample_copy_data,
+            const ScratchData  &sample_scratch_data,
+            const CopyData     &sample_copy_data,
             const AssembleFlags flags                      = assemble_own_cells,
             void (MainClass::*boundary_worker)(const CellIteratorType &,
                                                const unsigned int,
@@ -883,8 +883,8 @@ namespace MeshWorker
     if (cell_worker != nullptr)
       f_cell_worker = [&main_class,
                        cell_worker](const CellIteratorType &cell_iterator,
-                                    ScratchData &           scratch_data,
-                                    CopyData &              copy_data) {
+                                    ScratchData            &scratch_data,
+                                    CopyData               &copy_data) {
         (main_class.*cell_worker)(cell_iterator, scratch_data, copy_data);
       };
 
@@ -892,8 +892,8 @@ namespace MeshWorker
       f_boundary_worker =
         [&main_class, boundary_worker](const CellIteratorType &cell_iterator,
                                        const unsigned int      face_no,
-                                       ScratchData &           scratch_data,
-                                       CopyData &              copy_data) {
+                                       ScratchData            &scratch_data,
+                                       CopyData               &copy_data) {
           (main_class.*
            boundary_worker)(cell_iterator, face_no, scratch_data, copy_data);
         };
@@ -906,8 +906,8 @@ namespace MeshWorker
                                     const CellIteratorType &cell_iterator_2,
                                     const unsigned int      face_index_2,
                                     const unsigned int      subface_index_2,
-                                    ScratchData &           scratch_data,
-                                    CopyData &              copy_data) {
+                                    ScratchData            &scratch_data,
+                                    CopyData               &copy_data) {
         (main_class.*face_worker)(cell_iterator_1,
                                   face_index_1,
                                   subface_index_1,
@@ -1013,21 +1013,21 @@ namespace MeshWorker
    *
    * @ingroup MeshWorker
    */
-  template <class CellIteratorType,
+  template <typename CellIteratorType,
             class ScratchData,
             class CopyData,
             class MainClass,
-            class CellIteratorBaseType =
+            typename CellIteratorBaseType =
               typename internal::CellIteratorBaseType<CellIteratorType>::type>
   void
   mesh_loop(IteratorRange<CellIteratorType> iterator_range,
-            MainClass &                     main_class,
+            MainClass                      &main_class,
             void (MainClass::*cell_worker)(const CellIteratorBaseType &,
                                            ScratchData &,
                                            CopyData &),
             void (MainClass::*copier)(const CopyData &),
-            const ScratchData & sample_scratch_data,
-            const CopyData &    sample_copy_data,
+            const ScratchData  &sample_scratch_data,
+            const CopyData     &sample_copy_data,
             const AssembleFlags flags                      = assemble_own_cells,
             void (MainClass::*boundary_worker)(const CellIteratorBaseType &,
                                                const unsigned int,

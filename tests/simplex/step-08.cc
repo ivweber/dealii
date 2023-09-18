@@ -106,7 +106,7 @@ namespace Step8
   template <int dim>
   void
   right_hand_side(const std::vector<Point<dim>> &points,
-                  std::vector<Tensor<1, dim>> &  values)
+                  std::vector<Tensor<1, dim>>   &values)
   {
     Assert(values.size() == points.size(),
            ExcDimensionMismatch(values.size(), points.size()));
@@ -353,7 +353,7 @@ main()
       Step8::ElasticProblem<2> elastic_problem_2d;
       elastic_problem_2d.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

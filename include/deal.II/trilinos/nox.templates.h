@@ -56,7 +56,7 @@ namespace TrilinosWrappers
          */
         template <typename F, typename... Args>
         int
-        call_and_possibly_capture_exception(const F &           f,
+        call_and_possibly_capture_exception(const F            &f,
                                             std::exception_ptr &eptr,
                                             Args &&...args)
         {
@@ -359,11 +359,11 @@ namespace TrilinosWrappers
          * to solve the Jacobian.
          */
         Group(
-          VectorType &                                                solution,
+          VectorType                                                 &solution,
           const std::function<int(const VectorType &, VectorType &)> &residual,
           const std::function<int(const VectorType &)> &setup_jacobian,
           const std::function<int(const VectorType &, VectorType &)>
-            &                                     apply_jacobian,
+                                                 &apply_jacobian,
           const std::function<int(const VectorType &,
                                   VectorType &,
                                   const double)> &solve_with_jacobian)
@@ -464,7 +464,7 @@ namespace TrilinosWrappers
          * Compute the solution update `x = grp.x + step * d`.
          */
         void
-        computeX(const NOX::Abstract::Group & grp,
+        computeX(const NOX::Abstract::Group  &grp,
                  const NOX::Abstract::Vector &d,
                  double                       step) override
         {
@@ -713,7 +713,7 @@ namespace TrilinosWrappers
          */
         NOX::Abstract::Group::ReturnType
         applyJacobian(const NOX::Abstract::Vector &input,
-                      NOX::Abstract::Vector &      result) const override
+                      NOX::Abstract::Vector       &result) const override
         {
           if (apply_jacobian == nullptr)
             return NOX::Abstract::Group::NotDefined;
@@ -836,17 +836,17 @@ namespace TrilinosWrappers
               else
                 {
                   // unwrap the various vectors
-                  const VectorType &x__ = *dynamic_cast<
+                  const VectorType &x = *dynamic_cast<
                     const internal::NOXWrappers::Vector<VectorType> *>(
                     &problem.getSolutionGroup().getX());
-                  const VectorType &f__ = *dynamic_cast<
+                  const VectorType &f = *dynamic_cast<
                     const internal::NOXWrappers::Vector<VectorType> *>(
                     &problem.getSolutionGroup().getF());
 
-                  // forward to the user-provided function and checks
+                  // forward to the user-provided function and check
                   // convergence
                   const auto state = this->check_iteration_status(
-                    problem.getNumIterations(), f__.l2_norm(), x__, f__);
+                    problem.getNumIterations(), f.l2_norm(), x, f);
 
                   // translate the returned value back to Trilinos data
                   // structure
@@ -898,8 +898,8 @@ namespace TrilinosWrappers
          */
         const std::function<SolverControl::State(const unsigned int i,
                                                  const double       f_norm,
-                                                 const VectorType & x,
-                                                 const VectorType & f)>
+                                                 const VectorType  &x,
+                                                 const VectorType  &f)>
           check_iteration_status;
 
         /**
@@ -932,7 +932,7 @@ namespace TrilinosWrappers
 
   template <typename VectorType>
   NOXSolver<VectorType>::NOXSolver(
-    AdditionalData &                            additional_data,
+    AdditionalData                             &additional_data,
     const Teuchos::RCP<Teuchos::ParameterList> &parameters)
     : additional_data(additional_data)
     , parameters(parameters)

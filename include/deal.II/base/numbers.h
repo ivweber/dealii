@@ -37,11 +37,10 @@
 #define DEAL_II_HOST_DEVICE_ALWAYS_INLINE KOKKOS_FORCEINLINE_FUNCTION
 
 // clang++ assumes that all constexpr functions are __host__ __device__ when
-// compiling CUDA code, i.e, when Kokkos was configured with CUDA support.
-// This is problematic when calling non-constexpr functions in constexpr
-// functions. Hence, we need a way to annotate functions explicitly as
-// host-only.
-#if defined(__clang__) && defined(__CUDA__)
+// Kokkos was configured with CUDA or HIP support. This is problematic
+// when calling non-constexpr functions in constexpr functions. Hence, we
+// need a way to annotate functions explicitly as host-only.
+#if (defined(__clang__) && defined(__CUDA__)) || defined(KOKKOS_ENABLE_HIP)
 #  define DEAL_II_HOST __host__
 #else
 #  define DEAL_II_HOST
@@ -130,6 +129,8 @@ namespace internal
 #elif DEAL_II_VECTORIZATION_WIDTH_IN_BITS >= 256 && defined(__AVX__)
       8;
 #elif DEAL_II_VECTORIZATION_WIDTH_IN_BITS >= 128 && defined(__SSE2__)
+      4;
+#elif DEAL_II_VECTORIZATION_WIDTH_IN_BITS >= 128 && defined(__ARM_NEON)
       4;
 #else
       1;
@@ -453,7 +454,7 @@ namespace numbers
      * @note This function can also be used in @ref GlossDevice "device" code.
      */
     static constexpr DEAL_II_HOST_DEVICE const number &
-                                               conjugate(const number &x);
+    conjugate(const number &x);
 
     /**
      * Return the square of the absolute value of the given number. Since the
@@ -688,7 +689,7 @@ namespace internal
     }
 
   public:
-    static bool const value = test<From, To>(0);
+    static const bool value = test<From, To>(0);
   };
 
   /*
@@ -699,7 +700,7 @@ namespace internal
   struct NumberType
   {
     static constexpr DEAL_II_HOST_DEVICE_ALWAYS_INLINE const T &
-                                                             value(const T &t)
+    value(const T &t)
     {
       return t;
     }
@@ -715,9 +716,8 @@ namespace internal
     template <typename F>
     static constexpr DEAL_II_HOST_DEVICE_ALWAYS_INLINE T
     value(const F &f,
-          std::enable_if_t<!std::is_same<typename std::decay<T>::type,
-                                         typename std::decay<F>::type>::value &&
-                           std::is_constructible<T, F>::value> * = nullptr)
+          std::enable_if_t<!std::is_same_v<std::decay_t<T>, std::decay_t<F>> &&
+                           std::is_constructible_v<T, F>> * = nullptr)
     {
       return T(f);
     }
@@ -726,9 +726,8 @@ namespace internal
     template <typename F>
     static constexpr DEAL_II_HOST_DEVICE_ALWAYS_INLINE T
     value(const F &f,
-          std::enable_if_t<!std::is_same<typename std::decay<T>::type,
-                                         typename std::decay<F>::type>::value &&
-                           !std::is_constructible<T, F>::value &&
+          std::enable_if_t<!std::is_same_v<std::decay_t<T>, std::decay_t<F>> &&
+                           !std::is_constructible_v<T, F> &&
                            is_explicitly_convertible<const F, T>::value> * =
             nullptr)
     {
@@ -743,9 +742,8 @@ namespace internal
     static T
     value(
       const F &f,
-      std::enable_if_t<!std::is_same<typename std::decay<T>::type,
-                                     typename std::decay<F>::type>::value &&
-                       !std::is_constructible<T, F>::value &&
+      std::enable_if_t<!std::is_same_v<std::decay_t<T>, std::decay_t<F>> &&
+                       !std::is_constructible_v<T, F> &&
                        !is_explicitly_convertible<const F, T>::value &&
                        Differentiation::AD::is_ad_number<F>::value> * = nullptr)
     {

@@ -115,15 +115,15 @@ public:
  */
 template <int dim>
 void
-check_consistency(const Point<dim> &    p,
-                  const Function<dim> & func,
-                  const double &        v_e,
+check_consistency(const Point<dim>     &p,
+                  const Function<dim>  &func,
+                  const double         &v_e,
                   const Tensor<1, dim> &g_e,
                   const Tensor<2, dim> &h_e,
-                  const double &        v_s0,
+                  const double         &v_s0,
                   const Tensor<1, dim> &g_s0,
                   const Tensor<2, dim> &h_s0,
-                  const double &        v_s1,
+                  const double         &v_s1,
                   const Tensor<1, dim> &g_s1,
                   const Tensor<2, dim> &h_s1)
 {
@@ -156,9 +156,9 @@ check_consistency(const Point<dim> &    p,
 
 template <int dim>
 void
-test(const FiniteElement<dim> & fe1,
-     const FiniteElement<dim> & fe2,
-     const Quadrature<dim> &    volume_quad,
+test(const FiniteElement<dim>  &fe1,
+     const FiniteElement<dim>  &fe2,
+     const Quadrature<dim>     &volume_quad,
      const Quadrature<dim - 1> &face_quad,
      const bool                 distort)
 {
@@ -309,7 +309,7 @@ main(int argc, char **argv)
           FE_Q<dim>(3), FE_Q<dim>(2), QGauss<dim>(2), QGauss<dim - 1>(2), true);
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

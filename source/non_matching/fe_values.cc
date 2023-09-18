@@ -19,7 +19,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_epetra_vector.h>
@@ -27,8 +26,6 @@
 #include <deal.II/lac/trilinos_tpetra_vector.h>
 #include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/lac/vector.h>
-
-#include <deal.II/matrix_free/fe_point_evaluation.h>
 
 #include <deal.II/non_matching/fe_values.h>
 
@@ -45,14 +42,14 @@ namespace NonMatching
 
 
   template <int dim>
-  template <class VectorType>
+  template <typename VectorType>
   FEValues<dim>::FEValues(const hp::FECollection<dim> &fe_collection,
-                          const Quadrature<1> &        quadrature,
+                          const Quadrature<1>         &quadrature,
                           const RegionUpdateFlags      region_update_flags,
-                          const MeshClassifier<dim> &  mesh_classifier,
-                          const DoFHandler<dim> &      dof_handler,
-                          const VectorType &           level_set,
-                          const AdditionalData &       additional_data)
+                          const MeshClassifier<dim>   &mesh_classifier,
+                          const DoFHandler<dim>       &dof_handler,
+                          const VectorType            &level_set,
+                          const AdditionalData        &additional_data)
     : mapping_collection(&dealii::hp::StaticMappingQ1<dim>::mapping_collection)
     , fe_collection(&fe_collection)
     , q_collection_1D(quadrature)
@@ -75,16 +72,16 @@ namespace NonMatching
 
 
   template <int dim>
-  template <class VectorType>
+  template <typename VectorType>
   FEValues<dim>::FEValues(const hp::MappingCollection<dim> &mapping_collection,
-                          const hp::FECollection<dim> &     fe_collection,
-                          const hp::QCollection<dim> &      q_collection,
-                          const hp::QCollection<1> &        q_collection_1D,
+                          const hp::FECollection<dim>      &fe_collection,
+                          const hp::QCollection<dim>       &q_collection,
+                          const hp::QCollection<1>         &q_collection_1D,
                           const RegionUpdateFlags           region_update_flags,
-                          const MeshClassifier<dim> &       mesh_classifier,
-                          const DoFHandler<dim> &           dof_handler,
-                          const VectorType &                level_set,
-                          const AdditionalData &            additional_data)
+                          const MeshClassifier<dim>        &mesh_classifier,
+                          const DoFHandler<dim>            &dof_handler,
+                          const VectorType                 &level_set,
+                          const AdditionalData             &additional_data)
     : mapping_collection(&mapping_collection)
     , fe_collection(&fe_collection)
     , q_collection_1D(q_collection_1D)
@@ -237,7 +234,7 @@ namespace NonMatching
 
 
   template <int dim>
-  const std_cxx17::optional<dealii::FEValues<dim>> &
+  const std::optional<dealii::FEValues<dim>> &
   FEValues<dim>::get_inside_fe_values() const
   {
     if (current_cell_location == LocationToLevelSet::inside)
@@ -249,7 +246,7 @@ namespace NonMatching
 
 
   template <int dim>
-  const std_cxx17::optional<dealii::FEValues<dim>> &
+  const std::optional<dealii::FEValues<dim>> &
   FEValues<dim>::get_outside_fe_values() const
   {
     if (current_cell_location == LocationToLevelSet::outside)
@@ -261,7 +258,7 @@ namespace NonMatching
 
 
   template <int dim>
-  const std_cxx17::optional<FEImmersedSurfaceValues<dim>> &
+  const std::optional<FEImmersedSurfaceValues<dim>> &
   FEValues<dim>::get_surface_fe_values() const
   {
     return fe_values_surface;
@@ -270,15 +267,15 @@ namespace NonMatching
 
 
   template <int dim>
-  template <class VectorType>
+  template <typename VectorType>
   FEInterfaceValues<dim>::FEInterfaceValues(
     const hp::FECollection<dim> &fe_collection,
-    const Quadrature<1> &        quadrature,
+    const Quadrature<1>         &quadrature,
     const RegionUpdateFlags      region_update_flags,
-    const MeshClassifier<dim> &  mesh_classifier,
-    const DoFHandler<dim> &      dof_handler,
-    const VectorType &           level_set,
-    const AdditionalData &       additional_data)
+    const MeshClassifier<dim>   &mesh_classifier,
+    const DoFHandler<dim>       &dof_handler,
+    const VectorType            &level_set,
+    const AdditionalData        &additional_data)
     : mapping_collection(&dealii::hp::StaticMappingQ1<dim>::mapping_collection)
     , fe_collection(&fe_collection)
     , q_collection_1D(quadrature)
@@ -301,17 +298,17 @@ namespace NonMatching
 
 
   template <int dim>
-  template <class VectorType>
+  template <typename VectorType>
   FEInterfaceValues<dim>::FEInterfaceValues(
     const hp::MappingCollection<dim> &mapping_collection,
-    const hp::FECollection<dim> &     fe_collection,
-    const hp::QCollection<dim - 1> &  q_collection,
-    const hp::QCollection<1> &        q_collection_1D,
+    const hp::FECollection<dim>      &fe_collection,
+    const hp::QCollection<dim - 1>   &q_collection,
+    const hp::QCollection<1>         &q_collection_1D,
     const RegionUpdateFlags           region_update_flags,
-    const MeshClassifier<dim> &       mesh_classifier,
-    const DoFHandler<dim> &           dof_handler,
-    const VectorType &                level_set,
-    const AdditionalData &            additional_data)
+    const MeshClassifier<dim>        &mesh_classifier,
+    const DoFHandler<dim>            &dof_handler,
+    const VectorType                 &level_set,
+    const AdditionalData             &additional_data)
     : mapping_collection(&mapping_collection)
     , fe_collection(&fe_collection)
     , q_collection_1D(q_collection_1D)
@@ -457,7 +454,7 @@ namespace NonMatching
 
 
   template <int dim>
-  const std_cxx17::optional<dealii::FEInterfaceValues<dim>> &
+  const std::optional<dealii::FEInterfaceValues<dim>> &
   FEInterfaceValues<dim>::get_inside_fe_values() const
   {
     if (current_face_location == LocationToLevelSet::inside)
@@ -469,7 +466,7 @@ namespace NonMatching
 
 
   template <int dim>
-  const std_cxx17::optional<dealii::FEInterfaceValues<dim>> &
+  const std::optional<dealii::FEInterfaceValues<dim>> &
   FEInterfaceValues<dim>::get_outside_fe_values() const
   {
     if (current_face_location == LocationToLevelSet::outside)

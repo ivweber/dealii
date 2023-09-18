@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Katharina Kormann, Martin Kronbichler, Uppsala University,
  * 2009-2012, updated to MPI version with parallel vectors in 2016
@@ -87,7 +86,7 @@ namespace Step37
   class Coefficient : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
     template <typename number>
@@ -128,7 +127,7 @@ namespace Step37
 
 
   template <int dim>
-  double Coefficient<dim>::value(const Point<dim> & p,
+  double Coefficient<dim>::value(const Point<dim>  &p,
                                  const unsigned int component) const
   {
     return value<double>(p, component);
@@ -228,19 +227,19 @@ namespace Step37
 
   private:
     virtual void apply_add(
-      LinearAlgebra::distributed::Vector<number> &      dst,
+      LinearAlgebra::distributed::Vector<number>       &dst,
       const LinearAlgebra::distributed::Vector<number> &src) const override;
 
     void
-    local_apply(const MatrixFree<dim, number> &                   data,
-                LinearAlgebra::distributed::Vector<number> &      dst,
+    local_apply(const MatrixFree<dim, number>                    &data,
+                LinearAlgebra::distributed::Vector<number>       &dst,
                 const LinearAlgebra::distributed::Vector<number> &src,
                 const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     void local_compute_diagonal(
-      const MatrixFree<dim, number> &              data,
-      LinearAlgebra::distributed::Vector<number> & dst,
-      const unsigned int &                         dummy,
+      const MatrixFree<dim, number>               &data,
+      LinearAlgebra::distributed::Vector<number>  &dst,
+      const unsigned int                          &dummy,
       const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     Table<2, VectorizedArray<number>> coefficient;
@@ -289,7 +288,7 @@ namespace Step37
     for (unsigned int cell = 0; cell < n_cells; ++cell)
       {
         phi.reinit(cell);
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           coefficient(cell, q) =
             coefficient_function.value(phi.quadrature_point(q));
       }
@@ -390,10 +389,10 @@ namespace Step37
   // degrees of freedom).  </ol>
   template <int dim, int fe_degree, typename number>
   void LaplaceOperator<dim, fe_degree, number>::local_apply(
-    const MatrixFree<dim, number> &                   data,
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    const MatrixFree<dim, number>                    &data,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src,
-    const std::pair<unsigned int, unsigned int> &     cell_range) const
+    const std::pair<unsigned int, unsigned int>      &cell_range) const
   {
     FEEvaluation<dim, fe_degree, fe_degree + 1, 1, number> phi(data);
 
@@ -405,7 +404,7 @@ namespace Step37
         phi.reinit(cell);
         phi.read_dof_values(src);
         phi.evaluate(EvaluationFlags::gradients);
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           phi.submit_gradient(coefficient(cell, q) * phi.get_gradient(q), q);
         phi.integrate(EvaluationFlags::gradients);
         phi.distribute_local_to_global(dst);
@@ -492,7 +491,7 @@ namespace Step37
   // entry of vmult() functions, so no information gets lost.
   template <int dim, int fe_degree, typename number>
   void LaplaceOperator<dim, fe_degree, number>::apply_add(
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src) const
   {
     this->data->cell_loop(&LaplaceOperator::local_apply, this, dst, src);
@@ -611,7 +610,7 @@ namespace Step37
   // level matrices where no hanging node constraints appear.
   template <int dim, int fe_degree, typename number>
   void LaplaceOperator<dim, fe_degree, number>::local_compute_diagonal(
-    const MatrixFree<dim, number> &             data,
+    const MatrixFree<dim, number>              &data,
     LinearAlgebra::distributed::Vector<number> &dst,
     const unsigned int &,
     const std::pair<unsigned int, unsigned int> &cell_range) const
@@ -633,7 +632,7 @@ namespace Step37
             phi.submit_dof_value(make_vectorized_array<number>(1.), i);
 
             phi.evaluate(EvaluationFlags::gradients);
-            for (unsigned int q = 0; q < phi.n_q_points; ++q)
+            for (const unsigned int q : phi.quadrature_point_indices())
               phi.submit_gradient(coefficient(cell, q) * phi.get_gradient(q),
                                   q);
             phi.integrate(EvaluationFlags::gradients);
@@ -907,7 +906,7 @@ namespace Step37
          ++cell)
       {
         phi.reinit(cell);
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           phi.submit_value(make_vectorized_array<double>(1.0), q);
         phi.integrate(EvaluationFlags::values);
         phi.distribute_local_to_global(system_rhs);

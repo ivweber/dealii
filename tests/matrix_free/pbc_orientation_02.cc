@@ -57,17 +57,17 @@ void
 generate_grid(Triangulation<3> &triangulation, int orientation)
 {
   Point<3>              vertices_1[] = {Point<3>(-0., -0., -0.),
-                           Point<3>(+1., -0., -0.),
-                           Point<3>(-0., +1., -0.),
-                           Point<3>(+1., +1., -0.),
-                           Point<3>(-0., -0., +0.5),
-                           Point<3>(+1., -0., +0.5),
-                           Point<3>(-0., +1., +0.5),
-                           Point<3>(+1., +1., +0.5),
-                           Point<3>(-0., -0., +1.),
-                           Point<3>(+1., -0., +1.),
-                           Point<3>(-0., +1., +1.),
-                           Point<3>(+1., +1., +1.)};
+                                        Point<3>(+1., -0., -0.),
+                                        Point<3>(-0., +1., -0.),
+                                        Point<3>(+1., +1., -0.),
+                                        Point<3>(-0., -0., +0.5),
+                                        Point<3>(+1., -0., +0.5),
+                                        Point<3>(-0., +1., +0.5),
+                                        Point<3>(+1., +1., +0.5),
+                                        Point<3>(-0., -0., +1.),
+                                        Point<3>(+1., -0., +1.),
+                                        Point<3>(-0., +1., +1.),
+                                        Point<3>(+1., +1., +1.)};
   std::vector<Point<3>> vertices(&vertices_1[0], &vertices_1[12]);
 
   std::vector<CellData<3>> cells(2, CellData<3>());
@@ -120,8 +120,8 @@ test()
       DoFHandler<3> dof_handler(tria);
       dof_handler.distribute_dofs(fe);
 
-      for (auto &cell : tria)
-        for (auto &face : cell.face_iterators())
+      for (auto &cell : tria.cell_iterators())
+        for (auto &face : cell->face_iterators())
           {
             if (std::abs(face->center()[2] - 0.0) < 10e-6)
               face->set_boundary_id(4);
@@ -186,9 +186,9 @@ test()
                   continue;
 
                 eval_minus.reinit(cell, face);
-                eval_minus.gather_evaluate(src, true, false);
+                eval_minus.gather_evaluate(src, EvaluationFlags::values);
                 eval_plus.reinit(cell, face);
-                eval_plus.gather_evaluate(src, true, false);
+                eval_plus.gather_evaluate(src, EvaluationFlags::values);
 
                 for (unsigned int q = 0; q < eval_minus.n_q_points; ++q)
                   {

@@ -56,8 +56,8 @@ public:
   void
   face(MeshWorker::DoFInfo<dim> &dinfo1,
        MeshWorker::DoFInfo<dim> &dinfo2,
-       CellInfo &                info1,
-       CellInfo &                info2) const;
+       CellInfo                 &info1,
+       CellInfo                 &info2) const;
 };
 
 
@@ -190,7 +190,7 @@ int
 main()
 {
   const std::string logname = "output";
-  std::ofstream     logfile(logname.c_str());
+  std::ofstream     logfile(logname);
   deallog.attach(logfile);
 
   FE_DGP<2> el2(0);

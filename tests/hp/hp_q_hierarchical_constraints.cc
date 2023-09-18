@@ -42,7 +42,7 @@
  * The correct constrains are written in a log to make a unit test.
  */
 
-//#define FEQH_DEBUG_OUTPUT
+// #define FEQH_DEBUG_OUTPUT
 
 
 template <int dim>
@@ -139,7 +139,7 @@ test(const bool apply_constrains, const unsigned int hp)
                << (apply_constrains ? "_constrained" : "") << hp_string << '_'
                << i << ".vtk";
 
-      std::ofstream output(filename.str().c_str());
+      std::ofstream output(filename.str());
       data_out.write_vtk(output);
 #endif
     }

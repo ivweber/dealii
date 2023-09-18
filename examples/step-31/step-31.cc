@@ -137,7 +137,7 @@ namespace Step31
       }
 
       virtual void vector_value(const Point<dim> &p,
-                                Vector<double> &  value) const override
+                                Vector<double>   &value) const override
       {
         for (unsigned int c = 0; c < this->n_components; ++c)
           value(c) = TemperatureInitialValues<dim>::value(p, c);
@@ -154,7 +154,7 @@ namespace Step31
         : Function<dim>(1)
       {}
 
-      virtual double value(const Point<dim> & p,
+      virtual double value(const Point<dim>  &p,
                            const unsigned int component = 0) const override
       {
         (void)component;
@@ -177,7 +177,7 @@ namespace Step31
       }
 
       virtual void vector_value(const Point<dim> &p,
-                                Vector<double> &  value) const override
+                                Vector<double>   &value) const override
       {
         for (unsigned int c = 0; c < this->n_components; ++c)
           value(c) = TemperatureRightHandSide<dim>::value(p, c);
@@ -241,7 +241,7 @@ namespace Step31
     class InverseMatrix : public Subscriptor
     {
     public:
-      InverseMatrix(const MatrixType &        m,
+      InverseMatrix(const MatrixType         &m,
                     const PreconditionerType &preconditioner);
 
 
@@ -250,13 +250,13 @@ namespace Step31
 
     private:
       const SmartPointer<const MatrixType> matrix;
-      const PreconditionerType &           preconditioner;
+      const PreconditionerType            &preconditioner;
     };
 
 
     template <class MatrixType, class PreconditionerType>
     InverseMatrix<MatrixType, PreconditionerType>::InverseMatrix(
-      const MatrixType &        m,
+      const MatrixType         &m,
       const PreconditionerType &preconditioner)
       : matrix(&m)
       , preconditioner(preconditioner)
@@ -267,7 +267,7 @@ namespace Step31
     template <class MatrixType, class PreconditionerType>
     template <typename VectorType>
     void InverseMatrix<MatrixType, PreconditionerType>::vmult(
-      VectorType &      dst,
+      VectorType       &dst,
       const VectorType &src) const
     {
       SolverControl        solver_control(src.size(), 1e-7 * src.l2_norm());
@@ -345,9 +345,9 @@ namespace Step31
         const TrilinosWrappers::BlockSparseMatrix &S,
         const InverseMatrix<TrilinosWrappers::SparseMatrix,
                             PreconditionerTypeMp> &Mpinv,
-        const PreconditionerTypeA &                Apreconditioner);
+        const PreconditionerTypeA                 &Apreconditioner);
 
-      void vmult(TrilinosWrappers::MPI::BlockVector &      dst,
+      void vmult(TrilinosWrappers::MPI::BlockVector       &dst,
                  const TrilinosWrappers::MPI::BlockVector &src) const;
 
     private:
@@ -378,7 +378,7 @@ namespace Step31
         const TrilinosWrappers::BlockSparseMatrix &S,
         const InverseMatrix<TrilinosWrappers::SparseMatrix,
                             PreconditionerTypeMp> &Mpinv,
-        const PreconditionerTypeA &                Apreconditioner)
+        const PreconditionerTypeA                 &Apreconditioner)
       : stokes_matrix(&S)
       , m_inverse(&Mpinv)
       , a_preconditioner(Apreconditioner)
@@ -404,7 +404,7 @@ namespace Step31
     template <class PreconditionerTypeA, class PreconditionerTypeMp>
     void
     BlockSchurPreconditioner<PreconditionerTypeA, PreconditionerTypeMp>::vmult(
-      TrilinosWrappers::MPI::BlockVector &      dst,
+      TrilinosWrappers::MPI::BlockVector       &dst,
       const TrilinosWrappers::MPI::BlockVector &src) const
     {
       a_preconditioner.vmult(dst.block(0), src.block(0));
@@ -460,15 +460,15 @@ namespace Step31
     void                      refine_mesh(const unsigned int max_grid_level);
 
     double compute_viscosity(
-      const std::vector<double> &        old_temperature,
-      const std::vector<double> &        old_old_temperature,
+      const std::vector<double>         &old_temperature,
+      const std::vector<double>         &old_old_temperature,
       const std::vector<Tensor<1, dim>> &old_temperature_grads,
       const std::vector<Tensor<1, dim>> &old_old_temperature_grads,
-      const std::vector<double> &        old_temperature_laplacians,
-      const std::vector<double> &        old_old_temperature_laplacians,
+      const std::vector<double>         &old_temperature_laplacians,
+      const std::vector<double>         &old_old_temperature_laplacians,
       const std::vector<Tensor<1, dim>> &old_velocity_values,
       const std::vector<Tensor<1, dim>> &old_old_velocity_values,
-      const std::vector<double> &        gamma_values,
+      const std::vector<double>         &gamma_values,
       const double                       global_u_infty,
       const double                       global_T_variation,
       const double                       cell_diameter) const;
@@ -526,7 +526,7 @@ namespace Step31
   // The constructor of this class is an extension of the constructor in
   // step-22. We need to add the various variables that concern the
   // temperature. As discussed in the introduction, we are going to use
-  // $Q_2\times Q_1$ (Taylor-Hood) elements again for the Stokes part, and
+  // $Q_2^d\times Q_1$ (Taylor-Hood) elements again for the Stokes part, and
   // $Q_2$ elements for the temperature. However, by using variables that
   // store the polynomial degree of the Stokes and temperature finite
   // elements, it is easy to consistently modify the degree of the elements as
@@ -538,7 +538,7 @@ namespace Step31
     : triangulation(Triangulation<dim>::maximum_smoothing)
     , global_Omega_diameter(std::numeric_limits<double>::quiet_NaN())
     , stokes_degree(1)
-    , stokes_fe(FE_Q<dim>(stokes_degree + 1), dim, FE_Q<dim>(stokes_degree), 1)
+    , stokes_fe(FE_Q<dim>(stokes_degree + 1) ^ dim, FE_Q<dim>(stokes_degree))
     , stokes_dof_handler(triangulation)
     ,
 
@@ -743,15 +743,15 @@ namespace Step31
   // discussed in the introduction:
   template <int dim>
   double BoussinesqFlowProblem<dim>::compute_viscosity(
-    const std::vector<double> &        old_temperature,
-    const std::vector<double> &        old_old_temperature,
+    const std::vector<double>         &old_temperature,
+    const std::vector<double>         &old_old_temperature,
     const std::vector<Tensor<1, dim>> &old_temperature_grads,
     const std::vector<Tensor<1, dim>> &old_old_temperature_grads,
-    const std::vector<double> &        old_temperature_laplacians,
-    const std::vector<double> &        old_old_temperature_laplacians,
+    const std::vector<double>         &old_temperature_laplacians,
+    const std::vector<double>         &old_old_temperature_laplacians,
     const std::vector<Tensor<1, dim>> &old_velocity_values,
     const std::vector<Tensor<1, dim>> &old_old_velocity_values,
-    const std::vector<double> &        gamma_values,
+    const std::vector<double>         &gamma_values,
     const double                       global_u_infty,
     const double                       global_T_variation,
     const double                       cell_diameter) const
@@ -1943,9 +1943,8 @@ namespace Step31
     // and temperature DoFHandler objects, by attaching them to the old dof
     // handlers. With this at place, we can prepare the triangulation and the
     // data vectors for refinement (in this order).
-    std::vector<TrilinosWrappers::MPI::Vector> x_temperature(2);
-    x_temperature[0]                            = temperature_solution;
-    x_temperature[1]                            = old_temperature_solution;
+    const std::vector<TrilinosWrappers::MPI::Vector> x_temperature = {
+      temperature_solution, old_temperature_solution};
     TrilinosWrappers::MPI::BlockVector x_stokes = stokes_solution;
 
     SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> temperature_trans(
@@ -1971,13 +1970,13 @@ namespace Step31
     triangulation.execute_coarsening_and_refinement();
     setup_dofs();
 
-    std::vector<TrilinosWrappers::MPI::Vector> tmp(2);
-    tmp[0].reinit(temperature_solution);
-    tmp[1].reinit(temperature_solution);
+    std::vector<TrilinosWrappers::MPI::Vector> tmp = {
+      TrilinosWrappers::MPI::Vector(temperature_solution),
+      TrilinosWrappers::MPI::Vector(temperature_solution)};
     temperature_trans.interpolate(x_temperature, tmp);
 
-    temperature_solution     = tmp[0];
-    old_temperature_solution = tmp[1];
+    temperature_solution     = std::move(tmp[0]);
+    old_temperature_solution = std::move(tmp[1]);
 
     // After the solution has been transferred we then enforce the constraints
     // on the transferred solution.

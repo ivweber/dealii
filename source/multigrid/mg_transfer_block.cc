@@ -52,9 +52,9 @@ namespace
   template <int dim, typename number, int spacedim>
   void
   reinit_vector_by_blocks(
-    const DoFHandler<dim, spacedim> &                  dof_handler,
-    MGLevelObject<BlockVector<number>> &               v,
-    const std::vector<bool> &                          sel,
+    const DoFHandler<dim, spacedim>                   &dof_handler,
+    MGLevelObject<BlockVector<number>>                &v,
+    const std::vector<bool>                           &sel,
     std::vector<std::vector<types::global_dof_index>> &ndofs)
   {
     std::vector<bool> selected = sel;
@@ -62,7 +62,7 @@ namespace
     const unsigned int n_selected =
       std::accumulate(selected.begin(), selected.end(), 0u);
 
-    if (ndofs.size() == 0)
+    if (ndofs.empty())
       {
         std::vector<std::vector<types::global_dof_index>> new_dofs(
           dof_handler.get_triangulation().n_levels(),
@@ -98,8 +98,8 @@ namespace
   template <int dim, typename number, int spacedim>
   void
   reinit_vector_by_blocks(
-    const DoFHandler<dim, spacedim> &                  dof_handler,
-    MGLevelObject<dealii::Vector<number>> &            v,
+    const DoFHandler<dim, spacedim>                   &dof_handler,
+    MGLevelObject<dealii::Vector<number>>             &v,
     const unsigned int                                 selected_block,
     std::vector<std::vector<types::global_dof_index>> &ndofs)
   {
@@ -109,7 +109,7 @@ namespace
     std::vector<bool> selected(n_blocks, false);
     selected[selected_block] = true;
 
-    if (ndofs.size() == 0)
+    if (ndofs.empty())
       {
         std::vector<std::vector<types::global_dof_index>> new_dofs(
           dof_handler.get_triangulation().n_levels(),
@@ -131,8 +131,8 @@ template <int dim, typename number2, int spacedim>
 void
 MGTransferBlockSelect<number>::copy_to_mg(
   const DoFHandler<dim, spacedim> &dof_handler,
-  MGLevelObject<Vector<number>> &  dst,
-  const BlockVector<number2> &     src) const
+  MGLevelObject<Vector<number>>   &dst,
+  const BlockVector<number2>      &src) const
 {
   reinit_vector_by_blocks(dof_handler, dst, selected_block, sizes);
   // For MGTransferBlockSelect, the
@@ -157,8 +157,8 @@ template <int dim, typename number2, int spacedim>
 void
 MGTransferBlockSelect<number>::copy_to_mg(
   const DoFHandler<dim, spacedim> &dof_handler,
-  MGLevelObject<Vector<number>> &  dst,
-  const Vector<number2> &          src) const
+  MGLevelObject<Vector<number>>   &dst,
+  const Vector<number2>           &src) const
 {
   reinit_vector_by_blocks(dof_handler, dst, selected_block, sizes);
   // For MGTransferBlockSelect, the
@@ -181,9 +181,9 @@ template <typename number>
 template <int dim, typename number2, int spacedim>
 void
 MGTransferBlock<number>::copy_to_mg(
-  const DoFHandler<dim, spacedim> &   dof_handler,
+  const DoFHandler<dim, spacedim>    &dof_handler,
   MGLevelObject<BlockVector<number>> &dst,
-  const BlockVector<number2> &        src) const
+  const BlockVector<number2>         &src) const
 {
   reinit_vector_by_blocks(dof_handler, dst, selected, sizes);
   for (unsigned int level = dof_handler.get_triangulation().n_levels();
@@ -558,7 +558,7 @@ template <typename number>
 template <int dim, int spacedim>
 void
 MGTransferBlock<number>::build(const DoFHandler<dim, spacedim> &dof_handler,
-                               const std::vector<bool> &        sel)
+                               const std::vector<bool>         &sel)
 {
   const FiniteElement<dim> &fe       = dof_handler.get_fe();
   unsigned int              n_blocks = dof_handler.get_fe().n_blocks();
@@ -569,7 +569,7 @@ MGTransferBlock<number>::build(const DoFHandler<dim, spacedim> &dof_handler,
              ExcDimensionMismatch(sel.size(), n_blocks));
       selected = sel;
     }
-  if (selected.size() == 0)
+  if (selected.empty())
     selected = std::vector<bool>(n_blocks, true);
 
   MGTransferBlockBase::build(dof_handler);

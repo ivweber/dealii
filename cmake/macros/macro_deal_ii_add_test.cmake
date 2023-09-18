@@ -211,6 +211,17 @@ function(deal_ii_add_test _category _test_name _comparison_file)
   endif()
 
   #
+  # Determine whether the .run_only keyword is present.
+  #
+  # In case no numdiff executable was found we fall back to simply running
+  # the tests as well (but not comparing them).
+  #
+  set(_run_only FALSE)
+  if(_file MATCHES "\\.run_only$" OR "${NUMDIFF_EXECUTABLE}" STREQUAL "")
+    set(_run_only TRUE)
+  endif()
+
+  #
   # Determine the expected build stage of this test:
   #
   string(REGEX MATCH "expect=([a-z]*)" _expect ${_file})
@@ -222,11 +233,11 @@ function(deal_ii_add_test _category _test_name _comparison_file)
   endif()
 
   #
-  # Determine whether the .run_only keyword is present:
+  # If _run_only is set then we don't compare test results. Therefore,
+  # we won't fail in the "DIFF" stage of a test.
   #
-  set(_run_only FALSE)
-  if(_file MATCHES "\\.run_only$")
-    set(_run_only TRUE)
+  if(_run_only AND "${_expect}" STREQUAL "DIFF")
+    set(_expect "PASSED")
   endif()
 
   #
@@ -289,13 +300,21 @@ function(deal_ii_add_test _category _test_name _comparison_file)
   list(LENGTH _source_file _number)
   if(NOT _number EQUAL 1)
     if(_number EQUAL 0)
-      message(FATAL_ERROR "\n${_comparison_file}:\n"
-        "A comparison file (ending in .output or .run-only) has been "
-        "picked up but no suitable source file or parameter file was "
-        "found. Please provide exactly one of the following.\n"
-        "A source file \"${CMAKE_CURRENT_SOURCE_DIR}/${_test_name}.c[cu]\",\n"
-        "or a parameter file \"${CMAKE_CURRENT_SOURCE_DIR}/${_test_name}.(prm|json)[.in]\".\n"
-        )
+      #
+      # None of the candidates above exist. Check whether a
+      # ${_test_name}.cc file gets generated during the build process:
+      set(_source_file "${CMAKE_CURRENT_SOURCE_DIR}/${_test_name}.cc")
+      get_property(_generated SOURCE "${_source_file}" PROPERTY GENERATED)
+      if(NOT ${_generated})
+        message(FATAL_ERROR "\n${_comparison_file}:\n"
+          "A comparison file (ending in .output or .run-only) has been "
+          "picked up but no suitable source file, generated source file, or "
+          "parameter file was found. Please provide exactly one of the following.\n"
+          "A source file \"${CMAKE_CURRENT_SOURCE_DIR}/${_test_name}.c[cu]\",\n"
+          "or a parameter file \"${CMAKE_CURRENT_SOURCE_DIR}/${_test_name}.(prm|json)[.in]\".\n"
+          )
+      endif()
+
     else()
       string(REPLACE ";" "\n" _source_file "${_source_file}")
       message(FATAL_ERROR "\n${_comparison_file}:\n"
@@ -324,6 +343,14 @@ function(deal_ii_add_test _category _test_name _comparison_file)
   endif()
 
   foreach(_build ${_build_types})
+    #
+    # Increment the _number_of_tests counter by one in the parent scope.
+    # Note that the variable can be undefined initially. In this case we
+    # simply store "1" in the first iteration.
+    #
+    math(EXPR _number_of_tests "${_number_of_tests} + 1")
+    set(_number_of_tests "${_number_of_tests}" PARENT_SCOPE)
+
     #
     # Obey "debug" and "release" keywords in the output file:
     #
@@ -377,7 +404,7 @@ function(deal_ii_add_test _category _test_name _comparison_file)
       # "mpirun_0-threads_0".
       #
 
-      set(_test_target    ${_category}.${_test_name}) # diff target name
+      set(_test_target    ${_category}.${_test_name}) # diff/run target name
       set(_test_full      ${_category}/${_test_name}) # full test name
       set(_test_directory ${CMAKE_CURRENT_BINARY_DIR}/${_test_name}.${_build_lowercase}) # directory to run the test in
 
@@ -483,6 +510,17 @@ function(deal_ii_add_test _category _test_name _comparison_file)
       #
 
       if(_shared_target AND NOT TARGET ${_test_executable_target})
+        #
+        # Increment the _number_of_test_dependencies counter by one in the
+        # parent scope. Test dependencies are all tests where we have split
+        # out compiling and linking of an executable into a separate
+        # "test_dependency/" test. Note that the variable can be undefined
+        # initially. In this case we simply store "1" in the first
+        # iteration.
+        #
+        math(EXPR _number_of_test_dependencies "${_number_of_test_dependencies} + 1")
+        set(_number_of_test_dependencies "${_number_of_test_dependencies}" PARENT_SCOPE)
+
         add_custom_target(${_test_executable_target}
           COMMAND echo "${_test_executable_full}: BUILD successful."
           COMMAND echo "${_test_executable_full}: RUN skipped."
@@ -599,7 +637,10 @@ function(deal_ii_add_test _category _test_name _comparison_file)
         # Ensure that the test is not executed concurrently with any other
         # tests.
         #
-        set_tests_properties(${_test_full} PROPERTIES RUN_SERIAL TRUE)
+        set_tests_properties(${_test_full} PROPERTIES
+          RUN_SERIAL TRUE
+          ENVIRONMENT "TEST_IS_EXCLUSIVE=true"
+          )
 
       else()
         #

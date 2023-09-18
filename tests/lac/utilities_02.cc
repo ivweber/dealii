@@ -94,8 +94,8 @@ test()
   dof_handler.distribute_dofs(fe);
 
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
   AffineConstraints<double> constraints;
   constraints.reinit(locally_relevant_dofs);
   DoFTools::make_hanging_node_constraints(dof_handler, constraints);
@@ -150,7 +150,7 @@ test()
         fe_eval.distribute_local_to_global(inv_mass_matrix);
       }
     inv_mass_matrix.compress(VectorOperation::add);
-    for (unsigned int k = 0; k < inv_mass_matrix.local_size(); ++k)
+    for (unsigned int k = 0; k < inv_mass_matrix.locally_owned_size(); ++k)
       if (inv_mass_matrix.local_element(k) > 1e-15)
         {
           inv_mass_matrix.local_element(k) =
@@ -285,7 +285,7 @@ main(int argc, char **argv)
         test();
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

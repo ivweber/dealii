@@ -71,7 +71,7 @@ class MyLaplaceOperator : public MatrixFreeOperators::LaplaceOperator<
 public:
   void
   initialize(std::shared_ptr<const MatrixFree<dim, Number>> data,
-             const MGConstrainedDoFs &                      mg_constrained_dofs,
+             const MGConstrainedDoFs                       &mg_constrained_dofs,
              const unsigned int                             level)
   {
     MatrixFreeOperators::Base<dim, LinearAlgebra::distributed::Vector<Number>>::
@@ -95,7 +95,7 @@ public:
 
   void
   initialize(std::shared_ptr<const MatrixFree<dim, Number>> data,
-             const std::vector<unsigned int> &              mask = {})
+             const std::vector<unsigned int>               &mask = {})
   {
     MatrixFreeOperators::Base<dim, LinearAlgebra::distributed::Vector<Number>>::
       initialize(data, mask);
@@ -103,7 +103,7 @@ public:
 
 
   void
-  vmult(LinearAlgebra::distributed::Vector<Number> &      dst,
+  vmult(LinearAlgebra::distributed::Vector<Number>       &dst,
         const LinearAlgebra::distributed::Vector<Number> &src) const
   {
     adjust_ghost_range_if_necessary(src);
@@ -135,8 +135,8 @@ public:
 
 private:
   void
-  local_apply(const MatrixFree<dim, Number> &                   data,
-              LinearAlgebra::distributed::Vector<Number> &      dst,
+  local_apply(const MatrixFree<dim, Number>                    &data,
+              LinearAlgebra::distributed::Vector<Number>       &dst,
               const LinearAlgebra::distributed::Vector<Number> &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
@@ -160,10 +160,11 @@ private:
         this->data->get_dof_info(0).vector_partitioner.get())
       return;
 
-    Assert(vec.get_partitioner()->local_size() ==
-             this->data->get_dof_info(0).vector_partitioner->local_size(),
-           ExcMessage("The vector passed to the vmult() function does not have "
-                      "the correct size for compatibility with MatrixFree."));
+    Assert(
+      vec.get_partitioner()->locally_owned_size() ==
+        this->data->get_dof_info(0).vector_partitioner->locally_owned_size(),
+      ExcMessage("The vector passed to the vmult() function does not have "
+                 "the correct size for compatibility with MatrixFree."));
     LinearAlgebra::distributed::Vector<Number> copy_vec(vec);
     this->data->initialize_dof_vector(
       const_cast<LinearAlgebra::distributed::Vector<Number> &>(vec), 0);
@@ -194,7 +195,7 @@ public:
 
   virtual void
   operator()(const unsigned int                                level,
-             LinearAlgebra::distributed::Vector<Number> &      dst,
+             LinearAlgebra::distributed::Vector<Number>       &dst,
              const LinearAlgebra::distributed::Vector<Number> &src) const
   {
     ReductionControl solver_control(1e4, 1e-50, 1e-10);
@@ -216,8 +217,8 @@ do_test(const DoFHandler<dim> &dof)
   deallog << std::endl;
   deallog << "Number of degrees of freedom: " << dof.n_dofs() << std::endl;
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof);
 
   // Dirichlet BC
   Functions::ZeroFunction<dim>                        zero_function;
@@ -270,7 +271,7 @@ do_test(const DoFHandler<dim> &dof)
     DoFTools::make_hanging_node_constraints(dof, hanging_node_constraints);
     hanging_node_constraints.close();
 
-    for (unsigned int i = 0; i < in.local_size(); ++i)
+    for (unsigned int i = 0; i < in.locally_owned_size(); ++i)
       if (!hanging_node_constraints.is_constrained(
             in.get_partitioner()->local_to_global(i)))
         in.local_element(i) = 1.;
@@ -294,8 +295,8 @@ do_test(const DoFHandler<dim> &dof)
       mg_additional_data.mg_level         = level;
 
       AffineConstraints<double> level_constraints;
-      IndexSet                  relevant_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof, level, relevant_dofs);
+      const IndexSet            relevant_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof, level);
       level_constraints.reinit(relevant_dofs);
       level_constraints.add_lines(
         mg_constrained_dofs.get_boundary_indices(level));

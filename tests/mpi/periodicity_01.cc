@@ -139,7 +139,8 @@ namespace Step40
     dof_handler.distribute_dofs(fe);
 
     locally_owned_dofs = dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
     locally_relevant_solution.reinit(locally_owned_dofs,
                                      locally_relevant_dofs,
                                      mpi_communicator);
@@ -168,8 +169,8 @@ namespace Step40
     const std::vector<IndexSet> &locally_owned_dofs =
       Utilities::MPI::all_gather(MPI_COMM_WORLD,
                                  dof_handler.locally_owned_dofs());
-    IndexSet locally_active_dofs;
-    DoFTools::extract_locally_active_dofs(dof_handler, locally_active_dofs);
+    const IndexSet locally_active_dofs =
+      DoFTools::extract_locally_active_dofs(dof_handler);
     AssertThrow(constraints.is_consistent_in_parallel(locally_owned_dofs,
                                                       locally_active_dofs,
                                                       mpi_communicator,
@@ -488,7 +489,7 @@ namespace Step40
     const std::string filename =
       ("solution-" + Utilities::int_to_string(cycle, 2) + "." +
        Utilities::int_to_string(triangulation.locally_owned_subdomain(), 4));
-    std::ofstream output((filename + ".vtu").c_str());
+    std::ofstream output(filename + ".vtu");
     data_out.write_vtu(output);
 
     if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
@@ -500,7 +501,7 @@ namespace Step40
           filenames.push_back("solution-" + Utilities::int_to_string(cycle, 2) +
                               "." + Utilities::int_to_string(i, 4) + ".vtu");
 
-        std::ofstream pvtu_output((filename + ".pvtu").c_str());
+        std::ofstream pvtu_output(filename + ".pvtu");
         data_out.write_pvtu_record(pvtu_output, filenames);
       }
   }
@@ -598,7 +599,7 @@ main(int argc, char *argv[])
           }
         }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

@@ -55,14 +55,14 @@ namespace CUDAWrappers
     {
     public:
       ReinitHelper(
-        MatrixFree<dim, Number> *      data,
-        const Mapping<dim> &           mapping,
+        MatrixFree<dim, Number>       *data,
+        const Mapping<dim>            &mapping,
         const FiniteElement<dim, dim> &fe,
-        const Quadrature<1> &          quad,
+        const Quadrature<1>           &quad,
         const ::dealii::internal::MatrixFreeFunctions::ShapeInfo<Number>
-          &                    shape_info,
+                              &shape_info,
         const DoFHandler<dim> &dof_handler,
-        const UpdateFlags &    update_flags);
+        const UpdateFlags     &update_flags);
 
       void
       resize(const unsigned int n_colors);
@@ -71,7 +71,7 @@ namespace CUDAWrappers
       void
       fill_data(
         const unsigned int                                        color,
-        const std::vector<CellFilter> &                           graph,
+        const std::vector<CellFilter>                            &graph,
         const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner);
 
     private:
@@ -80,12 +80,12 @@ namespace CUDAWrappers
       std::vector<types::global_dof_index> local_dof_indices;
       FEValues<dim>                        fe_values;
       // Convert the default dof numbering to a lexicographic one
-      const std::vector<unsigned int> &    lexicographic_inv;
+      const std::vector<unsigned int>     &lexicographic_inv;
       std::vector<types::global_dof_index> lexicographic_dof_indices;
       const unsigned int                   fe_degree;
       const unsigned int                   dofs_per_cell;
       const unsigned int                   q_points_per_cell;
-      const UpdateFlags &                  update_flags;
+      const UpdateFlags                   &update_flags;
       const unsigned int                   padding_length;
       dealii::internal::MatrixFreeFunctions::HangingNodes<dim> hanging_nodes;
     };
@@ -94,14 +94,14 @@ namespace CUDAWrappers
 
     template <int dim, typename Number>
     ReinitHelper<dim, Number>::ReinitHelper(
-      MatrixFree<dim, Number> * data,
-      const Mapping<dim> &      mapping,
+      MatrixFree<dim, Number>  *data,
+      const Mapping<dim>       &mapping,
       const FiniteElement<dim> &fe,
-      const Quadrature<1> &     quad,
+      const Quadrature<1>      &quad,
       const ::dealii::internal::MatrixFreeFunctions::ShapeInfo<Number>
-        &                    shape_info,
+                            &shape_info,
       const DoFHandler<dim> &dof_handler,
-      const UpdateFlags &    update_flags)
+      const UpdateFlags     &update_flags)
       : data(data)
       , fe_values(mapping,
                   fe,
@@ -118,6 +118,7 @@ namespace CUDAWrappers
     {
       local_dof_indices.resize(data->dofs_per_cell);
       lexicographic_dof_indices.resize(dofs_per_cell);
+      fe_values.always_allow_check_for_cell_similarity(true);
     }
 
 
@@ -151,7 +152,7 @@ namespace CUDAWrappers
     void
     ReinitHelper<dim, Number>::fill_data(
       const unsigned int                                        color,
-      const std::vector<CellFilter> &                           graph,
+      const std::vector<CellFilter>                            &graph,
       const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner)
     {
       const unsigned int n_cells = data->n_cells[color];
@@ -200,25 +201,36 @@ namespace CUDAWrappers
       auto constraint_mask_host =
         Kokkos::create_mirror_view(data->constraint_mask[color]);
 
+      typename std::remove_reference_t<
+        decltype(data->q_points[color])>::HostMirror q_points_host;
+      typename std::remove_reference_t<decltype(data->JxW[color])>::HostMirror
+        JxW_host;
+      typename std::remove_reference_t<
+        decltype(data->inv_jacobian[color])>::HostMirror inv_jacobian_host;
 #if KOKKOS_VERSION >= 30600
       auto local_to_global_host =
         Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
                                    data->local_to_global[color]);
-      auto q_points_host =
-        Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
-                                   data->q_points[color]);
-      auto JxW_host = Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
-                                                 data->JxW[color]);
-      auto inv_jacobian_host =
-        Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
-                                   data->inv_jacobian[color]);
+      if (update_flags & update_quadrature_points)
+        q_points_host = Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
+                                                   data->q_points[color]);
+      if (update_flags & update_JxW_values)
+        JxW_host = Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
+                                              data->JxW[color]);
+      if (update_flags & update_gradients)
+        inv_jacobian_host =
+          Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
+                                     data->inv_jacobian[color]);
 #else
       auto local_to_global_host =
         Kokkos::create_mirror_view(data->local_to_global[color]);
-      auto q_points_host = Kokkos::create_mirror_view(data->q_points[color]);
-      auto JxW_host      = Kokkos::create_mirror_view(data->JxW[color]);
-      auto inv_jacobian_host =
-        Kokkos::create_mirror_view(data->inv_jacobian[color]);
+      if (update_flags & update_quadrature_points)
+        q_points_host = Kokkos::create_mirror_view(data->q_points[color]);
+      if (update_flags & update_JxW_values)
+        JxW_host = Kokkos::create_mirror_view(data->JxW[color]);
+      if (update_flags & update_gradients)
+        inv_jacobian_host =
+          Kokkos::create_mirror_view(data->inv_jacobian[color]);
 #endif
 
       auto cell = graph.cbegin(), end_cell = graph.cend();
@@ -277,9 +289,12 @@ namespace CUDAWrappers
       // Copy the data to the device
       Kokkos::deep_copy(data->constraint_mask[color], constraint_mask_host);
       Kokkos::deep_copy(data->local_to_global[color], local_to_global_host);
-      Kokkos::deep_copy(data->q_points[color], q_points_host);
-      Kokkos::deep_copy(data->JxW[color], JxW_host);
-      Kokkos::deep_copy(data->inv_jacobian[color], inv_jacobian_host);
+      if (update_flags & update_quadrature_points)
+        Kokkos::deep_copy(data->q_points[color], q_points_host);
+      if (update_flags & update_JxW_values)
+        Kokkos::deep_copy(data->JxW[color], JxW_host);
+      if (update_flags & update_gradients)
+        Kokkos::deep_copy(data->inv_jacobian[color], inv_jacobian_host);
     }
 
 
@@ -288,7 +303,7 @@ namespace CUDAWrappers
     std::vector<types::global_dof_index>
     get_conflict_indices(
       const FilteredIterator<typename DoFHandler<dim>::active_cell_iterator>
-        &                              cell,
+                                      &cell,
       const AffineConstraints<number> &constraints)
     {
       std::vector<types::global_dof_index> local_dof_indices(
@@ -354,7 +369,7 @@ namespace CUDAWrappers
       ApplyKernel(Functor                                      func,
                   const typename MatrixFree<dim, Number>::Data gpu_data,
                   Number *const                                src,
-                  Number *                                     dst)
+                  Number                                      *dst)
         : func(func)
         , gpu_data(gpu_data)
         , src(src)
@@ -364,7 +379,7 @@ namespace CUDAWrappers
       Functor                                      func;
       const typename MatrixFree<dim, Number>::Data gpu_data;
       Number *const                                src;
-      Number *                                     dst;
+      Number                                      *dst;
 
 
       // Provide the shared memory capacity. This function takes the team_size
@@ -406,12 +421,12 @@ namespace CUDAWrappers
   template <int dim, typename Number>
   template <typename IteratorFiltersType>
   void
-  MatrixFree<dim, Number>::reinit(const Mapping<dim> &             mapping,
-                                  const DoFHandler<dim> &          dof_handler,
+  MatrixFree<dim, Number>::reinit(const Mapping<dim>              &mapping,
+                                  const DoFHandler<dim>           &dof_handler,
                                   const AffineConstraints<Number> &constraints,
-                                  const Quadrature<1> &            quad,
+                                  const Quadrature<1>             &quad,
                                   const IteratorFiltersType &iterator_filter,
-                                  const AdditionalData &     additional_data)
+                                  const AdditionalData      &additional_data)
   {
     const auto &triangulation = dof_handler.get_triangulation();
     if (const auto parallel_triangulation =
@@ -439,10 +454,10 @@ namespace CUDAWrappers
 
   template <int dim, typename Number>
   void
-  MatrixFree<dim, Number>::reinit(const Mapping<dim> &             mapping,
-                                  const DoFHandler<dim> &          dof_handler,
+  MatrixFree<dim, Number>::reinit(const Mapping<dim>              &mapping,
+                                  const DoFHandler<dim>           &dof_handler,
                                   const AffineConstraints<Number> &constraints,
-                                  const Quadrature<1> &            quad,
+                                  const Quadrature<1>             &quad,
                                   const AdditionalData &additional_data)
   {
     IteratorFilters::LocallyOwnedCell locally_owned_cell_filter;
@@ -458,9 +473,9 @@ namespace CUDAWrappers
 
   template <int dim, typename Number>
   void
-  MatrixFree<dim, Number>::reinit(const DoFHandler<dim> &          dof_handler,
+  MatrixFree<dim, Number>::reinit(const DoFHandler<dim>           &dof_handler,
                                   const AffineConstraints<Number> &constraints,
-                                  const Quadrature<1> &            quad,
+                                  const Quadrature<1>             &quad,
                                   const AdditionalData &additional_data)
   {
     reinit(StaticMappingQ1<dim>::mapping,
@@ -503,10 +518,10 @@ namespace CUDAWrappers
   template <typename VectorType>
   void
   MatrixFree<dim, Number>::copy_constrained_values(const VectorType &src,
-                                                   VectorType &      dst) const
+                                                   VectorType       &dst) const
   {
     static_assert(
-      std::is_same<Number, typename VectorType::value_type>::value,
+      std::is_same_v<Number, typename VectorType::value_type>,
       "VectorType::value_type and Number should be of the same type.");
     Assert(src.size() == dst.size(),
            ExcMessage("src and dst vectors have different size."));
@@ -514,8 +529,8 @@ namespace CUDAWrappers
     // work-around can be removed.
     auto               constr_dofs = constrained_dofs;
     const unsigned int size = internal::VectorLocalSize<VectorType>::get(dst);
-    const Number *     src_ptr = src.get_values();
-    Number *           dst_ptr = dst.get_values();
+    const Number      *src_ptr = src.get_values();
+    Number            *dst_ptr = dst.get_values();
     Kokkos::parallel_for(
       "dealii::copy_constrained_values",
       Kokkos::RangePolicy<MemorySpace::Default::kokkos_space::execution_space>(
@@ -539,7 +554,7 @@ namespace CUDAWrappers
                                                   VectorType &dst) const
   {
     static_assert(
-      std::is_same<Number, typename VectorType::value_type>::value,
+      std::is_same_v<Number, typename VectorType::value_type>,
       "VectorType::value_type and Number should be of the same type.");
     Number *dst_ptr = dst.get_values();
     // FIXME When using C++17, we can use KOKKOS_CLASS_LAMBDA and this
@@ -598,9 +613,9 @@ namespace CUDAWrappers
   template <int dim, typename Number>
   template <typename Functor, typename VectorType>
   void
-  MatrixFree<dim, Number>::cell_loop(const Functor &   func,
+  MatrixFree<dim, Number>::cell_loop(const Functor    &func,
                                      const VectorType &src,
-                                     VectorType &      dst) const
+                                     VectorType       &dst) const
   {
     if (partitioner)
       distributed_cell_loop(func, src, dst);
@@ -667,11 +682,11 @@ namespace CUDAWrappers
   template <typename IteratorFiltersType>
   void
   MatrixFree<dim, Number>::internal_reinit(
-    const Mapping<dim> &                   mapping,
-    const DoFHandler<dim> &                dof_handler_,
-    const AffineConstraints<Number> &      constraints,
-    const Quadrature<1> &                  quad,
-    const IteratorFiltersType &            iterator_filter,
+    const Mapping<dim>                    &mapping,
+    const DoFHandler<dim>                 &dof_handler_,
+    const AffineConstraints<Number>       &constraints,
+    const Quadrature<1>                   &quad,
+    const IteratorFiltersType             &iterator_filter,
     const std::shared_ptr<const MPI_Comm> &comm,
     const AdditionalData                   additional_data)
   {
@@ -914,9 +929,9 @@ namespace CUDAWrappers
   template <int dim, typename Number>
   template <typename Functor, typename VectorType>
   void
-  MatrixFree<dim, Number>::serial_cell_loop(const Functor &   func,
+  MatrixFree<dim, Number>::serial_cell_loop(const Functor    &func,
                                             const VectorType &src,
-                                            VectorType &      dst) const
+                                            VectorType       &dst) const
   {
     // Execute the loop on the cells
     for (unsigned int color = 0; color < n_colors; ++color)

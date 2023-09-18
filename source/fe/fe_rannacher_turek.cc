@@ -32,13 +32,14 @@ template <int dim>
 FE_RannacherTurek<dim>::FE_RannacherTurek(
   const unsigned int order,
   const unsigned int n_face_support_points)
-  : FE_Poly<dim>(PolynomialsRannacherTurek<dim>(),
-                 FiniteElementData<dim>(this->get_dpo_vector(),
-                                        1,
-                                        2,
-                                        FiniteElementData<dim>::L2),
-                 std::vector<bool>(4, false), // restriction not implemented
-                 std::vector<ComponentMask>(4, std::vector<bool>(1, true)))
+  : FE_Poly<dim>(
+      PolynomialsRannacherTurek<dim>(),
+      FiniteElementData<dim>(this->get_dpo_vector(),
+                             1,
+                             2,
+                             FiniteElementData<dim>::L2),
+      std::vector<bool>(4, false), // restriction not implemented
+      std::vector<ComponentMask>(4, ComponentMask(std::vector<bool>(1, true))))
   , order(order)
   , n_face_support_points(n_face_support_points)
 {
@@ -111,7 +112,7 @@ template <int dim>
 void
 FE_RannacherTurek<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   AssertDimension(support_point_values.size(),
                   this->generalized_support_points.size());

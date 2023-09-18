@@ -36,7 +36,7 @@ main()
   const unsigned int n   = 10;
   std::size_t        tape_stats[STAT_SIZE];
 
-  double * xp = new double[n];
+  double  *xp = new double[n];
   double   yp = 0.0;
   adouble *x  = new adouble[n];
   adouble  y  = 1.0;
@@ -64,6 +64,7 @@ main()
 
   deallog << "Error (function 1): " << error_func_1 << std::endl;
   deallog << "Error (function 2): " << error_func_2 << std::endl;
+  (void)tol;
   Assert(error_func_1 < tol, ExcMessage("Should be zero!"));
   Assert(error_func_2 < tol, ExcMessage("Should be zero!"));
 

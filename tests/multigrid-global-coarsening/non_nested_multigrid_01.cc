@@ -82,9 +82,8 @@ test(const unsigned int n_refinements,
       dof_handler.distribute_dofs(*fe);
 
       // set up constraints
-      IndexSet locally_relevant_dofs;
-      DoFTools::extract_locally_relevant_dofs(dof_handler,
-                                              locally_relevant_dofs);
+      const IndexSet locally_relevant_dofs =
+        DoFTools::extract_locally_relevant_dofs(dof_handler);
       constraint.reinit(locally_relevant_dofs);
       VectorTools::interpolate_boundary_values(
         *mapping, dof_handler, 0, Functions::ZeroFunction<dim>(), constraint);
@@ -149,7 +148,7 @@ main(int argc, char **argv)
     for (unsigned int degree = 1; degree <= 4; ++degree)
       test<2>(n_refinements, degree, false /*quadrilateral*/);
 
-  // for (unsigned int n_refinements = 2; n_refinements <= 4; ++n_refinements)
-  //   for (unsigned int degree = 1; degree <= 2; ++degree)
-  //     test<2>(n_refinements, degree, true /*triangle*/);
+  for (unsigned int n_refinements = 2; n_refinements <= 4; ++n_refinements)
+    for (unsigned int degree = 1; degree <= 2; ++degree)
+      test<2>(n_refinements, degree, true /*triangle*/);
 }

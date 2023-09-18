@@ -90,11 +90,11 @@ public:
   LaplaceOperator();
 
   void
-  vmult(LinearAlgebra::distributed::Vector<number> &      dst,
+  vmult(LinearAlgebra::distributed::Vector<number>       &dst,
         const LinearAlgebra::distributed::Vector<number> &src) const;
 
   void
-  vmult(LinearAlgebra::distributed::Vector<number> &      dst,
+  vmult(LinearAlgebra::distributed::Vector<number>       &dst,
         const LinearAlgebra::distributed::Vector<number> &src,
         const std::function<void(const unsigned int, const unsigned int)>
           &operation_before_loop,
@@ -107,20 +107,20 @@ public:
 private:
   virtual void
   apply_add(
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src) const override;
 
   void
-  local_apply(const MatrixFree<dim, number> &                   data,
-              LinearAlgebra::distributed::Vector<number> &      dst,
+  local_apply(const MatrixFree<dim, number>                    &data,
+              LinearAlgebra::distributed::Vector<number>       &dst,
               const LinearAlgebra::distributed::Vector<number> &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const;
 
   void
   local_compute_diagonal(
-    const MatrixFree<dim, number> &              data,
-    LinearAlgebra::distributed::Vector<number> & dst,
-    const unsigned int &                         dummy,
+    const MatrixFree<dim, number>               &data,
+    LinearAlgebra::distributed::Vector<number>  &dst,
+    const unsigned int                          &dummy,
     const std::pair<unsigned int, unsigned int> &cell_range) const;
 };
 
@@ -136,10 +136,10 @@ LaplaceOperator<dim, fe_degree, number>::LaplaceOperator()
 template <int dim, int fe_degree, typename number>
 void
 LaplaceOperator<dim, fe_degree, number>::local_apply(
-  const MatrixFree<dim, number> &                   data,
-  LinearAlgebra::distributed::Vector<number> &      dst,
+  const MatrixFree<dim, number>                    &data,
+  LinearAlgebra::distributed::Vector<number>       &dst,
   const LinearAlgebra::distributed::Vector<number> &src,
-  const std::pair<unsigned int, unsigned int> &     cell_range) const
+  const std::pair<unsigned int, unsigned int>      &cell_range) const
 {
   FEEvaluation<dim, fe_degree, fe_degree + 1, 1, number> phi(data);
 
@@ -147,7 +147,7 @@ LaplaceOperator<dim, fe_degree, number>::local_apply(
     {
       phi.reinit(cell);
       phi.gather_evaluate(src, EvaluationFlags::gradients);
-      for (unsigned int q = 0; q < phi.n_q_points; ++q)
+      for (const unsigned int q : phi.quadrature_point_indices())
         phi.submit_gradient(phi.get_gradient(q), q);
       phi.integrate_scatter(EvaluationFlags::gradients, dst);
     }
@@ -158,7 +158,7 @@ LaplaceOperator<dim, fe_degree, number>::local_apply(
 template <int dim, int fe_degree, typename number>
 void
 LaplaceOperator<dim, fe_degree, number>::apply_add(
-  LinearAlgebra::distributed::Vector<number> &      dst,
+  LinearAlgebra::distributed::Vector<number>       &dst,
   const LinearAlgebra::distributed::Vector<number> &src) const
 {
   this->data->cell_loop(&LaplaceOperator::local_apply, this, dst, src);
@@ -169,7 +169,7 @@ LaplaceOperator<dim, fe_degree, number>::apply_add(
 template <int dim, int fe_degree, typename number>
 void
 LaplaceOperator<dim, fe_degree, number>::vmult(
-  LinearAlgebra::distributed::Vector<number> &      dst,
+  LinearAlgebra::distributed::Vector<number>       &dst,
   const LinearAlgebra::distributed::Vector<number> &src) const
 {
   this->data->cell_loop(&LaplaceOperator::local_apply, this, dst, src, true);
@@ -182,7 +182,7 @@ LaplaceOperator<dim, fe_degree, number>::vmult(
 template <int dim, int fe_degree, typename number>
 void
 LaplaceOperator<dim, fe_degree, number>::vmult(
-  LinearAlgebra::distributed::Vector<number> &      dst,
+  LinearAlgebra::distributed::Vector<number>       &dst,
   const LinearAlgebra::distributed::Vector<number> &src,
   const std::function<void(const unsigned int, const unsigned int)>
     &operation_before_loop,
@@ -233,7 +233,7 @@ LaplaceOperator<dim, fe_degree, number>::compute_diagonal()
 template <int dim, int fe_degree, typename number>
 void
 LaplaceOperator<dim, fe_degree, number>::local_compute_diagonal(
-  const MatrixFree<dim, number> &             data,
+  const MatrixFree<dim, number>              &data,
   LinearAlgebra::distributed::Vector<number> &dst,
   const unsigned int &,
   const std::pair<unsigned int, unsigned int> &cell_range) const
@@ -252,7 +252,7 @@ LaplaceOperator<dim, fe_degree, number>::local_compute_diagonal(
           phi.submit_dof_value(make_vectorized_array<number>(1.), i);
 
           phi.evaluate(EvaluationFlags::gradients);
-          for (unsigned int q = 0; q < phi.n_q_points; ++q)
+          for (const unsigned int q : phi.quadrature_point_indices())
             phi.submit_gradient(phi.get_gradient(q), q);
           phi.integrate(EvaluationFlags::gradients);
           diagonal[i] = phi.get_dof_value(i);
@@ -262,41 +262,6 @@ LaplaceOperator<dim, fe_degree, number>::local_compute_diagonal(
       phi.distribute_local_to_global(dst);
     }
 }
-
-
-
-template <int dim, typename MatrixType>
-class MGTransferMF
-  : public MGTransferMatrixFree<dim, typename MatrixType::value_type>
-{
-public:
-  void
-  setup(const MGLevelObject<MatrixType> &laplace,
-        const MGConstrainedDoFs &        mg_constrained_dofs)
-  {
-    this->MGTransferMatrixFree<dim, typename MatrixType::value_type>::
-      initialize_constraints(mg_constrained_dofs);
-    laplace_operator = &laplace;
-  }
-
-  template <class InVector, int spacedim>
-  void
-  copy_to_mg(
-    const DoFHandler<dim, spacedim> &mg_dof,
-    MGLevelObject<
-      LinearAlgebra::distributed::Vector<typename MatrixType::value_type>> &dst,
-    const InVector &src) const
-  {
-    for (unsigned int level = dst.min_level(); level <= dst.max_level();
-         ++level)
-      (*laplace_operator)[level].initialize_dof_vector(dst[level]);
-    MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<
-      typename MatrixType::value_type>>::copy_to_mg(mg_dof, dst, src);
-  }
-
-private:
-  const MGLevelObject<MatrixType> *laplace_operator;
-};
 
 
 
@@ -343,7 +308,7 @@ private:
   LinearAlgebra::distributed::Vector<double> solution;
   LinearAlgebra::distributed::Vector<double> system_rhs;
 
-  MGTransferMF<dim, LevelMatrixType> mg_transfer;
+  MGTransferMatrixFree<dim, float> mg_transfer;
 
   using SmootherType =
     PreconditionChebyshev<LevelMatrixType,
@@ -404,8 +369,8 @@ LaplaceProblem<dim>::setup_dofs()
 
   debug_output << "Number of DoFs: " << dof_handler.n_dofs() << std::endl;
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   constraints.clear();
   constraints.reinit(locally_relevant_dofs);
@@ -426,10 +391,8 @@ LaplaceProblem<dim>::setup_dofs()
 
   for (unsigned int level = 0; level < triangulation.n_global_levels(); ++level)
     {
-      IndexSet relevant_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof_handler,
-                                                    level,
-                                                    relevant_dofs);
+      const IndexSet relevant_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof_handler, level);
       AffineConstraints<double> level_constraints;
       level_constraints.reinit(relevant_dofs);
       level_constraints.add_lines(
@@ -477,10 +440,8 @@ LaplaceProblem<dim>::setup_matrix_free()
 
   for (unsigned int level = 0; level < nlevels; ++level)
     {
-      IndexSet relevant_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof_handler,
-                                                    level,
-                                                    relevant_dofs);
+      const IndexSet relevant_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof_handler, level);
       AffineConstraints<double> level_constraints;
       level_constraints.reinit(relevant_dofs);
       level_constraints.add_lines(
@@ -537,7 +498,7 @@ template <int dim>
 void
 LaplaceProblem<dim>::setup_transfer()
 {
-  mg_transfer.setup(mg_matrices, mg_constrained_dofs);
+  mg_transfer.initialize_constraints(mg_constrained_dofs);
   std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>> partitioners(
     dof_handler.get_triangulation().n_global_levels());
   for (unsigned int level = 0; level < partitioners.size(); ++level)
@@ -603,7 +564,7 @@ LaplaceProblem<dim>::solve()
 
   PreconditionMG<dim,
                  LinearAlgebra::distributed::Vector<float>,
-                 MGTransferMF<dim, LevelMatrixType>>
+                 MGTransferMatrixFree<dim, float>>
     preconditioner(dof_handler, mg, mg_transfer);
 
 

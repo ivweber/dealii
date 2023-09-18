@@ -63,7 +63,7 @@ namespace ResFlow
   template <int dim>
   void
   FluxBoundaryValues<dim>::vector_value(const Point<dim> &p,
-                                        Vector<double> &  bdry_flux) const
+                                        Vector<double>   &bdry_flux) const
   {
     Assert(bdry_flux.size() == dim,
            ExcDimensionMismatch(bdry_flux.size(), dim));
@@ -186,8 +186,8 @@ namespace ResFlow
           << owned_partitioning[1].n_elements() << ')' << std::endl
           << std::endl;
 
-    IndexSet locally_relevant_dofs;
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    const IndexSet locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
     relevant_partitioning.resize(2);
     relevant_partitioning[0] = locally_relevant_dofs.get_view(0, n_u);
     relevant_partitioning[1] = locally_relevant_dofs.get_view(n_u, n_u + n_p);
@@ -251,7 +251,7 @@ main(int argc, char *argv[])
       ResFlowProblem<dim> resflow(press_order);
       resflow.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

@@ -135,7 +135,7 @@ DEAL_II_NAMESPACE_OPEN
  *
  * @note TransposeTable uses this template to implement its iterators.
  */
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 class LinearIndexIterator
 {
 public:
@@ -254,25 +254,21 @@ public:
    * the same entry in the same container.
    */
   template <typename OtherIterator>
-  friend std::enable_if_t<
-    std::is_convertible<OtherIterator, DerivedIterator>::value,
-    bool>
-  operator==(const LinearIndexIterator &left, const OtherIterator &right)
+  std::enable_if_t<std::is_convertible_v<OtherIterator, DerivedIterator>, bool>
+  operator==(const OtherIterator &right) const
   {
     const auto &right_2 = static_cast<const DerivedIterator &>(right);
-    return left.accessor == right_2.accessor;
+    return this->accessor == right_2.accessor;
   }
 
   /**
    * Opposite of operator==().
    */
   template <typename OtherIterator>
-  friend std::enable_if_t<
-    std::is_convertible<OtherIterator, DerivedIterator>::value,
-    bool>
-  operator!=(const LinearIndexIterator &left, const OtherIterator &right)
+  std::enable_if_t<std::is_convertible_v<OtherIterator, DerivedIterator>, bool>
+  operator!=(const OtherIterator &right) const
   {
-    return !(left == right);
+    return !(*this == right);
   }
 
   /**
@@ -332,7 +328,7 @@ protected:
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator &
 LinearIndexIterator<DerivedIterator, AccessorType>::operator=(
   const DerivedIterator &it)
@@ -344,7 +340,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator=(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator &
 LinearIndexIterator<DerivedIterator, AccessorType>::operator++()
 {
@@ -353,18 +349,18 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator++()
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator
 LinearIndexIterator<DerivedIterator, AccessorType>::operator++(int)
 {
   const DerivedIterator copy(this->accessor);
-                        operator+=(1);
+  operator+=(1);
   return copy;
 }
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator &
 LinearIndexIterator<DerivedIterator, AccessorType>::operator--()
 {
@@ -373,18 +369,18 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator--()
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator
 LinearIndexIterator<DerivedIterator, AccessorType>::operator--(int)
 {
   const DerivedIterator copy(this->accessor);
-                        operator+=(-1);
+  operator+=(-1);
   return copy;
 }
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator
 LinearIndexIterator<DerivedIterator, AccessorType>::operator+(
   const difference_type n) const
@@ -396,7 +392,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator+(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator
 LinearIndexIterator<DerivedIterator, AccessorType>::operator-(
   const difference_type n) const
@@ -408,7 +404,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator-(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator &
 LinearIndexIterator<DerivedIterator, AccessorType>::operator+=(
   const difference_type n)
@@ -419,7 +415,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator+=(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline DerivedIterator &
 LinearIndexIterator<DerivedIterator, AccessorType>::operator-=(
   const difference_type n)
@@ -429,7 +425,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator-=(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline
   typename LinearIndexIterator<DerivedIterator, AccessorType>::difference_type
   LinearIndexIterator<DerivedIterator, AccessorType>::operator-(
@@ -443,7 +439,7 @@ inline
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline typename LinearIndexIterator<DerivedIterator, AccessorType>::reference
 LinearIndexIterator<DerivedIterator, AccessorType>::operator*() const
 {
@@ -452,7 +448,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator*() const
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline typename LinearIndexIterator<DerivedIterator, AccessorType>::pointer
 LinearIndexIterator<DerivedIterator, AccessorType>::operator->() const
 {
@@ -461,7 +457,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator->() const
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline bool
 LinearIndexIterator<DerivedIterator, AccessorType>::operator<=(
   const DerivedIterator &other) const
@@ -471,7 +467,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator<=(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline bool
 LinearIndexIterator<DerivedIterator, AccessorType>::operator>=(
   const DerivedIterator &other) const
@@ -481,7 +477,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator>=(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline bool
 LinearIndexIterator<DerivedIterator, AccessorType>::operator<(
   const DerivedIterator &other) const
@@ -494,7 +490,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator<(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline bool
 LinearIndexIterator<DerivedIterator, AccessorType>::operator>(
   const DerivedIterator &other) const
@@ -504,7 +500,7 @@ LinearIndexIterator<DerivedIterator, AccessorType>::operator>(
 
 
 
-template <class DerivedIterator, class AccessorType>
+template <typename DerivedIterator, typename AccessorType>
 inline LinearIndexIterator<DerivedIterator, AccessorType>::LinearIndexIterator(
   const AccessorType accessor)
   : accessor(accessor)

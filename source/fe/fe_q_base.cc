@@ -26,6 +26,7 @@
 
 #include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_pyramid_p.h>
 #include <deal.II/fe/fe_q_base.h>
@@ -416,13 +417,13 @@ struct FE_Q_Base<xdim, xspacedim>::Implementation
 template <int dim, int spacedim>
 FE_Q_Base<dim, spacedim>::FE_Q_Base(
   const ScalarPolynomialsBase<dim> &poly_space,
-  const FiniteElementData<dim> &    fe_data,
-  const std::vector<bool> &         restriction_is_additive_flags)
+  const FiniteElementData<dim>     &fe_data,
+  const std::vector<bool>          &restriction_is_additive_flags)
   : FE_Poly<dim, spacedim>(
       poly_space,
       fe_data,
       restriction_is_additive_flags,
-      std::vector<ComponentMask>(1, std::vector<bool>(1, true)))
+      std::vector<ComponentMask>(1, ComponentMask(std::vector<bool>(1, true))))
   , q_degree(dynamic_cast<const TensorProductPolynomialsBubbles<dim> *>(
                &poly_space) != nullptr ?
                this->degree - 1 :
@@ -511,7 +512,7 @@ template <int dim, int spacedim>
 void
 FE_Q_Base<dim, spacedim>::get_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
-  FullMatrix<double> &                interpolation_matrix) const
+  FullMatrix<double>                 &interpolation_matrix) const
 {
   // go through the list of elements we can interpolate from
   if (const FE_Q_Base<dim, spacedim> *source_fe =
@@ -611,7 +612,7 @@ template <int dim, int spacedim>
 void
 FE_Q_Base<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   get_subface_interpolation_matrix(source_fe,
@@ -627,7 +628,7 @@ void
 FE_Q_Base<dim, spacedim>::get_subface_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
   const unsigned int                  subface,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   Assert(interpolation_matrix.m() == source_fe.n_dofs_per_face(face_no),
@@ -751,6 +752,15 @@ FE_Q_Base<dim, spacedim>::hp_vertex_dof_identities(
     {
       // there should be exactly one single DoF of each FE at a vertex, and they
       // should have identical value
+      return {{0U, 0U}};
+    }
+  else if (dynamic_cast<const FE_Hermite<dim, spacedim> *>(&fe_other) !=
+           nullptr)
+    {
+      // FE_Hermite will usually have several degrees of freedom on
+      // each vertex, however only the first one will actually
+      // correspond to the shape value at the vertex, meaning it's
+      // the only one of interest for FE_Q_Base
       return {{0U, 0U}};
     }
   else if (dynamic_cast<const FE_Nothing<dim> *>(&fe_other) != nullptr)
@@ -1061,35 +1071,35 @@ FE_Q_Base<dim, spacedim>::initialize_quad_dof_index_permutation()
       unsigned int i = local % n, j = local / n;
 
       // face_orientation=false, face_flip=false, face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      0) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, false, false)) =
         j + i * n - local;
       // face_orientation=false, face_flip=false, face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      1) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, true, false)) =
         i + (n - 1 - j) * n - local;
       // face_orientation=false, face_flip=true,  face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      2) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, false, true)) =
         (n - 1 - j) + (n - 1 - i) * n - local;
       // face_orientation=false, face_flip=true,  face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      3) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, true, true)) =
         (n - 1 - i) + j * n - local;
       // face_orientation=true,  face_flip=false, face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      4) = 0;
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, false, false)) = 0;
       // face_orientation=true,  face_flip=false, face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      5) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, true, false)) =
         j + (n - 1 - i) * n - local;
       // face_orientation=true,  face_flip=true,  face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      6) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, false, true)) =
         (n - 1 - i) + (n - 1 - j) * n - local;
       // face_orientation=true,  face_flip=true,  face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      7) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, true, true)) =
         (n - 1 - j) + i * n - local;
     }
 

@@ -27,25 +27,23 @@ template <int dim>
 void
 check_this(const DoFHandler<dim> &dof_handler)
 {
-  std::vector<bool> component_select(dof_handler.get_fe().n_components(), true);
-  std::vector<bool> boundary_dofs(dof_handler.n_dofs());
+  ComponentMask component_select(dof_handler.get_fe().n_components(), true);
+  IndexSet      boundary_dofs(dof_handler.n_dofs());
 
   // first with all components
   {
-    DoFTools::extract_boundary_dofs(dof_handler,
-                                    component_select,
-                                    boundary_dofs);
+    boundary_dofs =
+      DoFTools::extract_boundary_dofs(dof_handler, component_select);
     output_bool_vector(boundary_dofs);
   }
 
   // next with only every second
   // component
   for (unsigned int i = 1; i < component_select.size(); i += 2)
-    component_select[i] = false;
+    component_select.set(i, false);
   {
-    DoFTools::extract_boundary_dofs(dof_handler,
-                                    component_select,
-                                    boundary_dofs);
+    boundary_dofs =
+      DoFTools::extract_boundary_dofs(dof_handler, component_select);
     output_bool_vector(boundary_dofs);
   }
 
@@ -53,10 +51,9 @@ check_this(const DoFHandler<dim> &dof_handler)
   // boundary indicator 0
   {
     const std::set<types::boundary_id> boundary_ids = {0};
-    DoFTools::extract_boundary_dofs(dof_handler,
-                                    component_select,
-                                    boundary_dofs,
-                                    boundary_ids);
+    boundary_dofs = DoFTools::extract_boundary_dofs(dof_handler,
+                                                    component_select,
+                                                    boundary_ids);
     output_bool_vector(boundary_dofs);
   }
 }

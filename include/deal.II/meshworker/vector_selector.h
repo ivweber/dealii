@@ -150,14 +150,14 @@ namespace MeshWorker
     /**
      * Print the contents of the selection to the stream.
      */
-    template <class StreamType, typename DATA>
+    template <typename StreamType, typename DATA>
     void
     print(StreamType &s, const AnyData &v) const;
 
     /**
      * Print the number of selections to the stream.
      */
-    template <class StreamType>
+    template <typename StreamType>
     void
     print(StreamType &s) const;
 
@@ -262,8 +262,8 @@ namespace MeshWorker
          std::vector<std::vector<std::vector<Tensor<1, spacedim, Number>>>>
            &gradients,
          std::vector<std::vector<std::vector<Tensor<2, spacedim, Number>>>>
-           &                                         hessians,
-         const FEValuesBase<dim, spacedim> &         fe,
+                                                    &hessians,
+         const FEValuesBase<dim, spacedim>          &fe,
          const std::vector<types::global_dof_index> &index,
          const unsigned int                          component,
          const unsigned int                          n_comp,
@@ -281,8 +281,8 @@ namespace MeshWorker
             std::vector<std::vector<std::vector<Tensor<1, spacedim, Number>>>>
               &gradients,
             std::vector<std::vector<std::vector<Tensor<2, spacedim, Number>>>>
-              &                                         hessians,
-            const FEValuesBase<dim, spacedim> &         fe,
+                                                       &hessians,
+            const FEValuesBase<dim, spacedim>          &fe,
             const unsigned int                          level,
             const std::vector<types::global_dof_index> &index,
             const unsigned int                          component,
@@ -341,8 +341,8 @@ namespace MeshWorker
            &gradients,
          std::vector<std::vector<
            std::vector<Tensor<2, spacedim, typename VectorType::value_type>>>>
-           &                                         hessians,
-         const FEValuesBase<dim, spacedim> &         fe,
+                                                    &hessians,
+         const FEValuesBase<dim, spacedim>          &fe,
          const std::vector<types::global_dof_index> &index,
          const unsigned int                          component,
          const unsigned int                          n_comp,
@@ -358,8 +358,8 @@ namespace MeshWorker
         &gradients,
       std::vector<std::vector<
         std::vector<Tensor<2, spacedim, typename VectorType::value_type>>>>
-        &                                         hessians,
-      const FEValuesBase<dim, spacedim> &         fe,
+                                                 &hessians,
+      const FEValuesBase<dim, spacedim>          &fe,
       const unsigned int                          level,
       const std::vector<types::global_dof_index> &index,
       const unsigned int                          component,
@@ -521,7 +521,7 @@ namespace MeshWorker
   }
 
 
-  template <class StreamType>
+  template <typename StreamType>
   inline void
   VectorSelector::print(StreamType &s) const
   {
@@ -530,7 +530,7 @@ namespace MeshWorker
   }
 
 
-  template <class StreamType, typename DATA>
+  template <typename StreamType, typename DATA>
   inline void
   VectorSelector::print(StreamType &s, const AnyData &v) const
   {

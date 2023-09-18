@@ -126,7 +126,7 @@ PolynomialSpace<dim>::set_numbering(const std::vector<unsigned int> &renumber)
 template <int dim>
 double
 PolynomialSpace<dim>::compute_value(const unsigned int i,
-                                    const Point<dim> & p) const
+                                    const Point<dim>  &p) const
 {
   const auto ix = compute_index(i);
   // take the product of the
@@ -143,7 +143,7 @@ PolynomialSpace<dim>::compute_value(const unsigned int i,
 template <int dim>
 Tensor<1, dim>
 PolynomialSpace<dim>::compute_grad(const unsigned int i,
-                                   const Point<dim> & p) const
+                                   const Point<dim>  &p) const
 {
   const auto ix = compute_index(i);
 
@@ -168,7 +168,7 @@ PolynomialSpace<dim>::compute_grad(const unsigned int i,
 template <int dim>
 Tensor<2, dim>
 PolynomialSpace<dim>::compute_grad_grad(const unsigned int i,
-                                        const Point<dim> & p) const
+                                        const Point<dim>  &p) const
 {
   const auto ix = compute_index(i);
 
@@ -203,8 +203,8 @@ PolynomialSpace<dim>::compute_grad_grad(const unsigned int i,
 template <int dim>
 void
 PolynomialSpace<dim>::evaluate(
-  const Point<dim> &           p,
-  std::vector<double> &        values,
+  const Point<dim>            &p,
+  std::vector<double>         &values,
   std::vector<Tensor<1, dim>> &grads,
   std::vector<Tensor<2, dim>> &grad_grads,
   std::vector<Tensor<3, dim>> &third_derivatives,
@@ -212,16 +212,15 @@ PolynomialSpace<dim>::evaluate(
 {
   const unsigned int n_1d = polynomials.size();
 
-  Assert(values.size() == this->n() || values.size() == 0,
+  Assert(values.size() == this->n() || values.empty(),
          ExcDimensionMismatch2(values.size(), this->n(), 0));
-  Assert(grads.size() == this->n() || grads.size() == 0,
+  Assert(grads.size() == this->n() || grads.empty(),
          ExcDimensionMismatch2(grads.size(), this->n(), 0));
-  Assert(grad_grads.size() == this->n() || grad_grads.size() == 0,
+  Assert(grad_grads.size() == this->n() || grad_grads.empty(),
          ExcDimensionMismatch2(grad_grads.size(), this->n(), 0));
-  Assert(third_derivatives.size() == this->n() || third_derivatives.size() == 0,
+  Assert(third_derivatives.size() == this->n() || third_derivatives.empty(),
          ExcDimensionMismatch2(third_derivatives.size(), this->n(), 0));
-  Assert(fourth_derivatives.size() == this->n() ||
-           fourth_derivatives.size() == 0,
+  Assert(fourth_derivatives.size() == this->n() || fourth_derivatives.empty(),
          ExcDimensionMismatch2(fourth_derivatives.size(), this->n(), 0));
 
   unsigned int v_size = 0;

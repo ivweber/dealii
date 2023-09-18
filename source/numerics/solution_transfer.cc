@@ -30,7 +30,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -135,7 +134,7 @@ template <int dim, typename VectorType, int spacedim>
 void
 SolutionTransfer<dim, VectorType, spacedim>::refine_interpolate(
   const VectorType &in,
-  VectorType &      out) const
+  VectorType       &out) const
 {
   Assert(prepared_for == pure_refinement, ExcNotPrepared());
   Assert(in.size() == n_dofs_old, ExcDimensionMismatch(in.size(), n_dofs_old));
@@ -217,7 +216,7 @@ namespace internal
    */
   template <int dim, int spacedim>
   void
-  extract_interpolation_matrices(const DoFHandler<dim, spacedim> &     dof,
+  extract_interpolation_matrices(const DoFHandler<dim, spacedim>      &dof,
                                  dealii::Table<2, FullMatrix<double>> &matrices)
   {
     if (dof.has_hp_capabilities() == false)
@@ -446,7 +445,7 @@ template <int dim, typename VectorType, int spacedim>
 void
 SolutionTransfer<dim, VectorType, spacedim>::interpolate(
   const std::vector<VectorType> &all_in,
-  std::vector<VectorType> &      all_out) const
+  std::vector<VectorType>       &all_out) const
 {
   const unsigned int size = all_in.size();
 #ifdef DEBUG
@@ -583,6 +582,11 @@ SolutionTransfer<dim, VectorType, spacedim>::interpolate(
             Assert(false, ExcInternalError());
         }
     }
+
+  // We have written into the output vectors. If this was a PETSc vector, for
+  // example, then we need to compress these to make future operations safe:
+  for (auto &vec : all_out)
+    vec.compress(VectorOperation::insert);
 }
 
 
@@ -596,11 +600,11 @@ SolutionTransfer<dim, VectorType, spacedim>::interpolate(const VectorType &in,
   Assert(out.size() == dof_handler->n_dofs(),
          ExcDimensionMismatch(out.size(), dof_handler->n_dofs()));
 
-  std::vector<VectorType> all_in(1);
-  all_in[0] = in;
-  std::vector<VectorType> all_out(1);
-  all_out[0] = out;
+  std::vector<VectorType> all_in  = {in};
+  std::vector<VectorType> all_out = {out};
+
   interpolate(all_in, all_out);
+
   out = all_out[0];
 }
 

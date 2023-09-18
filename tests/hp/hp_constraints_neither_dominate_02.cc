@@ -64,7 +64,7 @@
 
 #include "../tests.h"
 
-//#define DEBUG_OUTPUT_VTK
+// #define DEBUG_OUTPUT_VTK
 unsigned int counter = 0;
 
 const double eps = 1e-10;
@@ -214,7 +214,7 @@ test2cells(const FiniteElement<dim> &fe_0,
   std::string filename = "shape_functions_" +
                          dealii::Utilities::int_to_string(counter, 1) + "_" +
                          dealii::Utilities::int_to_string(dim) + "D.vtu";
-  std::ofstream output(filename.c_str());
+  std::ofstream output(filename);
   data_out.write_vtu(output);
 #endif
 
@@ -293,7 +293,7 @@ test2cells(const FiniteElement<dim> &fe_0,
             less_than_key<dim>());
   for (unsigned int p = 0; p < pairs_point_value.size(); ++p)
     {
-      const Point<dim> &    pt  = pairs_point_value[p].first;
+      const Point<dim>     &pt  = pairs_point_value[p].first;
       const Vector<double> &val = pairs_point_value[p].second;
 
       Assert(val.size() == n_comp, ExcInternalError());
@@ -362,7 +362,7 @@ main(int argc, char **argv)
           FESystem<dim>(FE_Q<dim>(1), 1, FE_Q<dim>(1), 1, FE_Q<dim>(1), 1));
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

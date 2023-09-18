@@ -33,7 +33,7 @@ On the unit circle $\Omega = \bigl\{ x \in \mathbb{R}^2 : \|x\| \leq 1 \bigr\}$
 we consider the following nonlinear elliptic boundary value problem subject to a
 homogeneous Dirichlet boundary condition: Find a function
 $u\colon\Omega\to\mathbb{R}$ such that it holds:
-@f{align*}
+@f{align*}{
     - \Delta u &= \exp(u) & \quad & \text{in } \Omega,\\
              u &= 0       & \quad & \text{on } \partial\Omega.
 @f}
@@ -265,7 +265,7 @@ void JacobianOperator<dim, fe_degree, number>::evaluate_newton_step(
       phi.read_dof_values_plain(newton_step);
       phi.evaluate(EvaluationFlags::values);
 
-      for (unsigned int q = 0; q < phi.n_q_points; ++q)
+      for (const unsigned int q : phi.quadrature_point_indices())
         {
           nonlinear_values(cell, q) = std::exp(phi.get_value(q));
         }

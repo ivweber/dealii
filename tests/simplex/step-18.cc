@@ -80,7 +80,7 @@
 
 #include <deal.II/grid/grid_generator.h>
 
-//#define HEX
+// #define HEX
 
 const unsigned int degree = 1;
 
@@ -290,7 +290,7 @@ namespace Step18
 
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const override;
+                      std::vector<Vector<double>>   &value_list) const override;
   };
 
 
@@ -320,7 +320,7 @@ namespace Step18
   void
   BodyForce<dim>::vector_value_list(
     const std::vector<Point<dim>> &points,
-    std::vector<Vector<double>> &  value_list) const
+    std::vector<Vector<double>>   &value_list) const
   {
     const unsigned int n_points = points.size();
 
@@ -345,7 +345,7 @@ namespace Step18
 
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const override;
+                      std::vector<Vector<double>>   &value_list) const override;
 
   private:
     const double velocity;
@@ -382,7 +382,7 @@ namespace Step18
   void
   IncrementalBoundaryValues<dim>::vector_value_list(
     const std::vector<Point<dim>> &points,
-    std::vector<Vector<double>> &  value_list) const
+    std::vector<Vector<double>>   &value_list) const
   {
     const unsigned int n_points = points.size();
 
@@ -495,7 +495,8 @@ namespace Step18
   {
     dof_handler.distribute_dofs(fe);
     locally_owned_dofs = dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     // The next step is to set up constraints due to hanging nodes. This has
     // been handled many times before:
@@ -1029,7 +1030,7 @@ main(int argc, char **argv)
       TopLevel<3> elastic_problem;
       elastic_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

@@ -81,7 +81,7 @@ template <int dim, typename DATA>
 void
 check_qph(Triangulation<dim> &tr,
           CellDataStorage<typename Triangulation<dim, dim>::cell_iterator, DATA>
-            &                    manager,
+                                &manager,
           const Quadrature<dim> &rhs_quadrature,
           const MyFunction<dim> &func)
 {
@@ -93,18 +93,18 @@ check_qph(Triangulation<dim> &tr,
   for (cell = tr.begin_active(); cell != tr.end(); ++cell)
     if (cell->is_locally_owned())
       {
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(*cell,
-                                                                &dof_handler);
+        const auto dof_cell = cell->as_dof_handler_iterator(dof_handler);
+
         fe_values.reinit(dof_cell);
         const std::vector<Point<dim>> &q_points =
           fe_values.get_quadrature_points();
-        const auto &                             manager_const = manager;
+        const auto                              &manager_const = manager;
         const std::vector<std::shared_ptr<DATA>> qpd = manager.get_data(cell);
         const std::vector<std::shared_ptr<const DATA>> qpd_const =
           manager_const.get_data(cell);
-        const std_cxx17::optional<std::vector<std::shared_ptr<DATA>>>
-          qpd_optional = manager.try_get_data(cell);
-        const std_cxx17::optional<std::vector<std::shared_ptr<const DATA>>>
+        const std::optional<std::vector<std::shared_ptr<DATA>>> qpd_optional =
+          manager.try_get_data(cell);
+        const std::optional<std::vector<std::shared_ptr<const DATA>>>
           qpd_const_optional = manager_const.try_get_data(cell);
         AssertThrow(qpd_optional, ExcInternalError());
         AssertThrow(qpd_const_optional, ExcInternalError());
@@ -159,8 +159,7 @@ test()
     for (cell = tr.begin_active(); cell != tr.end(); ++cell)
       if (cell->is_locally_owned())
         {
-          typename DoFHandler<dim>::active_cell_iterator dof_cell(*cell,
-                                                                  &dof_handler);
+          const auto dof_cell = cell->as_dof_handler_iterator(dof_handler);
           fe_values.reinit(dof_cell);
           const std::vector<Point<dim>> &q_points =
             fe_values.get_quadrature_points();
@@ -177,7 +176,7 @@ test()
             next_cell++;
             if (next_cell != tr.end())
               {
-                const std_cxx17::optional<std::vector<std::shared_ptr<MyQData>>>
+                const std::optional<std::vector<std::shared_ptr<MyQData>>>
                   nonexisting_data = data_storage.try_get_data(next_cell);
                 AssertThrow(!nonexisting_data, ExcInternalError());
               }

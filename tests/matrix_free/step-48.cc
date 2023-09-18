@@ -64,19 +64,19 @@ namespace Step48
                         const double                   time_step);
 
     void
-    apply(LinearAlgebra::distributed::Vector<double> &                     dst,
+    apply(LinearAlgebra::distributed::Vector<double>                      &dst,
           const std::vector<LinearAlgebra::distributed::Vector<double> *> &src)
       const;
 
   private:
-    const MatrixFree<dim, double> &            data;
+    const MatrixFree<dim, double>             &data;
     const VectorizedArray<double>              delta_t_sqr;
     LinearAlgebra::distributed::Vector<double> inv_mass_matrix;
 
     void
     local_apply(
-      const MatrixFree<dim, double> &                                  data,
-      LinearAlgebra::distributed::Vector<double> &                     dst,
+      const MatrixFree<dim, double>                                   &data,
+      LinearAlgebra::distributed::Vector<double>                      &dst,
       const std::vector<LinearAlgebra::distributed::Vector<double> *> &src,
       const std::pair<unsigned int, unsigned int> &cell_range) const;
   };
@@ -107,7 +107,7 @@ namespace Step48
       }
 
     inv_mass_matrix.compress(VectorOperation::add);
-    for (unsigned int k = 0; k < inv_mass_matrix.local_size(); ++k)
+    for (unsigned int k = 0; k < inv_mass_matrix.locally_owned_size(); ++k)
       if (inv_mass_matrix.local_element(k) > 1e-15)
         inv_mass_matrix.local_element(k) =
           1. / inv_mass_matrix.local_element(k);
@@ -120,8 +120,8 @@ namespace Step48
   template <int dim>
   void
   SineGordonOperation<dim>::local_apply(
-    const MatrixFree<dim> &                                          data,
-    LinearAlgebra::distributed::Vector<double> &                     dst,
+    const MatrixFree<dim>                                           &data,
+    LinearAlgebra::distributed::Vector<double>                      &dst,
     const std::vector<LinearAlgebra::distributed::Vector<double> *> &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const
   {
@@ -159,7 +159,7 @@ namespace Step48
   template <int dim>
   void
   SineGordonOperation<dim>::apply(
-    LinearAlgebra::distributed::Vector<double> &                     dst,
+    LinearAlgebra::distributed::Vector<double>                      &dst,
     const std::vector<LinearAlgebra::distributed::Vector<double> *> &src) const
   {
     dst = 0;
@@ -294,7 +294,8 @@ namespace Step48
             << std::endl;
 
 
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
     constraints.clear();
     constraints.reinit(locally_relevant_dofs);
     DoFTools::make_hanging_node_constraints(dof_handler, constraints);

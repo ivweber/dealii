@@ -87,9 +87,8 @@ test(const unsigned int n_blocks = 5)
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints(relevant_set);
   DoFTools::make_hanging_node_constraints(dof, constraints);
@@ -126,7 +125,7 @@ test(const unsigned int n_blocks = 5)
       mf_data->initialize_dof_vector(right.block(b));
       left.block(b)  = 0.;
       right.block(b) = 0.;
-      for (unsigned int i = 0; i < right.block(b).local_size(); ++i)
+      for (unsigned int i = 0; i < right.block(b).locally_owned_size(); ++i)
         {
           const unsigned int glob_index = owned_set.nth_index_in_set(i);
           if (constraints.is_constrained(glob_index))

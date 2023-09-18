@@ -56,7 +56,7 @@ public:
   {}
 
   void
-  vmult(LinearAlgebra::distributed::Vector<Number> &      dst,
+  vmult(LinearAlgebra::distributed::Vector<Number>       &dst,
         const LinearAlgebra::distributed::Vector<Number> &src) const
   {
     const std::function<void(const MatrixFree<dim, Number> &,
@@ -141,8 +141,7 @@ test()
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
   AffineConstraints<double> constraints;
-  IndexSet                  relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_dofs);
+  const IndexSet relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof);
   constraints.reinit(relevant_dofs);
   VectorTools::interpolate_boundary_values(dof,
                                            0,
@@ -166,7 +165,7 @@ test()
   mf_data.initialize_dof_vector(vec2);
   mf_data.initialize_dof_vector(vec3);
 
-  for (unsigned int i = 0; i < vec1.local_size(); ++i)
+  for (unsigned int i = 0; i < vec1.locally_owned_size(); ++i)
     {
       if (constraints.is_constrained(
             vec1.get_partitioner()->local_to_global(i)))

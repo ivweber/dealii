@@ -60,21 +60,20 @@ public:
 template <int dim>
 void
 setup(DoFHandler<dim> &dh,
-      FE_Q<dim> &      fe,
+      FE_Q<dim>       &fe,
       LA::MPI::Vector &vec,
       LA::MPI::Vector &lr_vec)
 {
   dh.distribute_dofs(fe);
   vec.reinit(dh.locally_owned_dofs(), MPI_COMM_WORLD);
-  IndexSet locally_relevant;
-  DoFTools::extract_locally_relevant_dofs(dh, locally_relevant);
+  const IndexSet locally_relevant = DoFTools::extract_locally_relevant_dofs(dh);
   lr_vec.reinit(locally_relevant, MPI_COMM_WORLD);
 }
 
 template <int dim>
 void
-output(DoFHandler<dim> & dh,
-       LA::MPI::Vector & v,
+output(DoFHandler<dim>  &dh,
+       LA::MPI::Vector  &v,
        unsigned int      loop,
        const std::string filename_)
 {
@@ -87,7 +86,7 @@ output(DoFHandler<dim> & dh,
   filename << filename_ << Utilities::int_to_string(loop, 2) << '.'
            << Utilities::int_to_string(myid, 2) << ".vtu";
 
-  std::ofstream output(filename.str().c_str());
+  std::ofstream output(filename.str());
   data_out.write_vtu(output);
   if (myid)
     {
@@ -99,7 +98,7 @@ output(DoFHandler<dim> & dh,
                             "." + Utilities::int_to_string(i, 2) + ".vtu");
       const std::string pvtu_filename =
         (filename_ + Utilities::int_to_string(loop, 2) + ".pvtu");
-      std::ofstream pvtu_output(pvtu_filename.c_str());
+      std::ofstream pvtu_output(pvtu_filename);
       data_out.write_pvtu_record(pvtu_output, filenames);
     }
 }

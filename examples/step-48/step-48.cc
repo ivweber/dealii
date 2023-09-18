@@ -12,9 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Katharina Kormann, Martin Kronbichler, Uppsala University, 2011-2012
+ * Authors: Katharina Kormann, Martin Kronbichler, Uppsala University, 2011-2012
  */
 
 
@@ -90,13 +89,13 @@ namespace Step48
                  &src) const;
 
   private:
-    const MatrixFree<dim, double> &            data;
+    const MatrixFree<dim, double>             &data;
     const VectorizedArray<double>              delta_t_sqr;
     LinearAlgebra::distributed::Vector<double> inv_mass_matrix;
 
     void local_apply(
-      const MatrixFree<dim, double> &                                  data,
-      LinearAlgebra::distributed::Vector<double> &                     dst,
+      const MatrixFree<dim, double>                                   &data,
+      LinearAlgebra::distributed::Vector<double>                      &dst,
       const std::vector<LinearAlgebra::distributed::Vector<double> *> &src,
       const std::pair<unsigned int, unsigned int> &cell_range) const;
   };
@@ -127,12 +126,11 @@ namespace Step48
     data.initialize_dof_vector(inv_mass_matrix);
 
     FEEvaluation<dim, fe_degree> fe_eval(data);
-    const unsigned int           n_q_points = fe_eval.n_q_points;
 
     for (unsigned int cell = 0; cell < data.n_cell_batches(); ++cell)
       {
         fe_eval.reinit(cell);
-        for (unsigned int q = 0; q < n_q_points; ++q)
+        for (const unsigned int q : fe_eval.quadrature_point_indices())
           fe_eval.submit_value(make_vectorized_array(1.), q);
         fe_eval.integrate(EvaluationFlags::values);
         fe_eval.distribute_local_to_global(inv_mass_matrix);
@@ -185,8 +183,8 @@ namespace Step48
   // dst.
   template <int dim, int fe_degree>
   void SineGordonOperation<dim, fe_degree>::local_apply(
-    const MatrixFree<dim> &                                          data,
-    LinearAlgebra::distributed::Vector<double> &                     dst,
+    const MatrixFree<dim>                                           &data,
+    LinearAlgebra::distributed::Vector<double>                      &dst,
     const std::vector<LinearAlgebra::distributed::Vector<double> *> &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const
   {
@@ -203,7 +201,7 @@ namespace Step48
         current.evaluate(EvaluationFlags::values | EvaluationFlags::gradients);
         old.evaluate(EvaluationFlags::values);
 
-        for (unsigned int q = 0; q < current.n_q_points; ++q)
+        for (const unsigned int q : current.quadrature_point_indices())
           {
             const VectorizedArray<double> current_value = current.get_value(q);
             const VectorizedArray<double> old_value     = old.get_value(q);
@@ -241,7 +239,7 @@ namespace Step48
   // inverse mass matrix.
   template <int dim, int fe_degree>
   void SineGordonOperation<dim, fe_degree>::apply(
-    LinearAlgebra::distributed::Vector<double> &                     dst,
+    LinearAlgebra::distributed::Vector<double>                      &dst,
     const std::vector<LinearAlgebra::distributed::Vector<double> *> &src) const
   {
     data.cell_loop(

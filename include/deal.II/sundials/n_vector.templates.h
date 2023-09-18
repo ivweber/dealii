@@ -28,7 +28,6 @@
 #  include <deal.II/lac/block_vector.h>
 #  include <deal.II/lac/la_parallel_block_vector.h>
 #  include <deal.II/lac/la_parallel_vector.h>
-#  include <deal.II/lac/la_vector.h>
 #  include <deal.II/lac/petsc_block_vector.h>
 #  include <deal.II/lac/petsc_vector.h>
 #  include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -474,14 +473,13 @@ namespace SUNDIALS
 #  endif
                                          )
       : vector_ptr(
-          create_nvector(
-            new NVectorContent<typename std::remove_const<VectorType>::type>(
-              &vector)
+          create_nvector(new NVectorContent<std::remove_const_t<VectorType>>(
+                           &vector)
 #  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
-              ,
-            nvector_context
+                           ,
+                         nvector_context
 #  endif
-            ),
+                         ),
           [](N_Vector v) { N_VDestroy(v); })
     {}
 
@@ -532,7 +530,8 @@ namespace SUNDIALS
 
     namespace NVectorOperations
     {
-      N_Vector_ID get_vector_id(N_Vector)
+      N_Vector_ID
+      get_vector_id(N_Vector)
       {
         return SUNDIALS_NVEC_CUSTOM;
       }
@@ -682,7 +681,7 @@ namespace SUNDIALS
       {
         // TODO copy can be avoided by a custom kernel
         VectorType tmp      = *unwrap_nvector_const<VectorType>(x);
-        auto *     w_dealii = unwrap_nvector_const<VectorType>(w);
+        auto      *w_dealii = unwrap_nvector_const<VectorType>(w);
         tmp.scale(*w_dealii);
         return tmp.l2_norm();
       }
@@ -752,7 +751,7 @@ namespace SUNDIALS
       {
         // TODO copy can be avoided by a custom kernel
         VectorType tmp      = *unwrap_nvector_const<VectorType>(x);
-        auto *     w_dealii = unwrap_nvector_const<VectorType>(w);
+        auto      *w_dealii = unwrap_nvector_const<VectorType>(w);
         const auto n        = tmp.size();
         tmp.scale(*w_dealii);
         return tmp.l2_norm() / std::sqrt(n);
@@ -766,8 +765,8 @@ namespace SUNDIALS
       {
         // TODO copy can be avoided by a custom kernel
         VectorType tmp         = *unwrap_nvector_const<VectorType>(x);
-        auto *     w_dealii    = unwrap_nvector_const<VectorType>(w);
-        auto *     mask_dealii = unwrap_nvector_const<VectorType>(mask);
+        auto      *w_dealii    = unwrap_nvector_const<VectorType>(w);
+        auto      *mask_dealii = unwrap_nvector_const<VectorType>(mask);
         const auto n           = tmp.size();
         tmp.scale(*w_dealii);
         tmp.scale(*mask_dealii);

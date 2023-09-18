@@ -141,7 +141,7 @@ public:
      * @param anderson_subspace_size Size of the Anderson acceleration
      *   subspace, use 0 to disable.
      */
-    AdditionalData(const SolverType &      solver_type = automatic,
+    AdditionalData(const SolverType       &solver_type = automatic,
                    const SolutionStrategy &strategy    = linesearch,
                    const unsigned int      maximum_non_linear_iterations = 200,
                    const double            function_tolerance            = 1e-8,
@@ -220,7 +220,7 @@ public:
    * @param mpi_communicator MPI communicator used by the nonlinear solver.
    */
   NonlinearSolverSelector(const AdditionalData &additional_data,
-                          const MPI_Comm &      mpi_communicator);
+                          const MPI_Comm       &mpi_communicator);
 
   /**
    * Select a new nonlinear solver. All solver names used in this class are
@@ -239,11 +239,11 @@ public:
  * Set the additional data for NOX. See TrilinosWrappers::NOXSolver
  * for more information.
  */
-#ifdef DEAL_II_WITH_TRILINOS
+#ifdef DEAL_II_TRILINOS_WITH_NOX
   void
   set_data(
     const typename TrilinosWrappers::NOXSolver<VectorType>::AdditionalData
-      &                                         additional_data,
+                                               &additional_data,
     const Teuchos::RCP<Teuchos::ParameterList> &parameters =
       Teuchos::rcp(new Teuchos::ParameterList));
 #endif
@@ -302,7 +302,7 @@ public:
   /**
    * A function object that users may supply and that is intended to
    * prepare the linear solver for subsequent calls to
-   * solve_jacobian_system().
+   * solve_with_jacobian).
    *
    * The job of setup_jacobian() is to prepare the linear solver for
    * subsequent calls to solve_with_jacobian(), in the solution of linear
@@ -374,7 +374,7 @@ private:
 /**
  * NOX configuration data
  */
-#ifdef DEAL_II_WITH_TRILINOS
+#ifdef DEAL_II_TRILINOS_WITH_NOX
   typename TrilinosWrappers::NOXSolver<VectorType>::AdditionalData
                                        additional_data_nox;
   Teuchos::RCP<Teuchos::ParameterList> parameters_nox =
@@ -432,7 +432,7 @@ NonlinearSolverSelector<VectorType>::set_data(
 #endif
 
 // Do the same thing we did above but with NOX
-#ifdef DEAL_II_WITH_TRILINOS
+#ifdef DEAL_II_TRILINOS_WITH_NOX
   parameters_nox->set("Nonlinear Solver", "Line Search Based");
   Teuchos::ParameterList &Line_Search = parameters_nox->sublist("Line Search");
   Line_Search.set("Method", "Full Step");
@@ -500,7 +500,7 @@ NonlinearSolverSelector<VectorType>::NonlinearSolverSelector(
 template <typename VectorType>
 NonlinearSolverSelector<VectorType>::NonlinearSolverSelector(
   const AdditionalData &additional_data,
-  const MPI_Comm &      mpi_communicator)
+  const MPI_Comm       &mpi_communicator)
   : additional_data(additional_data)
   , mpi_communicator(mpi_communicator)
 {
@@ -521,7 +521,7 @@ NonlinearSolverSelector<VectorType>::select(
 
 template <typename VectorType>
 NonlinearSolverSelector<VectorType>::AdditionalData::AdditionalData(
-  const SolverType &      solver_type,
+  const SolverType       &solver_type,
   const SolutionStrategy &strategy,
   const unsigned int      maximum_non_linear_iterations,
   const double            function_tolerance,
@@ -539,12 +539,12 @@ NonlinearSolverSelector<VectorType>::AdditionalData::AdditionalData(
 
 
 
-#ifdef DEAL_II_WITH_TRILINOS
+#ifdef DEAL_II_TRILINOS_WITH_NOX
 template <typename VectorType>
 void
 NonlinearSolverSelector<VectorType>::set_data(
   const typename TrilinosWrappers::NOXSolver<VectorType>::AdditionalData
-    &                                         additional_data,
+                                             &additional_data,
   const Teuchos::RCP<Teuchos::ParameterList> &parameters)
 {
   additional_data_nox = additional_data;
@@ -592,7 +592,7 @@ NonlinearSolverSelector<PETScWrappers::MPI::Vector>::solve_with_petsc(
 
   nonlinear_solver.solve_with_jacobian =
     [&](const PETScWrappers::MPI::Vector &src,
-        PETScWrappers::MPI::Vector &      dst) {
+        PETScWrappers::MPI::Vector       &dst) {
       // PETSc does not gives a tolerance, so we have to choose something
       // reasonable to provide to the user:
       const double tolerance = 1e-6;
@@ -617,7 +617,7 @@ NonlinearSolverSelector<VectorType>::solve(
 #ifdef DEAL_II_WITH_PETSC
       additional_data.solver_type = AdditionalData::SolverType::petsc_snes;
 #endif
-#ifdef DEAL_II_WITH_TRILINOS
+#ifdef DEAL_II_TRILINOS_WITH_NOX
       additional_data.solver_type = AdditionalData::SolverType::nox;
 #endif
 #ifdef DEAL_II_WITH_SUNDIALS
@@ -655,7 +655,7 @@ NonlinearSolverSelector<VectorType>::solve(
     }
   else if (additional_data.solver_type == AdditionalData::SolverType::nox)
     {
-#ifdef DEAL_II_WITH_TRILINOS
+#ifdef DEAL_II_TRILINOS_WITH_NOX
 
       TrilinosWrappers::NOXSolver<VectorType> nonlinear_solver(
         additional_data_nox, parameters_nox);
@@ -688,7 +688,7 @@ NonlinearSolverSelector<VectorType>::solve(
 #ifdef DEAL_II_WITH_SUNDIALS
         "kinsol\n"
 #endif
-#ifdef DEAL_II_WITH_TRILINOS
+#ifdef DEAL_II_TRILINOS_WITH_NOX
         "NOX\n"
 #endif
 #ifdef DEAL_II_WITH_PETSC

@@ -61,8 +61,8 @@ namespace internal
        * Only a constructor needed for this class (a struct really)
        */
       PointGeometryData(
-        const Point<dim> &                          new_requested_location,
-        const std::vector<Point<dim>> &             new_locations,
+        const Point<dim>                           &new_requested_location,
+        const std::vector<Point<dim>>              &new_locations,
         const std::vector<types::global_dof_index> &new_sol_indices);
       Point<dim>                           requested_location;
       std::vector<Point<dim>>              support_point_locations;
@@ -292,8 +292,8 @@ public:
    * called in any order.
    */
   void
-  add_field_name(const std::string &  vector_name,
-                 const ComponentMask &component_mask = ComponentMask());
+  add_field_name(const std::string   &vector_name,
+                 const ComponentMask &component_mask = {});
 
   /**
    * Put another mnemonic string (and hence @p VectorType) into the class.
@@ -312,7 +312,7 @@ public:
    * used instead of names generated from the field name, if supplied.
    */
   void
-  add_component_names(const std::string &             vector_name,
+  add_component_names(const std::string              &vector_name,
                       const std::vector<std::string> &component_names);
 
   /**
@@ -332,7 +332,7 @@ public:
    * called for each dataset (time step, iteration, etc) for each vector_name,
    * otherwise a @p ExcDataLostSync error can occur.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   evaluate_field(const std::string &name, const VectorType &solution);
 
@@ -354,24 +354,24 @@ public:
    * method must be called for each dataset (time step, iteration, etc) for
    * each vector_name, otherwise a @p ExcDataLostSync error can occur.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   evaluate_field(const std::vector<std::string> &names,
-                 const VectorType &              solution,
-                 const DataPostprocessor<dim> &  data_postprocessor,
-                 const Quadrature<dim> &         quadrature);
+                 const VectorType               &solution,
+                 const DataPostprocessor<dim>   &data_postprocessor,
+                 const Quadrature<dim>          &quadrature);
 
   /**
    * Construct a std::vector <std::string> containing only vector_name and
    * call the above function. The above function is more efficient if multiple
    * fields use the same @p DataPostprocessor object.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
-  evaluate_field(const std::string &           name,
-                 const VectorType &            solution,
+  evaluate_field(const std::string            &name,
+                 const VectorType             &solution,
                  const DataPostprocessor<dim> &data_postprocessor,
-                 const Quadrature<dim> &       quadrature);
+                 const Quadrature<dim>        &quadrature);
 
 
   /**
@@ -386,10 +386,10 @@ public:
    * called for each dataset (time step, iteration, etc) for each vector_name,
    * otherwise a @p ExcDataLostSync error can occur.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   evaluate_field_at_requested_location(const std::string &name,
-                                       const VectorType & solution);
+                                       const VectorType  &solution);
 
 
   /**
@@ -432,7 +432,7 @@ public:
    * locations output.
    */
   void
-  write_gnuplot(const std::string &            base_name,
+  write_gnuplot(const std::string             &base_name,
                 const std::vector<Point<dim>> &postprocessor_locations =
                   std::vector<Point<dim>>());
 
@@ -483,7 +483,7 @@ public:
    * correct number of points by the method.
    */
   void
-  get_postprocessor_locations(const Quadrature<dim> &  quadrature,
+  get_postprocessor_locations(const Quadrature<dim>   &quadrature,
                               std::vector<Point<dim>> &locations);
 
   /**

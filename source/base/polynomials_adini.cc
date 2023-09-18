@@ -136,8 +136,8 @@ PolynomialsAdini<dim>::PolynomialsAdini()
 template <int dim>
 void
 PolynomialsAdini<dim>::evaluate(
-  const Point<dim> &           unit_point,
-  std::vector<double> &        values,
+  const Point<dim>            &unit_point,
+  std::vector<double>         &values,
   std::vector<Tensor<1, dim>> &grads,
   std::vector<Tensor<2, dim>> &grad_grads,
   std::vector<Tensor<3, dim>> &third_derivatives,
@@ -146,17 +146,17 @@ PolynomialsAdini<dim>::evaluate(
   const unsigned int n_pols = this->n();
   (void)n_pols;
 
-  Assert(values.size() == n_pols || values.size() == 0,
+  Assert(values.size() == n_pols || values.empty(),
          ExcDimensionMismatch(values.size(), n_pols));
-  Assert(grads.size() == n_pols || grads.size() == 0,
+  Assert(grads.size() == n_pols || grads.empty(),
          ExcDimensionMismatch(grads.size(), n_pols));
-  Assert(grad_grads.size() == n_pols || grad_grads.size() == 0,
+  Assert(grad_grads.size() == n_pols || grad_grads.empty(),
          ExcDimensionMismatch(grad_grads.size(), n_pols));
   (void)third_derivatives;
-  Assert(third_derivatives.size() == n_pols || third_derivatives.size() == 0,
+  Assert(third_derivatives.size() == n_pols || third_derivatives.empty(),
          ExcDimensionMismatch(third_derivatives.size(), n_pols));
   (void)fourth_derivatives;
-  Assert(fourth_derivatives.size() == n_pols || fourth_derivatives.size() == 0,
+  Assert(fourth_derivatives.size() == n_pols || fourth_derivatives.empty(),
          ExcDimensionMismatch(fourth_derivatives.size(), n_pols));
 
   if (values.empty() == false) // do not bother if empty
@@ -191,7 +191,7 @@ PolynomialsAdini<dim>::evaluate(
 template <int dim>
 double
 PolynomialsAdini<dim>::compute_value(const unsigned int i,
-                                     const Point<dim> & p) const
+                                     const Point<dim>  &p) const
 {
   const double x = p(0);
   const double y = p(1);
@@ -207,7 +207,7 @@ PolynomialsAdini<dim>::compute_value(const unsigned int i,
 template <int dim>
 Tensor<1, dim>
 PolynomialsAdini<dim>::compute_grad(const unsigned int i,
-                                    const Point<dim> & p) const
+                                    const Point<dim>  &p) const
 {
   const double   x = p(0);
   const double   y = p(1);
@@ -231,7 +231,7 @@ PolynomialsAdini<dim>::compute_grad(const unsigned int i,
 template <int dim>
 Tensor<2, dim>
 PolynomialsAdini<dim>::compute_grad_grad(const unsigned int i,
-                                         const Point<dim> & p) const
+                                         const Point<dim>  &p) const
 {
   const double   x = p(0);
   const double   y = p(1);

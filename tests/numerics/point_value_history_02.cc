@@ -97,7 +97,7 @@ template <int dim>
 void
 Postprocess<dim>::evaluate_vector_field(
   const DataPostprocessorInputs::Vector<dim> &inputs,
-  std::vector<Vector<double>> &               computed_quantities) const
+  std::vector<Vector<double>>                &computed_quantities) const
 {
   Assert(computed_quantities.size() == inputs.solution_values.size(),
          ExcDimensionMismatch(computed_quantities.size(),
@@ -285,17 +285,17 @@ TestPointValueHistory<dim>::run()
     node_monitor.add_component_names("Solution", solution_names);
     node_monitor.add_field_name(
       "Post Processed Vector"); // not sensitive to spaces
-    std::vector<bool> component_mask(3, false);
-    component_mask[2] = true;
+    ComponentMask component_mask(3, false);
+    component_mask.set(2, true);
     node_monitor.add_field_name("Pressure", component_mask);
-    component_mask    = std::vector<bool>(3, false);
-    component_mask[1] = true;
+    component_mask = ComponentMask(3, false);
+    component_mask.set(1, true);
     node_monitor.add_field_name("Req_sol", component_mask);
-    component_mask    = std::vector<bool>(4, true);
-    component_mask[3] = false;
+    component_mask = ComponentMask(4, true);
+    component_mask.set(3, false);
     node_monitor.add_field_name("Vector_out", component_mask);
-    component_mask    = std::vector<bool>(4, false);
-    component_mask[3] = true;
+    component_mask = ComponentMask(4, false);
+    component_mask.set(3, true);
     node_monitor.add_field_name("Scalar_out", component_mask);
 
     std::vector<std::string> indep_names;
@@ -389,7 +389,7 @@ TestPointValueHistory<dim>::run()
     {
       deallog << "Copying output file " << filenames[i] << std::endl;
 
-      std::ifstream in(filenames[i].c_str());
+      std::ifstream in(filenames[i]);
       AssertThrow(in, ExcIO());
 
       std::string s;
@@ -430,7 +430,7 @@ TestPointValueHistory<dim>::output_results(unsigned int   step,
   std::ostringstream filename;
   filename << "solution-" << Utilities::int_to_string(step, 2) << ".gpl";
 
-  std::ofstream output(filename.str().c_str());
+  std::ofstream output(filename.str());
   data_out.write_gnuplot(output);
 }
 

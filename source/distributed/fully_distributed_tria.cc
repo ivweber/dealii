@@ -219,9 +219,9 @@ namespace parallel
     template <int dim, int spacedim>
     DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     void Triangulation<dim, spacedim>::create_triangulation(
-      const std::vector<Point<spacedim>> &      vertices,
+      const std::vector<Point<spacedim>>       &vertices,
       const std::vector<dealii::CellData<dim>> &cells,
-      const SubCellData &                       subcelldata)
+      const SubCellData                        &subcelldata)
     {
       Assert(
         currently_processing_create_triangulation_for_internal_usage,
@@ -299,7 +299,7 @@ namespace parallel
     void Triangulation<dim, spacedim>::set_partitioner(
       const std::function<void(dealii::Triangulation<dim, spacedim> &,
                                const unsigned int)> &partitioner,
-      const TriangulationDescription::Settings &     settings)
+      const TriangulationDescription::Settings      &settings)
     {
       this->partitioner = partitioner;
       this->settings    = settings;
@@ -311,7 +311,7 @@ namespace parallel
     DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     void Triangulation<dim, spacedim>::set_partitioner(
       const RepartitioningPolicyTools::Base<dim, spacedim> &partitioner,
-      const TriangulationDescription::Settings &            settings)
+      const TriangulationDescription::Settings             &settings)
     {
       this->partitioner_distributed = &partitioner;
       this->settings                = settings;
@@ -410,10 +410,11 @@ namespace parallel
         coarse_cell_id,
         [](const std::pair<types::coarse_cell_id, unsigned int> &pair,
            const types::coarse_cell_id &val) { return pair.first < val; });
-      Assert(coarse_cell_index !=
-               coarse_cell_id_to_coarse_cell_index_vector.cend(),
-             ExcMessage("Coarse cell index not found!"));
-      return coarse_cell_index->second;
+      if (coarse_cell_index !=
+          coarse_cell_id_to_coarse_cell_index_vector.cend())
+        return coarse_cell_index->second;
+      else
+        return numbers::invalid_unsigned_int; // cell could no be found
     }
 
 
@@ -446,7 +447,7 @@ namespace parallel
       for (const auto &cell : this->active_cell_iterators())
         if (cell->is_locally_owned())
           this->local_cell_relations.emplace_back(
-            cell, Triangulation<dim, spacedim>::CELL_PERSIST);
+            cell, ::dealii::CellStatus::cell_will_persist);
     }
 
 
@@ -456,8 +457,6 @@ namespace parallel
     void Triangulation<dim, spacedim>::save(const std::string &filename) const
     {
 #ifdef DEAL_II_WITH_MPI
-      AssertThrow(this->cell_attached_data.pack_callbacks_variable.size() == 0,
-                  ExcNotImplemented());
 
       Assert(
         this->cell_attached_data.n_attached_deserialize == 0,
@@ -490,7 +489,7 @@ namespace parallel
       if (myrank == 0)
         {
           std::string   fname = std::string(filename) + ".info";
-          std::ofstream f(fname.c_str());
+          std::ofstream f(fname);
           f << "version nproc n_attached_fixed_size_objs n_attached_variable_size_objs n_global_active_cells"
             << std::endl
             << 4 << " "
@@ -620,7 +619,7 @@ namespace parallel
         attached_count_variable, n_global_active_cells;
       {
         std::string   fname = std::string(filename) + ".info";
-        std::ifstream f(fname.c_str());
+        std::ifstream f(fname);
         AssertThrow(f.fail() == false, ExcIO());
         std::string firstline;
         getline(f, firstline); // skip first line
@@ -749,8 +748,8 @@ namespace parallel
 
 
     template <int dim, int spacedim>
-    void
-    Triangulation<dim, spacedim>::update_number_cache()
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+    void Triangulation<dim, spacedim>::update_number_cache()
     {
       dealii::parallel::TriangulationBase<dim, spacedim>::update_number_cache();
 

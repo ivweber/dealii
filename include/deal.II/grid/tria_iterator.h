@@ -298,7 +298,7 @@ public:
     const TriaAccessorBase<Accessor::structure_dimension,
                            Accessor::dimension,
                            Accessor::space_dimension> &tria_accessor,
-    const typename Accessor::AccessorData *            local_data);
+    const typename Accessor::AccessorData             *local_data);
 
   /**
    * Conversion constructor. Same as above with the difference that it
@@ -319,8 +319,9 @@ public:
    */
   /** @{ */
   /**
-   * Dereferencing operator, returns a reference to an accessor. Usage is thus
-   * like <tt>(*i).index ();</tt>
+   * Dereferencing operator, returns a copy of the underlying accessor for
+   * the cell pointed to by the iterator. Usage is thus like
+   * <tt>(*i).index();</tt>
    *
    * This function has to be specialized explicitly for the different @p
    * Pointers, to allow an
@@ -330,18 +331,13 @@ public:
    *
    * You must not dereference invalid or past the end iterators.
    */
-  const Accessor &
+  Accessor
   operator*() const;
 
   /**
-   * Dereferencing operator, non-@p const version.
-   */
-  Accessor &
-  operator*();
-
-  /**
-   * Dereferencing operator, returns a reference of the cell pointed to. Usage
-   * is thus like <tt>i->index ();</tt>
+   * Dereferencing operator, returns a reference of the internal accessor
+   * for the cell pointed to by the iterator. Usage is thus like
+   * <tt>i->index();</tt>
    *
    * There is a @p const and a non-@p const version.
    */
@@ -379,7 +375,7 @@ public:
    * Compare for equality.
    */
   template <typename OtherAccessor = Accessor>
-  std::enable_if_t<std::is_convertible<OtherAccessor, Accessor>::value, bool>
+  std::enable_if_t<std::is_convertible_v<OtherAccessor, Accessor>, bool>
   operator==(const TriaRawIterator<OtherAccessor> &) const;
 
   /**
@@ -478,7 +474,7 @@ public:
    * Print the iterator to a stream <code>out</code>. The format is
    * <tt>level.index</tt>.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   print(StreamType &out) const;
 
@@ -642,7 +638,7 @@ public:
   TriaIterator(const TriaAccessorBase<Accessor::structure_dimension,
                                       Accessor::dimension,
                                       Accessor::space_dimension> &tria_accessor,
-               const typename Accessor::AccessorData *            local_data);
+               const typename Accessor::AccessorData             *local_data);
 
   /**
    * Similar conversion operator to the above one, but does a check whether
@@ -828,7 +824,7 @@ public:
     const TriaAccessorBase<Accessor::structure_dimension,
                            Accessor::dimension,
                            Accessor::space_dimension> &tria_accessor,
-    const typename Accessor::AccessorData *            local_data);
+    const typename Accessor::AccessorData             *local_data);
 
   /**
    * Similar conversion operator to the above one, but does a check whether
@@ -992,24 +988,8 @@ inline TriaRawIterator<Accessor>::TriaRawIterator(
 
 
 template <typename Accessor>
-inline const Accessor &
+inline Accessor
 TriaRawIterator<Accessor>::operator*() const
-{
-  Assert(Accessor::structure_dimension != Accessor::dimension ||
-           state() == IteratorState::valid,
-         ExcDereferenceInvalidCell(accessor));
-  Assert(Accessor::structure_dimension == Accessor::dimension ||
-           state() == IteratorState::valid,
-         ExcDereferenceInvalidObject(accessor));
-
-  return accessor;
-}
-
-
-
-template <typename Accessor>
-inline Accessor &
-TriaRawIterator<Accessor>::operator*()
 {
   Assert(Accessor::structure_dimension != Accessor::dimension ||
            state() == IteratorState::valid,
@@ -1036,7 +1016,7 @@ template <typename Accessor>
 inline const Accessor *
 TriaRawIterator<Accessor>::operator->() const
 {
-  return &(this->operator*());
+  return &accessor;
 }
 
 
@@ -1045,7 +1025,7 @@ template <typename Accessor>
 inline Accessor *
 TriaRawIterator<Accessor>::operator->()
 {
-  return &(this->operator*());
+  return &accessor;
 }
 
 
@@ -1118,7 +1098,7 @@ TriaRawIterator<Accessor>::operator--()
 
 
 template <typename Accessor>
-template <class StreamType>
+template <typename StreamType>
 inline void
 TriaRawIterator<Accessor>::print(StreamType &out) const
 {

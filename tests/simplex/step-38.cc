@@ -112,7 +112,7 @@ namespace Step38
     value(const Point<dim> &p, const unsigned int component = 0) const override;
 
     virtual Tensor<1, dim>
-    gradient(const Point<dim> & p,
+    gradient(const Point<dim>  &p,
              const unsigned int component = 0) const override;
   };
 
@@ -418,7 +418,7 @@ main()
       LaplaceBeltramiProblem<3> laplace_beltrami;
       laplace_beltrami.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

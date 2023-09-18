@@ -1000,6 +1000,7 @@
  *     <td>
  *       step-37,
  *       step-48,
+ *       step-50,
  *       step-59,
  *       step-64,
  *       step-66,
@@ -1021,7 +1022,7 @@
  *   </tr>
  *
  *   <tr valign="top">
- *     <td> Non matching algorithms
+ *     <td> Non-matching algorithms
  *     </td>
  *     <td>
  *       step-60,

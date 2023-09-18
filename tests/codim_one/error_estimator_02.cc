@@ -142,7 +142,7 @@ check()
   dof.distribute_dofs(element);
 
   MappingQ<dim, spacedim> mapping(3);
-  Quadrature<dim - 1> &   q_face = get_q_face<dim>();
+  Quadrature<dim - 1>    &q_face = get_q_face<dim>();
 
   Vector<double> v(dof.n_dofs());
   VectorTools::interpolate(mapping, dof, function, v);
@@ -171,7 +171,7 @@ check()
     data_out.build_patches();
     std::string filename = spacedim == 2 ? "solution-2d-" : "solution-3d-";
     filename += Utilities::int_to_string(0, 2) + ".vtk";
-    std::ofstream output(filename.c_str());
+    std::ofstream output(filename);
     data_out.write_vtk(output);
   }
 

@@ -60,10 +60,10 @@ public:
              const std::pair<unsigned int, unsigned int> &) const {};
 
   void
-  do_boundary(const MatrixFree<dim, Number> &                   mf,
-              LinearAlgebra::distributed::Vector<Number> &      dst,
+  do_boundary(const MatrixFree<dim, Number>                    &mf,
+              LinearAlgebra::distributed::Vector<Number>       &dst,
               const LinearAlgebra::distributed::Vector<Number> &src,
-              const std::pair<unsigned int, unsigned int> &     range) const
+              const std::pair<unsigned int, unsigned int>      &range) const
   {
     using FEFaceIntegrator = FEFaceEvaluation<dim, -1, 0, 1, Number>;
     FEFaceIntegrator eval(mf, true);
@@ -81,10 +81,10 @@ public:
   };
 
   void
-  do_faces(const MatrixFree<dim, Number> &                   mf,
-           LinearAlgebra::distributed::Vector<Number> &      dst,
+  do_faces(const MatrixFree<dim, Number>                    &mf,
+           LinearAlgebra::distributed::Vector<Number>       &dst,
            const LinearAlgebra::distributed::Vector<Number> &src,
-           const std::pair<unsigned int, unsigned int> &     range) const
+           const std::pair<unsigned int, unsigned int>      &range) const
   {
     using FEFaceIntegrator = FEFaceEvaluation<dim, -1, 0, 1, Number>;
     FEFaceIntegrator eval(mf, true);
@@ -103,7 +103,7 @@ public:
 
   void
   vmult_pre_post_op_only(
-    LinearAlgebra::distributed::Vector<Number> &      dst,
+    LinearAlgebra::distributed::Vector<Number>       &dst,
     const LinearAlgebra::distributed::Vector<Number> &src) const
   {
     data.loop(
@@ -165,7 +165,7 @@ test()
   mf_data.initialize_dof_vector(vec1);
   mf_data.initialize_dof_vector(vec2);
 
-  for (unsigned int i = 0; i < vec1.local_size(); ++i)
+  for (unsigned int i = 0; i < vec1.locally_owned_size(); ++i)
     {
       // Multiply by 0.01 to make float error with roundoff less than the
       // numdiff absolute tolerance

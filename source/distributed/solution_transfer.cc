@@ -164,7 +164,7 @@ namespace parallel
       handle = tria->register_data_attach(
         [this](
           const typename Triangulation<dim, spacedim>::cell_iterator &cell_,
-          const typename Triangulation<dim, spacedim>::CellStatus     status) {
+          const CellStatus                                            status) {
           return this->pack_callback(cell_, status);
         },
         /*returns_variable_size_data=*/dof_handler->has_hp_capabilities());
@@ -247,7 +247,7 @@ namespace parallel
       Assert(tria != nullptr, ExcInternalError());
 
       if (average_values)
-        for (const auto vec : all_out)
+        for (auto *const vec : all_out)
           *vec = 0.0;
 
       VectorType valence;
@@ -260,7 +260,7 @@ namespace parallel
         handle,
         [this, &all_out, &valence](
           const typename Triangulation<dim, spacedim>::cell_iterator &cell_,
-          const typename Triangulation<dim, spacedim>::CellStatus     status,
+          const CellStatus                                            status,
           const boost::iterator_range<std::vector<char>::const_iterator>
             &data_range) {
           this->unpack_callback(cell_, status, data_range, all_out, valence);
@@ -277,7 +277,7 @@ namespace parallel
                             (Number(1.0) / static_cast<Number>(valence[i])));
           valence.compress(VectorOperation::insert);
 
-          for (const auto vec : all_out)
+          for (auto *const vec : all_out)
             {
               // compress and weight with valence
               vec->compress(VectorOperation::add);
@@ -286,7 +286,7 @@ namespace parallel
         }
       else
         {
-          for (const auto vec : all_out)
+          for (auto *const vec : all_out)
             vec->compress(VectorOperation::insert);
         }
 
@@ -310,7 +310,7 @@ namespace parallel
     std::vector<char>
     SolutionTransfer<dim, VectorType, spacedim>::pack_callback(
       const typename Triangulation<dim, spacedim>::cell_iterator &cell_,
-      const typename Triangulation<dim, spacedim>::CellStatus     status)
+      const CellStatus                                            status)
     {
       typename DoFHandler<dim, spacedim>::cell_iterator cell(*cell_,
                                                              dof_handler);
@@ -324,17 +324,14 @@ namespace parallel
         {
           switch (status)
             {
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_PERSIST:
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_REFINE:
+              case CellStatus::cell_will_persist:
+              case CellStatus::cell_will_be_refined:
                 {
                   fe_index = cell->future_fe_index();
                   break;
                 }
 
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_COARSEN:
+              case CellStatus::children_will_be_coarsened:
                 {
                   // In case of coarsening, we need to find a suitable FE index
                   // for the parent cell. We choose the 'least dominant fe'
@@ -381,11 +378,11 @@ namespace parallel
     void
     SolutionTransfer<dim, VectorType, spacedim>::unpack_callback(
       const typename Triangulation<dim, spacedim>::cell_iterator &cell_,
-      const typename Triangulation<dim, spacedim>::CellStatus     status,
+      const CellStatus                                            status,
       const boost::iterator_range<std::vector<char>::const_iterator>
-        &                        data_range,
+                                &data_range,
       std::vector<VectorType *> &all_out,
-      VectorType &               valence)
+      VectorType                &valence)
     {
       typename DoFHandler<dim, spacedim>::cell_iterator cell(*cell_,
                                                              dof_handler);
@@ -395,17 +392,14 @@ namespace parallel
         {
           switch (status)
             {
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_PERSIST:
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_COARSEN:
+              case CellStatus::cell_will_persist:
+              case CellStatus::children_will_be_coarsened:
                 {
                   fe_index = cell->active_fe_index();
                   break;
                 }
 
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_REFINE:
+              case CellStatus::cell_will_be_refined:
                 {
                   // After refinement, this particular cell is no longer active,
                   // and its children have inherited its FE index. However, to

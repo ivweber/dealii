@@ -29,24 +29,24 @@
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/grid_reordering.h>
+#include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
 #include "../tests.h"
 
-
+#include "../test_grids.h"
 
 void
 create_two_cubes(Triangulation<3> &coarse_grid)
 {
   const Point<3>        points[6] = {Point<3>(0, 0, 0),
-                              Point<3>(1, 0, 0),
-                              Point<3>(1, 1, 0),
-                              Point<3>(0, 1, 0),
-                              Point<3>(2, 0, 0),
-                              Point<3>(2, 1, 0)};
+                                     Point<3>(1, 0, 0),
+                                     Point<3>(1, 1, 0),
+                                     Point<3>(0, 1, 0),
+                                     Point<3>(2, 0, 0),
+                                     Point<3>(2, 1, 0)};
   std::vector<Point<3>> vertices;
   for (unsigned int i = 0; i < 6; ++i)
     vertices.push_back(points[i]);
@@ -69,10 +69,9 @@ create_two_cubes(Triangulation<3> &coarse_grid)
 
   // finally generate a triangulation
   // out of this
-  GridReordering<3>::reorder_cells(cells);
-  coarse_grid.create_triangulation_compatibility(vertices,
-                                                 cells,
-                                                 SubCellData());
+  TestGrids::reorder_old_to_new_style(cells);
+  GridTools::consistently_order_cells(cells);
+  coarse_grid.create_triangulation(vertices, cells, SubCellData());
 }
 
 

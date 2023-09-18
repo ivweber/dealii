@@ -113,7 +113,7 @@ public:
 
   virtual void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<double> &          values,
+             std::vector<double>           &values,
              const unsigned int             component = 0) const;
 };
 
@@ -134,7 +134,7 @@ Coefficient<dim>::value(const Point<dim> &p, const unsigned int) const
 template <int dim>
 void
 Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                             std::vector<double> &          values,
+                             std::vector<double>           &values,
                              const unsigned int             component) const
 {
   const unsigned int n_points = points.size();
@@ -547,7 +547,7 @@ LaplaceProblem<dim>::output_results(const unsigned int cycle) const
   std::ostringstream filename;
   filename << "solution-" << cycle << ".vtk";
 
-  //  std::ofstream output (filename.str().c_str());
+  //  std::ofstream output (filename.str());
   //  data_out.write_vtk (output);
 }
 
@@ -619,7 +619,7 @@ main()
       LaplaceProblem<2> laplace_problem(1);
       laplace_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

@@ -134,8 +134,8 @@ void
 FindBug<dim>::dirichlet_conditions()
 {
   std::map<types::global_dof_index, double> dirichlet_dofs;
-  std::vector<bool>                         component_mask(dim + 1, false);
-  component_mask[dim] = true;
+  ComponentMask                             component_mask(dim + 1, false);
+  component_mask.set(dim, true);
 
   // This is just for the final
   // output-test
@@ -151,15 +151,12 @@ FindBug<dim>::dirichlet_conditions()
                                            component_mask);
 
 
-  std::vector<bool>                  fixed_dofs(dof_handler.n_dofs());
   const std::set<types::boundary_id> boundary_ids = {0};
 
   // get a list of those boundary DoFs which
   // we want to be fixed:
-  DoFTools::extract_boundary_dofs(dof_handler,
-                                  component_mask,
-                                  fixed_dofs,
-                                  boundary_ids);
+  const IndexSet fixed_dofs =
+    DoFTools::extract_boundary_dofs(dof_handler, component_mask, boundary_ids);
 
   // (Primitive) Check if the DoFs
   // where adjusted correctly (note
@@ -169,7 +166,7 @@ FindBug<dim>::dirichlet_conditions()
   // component 0 by 0)
   for (unsigned int i = 0; i < dof_handler.n_dofs(); ++i)
     {
-      if (fixed_dofs[i] == true)
+      if (fixed_dofs.is_element(i))
         {
           AssertThrow(dirichlet_dofs[i] == 13, ExcInternalError());
         }
@@ -189,7 +186,7 @@ FindBug<dim>::dirichlet_conditions()
                                            dirichlet_dofs,
                                            component_mask);
   for (unsigned int i = 0; i < dof_handler.n_dofs(); ++i)
-    if (fixed_dofs[i] == true)
+    if (fixed_dofs.is_element(i))
       deallog << i << ' ' << dirichlet_dofs[i] << std::endl;
 }
 

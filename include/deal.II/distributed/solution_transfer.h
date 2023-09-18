@@ -89,10 +89,9 @@ namespace parallel
      * process):
      * @code
      * // Create initial indexsets pertaining to the grid before refinement
-     * IndexSet locally_owned_dofs, locally_relevant_dofs;
-     * locally_owned_dofs = dof_handler.locally_owned_dofs();
-     * DoFTools::extract_locally_relevant_dofs(dof_handler,
-     *                                         locally_relevant_dofs);
+     * const IndexSet &locally_owned_dofs    = dof_handler.locally_owned_dofs();
+     * const IndexSet  locally_relevant_dofs =
+     *   DoFTools::extract_locally_relevant_dofs(dof_handler);
      *
      * // The solution vector only knows about locally owned DoFs
      * TrilinosWrappers::MPI::Vector solution;
@@ -349,7 +348,7 @@ namespace parallel
       std::vector<char>
       pack_callback(
         const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-        const typename Triangulation<dim, spacedim>::CellStatus     status);
+        const CellStatus                                            status);
 
       /**
        * A callback function used to unpack the data on the current mesh that
@@ -359,11 +358,11 @@ namespace parallel
       void
       unpack_callback(
         const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-        const typename Triangulation<dim, spacedim>::CellStatus     status,
+        const CellStatus                                            status,
         const boost::iterator_range<std::vector<char>::const_iterator>
-          &                        data_range,
+                                  &data_range,
         std::vector<VectorType *> &all_out,
-        VectorType &               valence);
+        VectorType                &valence);
 
 
       /**

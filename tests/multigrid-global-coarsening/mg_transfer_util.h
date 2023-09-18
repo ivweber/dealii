@@ -30,16 +30,16 @@ using namespace dealii;
 template <typename MeshType, typename Number>
 void
 initialize_dof_vector(LinearAlgebra::distributed::Vector<Number> &vec,
-                      const MeshType &                            dof_handler,
+                      const MeshType                             &dof_handler,
                       const unsigned int                          level)
 {
   IndexSet locally_relevant_dofs;
   if (level == numbers::invalid_unsigned_int)
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
   else
-    DoFTools::extract_locally_relevant_level_dofs(dof_handler,
-                                                  level,
-                                                  locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_level_dofs(dof_handler, level);
 
 
   const parallel::TriangulationBase<MeshType::dimension> *dist_tria =
@@ -70,9 +70,9 @@ template <int dim, typename Number, typename MeshType>
 void
 test_transfer_operator(
   const MGTwoLevelTransfer<dim, LinearAlgebra::distributed::Vector<Number>>
-    &                transfer,
-  const MeshType &   dof_handler_fine,
-  const MeshType &   dof_handler_coarse,
+                    &transfer,
+  const MeshType    &dof_handler_fine,
+  const MeshType    &dof_handler_coarse,
   const unsigned int mg_level_fine   = numbers::invalid_unsigned_int,
   const unsigned int mg_level_coarse = numbers::invalid_unsigned_int)
 {
@@ -177,11 +177,10 @@ test_transfer_operator(
 template <int dim, typename Number, typename MeshType>
 void
 test_non_nested_transfer(
-  const MGTwoLevelTransferNonNested<dim,
-                                    LinearAlgebra::distributed::Vector<Number>>
-    &                          transfer,
-  const MeshType &             dof_handler_fine,
-  const MeshType &             dof_handler_coarse,
+  const MGTwoLevelTransferBase<LinearAlgebra::distributed::Vector<Number>>
+                              &transfer,
+  const MeshType              &dof_handler_fine,
+  const MeshType              &dof_handler_coarse,
   const Function<dim, Number> &function =
     Functions::ZeroFunction<dim, Number>(),
   const unsigned int mg_level_fine   = numbers::invalid_unsigned_int,

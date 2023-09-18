@@ -30,6 +30,7 @@
 
 #include <deal.II/grid/cell_id.h>
 #include <deal.II/grid/tria.h>
+#include <deal.II/grid/tria_orientation.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -62,9 +63,9 @@ namespace internal
       void
       get_dof_sign_change_h_div(
         const typename dealii::Triangulation<2, spacedim>::cell_iterator &cell,
-        const FiniteElement<2, spacedim> &                                fe,
+        const FiniteElement<2, spacedim>                                 &fe,
         const std::vector<MappingKind> &mapping_kind,
-        std::vector<double> &           face_sign)
+        std::vector<double>            &face_sign)
       {
         const unsigned int dim = 2;
         // const unsigned int spacedim = 2;
@@ -142,7 +143,7 @@ namespace internal
         const typename dealii::Triangulation<2, spacedim>::cell_iterator &cell,
         const FiniteElement<2, spacedim> & /*fe*/,
         const std::vector<MappingKind> &mapping_kind,
-        std::vector<double> &           line_dof_sign)
+        std::vector<double>            &line_dof_sign)
       {
         const unsigned int dim = 2;
         // TODO: This fixes only lowest order
@@ -159,7 +160,7 @@ namespace internal
         const typename dealii::Triangulation<3, spacedim>::cell_iterator &cell,
         const FiniteElement<3, spacedim> & /*fe*/,
         const std::vector<MappingKind> &mapping_kind,
-        std::vector<double> &           line_dof_sign)
+        std::vector<double>            &line_dof_sign)
       {
         const unsigned int dim = 3;
         // TODO: This is probably only going to work for those elements for
@@ -177,8 +178,8 @@ namespace internal
 template <int dim, int spacedim>
 FE_PolyTensor<dim, spacedim>::FE_PolyTensor(
   const TensorPolynomialsBase<dim> &polynomials,
-  const FiniteElementData<dim> &    fe_data,
-  const std::vector<bool> &         restriction_is_additive_flags,
+  const FiniteElementData<dim>     &fe_data,
+  const std::vector<bool>          &restriction_is_additive_flags,
   const std::vector<ComponentMask> &nonzero_components)
   : FiniteElement<dim, spacedim>(fe_data,
                                  restriction_is_additive_flags,
@@ -264,8 +265,9 @@ FE_PolyTensor<dim, spacedim>::adjust_quad_dof_sign_for_face_orientation(
   return adjust_quad_dof_sign_for_face_orientation_table
     [this->n_unique_2d_subobjects() == 1 ? 0 : face](
       index,
-      4 * static_cast<int>(face_orientation) + 2 * static_cast<int>(face_flip) +
-        static_cast<int>(face_rotation));
+      internal::combined_face_orientation(face_orientation,
+                                          face_rotation,
+                                          face_flip));
 }
 
 
@@ -298,7 +300,7 @@ template <int dim, int spacedim>
 double
 FE_PolyTensor<dim, spacedim>::shape_value_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   AssertIndexRange(i, this->n_dofs_per_cell());
@@ -306,7 +308,7 @@ FE_PolyTensor<dim, spacedim>::shape_value_component(
 
   std::lock_guard<std::mutex> lock(cache_mutex);
 
-  if (cached_point != p || cached_values.size() == 0)
+  if (cached_point != p || cached_values.empty())
     {
       cached_point = p;
       cached_values.resize(poly_space->n());
@@ -343,7 +345,7 @@ template <int dim, int spacedim>
 Tensor<1, dim>
 FE_PolyTensor<dim, spacedim>::shape_grad_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   AssertIndexRange(i, this->n_dofs_per_cell());
@@ -351,7 +353,7 @@ FE_PolyTensor<dim, spacedim>::shape_grad_component(
 
   std::lock_guard<std::mutex> lock(cache_mutex);
 
-  if (cached_point != p || cached_grads.size() == 0)
+  if (cached_point != p || cached_grads.empty())
     {
       cached_point = p;
       cached_grads.resize(poly_space->n());
@@ -389,7 +391,7 @@ template <int dim, int spacedim>
 Tensor<2, dim>
 FE_PolyTensor<dim, spacedim>::shape_grad_grad_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   AssertIndexRange(i, this->n_dofs_per_cell());
@@ -397,7 +399,7 @@ FE_PolyTensor<dim, spacedim>::shape_grad_grad_component(
 
   std::lock_guard<std::mutex> lock(cache_mutex);
 
-  if (cached_point != p || cached_grad_grads.size() == 0)
+  if (cached_point != p || cached_grad_grads.empty())
     {
       cached_point = p;
       cached_grad_grads.resize(poly_space->n());
@@ -428,11 +430,11 @@ void
 FE_PolyTensor<dim, spacedim>::fill_fe_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const CellSimilarity::Similarity                            cell_similarity,
-  const Quadrature<dim> &                                     quadrature,
-  const Mapping<dim, spacedim> &                              mapping,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
+  const Quadrature<dim>                                      &quadrature,
+  const Mapping<dim, spacedim>                               &mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &mapping_internal,
   const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                                                            mapping_data,
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -464,19 +466,19 @@ FE_PolyTensor<dim, spacedim>::fill_fe_values(
   std::fill(fe_data.dof_sign_change.begin(),
             fe_data.dof_sign_change.end(),
             1.0);
-  internal::FE_PolyTensor::get_dof_sign_change_nedelec(cell,
-                                                       *this,
-                                                       this->mapping_kind,
-                                                       fe_data.dof_sign_change);
+  if (fe_data.update_each & update_values)
+    internal::FE_PolyTensor::get_dof_sign_change_nedelec(
+      cell, *this, this->mapping_kind, fe_data.dof_sign_change);
 
   // TODO: This, similarly to the Nedelec case, is just a legacy function in 2d
   // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1d.
   // Also nothing in 3d since we take care of it by using the
   // adjust_quad_dof_sign_for_face_orientation_table.
-  internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
-                                                     *this,
-                                                     this->mapping_kind,
-                                                     fe_data.dof_sign_change);
+  if (fe_data.update_each & update_values)
+    internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
+                                                       *this,
+                                                       this->mapping_kind,
+                                                       fe_data.dof_sign_change);
 
   // What is the first dof_index on a quad?
   const unsigned int first_quad_index = this->get_first_quad_index();
@@ -1050,11 +1052,11 @@ void
 FE_PolyTensor<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const hp::QCollection<dim - 1> &                            quadrature,
-  const Mapping<dim, spacedim> &                              mapping,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
+  const hp::QCollection<dim - 1>                             &quadrature,
+  const Mapping<dim, spacedim>                               &mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &mapping_internal,
   const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                                                            mapping_data,
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -1093,19 +1095,19 @@ FE_PolyTensor<dim, spacedim>::fill_fe_face_values(
   std::fill(fe_data.dof_sign_change.begin(),
             fe_data.dof_sign_change.end(),
             1.0);
-  internal::FE_PolyTensor::get_dof_sign_change_nedelec(cell,
-                                                       *this,
-                                                       this->mapping_kind,
-                                                       fe_data.dof_sign_change);
+  if (fe_data.update_each & update_values)
+    internal::FE_PolyTensor::get_dof_sign_change_nedelec(
+      cell, *this, this->mapping_kind, fe_data.dof_sign_change);
 
   // TODO: This, similarly to the Nedelec case, is just a legacy function in 2d
   // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1d.
   // Also nothing in 3d since we take care of it by using the
   // adjust_quad_dof_sign_for_face_orientation_table.
-  internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
-                                                     *this,
-                                                     this->mapping_kind,
-                                                     fe_data.dof_sign_change);
+  if (fe_data.update_each & update_values)
+    internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
+                                                       *this,
+                                                       this->mapping_kind,
+                                                       fe_data.dof_sign_change);
 
   // What is the first dof_index on a quad?
   const unsigned int first_quad_index = this->get_first_quad_index();
@@ -1735,11 +1737,11 @@ FE_PolyTensor<dim, spacedim>::fill_fe_subface_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
   const unsigned int                                          sub_no,
-  const Quadrature<dim - 1> &                                 quadrature,
-  const Mapping<dim, spacedim> &                              mapping,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
+  const Quadrature<dim - 1>                                  &quadrature,
+  const Mapping<dim, spacedim>                               &mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &mapping_internal,
   const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                                                            mapping_data,
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -1778,19 +1780,19 @@ FE_PolyTensor<dim, spacedim>::fill_fe_subface_values(
   std::fill(fe_data.dof_sign_change.begin(),
             fe_data.dof_sign_change.end(),
             1.0);
-  internal::FE_PolyTensor::get_dof_sign_change_nedelec(cell,
-                                                       *this,
-                                                       this->mapping_kind,
-                                                       fe_data.dof_sign_change);
+  if (fe_data.update_each & update_values)
+    internal::FE_PolyTensor::get_dof_sign_change_nedelec(
+      cell, *this, this->mapping_kind, fe_data.dof_sign_change);
 
   // TODO: This, similarly to the Nedelec case, is just a legacy function in 2d
   // and affects only face_dofs of H(div) conformal FEs. It does nothing in 1d.
   // Also nothing in 3d since we take care of it by using the
   // adjust_quad_dof_sign_for_face_orientation_table.
-  internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
-                                                     *this,
-                                                     this->mapping_kind,
-                                                     fe_data.dof_sign_change);
+  if (fe_data.update_each & update_values)
+    internal::FE_PolyTensor::get_dof_sign_change_h_div(cell,
+                                                       *this,
+                                                       this->mapping_kind,
+                                                       fe_data.dof_sign_change);
 
   // What is the first dof_index on a quad?
   const unsigned int first_quad_index = this->get_first_quad_index();

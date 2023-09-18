@@ -12,9 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Daniel Arndt, Matthias Maier, 2015
+ * Authors: Daniel Arndt, Matthias Maier, 2015
  *
  * Based on step-22 by Wolfgang Bangerth and Martin Kronbichler
  */
@@ -118,11 +117,11 @@ namespace Step45
       : Function<dim>(dim + 1)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  value) const override;
+                              Vector<double>   &value) const override;
   };
 
 
@@ -140,7 +139,7 @@ namespace Step45
 
   template <int dim>
   void BoundaryValues<dim>::vector_value(const Point<dim> &p,
-                                         Vector<double> &  values) const
+                                         Vector<double>   &values) const
   {
     for (unsigned int c = 0; c < this->n_components; ++c)
       values(c) = BoundaryValues<dim>::value(p, c);
@@ -155,16 +154,16 @@ namespace Step45
       : Function<dim>(dim + 1)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  value) const override;
+                              Vector<double>   &value) const override;
   };
 
 
   template <int dim>
-  double RightHandSide<dim>::value(const Point<dim> & p,
+  double RightHandSide<dim>::value(const Point<dim>  &p,
                                    const unsigned int component) const
   {
     const Point<dim> center(0.75, 0.1);
@@ -178,7 +177,7 @@ namespace Step45
 
   template <int dim>
   void RightHandSide<dim>::vector_value(const Point<dim> &p,
-                                        Vector<double> &  values) const
+                                        Vector<double>   &values) const
   {
     for (unsigned int c = 0; c < this->n_components; ++c)
       values(c) = RightHandSide<dim>::value(p, c);
@@ -190,12 +189,12 @@ namespace Step45
   class InverseMatrix : public Subscriptor
   {
   public:
-    InverseMatrix(const MatrixType &        m,
+    InverseMatrix(const MatrixType         &m,
                   const PreconditionerType &preconditioner,
-                  const IndexSet &          locally_owned,
+                  const IndexSet           &locally_owned,
                   const MPI_Comm            mpi_communicator);
 
-    void vmult(TrilinosWrappers::MPI::Vector &      dst,
+    void vmult(TrilinosWrappers::MPI::Vector       &dst,
                const TrilinosWrappers::MPI::Vector &src) const;
 
   private:
@@ -209,9 +208,9 @@ namespace Step45
 
   template <class MatrixType, class PreconditionerType>
   InverseMatrix<MatrixType, PreconditionerType>::InverseMatrix(
-    const MatrixType &        m,
+    const MatrixType         &m,
     const PreconditionerType &preconditioner,
-    const IndexSet &          locally_owned,
+    const IndexSet           &locally_owned,
     const MPI_Comm            mpi_communicator)
     : matrix(&m)
     , preconditioner(&preconditioner)
@@ -222,7 +221,7 @@ namespace Step45
 
   template <class MatrixType, class PreconditionerType>
   void InverseMatrix<MatrixType, PreconditionerType>::vmult(
-    TrilinosWrappers::MPI::Vector &      dst,
+    TrilinosWrappers::MPI::Vector       &dst,
     const TrilinosWrappers::MPI::Vector &src) const
   {
     SolverControl              solver_control(src.size(), 1e-6 * src.l2_norm());
@@ -242,11 +241,11 @@ namespace Step45
   public:
     SchurComplement(const TrilinosWrappers::BlockSparseMatrix &system_matrix,
                     const InverseMatrix<TrilinosWrappers::SparseMatrix,
-                                        PreconditionerType> &  A_inverse,
-                    const IndexSet &                           owned_pres,
+                                        PreconditionerType>   &A_inverse,
+                    const IndexSet                            &owned_pres,
                     const MPI_Comm mpi_communicator);
 
-    void vmult(TrilinosWrappers::MPI::Vector &      dst,
+    void vmult(TrilinosWrappers::MPI::Vector       &dst,
                const TrilinosWrappers::MPI::Vector &src) const;
 
   private:
@@ -263,7 +262,7 @@ namespace Step45
   SchurComplement<PreconditionerType>::SchurComplement(
     const TrilinosWrappers::BlockSparseMatrix &system_matrix,
     const InverseMatrix<TrilinosWrappers::SparseMatrix, PreconditionerType>
-      &             A_inverse,
+                   &A_inverse,
     const IndexSet &owned_vel,
     const MPI_Comm  mpi_communicator)
     : system_matrix(&system_matrix)
@@ -276,7 +275,7 @@ namespace Step45
 
   template <class PreconditionerType>
   void SchurComplement<PreconditionerType>::vmult(
-    TrilinosWrappers::MPI::Vector &      dst,
+    TrilinosWrappers::MPI::Vector       &dst,
     const TrilinosWrappers::MPI::Vector &src) const
   {
     system_matrix->block(0, 1).vmult(tmp1, src);
@@ -291,7 +290,7 @@ namespace Step45
     : degree(degree)
     , mpi_communicator(MPI_COMM_WORLD)
     , triangulation(mpi_communicator)
-    , fe(FE_Q<dim>(degree + 1), dim, FE_Q<dim>(degree), 1)
+    , fe(FE_Q<dim>(degree + 1) ^ dim, FE_Q<dim>(degree))
     , dof_handler(triangulation)
     , pcout(std::cout, Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
     , mapping(degree + 1)
@@ -318,7 +317,7 @@ namespace Step45
     // on the lower boundary given by $\text{vertices}_2=R\cdot
     // \text{vertices}_1+b$ where the rotation matrix $R$ and the offset $b$ are
     // given by
-    // @f{align*}
+    // @f{align*}{
     // R=\begin{pmatrix}
     // 0&1\\-1&0
     // \end{pmatrix},
@@ -405,7 +404,7 @@ namespace Step45
       // $\text{vertices}_1$ of a face on the lower boundary given by
       // $\text{vertices}_2=R\cdot \text{vertices}_1+b$ where the rotation
       // matrix $R$ and the offset $b$ are given by
-      // @f{align*}
+      // @f{align*}{
       // R=\begin{pmatrix}
       // 0&1\\-1&0
       // \end{pmatrix},

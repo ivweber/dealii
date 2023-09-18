@@ -46,10 +46,12 @@ DEAL_II_NAMESPACE_OPEN
  * data_out.build_patches(mapping);
  *
  * // ... no changes in triangulation and mapping -> reuse internal data
- * structures data_out.build_patches();
+ * // structures
+ * data_out.build_patches();
  *
  * // ... changes in triangulation or mapping -> reinitialize internal data
- * structures data_out.build_patches(mapping);
+ * // structures
+ * data_out.build_patches(mapping);
  * @endcode
  *
  * @note While the dimension of the two triangulations might differ, their
@@ -65,7 +67,7 @@ public:
    * should be generated.
    */
   DataOutResample(const Triangulation<patch_dim, spacedim> &patch_tria,
-                  const Mapping<patch_dim, spacedim> &      patch_mapping);
+                  const Mapping<patch_dim, spacedim>       &patch_mapping);
 
   /**
    * Update the @p mapping of original triangulation. One needs to call this

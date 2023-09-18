@@ -34,8 +34,8 @@ namespace RepartitioningPolicyTools
     void
     add_indices_recursively_for_first_child_policy(
       const TriaIterator<CellAccessor<dim, spacedim>> &cell,
-      const internal::CellIDTranslator<dim> &          cell_id_translator,
-      IndexSet &                                       is_fine)
+      const internal::CellIDTranslator<dim>           &cell_id_translator,
+      IndexSet                                        &is_fine)
     {
       is_fine.add_index(cell_id_translator.translate(cell));
 
@@ -85,13 +85,14 @@ namespace RepartitioningPolicyTools
 
     unsigned int offset = 0;
 
-    const int ierr = MPI_Exscan(&process_has_active_locally_owned_cells,
-                                &offset,
-                                1,
-                                Utilities::MPI::mpi_type_id_for_type<decltype(
-                                  process_has_active_locally_owned_cells)>,
-                                MPI_SUM,
-                                comm);
+    const int ierr =
+      MPI_Exscan(&process_has_active_locally_owned_cells,
+                 &offset,
+                 1,
+                 Utilities::MPI::mpi_type_id_for_type<
+                   decltype(process_has_active_locally_owned_cells)>,
+                 MPI_SUM,
+                 comm);
     AssertThrowMPI(ierr);
 
     LinearAlgebra::distributed::Vector<double> partition(
@@ -262,8 +263,7 @@ namespace RepartitioningPolicyTools
   CellWeightPolicy<dim, spacedim>::CellWeightPolicy(
     const std::function<
       unsigned int(const typename Triangulation<dim, spacedim>::cell_iterator &,
-                   const typename Triangulation<dim, spacedim>::CellStatus)>
-      &weighting_function)
+                   const CellStatus)> &weighting_function)
     : weighting_function(weighting_function)
   {}
 
@@ -297,8 +297,7 @@ namespace RepartitioningPolicyTools
     for (const auto &cell :
          tria->active_cell_iterators() | IteratorFilters::LocallyOwnedCell())
       weights[partitioner->global_to_local(cell->global_active_cell_index())] =
-        weighting_function(
-          cell, Triangulation<dim, spacedim>::CellStatus::CELL_PERSIST);
+        weighting_function(cell, CellStatus::cell_will_persist);
 
     // determine weight of all the cells locally owned by this process
     std::uint64_t process_local_weight = 0;

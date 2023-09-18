@@ -27,7 +27,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -43,9 +42,9 @@ namespace VectorTools
 {
   template <int dim, typename VectorType, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
-  void point_value(const DoFHandler<dim, spacedim> &        dof,
-                   const VectorType &                       fe_function,
-                   const Point<spacedim> &                  point,
+  void point_value(const DoFHandler<dim, spacedim>         &dof,
+                   const VectorType                        &fe_function,
+                   const Point<spacedim>                   &point,
                    Vector<typename VectorType::value_type> &value)
   {
     if (dof.has_hp_capabilities() == false)
@@ -67,8 +66,8 @@ namespace VectorTools
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
     point_value(const DoFHandler<dim, spacedim> &dof,
-                const VectorType &               fe_function,
-                const Point<spacedim> &          point)
+                const VectorType                &fe_function,
+                const Point<spacedim>           &point)
   {
     if (dof.has_hp_capabilities() == false)
       return point_value(get_default_linear_mapping(dof.get_triangulation()),
@@ -85,10 +84,10 @@ namespace VectorTools
 
   template <int dim, typename VectorType, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
-  void point_value(const Mapping<dim, spacedim> &           mapping,
-                   const DoFHandler<dim, spacedim> &        dof,
-                   const VectorType &                       fe_function,
-                   const Point<spacedim> &                  point,
+  void point_value(const Mapping<dim, spacedim>            &mapping,
+                   const DoFHandler<dim, spacedim>         &dof,
+                   const VectorType                        &fe_function,
+                   const Point<spacedim>                   &point,
                    Vector<typename VectorType::value_type> &value)
   {
     using Number                 = typename VectorType::value_type;
@@ -112,7 +111,7 @@ namespace VectorTools
            ExcInternalError());
 
     const Quadrature<dim> quadrature(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+      cell_point.first->reference_cell().closest_point(cell_point.second));
 
     FEValues<dim> fe_values(mapping, fe, quadrature, update_values);
     fe_values.reinit(cell_point.first);
@@ -129,10 +128,10 @@ namespace VectorTools
   template <int dim, typename VectorType, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   void point_value(const hp::MappingCollection<dim, spacedim> &mapping,
-                   const DoFHandler<dim, spacedim> &           dof,
-                   const VectorType &                          fe_function,
-                   const Point<spacedim> &                     point,
-                   Vector<typename VectorType::value_type> &   value)
+                   const DoFHandler<dim, spacedim>            &dof,
+                   const VectorType                           &fe_function,
+                   const Point<spacedim>                      &point,
+                   Vector<typename VectorType::value_type>    &value)
   {
     using Number                              = typename VectorType::value_type;
     const hp::FECollection<dim, spacedim> &fe = dof.get_fe_collection();
@@ -155,7 +154,7 @@ namespace VectorTools
            ExcInternalError());
 
     const Quadrature<dim> quadrature(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+      cell_point.first->reference_cell().closest_point(cell_point.second));
     hp::FEValues<dim, spacedim> hp_fe_values(mapping,
                                              fe,
                                              hp::QCollection<dim>(quadrature),
@@ -176,10 +175,10 @@ namespace VectorTools
   template <int dim, typename VectorType, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
-    point_value(const Mapping<dim, spacedim> &   mapping,
+    point_value(const Mapping<dim, spacedim>    &mapping,
                 const DoFHandler<dim, spacedim> &dof,
-                const VectorType &               fe_function,
-                const Point<spacedim> &          point)
+                const VectorType                &fe_function,
+                const Point<spacedim>           &point)
   {
     Assert(dof.get_fe(0).n_components() == 1,
            ExcMessage(
@@ -196,9 +195,9 @@ namespace VectorTools
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
     point_value(const hp::MappingCollection<dim, spacedim> &mapping,
-                const DoFHandler<dim, spacedim> &           dof,
-                const VectorType &                          fe_function,
-                const Point<spacedim> &                     point)
+                const DoFHandler<dim, spacedim>            &dof,
+                const VectorType                           &fe_function,
+                const Point<spacedim>                      &point)
   {
     Assert(dof.get_fe(0).n_components() == 1,
            ExcMessage(
@@ -214,11 +213,11 @@ namespace VectorTools
   template <int dim, typename VectorType, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   void point_difference(
-    const DoFHandler<dim, spacedim> &                          dof,
-    const VectorType &                                         fe_function,
+    const DoFHandler<dim, spacedim>                           &dof,
+    const VectorType                                          &fe_function,
     const Function<spacedim, typename VectorType::value_type> &exact_function,
-    Vector<typename VectorType::value_type> &                  difference,
-    const Point<spacedim> &                                    point)
+    Vector<typename VectorType::value_type>                   &difference,
+    const Point<spacedim>                                     &point)
   {
     point_difference(StaticMappingQ1<dim>::mapping,
                      dof,
@@ -232,12 +231,12 @@ namespace VectorTools
   template <int dim, typename VectorType, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   void point_difference(
-    const Mapping<dim, spacedim> &                             mapping,
-    const DoFHandler<dim, spacedim> &                          dof,
-    const VectorType &                                         fe_function,
+    const Mapping<dim, spacedim>                              &mapping,
+    const DoFHandler<dim, spacedim>                           &dof,
+    const VectorType                                          &fe_function,
     const Function<spacedim, typename VectorType::value_type> &exact_function,
-    Vector<typename VectorType::value_type> &                  difference,
-    const Point<spacedim> &                                    point)
+    Vector<typename VectorType::value_type>                   &difference,
+    const Point<spacedim>                                     &point)
   {
     using Number                 = typename VectorType::value_type;
     const FiniteElement<dim> &fe = dof.get_fe();
@@ -260,7 +259,7 @@ namespace VectorTools
            ExcInternalError());
 
     const Quadrature<dim> quadrature(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+      cell_point.first->reference_cell().closest_point(cell_point.second));
     FEValues<dim> fe_values(mapping, fe, quadrature, update_values);
     fe_values.reinit(cell_point.first);
 
@@ -280,10 +279,10 @@ namespace VectorTools
 
   template <int dim, int spacedim>
   void
-  create_point_source_vector(const Mapping<dim, spacedim> &   mapping,
+  create_point_source_vector(const Mapping<dim, spacedim>    &mapping,
                              const DoFHandler<dim, spacedim> &dof_handler,
-                             const Point<spacedim> &          p,
-                             Vector<double> &                 rhs_vector)
+                             const Point<spacedim>           &p,
+                             Vector<double>                  &rhs_vector)
   {
     Assert(rhs_vector.size() == dof_handler.n_dofs(),
            ExcDimensionMismatch(rhs_vector.size(), dof_handler.n_dofs()));
@@ -300,12 +299,12 @@ namespace VectorTools
     AssertThrow(cell_point.first.state() == IteratorState::valid,
                 ExcPointNotAvailableHere());
 
-    Quadrature<dim> q(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+    const Quadrature<dim> quadrature(
+      cell_point.first->reference_cell().closest_point(cell_point.second));
 
     FEValues<dim, spacedim> fe_values(mapping,
                                       dof_handler.get_fe(),
-                                      q,
+                                      quadrature,
                                       UpdateFlags(update_values));
     fe_values.reinit(cell_point.first);
 
@@ -323,8 +322,8 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   create_point_source_vector(const DoFHandler<dim, spacedim> &dof_handler,
-                             const Point<spacedim> &          p,
-                             Vector<double> &                 rhs_vector)
+                             const Point<spacedim>           &p,
+                             Vector<double>                  &rhs_vector)
   {
     if (dof_handler.has_hp_capabilities())
       create_point_source_vector(
@@ -345,9 +344,9 @@ namespace VectorTools
   void
   create_point_source_vector(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof_handler,
-    const Point<spacedim> &                     p,
-    Vector<double> &                            rhs_vector)
+    const DoFHandler<dim, spacedim>            &dof_handler,
+    const Point<spacedim>                      &p,
+    Vector<double>                             &rhs_vector)
   {
     Assert(rhs_vector.size() == dof_handler.n_dofs(),
            ExcDimensionMismatch(rhs_vector.size(), dof_handler.n_dofs()));
@@ -364,12 +363,12 @@ namespace VectorTools
     AssertThrow(cell_point.first.state() == IteratorState::valid,
                 ExcPointNotAvailableHere());
 
-    Quadrature<dim> q(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+    const Quadrature<dim> quadrature(
+      cell_point.first->reference_cell().closest_point(cell_point.second));
 
     FEValues<dim> fe_values(mapping[cell_point.first->active_fe_index()],
                             cell_point.first->get_fe(),
-                            q,
+                            quadrature,
                             UpdateFlags(update_values));
     fe_values.reinit(cell_point.first);
 
@@ -387,11 +386,11 @@ namespace VectorTools
 
   template <int dim, int spacedim>
   void
-  create_point_source_vector(const Mapping<dim, spacedim> &   mapping,
+  create_point_source_vector(const Mapping<dim, spacedim>    &mapping,
                              const DoFHandler<dim, spacedim> &dof_handler,
-                             const Point<spacedim> &          p,
-                             const Point<dim> &               orientation,
-                             Vector<double> &                 rhs_vector)
+                             const Point<spacedim>           &p,
+                             const Point<dim>                &orientation,
+                             Vector<double>                  &rhs_vector)
   {
     Assert(rhs_vector.size() == dof_handler.n_dofs(),
            ExcDimensionMismatch(rhs_vector.size(), dof_handler.n_dofs()));
@@ -409,13 +408,13 @@ namespace VectorTools
     AssertThrow(cell_point.first.state() == IteratorState::valid,
                 ExcPointNotAvailableHere());
 
-    const Quadrature<dim> q(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+    const Quadrature<dim> quadrature(
+      cell_point.first->reference_cell().closest_point(cell_point.second));
 
     const FEValuesExtractors::Vector vec(0);
     FEValues<dim, spacedim>          fe_values(mapping,
                                       dof_handler.get_fe(),
-                                      q,
+                                      quadrature,
                                       UpdateFlags(update_values));
     fe_values.reinit(cell_point.first);
 
@@ -434,9 +433,9 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   create_point_source_vector(const DoFHandler<dim, spacedim> &dof_handler,
-                             const Point<spacedim> &          p,
-                             const Point<dim> &               orientation,
-                             Vector<double> &                 rhs_vector)
+                             const Point<spacedim>           &p,
+                             const Point<dim>                &orientation,
+                             Vector<double>                  &rhs_vector)
   {
     if (dof_handler.has_hp_capabilities())
       create_point_source_vector(
@@ -459,10 +458,10 @@ namespace VectorTools
   void
   create_point_source_vector(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof_handler,
-    const Point<spacedim> &                     p,
-    const Point<dim> &                          orientation,
-    Vector<double> &                            rhs_vector)
+    const DoFHandler<dim, spacedim>            &dof_handler,
+    const Point<spacedim>                      &p,
+    const Point<dim>                           &orientation,
+    Vector<double>                             &rhs_vector)
   {
     Assert(rhs_vector.size() == dof_handler.n_dofs(),
            ExcDimensionMismatch(rhs_vector.size(), dof_handler.n_dofs()));
@@ -480,13 +479,13 @@ namespace VectorTools
     AssertThrow(cell_point.first.state() == IteratorState::valid,
                 ExcPointNotAvailableHere());
 
-    Quadrature<dim> q(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+    const Quadrature<dim> quadrature(
+      cell_point.first->reference_cell().closest_point(cell_point.second));
 
     const FEValuesExtractors::Vector vec(0);
     FEValues<dim> fe_values(mapping[cell_point.first->active_fe_index()],
                             cell_point.first->get_fe(),
-                            q,
+                            quadrature,
                             UpdateFlags(update_values));
     fe_values.reinit(cell_point.first);
 

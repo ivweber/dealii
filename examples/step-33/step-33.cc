@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: David Neckels, Boulder, Colorado, 2007, 2008
  */
@@ -207,7 +206,7 @@ namespace Step33
     static void compute_flux_matrix(const InputVector &W,
                                     ndarray<typename InputVector::value_type,
                                             EulerEquations<dim>::n_components,
-                                            dim> &     flux)
+                                            dim>      &flux)
     {
       // First compute the pressure that appears in the flux matrix, and then
       // compute the first <code>dim</code> columns of the matrix that
@@ -244,9 +243,9 @@ namespace Step33
     // $\alpha$. It's form has also been given already in the introduction:
     template <typename InputVector>
     static void numerical_normal_flux(
-      const Tensor<1, dim> &                                      normal,
-      const InputVector &                                         Wplus,
-      const InputVector &                                         Wminus,
+      const Tensor<1, dim>                                       &normal,
+      const InputVector                                          &Wplus,
+      const InputVector                                          &Wminus,
       const double                                                alpha,
       std::array<typename InputVector::value_type, n_components> &normal_flux)
     {
@@ -280,7 +279,7 @@ namespace Step33
     // 2d. This naturally leads to the following function:
     template <typename InputVector>
     static void compute_forcing_vector(
-      const InputVector &                                         W,
+      const InputVector                                          &W,
       std::array<typename InputVector::value_type, n_components> &forcing)
     {
       const double gravity = -1.0;
@@ -354,10 +353,10 @@ namespace Step33
     template <typename DataVector>
     static void
     compute_Wminus(const std::array<BoundaryKind, n_components> &boundary_kind,
-                   const Tensor<1, dim> &                        normal_vector,
-                   const DataVector &                            Wplus,
+                   const Tensor<1, dim>                         &normal_vector,
+                   const DataVector                             &Wplus,
                    const Vector<double> &boundary_values,
-                   const DataVector &    Wminus)
+                   const DataVector     &Wminus)
     {
       for (unsigned int c = 0; c < n_components; ++c)
         switch (boundary_kind[c])
@@ -441,9 +440,9 @@ namespace Step33
     // indicators, but this one does, and it is easy to compute:
     static void
     compute_refinement_indicators(const DoFHandler<dim> &dof_handler,
-                                  const Mapping<dim> &   mapping,
-                                  const Vector<double> & solution,
-                                  Vector<double> &       refinement_indicators)
+                                  const Mapping<dim>    &mapping,
+                                  const Vector<double>  &solution,
+                                  Vector<double>        &refinement_indicators)
     {
       const unsigned int dofs_per_cell = dof_handler.get_fe().n_dofs_per_cell();
       std::vector<unsigned int> dofs(dofs_per_cell);
@@ -557,7 +556,7 @@ namespace Step33
   template <int dim>
   void EulerEquations<dim>::Postprocessor::evaluate_vector_field(
     const DataPostprocessorInputs::Vector<dim> &inputs,
-    std::vector<Vector<double>> &               computed_quantities) const
+    std::vector<Vector<double>>                &computed_quantities) const
   {
     // At the beginning of the function, let us make sure that all variables
     // have the correct sizes, so that we can access individual vector
@@ -1298,12 +1297,12 @@ namespace Step33
     void setup_system();
 
     void assemble_system();
-    void assemble_cell_term(const FEValues<dim> &                       fe_v,
+    void assemble_cell_term(const FEValues<dim>                        &fe_v,
                             const std::vector<types::global_dof_index> &dofs);
     void assemble_face_term(
       const unsigned int                          face_no,
-      const FEFaceValuesBase<dim> &               fe_v,
-      const FEFaceValuesBase<dim> &               fe_v_neighbor,
+      const FEFaceValuesBase<dim>                &fe_v,
+      const FEFaceValuesBase<dim>                &fe_v_neighbor,
       const std::vector<types::global_dof_index> &dofs,
       const std::vector<types::global_dof_index> &dofs_neighbor,
       const bool                                  external_face,
@@ -1377,7 +1376,7 @@ namespace Step33
   template <int dim>
   ConservationLaw<dim>::ConservationLaw(const char *input_filename)
     : mapping()
-    , fe(FE_Q<dim>(1), EulerEquations<dim>::n_components)
+    , fe(FE_Q<dim>(1) ^ EulerEquations<dim>::n_components)
     , dof_handler(triangulation)
     , quadrature(fe.degree + 1)
     , face_quadrature(fe.degree + 1)
@@ -1633,7 +1632,7 @@ namespace Step33
   // $\mathbf{z}_i$ is the $i$th vector valued test function.
   //   Furthermore, the scalar product
   // $\left(\mathbf{F}(\mathbf{w}), \nabla\mathbf{z}_i\right)_K$ is
-  // understood as $\int_K \sum_{c=1}^{\text{n\_components}}
+  // understood as $\int_K \sum_{c=1}^{\text{n_components}}
   // \sum_{d=1}^{\text{dim}} \mathbf{F}(\mathbf{w})_{cd}
   // \frac{\partial z^c_i}{x_d}$ where $z^c_i$ is the $c$th component of
   // the $i$th test function.
@@ -1674,7 +1673,7 @@ namespace Step33
   // residual:
   template <int dim>
   void ConservationLaw<dim>::assemble_cell_term(
-    const FEValues<dim> &                       fe_v,
+    const FEValues<dim>                        &fe_v,
     const std::vector<types::global_dof_index> &dof_indices)
   {
     const unsigned int dofs_per_cell = fe_v.dofs_per_cell;
@@ -1809,24 +1808,24 @@ namespace Step33
     // vector_valued module). It will be represented by the variable
     // <code>component_i</code> below. With this, the residual term can be
     // re-written as
-    // @f{eqnarray*}
+    // @f{eqnarray*}{
     // R_i &=&
     // \left(\frac{(\mathbf{w}_{n+1} -
-    // \mathbf{w}_n)_{\text{component\_i}}}{\delta
-    // t},(\mathbf{z}_i)_{\text{component\_i}}\right)_K
+    // \mathbf{w}_n)_{\text{component_i}}}{\delta
+    // t},(\mathbf{z}_i)_{\text{component_i}}\right)_K
     // \\ &-& \sum_{d=1}^{\text{dim}} \left(  \theta \mathbf{F}
-    // ({\mathbf{w}^k_{n+1}})_{\text{component\_i},d} + (1-\theta)
-    // \mathbf{F} ({\mathbf{w}_{n}})_{\text{component\_i},d}  ,
-    // \frac{\partial(\mathbf{z}_i)_{\text{component\_i}}} {\partial
+    // ({\mathbf{w}^k_{n+1}})_{\text{component_i},d} + (1-\theta)
+    // \mathbf{F} ({\mathbf{w}_{n}})_{\text{component_i},d}  ,
+    // \frac{\partial(\mathbf{z}_i)_{\text{component_i}}} {\partial
     // x_d}\right)_K
     // \\ &+& \sum_{d=1}^{\text{dim}} h^{\eta} \left( \theta \frac{\partial
-    // (\mathbf{w}^k_{n+1})_{\text{component\_i}}}{\partial x_d} + (1-\theta)
-    // \frac{\partial (\mathbf{w}_n)_{\text{component\_i}}}{\partial x_d} ,
-    // \frac{\partial (\mathbf{z}_i)_{\text{component\_i}}}{\partial x_d}
+    // (\mathbf{w}^k_{n+1})_{\text{component_i}}}{\partial x_d} + (1-\theta)
+    // \frac{\partial (\mathbf{w}_n)_{\text{component_i}}}{\partial x_d} ,
+    // \frac{\partial (\mathbf{z}_i)_{\text{component_i}}}{\partial x_d}
     // \right)_K
-    // \\ &-& \left( \theta\mathbf{G}({\mathbf{w}^k_n+1} )_{\text{component\_i}}
-    // + (1-\theta)\mathbf{G}({\mathbf{w}_n})_{\text{component\_i}} ,
-    // (\mathbf{z}_i)_{\text{component\_i}} \right)_K ,
+    // \\ &-& \left( \theta\mathbf{G}({\mathbf{w}^k_n+1} )_{\text{component_i}}
+    // + (1-\theta)\mathbf{G}({\mathbf{w}_n})_{\text{component_i}} ,
+    // (\mathbf{z}_i)_{\text{component_i}} \right)_K ,
     // @f}
     // where integrals are
     // understood to be evaluated through summation over quadrature points.
@@ -1904,8 +1903,8 @@ namespace Step33
   template <int dim>
   void ConservationLaw<dim>::assemble_face_term(
     const unsigned int                          face_no,
-    const FEFaceValuesBase<dim> &               fe_v,
-    const FEFaceValuesBase<dim> &               fe_v_neighbor,
+    const FEFaceValuesBase<dim>                &fe_v,
+    const FEFaceValuesBase<dim>                &fe_v_neighbor,
     const std::vector<types::global_dof_index> &dof_indices,
     const std::vector<types::global_dof_index> &dof_indices_neighbor,
     const bool                                  external_face,
@@ -2287,11 +2286,7 @@ namespace Step33
     // examples, so we won't comment much on the following code. The last
     // three lines simply re-set the sizes of some other vectors to the now
     // correct size:
-    std::vector<Vector<double>> transfer_in;
-    std::vector<Vector<double>> transfer_out;
-
-    transfer_in.push_back(old_solution);
-    transfer_in.push_back(predictor);
+    const std::vector<Vector<double>> transfer_in = {old_solution, predictor};
 
     triangulation.prepare_coarsening_and_refinement();
 
@@ -2303,26 +2298,17 @@ namespace Step33
     dof_handler.clear();
     dof_handler.distribute_dofs(fe);
 
-    {
-      Vector<double> new_old_solution(1);
-      Vector<double> new_predictor(1);
-
-      transfer_out.push_back(new_old_solution);
-      transfer_out.push_back(new_predictor);
-      transfer_out[0].reinit(dof_handler.n_dofs());
-      transfer_out[1].reinit(dof_handler.n_dofs());
-    }
-
+    std::vector<Vector<double>> transfer_out = {
+      Vector<double>(dof_handler.n_dofs()),
+      Vector<double>(dof_handler.n_dofs())};
     soltrans.interpolate(transfer_in, transfer_out);
 
-    old_solution.reinit(transfer_out[0].size());
-    old_solution = transfer_out[0];
-
-    predictor.reinit(transfer_out[1].size());
-    predictor = transfer_out[1];
+    old_solution = std::move(transfer_out[0]);
+    predictor    = std::move(transfer_out[1]);
 
     current_solution.reinit(dof_handler.n_dofs());
     current_solution = old_solution;
+
     right_hand_side.reinit(dof_handler.n_dofs());
   }
 
@@ -2386,7 +2372,7 @@ namespace Step33
       grid_in.attach_triangulation(triangulation);
 
       std::ifstream input_file(parameters.mesh_filename);
-      Assert(input_file, ExcFileNotOpen(parameters.mesh_filename.c_str()));
+      Assert(input_file, ExcFileNotOpen(parameters.mesh_filename));
 
       grid_in.read_ucd(input_file);
     }

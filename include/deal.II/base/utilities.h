@@ -477,34 +477,26 @@ namespace Utilities
 #    endif
 #  endif
 #endif
-    // The "exponentiation by squaring" algorithm used below has to be
-    // compressed to one statement due to C++11's restrictions on constexpr
-    // functions. A more descriptive version would be:
-    //
-    // <code>
-    // if (iexp <= 0)
-    //   return 1;
-    //
-    // // avoid overflow of one additional recursion with pow(base * base, 0)
-    // if (iexp == 1)
-    //   return base;
-    //
-    // // if the current exponent is not divisible by two,
-    // // we need to account for that.
-    // const unsigned int prefactor = (iexp % 2 == 1) ? base : 1;
-    //
-    // // a^b = (a*a)^(b/2)      for b even
-    // // a^b = a*(a*a)^((b-1)/2 for b odd
-    // return prefactor * dealii::Utilities::pow(base*base, iexp/2);
-    // </code>
+    static_assert(std::is_integral_v<T>, "Only integral types supported");
 
-    static_assert(std::is_integral<T>::value, "Only integral types supported");
+    // The "exponentiation by squaring" algorithm used below has to be expressed
+    // in an iterative version since SYCL doesn't allow recursive functions used
+    // in device code.
 
-    return iexp <= 0 ?
-             1 :
-             (iexp == 1 ? base :
-                          (((iexp % 2 == 1) ? base : 1) *
-                           dealii::Utilities::pow(base * base, iexp / 2)));
+    if (iexp <= 0)
+      return 1;
+
+    int exp = iexp;
+    T   x   = base;
+    T   y   = 1;
+    while (exp > 1)
+      {
+        if (exp % 2 == 1)
+          y *= x;
+        x *= x;
+        exp /= 2;
+      }
+    return x * y;
   }
 
   /**
@@ -616,7 +608,7 @@ namespace Utilities
    */
   template <typename T>
   size_t
-  pack(const T &          object,
+  pack(const T           &object,
        std::vector<char> &dest_buffer,
        const bool         allow_compression = true);
 
@@ -894,7 +886,7 @@ namespace Utilities
      * </tr>
      * </table>
      */
-    const std::string
+    std::string
     get_current_vectorization_level();
 
     /**
@@ -982,8 +974,8 @@ namespace Utilities
   inline T
   fixed_power(const T x)
   {
-    Assert(((std::is_integral<T>::value == true) && (N >= 0)) ||
-             (std::is_integral<T>::value == false),
+    Assert(((std::is_integral_v<T> == true) && (N >= 0)) ||
+             (std::is_integral_v<T> == false),
            ExcMessage("If the type of the argument, T, is an integer type, "
                       "then the exponent N must be a non-negative integer "
                       "because the result would otherwise not be an integer."));
@@ -1123,7 +1115,7 @@ namespace Utilities
     /**
      * A structure that is used to identify whether a template argument is a
      * std::vector<T> or std::vector<std::vector<T>> where T is a type that
-     * satisfies std::is_trivially_copyable<T>::value == true.
+     * satisfies std::is_trivially_copyable_v<T> == true.
      */
     template <typename T>
     struct IsVectorOfTriviallyCopyable
@@ -1137,7 +1129,7 @@ namespace Utilities
     struct IsVectorOfTriviallyCopyable<std::vector<T>>
     {
       static constexpr bool value =
-        std::is_trivially_copyable<T>::value && !std::is_same<T, bool>::value;
+        std::is_trivially_copyable_v<T> && !std::is_same_v<T, bool>;
     };
 
 
@@ -1146,14 +1138,14 @@ namespace Utilities
     struct IsVectorOfTriviallyCopyable<std::vector<std::vector<T>>>
     {
       static constexpr bool value =
-        std::is_trivially_copyable<T>::value && !std::is_same<T, bool>::value;
+        std::is_trivially_copyable_v<T> && !std::is_same_v<T, bool>;
     };
 
 
 
     /**
      * A function that is used to append the contents of a std::vector<T>
-     * (where T is a type that satisfies std::is_trivially_copyable<T>::value
+     * (where T is a type that satisfies std::is_trivially_copyable_v<T>
      * == true but not T==bool) bit for bit to a character array.
      *
      * If the type is not such a vector of T, then the function
@@ -1171,12 +1163,12 @@ namespace Utilities
 
 
     template <typename T,
-              typename = std::enable_if_t<!std::is_same<T, bool>::value &&
-                                          std::is_trivially_copyable<T>::value>>
+              typename = std::enable_if_t<!std::is_same_v<T, bool> &&
+                                          std::is_trivially_copyable_v<T>>>
     inline void
     append_vector_of_trivially_copyable_to_buffer(
       const std::vector<T> &object,
-      std::vector<char> &   dest_buffer)
+      std::vector<char>    &dest_buffer)
     {
       const typename std::vector<T>::size_type vector_size = object.size();
 
@@ -1201,12 +1193,12 @@ namespace Utilities
 
 
     template <typename T,
-              typename = std::enable_if_t<!std::is_same<T, bool>::value &&
-                                          std::is_trivially_copyable<T>::value>>
+              typename = std::enable_if_t<!std::is_same_v<T, bool> &&
+                                          std::is_trivially_copyable_v<T>>>
     inline void
     append_vector_of_trivially_copyable_to_buffer(
       const std::vector<std::vector<T>> &object,
-      std::vector<char> &                dest_buffer)
+      std::vector<char>                 &dest_buffer)
     {
       using size_type             = typename std::vector<T>::size_type;
       const size_type vector_size = object.size();
@@ -1261,13 +1253,13 @@ namespace Utilities
 
 
     template <typename T,
-              typename = std::enable_if_t<!std::is_same<T, bool>::value &&
-                                          std::is_trivially_copyable<T>::value>>
+              typename = std::enable_if_t<!std::is_same_v<T, bool> &&
+                                          std::is_trivially_copyable_v<T>>>
     inline void
     create_vector_of_trivially_copyable_from_buffer(
       const std::vector<char>::const_iterator &cbegin,
       const std::vector<char>::const_iterator &cend,
-      std::vector<T> &                         object)
+      std::vector<T>                          &object)
     {
       // The size of the object vector can be found in cbegin of the buffer.
       // The data starts at cbegin + sizeof(vector_size).
@@ -1286,9 +1278,9 @@ namespace Utilities
       object.clear();
       if (vector_size > 0)
         {
-          const auto buffer_data_begin =
+          const T *const buffer_data_begin =
             reinterpret_cast<const T *>(&*cbegin + sizeof(vector_size));
-          const auto buffer_data_end = buffer_data_begin + vector_size;
+          const T *const buffer_data_end = buffer_data_begin + vector_size;
           object.insert(object.end(), buffer_data_begin, buffer_data_end);
         }
     }
@@ -1296,13 +1288,13 @@ namespace Utilities
 
 
     template <typename T,
-              typename = std::enable_if_t<!std::is_same<T, bool>::value &&
-                                          std::is_trivially_copyable<T>::value>>
+              typename = std::enable_if_t<!std::is_same_v<T, bool> &&
+                                          std::is_trivially_copyable_v<T>>>
     inline void
     create_vector_of_trivially_copyable_from_buffer(
       const std::vector<char>::const_iterator &cbegin,
       const std::vector<char>::const_iterator &cend,
-      std::vector<std::vector<T>> &            object)
+      std::vector<std::vector<T>>             &object)
     {
       // First get the size of the vector, and resize the output object
       using size_type = typename std::vector<T>::size_type;
@@ -1348,7 +1340,7 @@ namespace Utilities
 
   template <typename T>
   size_t
-  pack(const T &          object,
+  pack(const T           &object,
        std::vector<char> &dest_buffer,
        const bool         allow_compression)
   {
@@ -1358,8 +1350,7 @@ namespace Utilities
     // see if the object is small and copyable via memcpy. if so, use
     // this fast path. otherwise, we have to go through the BOOST
     // serialization machinery
-    if DEAL_II_CONSTEXPR_IN_CONDITIONAL (std::is_trivially_copyable<T>() &&
-                                         sizeof(T) < 256)
+    if constexpr (std::is_trivially_copyable<T>() && sizeof(T) < 256)
       {
         // Determine the size. There are places where we would like to use a
         // truly empty type, for which we use std::tuple<> (i.e., a tuple
@@ -1367,7 +1358,7 @@ namespace Utilities
         // sizeof(...) because that is the minimum possible for objects --
         // objects need to have distinct addresses, so they need to have a size
         // of at least one. But we can special case this situation.
-        size = (std::is_same<T, std::tuple<>>::value ? 0 : sizeof(T));
+        size = (std::is_same_v<T, std::tuple<>> ? 0 : sizeof(T));
 
         (void)allow_compression;
         const std::size_t previous_size = dest_buffer.size();
@@ -1442,8 +1433,7 @@ namespace Utilities
     // see if the object is small and copyable via memcpy. if so, use
     // this fast path. otherwise, we have to go through the BOOST
     // serialization machinery
-    if DEAL_II_CONSTEXPR_IN_CONDITIONAL (std::is_trivially_copyable<T>() &&
-                                         sizeof(T) < 256)
+    if constexpr (std::is_trivially_copyable<T>() && sizeof(T) < 256)
       {
         // Determine the size. There are places where we would like to use a
         // truly empty type, for which we use std::tuple<> (i.e., a tuple
@@ -1452,7 +1442,7 @@ namespace Utilities
         // objects need to have distinct addresses, so they need to have a size
         // of at least one. But we can special case this situation.
         const std::size_t size =
-          (std::is_same<T, std::tuple<>>::value ? 0 : sizeof(T));
+          (std::is_same_v<T, std::tuple<>> ? 0 : sizeof(T));
 
         T object;
 
@@ -1523,8 +1513,7 @@ namespace Utilities
     // see if the object is small and copyable via memcpy. if so, use
     // this fast path. otherwise, we have to go through the BOOST
     // serialization machinery
-    if DEAL_II_CONSTEXPR_IN_CONDITIONAL (std::is_trivially_copyable<T>() &&
-                                         sizeof(T) * N < 256)
+    if constexpr (std::is_trivially_copyable<T>() && sizeof(T) * N < 256)
       {
         Assert(std::distance(cbegin, cend) == sizeof(T) * N,
                ExcInternalError());

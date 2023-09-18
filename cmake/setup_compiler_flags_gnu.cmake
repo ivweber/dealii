@@ -21,18 +21,18 @@
 #
 
 if( CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND
-    CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5.0" )
+    CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0" )
   message(FATAL_ERROR "\n"
-    "deal.II requires support for features of C++14 that are not present in\n"
-    "versions of GCC prior to 5.0."
+    "deal.II requires support for features of C++17 that are not present in\n"
+    "versions of GCC prior to 9.0."
     )
 endif()
 
 if( CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
-    CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.0" )
+    CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0" )
   message(FATAL_ERROR "\n"
-    "deal.II requires support for features of C++14 that are not present in\n"
-    "versions of Clang prior to 4.0."
+    "deal.II requires support for features of C++17 that are not present in\n"
+    "versions of Clang prior to 10.0."
     )
 endif()
 
@@ -40,10 +40,10 @@ endif()
 # https://en.wikipedia.org/wiki/Xcode#Xcode_7.0_-_11.x_(since_Free_On-Device_Development)
 if (POLICY CMP0025)
   if( CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" AND
-      CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0" )
+      CMAKE_CXX_COMPILER_VERSION VERSION_LESS "12.0" )
     message(FATAL_ERROR "\n"
-      "deal.II requires support for features of C++14 that are not present in\n"
-      "versions of AppleClang prior to 9.0."
+      "deal.II requires support for features of C++17 that are not present in\n"
+      "versions of AppleClang prior to 12.0."
       )
   endif()
 endif()
@@ -196,6 +196,23 @@ endif()
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
 
   list(APPEND DEAL_II_DEFINITIONS_DEBUG "DEBUG")
+
+  #
+  # We have to ensure that we emit floating-point instructions in debug
+  # mode that preserve the occurence of floating-point exceptions and don't
+  # introduce new ones. gcc plays nicely in this regard by enabling
+  # `-ftrapping-math` per default, at least for the level of optimization
+  # we have in debug mode. clang however is more aggressive and assumes
+  # that it can optimize code disregarding precise floating-point exception
+  # semantics.
+  #
+  # We thus set `-ffp-exceptions-behavior=strict` in debug mode to ensure
+  # that our testsuite doesn't run into false positive floating-point
+  # exceptions. See
+  #
+  # https://github.com/dealii/dealii/issues/15496
+  #
+  enable_if_supported(DEAL_II_CXX_FLAGS_DEBUG "-ffp-exception-behavior=strict")
 
   #
   # In recent versions, gcc often eliminates too much debug information

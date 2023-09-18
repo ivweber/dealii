@@ -26,7 +26,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -43,8 +42,8 @@ namespace VectorTools
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   void point_gradient(
     const DoFHandler<dim, spacedim> &dof,
-    const VectorType &               fe_function,
-    const Point<spacedim> &          point,
+    const VectorType                &fe_function,
+    const Point<spacedim>           &point,
     std::vector<Tensor<1, spacedim, typename VectorType::value_type>>
       &gradients)
   {
@@ -67,8 +66,8 @@ namespace VectorTools
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   Tensor<1, spacedim, typename VectorType::value_type> point_gradient(
     const DoFHandler<dim, spacedim> &dof,
-    const VectorType &               fe_function,
-    const Point<spacedim> &          point)
+    const VectorType                &fe_function,
+    const Point<spacedim>           &point)
   {
     if (dof.has_hp_capabilities() == false)
       return point_gradient(get_default_linear_mapping(dof.get_triangulation()),
@@ -87,10 +86,10 @@ namespace VectorTools
   template <int dim, typename VectorType, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   void point_gradient(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
-    const VectorType &               fe_function,
-    const Point<spacedim> &          point,
+    const VectorType                &fe_function,
+    const Point<spacedim>           &point,
     std::vector<Tensor<1, spacedim, typename VectorType::value_type>> &gradient)
   {
     const FiniteElement<dim> &fe = dof.get_fe();
@@ -113,7 +112,7 @@ namespace VectorTools
            ExcInternalError());
 
     const Quadrature<dim> quadrature(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+      cell_point.first->reference_cell().closest_point(cell_point.second));
 
     FEValues<dim> fe_values(mapping, fe, quadrature, update_gradients);
     fe_values.reinit(cell_point.first);
@@ -133,9 +132,9 @@ namespace VectorTools
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   void point_gradient(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof,
-    const VectorType &                          fe_function,
-    const Point<spacedim> &                     point,
+    const DoFHandler<dim, spacedim>            &dof,
+    const VectorType                           &fe_function,
+    const Point<spacedim>                      &point,
     std::vector<Tensor<1, spacedim, typename VectorType::value_type>> &gradient)
   {
     using Number                              = typename VectorType::value_type;
@@ -159,7 +158,7 @@ namespace VectorTools
            ExcInternalError());
 
     const Quadrature<dim> quadrature(
-      GeometryInfo<dim>::project_to_unit_cell(cell_point.second));
+      cell_point.first->reference_cell().closest_point(cell_point.second));
     hp::FEValues<dim, spacedim> hp_fe_values(mapping,
                                              fe,
                                              hp::QCollection<dim>(quadrature),
@@ -179,10 +178,10 @@ namespace VectorTools
   template <int dim, typename VectorType, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   Tensor<1, spacedim, typename VectorType::value_type> point_gradient(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
-    const VectorType &               fe_function,
-    const Point<spacedim> &          point)
+    const VectorType                &fe_function,
+    const Point<spacedim>           &point)
   {
     Assert(dof.get_fe(0).n_components() == 1,
            ExcMessage(
@@ -200,9 +199,9 @@ namespace VectorTools
   DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   Tensor<1, spacedim, typename VectorType::value_type> point_gradient(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof,
-    const VectorType &                          fe_function,
-    const Point<spacedim> &                     point)
+    const DoFHandler<dim, spacedim>            &dof,
+    const VectorType                           &fe_function,
+    const Point<spacedim>                      &point)
   {
     Assert(dof.get_fe(0).n_components() == 1,
            ExcMessage(

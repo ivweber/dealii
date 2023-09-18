@@ -63,7 +63,7 @@ template <int dim>
 void
 ComputeMagnitude<dim>::evaluate_vector_field(
   const DataPostprocessorInputs::Vector<dim> &inputs,
-  std::vector<Vector<double>> &               computed_quantities) const
+  std::vector<Vector<double>>                &computed_quantities) const
 {
   Assert(computed_quantities.size() == inputs.solution_values.size(),
          ExcDimensionMismatch(computed_quantities.size(),
@@ -129,7 +129,7 @@ main()
       check<2>();
       check<3>();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

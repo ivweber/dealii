@@ -20,7 +20,6 @@
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/grid/grid_in.h>
-#include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 
@@ -79,7 +78,7 @@ namespace
   void
   assign_1d_boundary_ids(
     const std::vector<std::pair<Point<spacedim>, types::boundary_id>>
-      &                         boundary_ids,
+                               &boundary_ids,
     Triangulation<1, spacedim> &triangulation)
   {
     for (auto &cell : triangulation.active_cell_iterators())
@@ -111,8 +110,8 @@ namespace
   template <int dim, int spacedim>
   void
   apply_grid_fixup_functions(std::vector<Point<spacedim>> &vertices,
-                             std::vector<CellData<dim>> &  cells,
-                             SubCellData &                 subcelldata)
+                             std::vector<CellData<dim>>   &cells,
+                             SubCellData                  &subcelldata)
   {
     // check that no forbidden arrays are used
     Assert(subcelldata.check_consistency(dim), ExcInternalError());
@@ -270,8 +269,8 @@ GridIn<dim, spacedim>::read_vtk(std::istream &in)
                 {
                   // we assume that the file contains first all cells,
                   // and only then any faces or lines
-                  AssertThrow(subcelldata.boundary_quads.size() == 0 &&
-                                subcelldata.boundary_lines.size() == 0,
+                  AssertThrow(subcelldata.boundary_quads.empty() &&
+                                subcelldata.boundary_lines.empty(),
                               ExcNotImplemented());
 
                   cells.emplace_back(n_vertices);
@@ -297,7 +296,7 @@ GridIn<dim, spacedim>::read_vtk(std::istream &in)
                 {
                   // we assume that the file contains first all cells,
                   // then all faces, and finally all lines
-                  AssertThrow(subcelldata.boundary_lines.size() == 0,
+                  AssertThrow(subcelldata.boundary_lines.empty(),
                               ExcNotImplemented());
 
                   subcelldata.boundary_quads.emplace_back(n_vertices);
@@ -339,7 +338,7 @@ GridIn<dim, spacedim>::read_vtk(std::istream &in)
                 {
                   // we assume that the file contains first all cells,
                   // and only then any faces
-                  AssertThrow(subcelldata.boundary_lines.size() == 0,
+                  AssertThrow(subcelldata.boundary_lines.empty(),
                               ExcNotImplemented());
 
                   cells.emplace_back(n_vertices);
@@ -849,7 +848,7 @@ GridIn<dim, spacedim>::read_unv(std::istream &in)
           // we need a call to std::getline() to retrieve it (it is logically
           // a line):
           std::getline(in, line);
-          AssertThrow(line.size() == 0,
+          AssertThrow(line.empty(),
                       ExcMessage(
                         "The line before the line containing an ID has too "
                         "many entries. This is not a valid UNV file."));
@@ -2926,14 +2925,14 @@ GridIn<dim, spacedim>::read_msh(const std::string &fname)
 template <int dim, int spacedim>
 void
 GridIn<dim, spacedim>::parse_tecplot_header(
-  std::string &              header,
+  std::string               &header,
   std::vector<unsigned int> &tecplot2deal,
-  unsigned int &             n_vars,
-  unsigned int &             n_vertices,
-  unsigned int &             n_cells,
+  unsigned int              &n_vars,
+  unsigned int              &n_vertices,
+  unsigned int              &n_cells,
   std::vector<unsigned int> &IJK,
-  bool &                     structured,
-  bool &                     blocked)
+  bool                      &structured,
+  bool                      &blocked)
 {
   Assert(tecplot2deal.size() == dim, ExcInternalError());
   Assert(IJK.size() == dim, ExcInternalError());
@@ -3470,11 +3469,11 @@ GridIn<dim, spacedim>::read_assimp(const std::string &filename,
         }
       // Vertices
       const unsigned int n_vertices = mesh->mNumVertices;
-      const aiVector3D * mVertices  = mesh->mVertices;
+      const aiVector3D  *mVertices  = mesh->mVertices;
 
       // Faces
       const unsigned int n_faces = mesh->mNumFaces;
-      const aiFace *     mFaces  = mesh->mFaces;
+      const aiFace      *mFaces  = mesh->mFaces;
 
       vertices.resize(v_offset + n_vertices);
       cells.resize(c_offset + n_faces);
@@ -3519,7 +3518,7 @@ GridIn<dim, spacedim>::read_assimp(const std::string &filename,
     }
 
   // No cells were read
-  if (cells.size() == 0)
+  if (cells.empty())
     return;
 
   if (remove_duplicates)
@@ -4003,8 +4002,8 @@ GridIn<dim, spacedim>::debug_output_grid(
 template <>
 void
 GridIn<2>::debug_output_grid(const std::vector<CellData<2>> &cells,
-                             const std::vector<Point<2>> &   vertices,
-                             std::ostream &                  out)
+                             const std::vector<Point<2>>    &vertices,
+                             std::ostream                   &out)
 {
   double min_x = vertices[cells[0].vertices[0]](0),
          max_x = vertices[cells[0].vertices[0]](0),
@@ -4064,8 +4063,8 @@ GridIn<2>::debug_output_grid(const std::vector<CellData<2>> &cells,
 template <>
 void
 GridIn<3>::debug_output_grid(const std::vector<CellData<3>> &cells,
-                             const std::vector<Point<3>> &   vertices,
-                             std::ostream &                  out)
+                             const std::vector<Point<3>>    &vertices,
+                             std::ostream                   &out)
 {
   for (const auto &cell : cells)
     {
@@ -4170,7 +4169,7 @@ GridIn<dim, spacedim>::read(const std::string &filename, Format format)
     }
   else
     {
-      std::ifstream in(name.c_str());
+      std::ifstream in(name);
       read(in, format);
     }
 }

@@ -156,7 +156,7 @@ namespace Step17
 
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const override
+                      std::vector<Vector<double>>   &value_list) const override
     {
       const unsigned int n_points = points.size();
 
@@ -462,7 +462,7 @@ main(int argc, char **argv)
       ElasticProblem<2> elastic_problem;
       elastic_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

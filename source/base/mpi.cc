@@ -81,10 +81,9 @@ namespace Utilities
     const unsigned int            n_partitions,
     const types::global_dof_index total_size)
   {
-    static_assert(
-      std::is_same<types::global_dof_index, IndexSet::size_type>::value,
-      "IndexSet::size_type must match types::global_dof_index for "
-      "using this function");
+    static_assert(std::is_same_v<types::global_dof_index, IndexSet::size_type>,
+                  "IndexSet::size_type must match types::global_dof_index for "
+                  "using this function");
     const unsigned int remain = total_size % n_partitions;
 
     const IndexSet::size_type min_size = total_size / n_partitions;
@@ -149,27 +148,35 @@ namespace Utilities
     unsigned int
     n_mpi_processes(const MPI_Comm mpi_communicator)
     {
-      int       n_jobs = 1;
-      const int ierr   = MPI_Comm_size(mpi_communicator, &n_jobs);
-      AssertThrowMPI(ierr);
-
-      return n_jobs;
+      if (job_supports_mpi())
+        {
+          int       n_jobs = 1;
+          const int ierr   = MPI_Comm_size(mpi_communicator, &n_jobs);
+          AssertThrowMPI(ierr);
+          return n_jobs;
+        }
+      else
+        return 1;
     }
 
 
     unsigned int
     this_mpi_process(const MPI_Comm mpi_communicator)
     {
-      int       rank = 0;
-      const int ierr = MPI_Comm_rank(mpi_communicator, &rank);
-      AssertThrowMPI(ierr);
-
-      return rank;
+      if (job_supports_mpi())
+        {
+          int       rank = 0;
+          const int ierr = MPI_Comm_rank(mpi_communicator, &rank);
+          AssertThrowMPI(ierr);
+          return rank;
+        }
+      else
+        return 0;
     }
 
 
 
-    const std::vector<unsigned int>
+    std::vector<unsigned int>
     mpi_processes_within_communicator(const MPI_Comm comm_large,
                                       const MPI_Comm comm_small)
     {
@@ -214,7 +221,7 @@ namespace Utilities
     create_group(const MPI_Comm   comm,
                  const MPI_Group &group,
                  const int        tag,
-                 MPI_Comm *       new_comm)
+                 MPI_Comm        *new_comm)
     {
       const int ierr = MPI_Comm_create_group(comm, group, tag, new_comm);
       AssertThrowMPI(ierr);
@@ -229,7 +236,7 @@ namespace Utilities
       const types::global_dof_index locally_owned_size)
     {
       static_assert(
-        std::is_same<types::global_dof_index, IndexSet::size_type>::value,
+        std::is_same_v<types::global_dof_index, IndexSet::size_type>,
         "IndexSet::size_type must match types::global_dof_index for "
         "using this function");
       const unsigned int                     n_proc = n_mpi_processes(comm);
@@ -334,7 +341,7 @@ namespace Utilities
       // same number twice, we know that the destinations were not
       // unique
       const bool my_destinations_are_unique = [destinations]() {
-        if (destinations.size() == 0)
+        if (destinations.empty())
           return true;
         else
           {
@@ -495,12 +502,12 @@ namespace Utilities
       // custom MIP_Op for calculate_collective_mpi_min_max_avg
       void
       max_reduce(const void *in_lhs_,
-                 void *      inout_rhs_,
-                 int *       len,
+                 void       *inout_rhs_,
+                 int        *len,
                  MPI_Datatype *)
       {
         const MinMaxAvg *in_lhs    = static_cast<const MinMaxAvg *>(in_lhs_);
-        MinMaxAvg *      inout_rhs = static_cast<MinMaxAvg *>(inout_rhs_);
+        MinMaxAvg       *inout_rhs = static_cast<MinMaxAvg *>(inout_rhs_);
 
         for (int i = 0; i < *len; ++i)
           {
@@ -536,13 +543,12 @@ namespace Utilities
 
     void
     min_max_avg(const ArrayView<const double> &my_values,
-                const ArrayView<MinMaxAvg> &   result,
+                const ArrayView<MinMaxAvg>    &result,
                 const MPI_Comm                 mpi_communicator)
     {
       // If MPI was not started, we have a serial computation and cannot run
       // the other MPI commands
-      if (job_supports_mpi() == false ||
-          Utilities::MPI::n_mpi_processes(mpi_communicator) <= 1)
+      if (Utilities::MPI::n_mpi_processes(mpi_communicator) <= 1)
         {
           for (unsigned int i = 0; i < my_values.size(); ++i)
             {
@@ -670,7 +676,7 @@ namespace Utilities
 
 
 
-    const std::vector<unsigned int>
+    std::vector<unsigned int>
     mpi_processes_within_communicator(const MPI_Comm, const MPI_Comm)
     {
       return std::vector<unsigned int>{0};
@@ -704,14 +710,15 @@ namespace Utilities
 
 
 
-    void free_communicator(MPI_Comm /*mpi_communicator*/)
+    void
+    free_communicator(MPI_Comm /*mpi_communicator*/)
     {}
 
 
 
     void
     min_max_avg(const ArrayView<const double> &my_values,
-                const ArrayView<MinMaxAvg> &   result,
+                const ArrayView<MinMaxAvg>    &result,
                 const MPI_Comm)
     {
       AssertDimension(my_values.size(), result.size());
@@ -734,8 +741,8 @@ namespace Utilities
       MPI_InitFinalize::Signals();
 
 
-    MPI_InitFinalize::MPI_InitFinalize(int &              argc,
-                                       char **&           argv,
+    MPI_InitFinalize::MPI_InitFinalize(int               &argc,
+                                       char            **&argv,
                                        const unsigned int max_num_threads)
     {
       static bool constructor_has_already_run = false;
@@ -788,7 +795,7 @@ namespace Utilities
         // likely did not intend. As a consequence, filter out this specific
         // flag.
         std::vector<char *> argv_new;
-        for (const auto arg : make_array_view(&argv[0], &argv[0] + argc))
+        for (auto *const arg : make_array_view(&argv[0], &argv[0] + argc))
           if (strcmp(arg, "--help") != 0)
             argv_new.push_back(arg);
 
@@ -812,21 +819,23 @@ namespace Utilities
       // we are allowed to call MPI_Init ourselves and PETScInitialize will
       // detect this. This allows us to use MPI_Init_thread instead.
 #ifdef DEAL_II_WITH_PETSC
+      PetscErrorCode pierr;
 #  ifdef DEAL_II_WITH_SLEPC
       // Initialize SLEPc (with PETSc):
       finalize_petscslepc = SlepcInitializeCalled ? false : true;
-      ierr                = SlepcInitialize(&argc, &argv, nullptr, nullptr);
-      AssertThrow(ierr == 0, SLEPcWrappers::SolverBase::ExcSLEPcError(ierr));
+      pierr               = SlepcInitialize(&argc, &argv, nullptr, nullptr);
+      AssertThrow(pierr == 0, SLEPcWrappers::SolverBase::ExcSLEPcError(pierr));
 #  else
       // or just initialize PETSc alone:
       finalize_petscslepc = PetscInitializeCalled ? false : true;
-      ierr                = PetscInitialize(&argc, &argv, nullptr, nullptr);
-      AssertThrow(ierr == 0, ExcPETScError(ierr));
+      pierr               = PetscInitialize(&argc, &argv, nullptr, nullptr);
+      AssertThrow(pierr == 0, ExcPETScError(pierr));
 #  endif
 
       // Disable PETSc exception handling. This just prints a large wall
       // of text that is not particularly helpful for what we do:
-      PetscPopSignalHandler();
+      pierr = PetscPopSignalHandler();
+      AssertThrow(pierr == 0, ExcPETScError(pierr));
 #endif
 
       // Initialize zoltan
@@ -969,7 +978,7 @@ namespace Utilities
 
 #ifdef DEAL_II_WITH_MPI
       // Before exiting, wait for nonblocking communication to complete:
-      for (auto request : requests)
+      for (auto *request : requests)
         {
           const int ierr = MPI_Wait(request, MPI_STATUS_IGNORE);
           AssertThrowMPI(ierr);
@@ -1008,11 +1017,17 @@ namespace Utilities
 #  ifdef DEAL_II_WITH_SLEPC
       // and now end SLEPc with PETSc if we did so
       if (finalize_petscslepc)
-        SlepcFinalize();
+        {
+          PetscErrorCode ierr = SlepcFinalize();
+          AssertThrow(ierr == 0, SLEPcWrappers::SolverBase::ExcSLEPcError(ierr))
+        }
 #  else
       // or just end PETSc if we did so
       if (finalize_petscslepc)
-        PetscFinalize();
+        {
+          PetscErrorCode ierr = PetscFinalize();
+          AssertThrow(ierr == 0, ExcPETScError(ierr));
+        }
 #  endif
 #endif
 
@@ -1184,21 +1199,24 @@ namespace Utilities
 
 #ifdef DEAL_II_WITH_MPI
 
-      // TODO: For now, we implement this mutex with a blocking barrier
-      // in the lock and unlock. It needs to be tested, if we can move
-      // to a nonblocking barrier (code disabled below).
+      if (job_supports_mpi())
+        {
+          // TODO: For now, we implement this mutex with a blocking barrier in
+          // the lock and unlock. It needs to be tested, if we can move to a
+          // nonblocking barrier (code disabled below).
 
-      const int ierr = MPI_Barrier(comm);
-      AssertThrowMPI(ierr);
+          const int ierr = MPI_Barrier(comm);
+          AssertThrowMPI(ierr);
 
 #  if 0
-      // wait for non-blocking barrier to finish. This is a noop the
-      // first time we lock().
-      const int ierr = MPI_Wait(&request, MPI_STATUS_IGNORE);
-      AssertThrowMPI(ierr);
+          // wait for non-blocking barrier to finish. This is a noop the
+          // first time we lock().
+          const int ierr = MPI_Wait(&request, MPI_STATUS_IGNORE);
+          AssertThrowMPI(ierr);
 #  else
-      // nothing to do as blocking barrier already completed
+          // nothing to do as blocking barrier already completed
 #  endif
+        }
 #endif
 
       locked = true;
@@ -1222,16 +1240,19 @@ namespace Utilities
 
 #ifdef DEAL_II_WITH_MPI
 
-      // TODO: For now, we implement this mutex with a blocking barrier
-      // in the lock and unlock. It needs to be tested, if we can move
-      // to a nonblocking barrier (code disabled below):
+      if (job_supports_mpi())
+        {
+          // TODO: For now, we implement this mutex with a blocking barrier
+          // in the lock and unlock. It needs to be tested, if we can move
+          // to a nonblocking barrier (code disabled below):
 #  if 0
       const int ierr = MPI_Ibarrier(comm, &request);
       AssertThrowMPI(ierr);
 #  else
-      const int ierr = MPI_Barrier(comm);
-      AssertThrowMPI(ierr);
+          const int ierr = MPI_Barrier(comm);
+          AssertThrowMPI(ierr);
 #  endif
+        }
 #endif
 
       locked = false;

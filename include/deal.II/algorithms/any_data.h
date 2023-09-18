@@ -76,7 +76,7 @@ public:
    * use try_read() instead.
    */
   template <typename type>
-  const type
+  type
   entry(const std::string &name) const;
 
   /**
@@ -91,7 +91,7 @@ public:
    * Use read_ptr() instead!
    */
   template <typename type>
-  const type
+  type
   read(const std::string &name) const;
 
   /**
@@ -135,12 +135,12 @@ public:
 
   /// Read-only access to stored data object by index.
   template <typename type>
-  const type
+  type
   entry(const unsigned int i) const;
 
   /// Dedicated read only access.
   template <typename type>
-  const type
+  type
   read(const unsigned int i) const;
 
   /// Dedicated read only access to pointer object.
@@ -186,7 +186,7 @@ public:
   is_type(const unsigned int i) const;
 
   /// List the contents to a stream
-  template <class StreamType>
+  template <typename StreamType>
   void
   list(StreamType &os) const;
 
@@ -240,7 +240,7 @@ AnyData::entry(const unsigned int i)
 
 
 template <typename type>
-inline const type
+inline type
 AnyData::entry(const unsigned int i) const
 {
   AssertIndexRange(i, size());
@@ -254,7 +254,7 @@ AnyData::entry(const unsigned int i) const
 
 
 template <typename type>
-inline const type
+inline type
 AnyData::read(const unsigned int i) const
 {
   AssertIndexRange(i, size());
@@ -351,18 +351,18 @@ inline type
 AnyData::entry(const std::string &n)
 {
   const unsigned int i = find(n);
-  type *             p = boost::any_cast<type>(&data[i]);
+  type              *p = boost::any_cast<type>(&data[i]);
   Assert(p != 0, ExcTypeMismatch(typeid(type).name(), data[i].type().name()));
   return *p;
 }
 
 
 template <typename type>
-inline const type
+inline type
 AnyData::entry(const std::string &n) const
 {
   const unsigned int i = find(n);
-  const type *       p = boost::any_cast<type>(&data[i]);
+  const type        *p = boost::any_cast<type>(&data[i]);
   Assert(p != nullptr,
          ExcTypeMismatch(typeid(type).name(), data[i].type().name()));
   return *p;
@@ -370,11 +370,11 @@ AnyData::entry(const std::string &n) const
 
 
 template <typename type>
-inline const type
+inline type
 AnyData::read(const std::string &n) const
 {
   const unsigned int i = find(n);
-  const type *       p = boost::any_cast<type>(&data[i]);
+  const type        *p = boost::any_cast<type>(&data[i]);
   Assert(p != 0, ExcTypeMismatch(typeid(type).name(), data[i].type().name()));
   return *p;
 }
@@ -422,7 +422,7 @@ AnyData::try_read(const std::string &n) const
 
   // Compute index and return casted pointer
   unsigned int i = it - names.begin();
-  const type * p = boost::any_cast<type>(&data[i]);
+  const type  *p = boost::any_cast<type>(&data[i]);
   return p;
 }
 
@@ -448,7 +448,7 @@ AnyData::merge(const AnyData &other)
 }
 
 
-template <class StreamType>
+template <typename StreamType>
 inline void
 AnyData::list(StreamType &os) const
 {

@@ -55,12 +55,11 @@ FiniteElement<dim, spacedim>::InternalDataBase::memory_consumption() const
 
 template <int dim, int spacedim>
 FiniteElement<dim, spacedim>::FiniteElement(
-  const FiniteElementData<dim> &    fe_data,
-  const std::vector<bool> &         r_i_a_f,
+  const FiniteElementData<dim>     &fe_data,
+  const std::vector<bool>          &r_i_a_f,
   const std::vector<ComponentMask> &nonzero_c)
   : FiniteElementData<dim>(fe_data)
-  , adjust_line_dof_index_for_line_orientation_table(
-      dim == 3 ? this->n_dofs_per_line() : 0)
+  , adjust_line_dof_index_for_line_orientation_table(this->n_dofs_per_line())
   , system_to_base_table(this->n_dofs_per_cell())
   , component_to_base_table(this->components,
                             std::make_pair(std::make_pair(0U, 0U), 0U))
@@ -402,7 +401,7 @@ FiniteElement<dim, spacedim>::component_mask(
 
   std::vector<bool> mask(this->n_components(), false);
   mask[scalar.component] = true;
-  return mask;
+  return ComponentMask(mask);
 }
 
 
@@ -424,7 +423,7 @@ FiniteElement<dim, spacedim>::component_mask(
        c < vector.first_vector_component + dim;
        ++c)
     mask[c] = true;
-  return mask;
+  return ComponentMask(mask);
 }
 
 
@@ -448,7 +447,7 @@ FiniteElement<dim, spacedim>::component_mask(
              SymmetricTensor<2, dim>::n_independent_components;
        ++c)
     mask[c] = true;
-  return mask;
+  return ComponentMask(mask);
 }
 
 
@@ -469,7 +468,7 @@ FiniteElement<dim, spacedim>::component_mask(const BlockMask &block_mask) const
     if (block_mask[component_to_block_index(c)] == true)
       component_mask[c] = true;
 
-  return component_mask;
+  return ComponentMask(component_mask);
 }
 
 
@@ -555,7 +554,7 @@ FiniteElement<dim, spacedim>::block_mask(
     }
 
 
-  return block_mask;
+  return BlockMask(block_mask);
 }
 
 
@@ -572,12 +571,12 @@ FiniteElement<dim, spacedim>::face_to_cell_index(const unsigned int face_index,
   AssertIndexRange(face, this->reference_cell().n_faces());
 
   // TODO: we could presumably solve the 3d case below using the
-  // adjust_quad_dof_index_for_face_orientation_table field. for the
-  // 2d case, we can't use adjust_line_dof_index_for_line_orientation_table
-  // since that array is empty (presumably because we thought that
-  // there are no flipped edges in 2d, but these can happen in
-  // DoFTools::make_periodicity_constraints, for example). so we
-  // would need to either fill this field, or rely on derived classes
+  // adjust_quad_dof_index_for_face_orientation_table field. For the 2d case, we
+  // can't use adjust_line_dof_index_for_line_orientation_table since that array
+  // is not populated for elements with quadrilateral reference cells
+  // (presumably because we thought that there are no flipped edges in 2d, but
+  // these can happen in DoFTools::make_periodicity_constraints(), for example).
+  // so we would need to either fill this field, or rely on derived classes
   // implementing this function, as we currently do
 
   // see the function's documentation for an explanation of this
@@ -685,8 +684,9 @@ FiniteElement<dim, spacedim>::adjust_quad_dof_index_for_face_orientation(
     ExcInternalError());
   return index + adjust_quad_dof_index_for_face_orientation_table[table_n](
                    index,
-                   (face_orientation ? 4 : 0) + (face_flip ? 2 : 0) +
-                     (face_rotation ? 1 : 0));
+                   internal::combined_face_orientation(face_orientation,
+                                                       face_rotation,
+                                                       face_flip));
 }
 
 
@@ -697,11 +697,13 @@ FiniteElement<dim, spacedim>::adjust_line_dof_index_for_line_orientation(
   const unsigned int index,
   const bool         line_orientation) const
 {
-  // general template for 1d and 2d: do
-  // nothing. Do not throw an Assertion,
-  // however, in order to allow to call this
-  // function in 2d as well
-  if (dim < 3)
+  // We orient quads (and 1D meshes are always oriented) so always skip those
+  // cases
+  //
+  // TODO - we may want to change this in the future: see also the notes in
+  // face_to_cell_index()
+  if (this->reference_cell() == ReferenceCells::Line ||
+      this->reference_cell() == ReferenceCells::Quadrilateral)
     return index;
 
   AssertIndexRange(index, this->n_dofs_per_line());
@@ -1049,7 +1051,7 @@ FiniteElement<dim, spacedim>::get_unit_support_points() const
   // support points, but only if
   // there are as many as there are
   // degrees of freedom
-  Assert((unit_support_points.size() == 0) ||
+  Assert((unit_support_points.empty()) ||
            (unit_support_points.size() == this->n_dofs_per_cell()),
          ExcInternalError());
   return unit_support_points;
@@ -1072,9 +1074,8 @@ FiniteElement<dim, spacedim>::get_generalized_support_points() const
 {
   // If the finite element implements generalized support points, return
   // those. Otherwise fall back to unit support points.
-  return ((generalized_support_points.size() == 0) ?
-            unit_support_points :
-            generalized_support_points);
+  return ((generalized_support_points.empty()) ? unit_support_points :
+                                                 generalized_support_points);
 }
 
 
@@ -1110,7 +1111,7 @@ FiniteElement<dim, spacedim>::get_unit_face_support_points(
   // there are as many as there are
   // degrees of freedom on a face
   Assert((unit_face_support_points[this->n_unique_faces() == 1 ? 0 : face_no]
-            .size() == 0) ||
+            .empty()) ||
            (unit_face_support_points[this->n_unique_faces() == 1 ? 0 : face_no]
               .size() == this->n_dofs_per_face(face_no)),
          ExcInternalError());
@@ -1279,7 +1280,7 @@ template <int dim, int spacedim>
 std::unique_ptr<typename FiniteElement<dim, spacedim>::InternalDataBase>
 FiniteElement<dim, spacedim>::get_face_data(
   const UpdateFlags               flags,
-  const Mapping<dim, spacedim> &  mapping,
+  const Mapping<dim, spacedim>   &mapping,
   const hp::QCollection<dim - 1> &quadrature,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -1299,7 +1300,7 @@ std::unique_ptr<typename FiniteElement<dim, spacedim>::InternalDataBase>
 FiniteElement<dim, spacedim>::get_face_data(
   const UpdateFlags             flags,
   const Mapping<dim, spacedim> &mapping,
-  const Quadrature<dim - 1> &   quadrature,
+  const Quadrature<dim - 1>    &quadrature,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
     &output_data) const
@@ -1318,11 +1319,11 @@ inline void
 FiniteElement<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const hp::QCollection<dim - 1> &                            quadrature,
-  const Mapping<dim, spacedim> &                              mapping,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
+  const hp::QCollection<dim - 1>                             &quadrature,
+  const Mapping<dim, spacedim>                               &mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &mapping_internal,
   const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                                                            mapping_data,
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -1347,11 +1348,11 @@ inline void
 FiniteElement<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const Quadrature<dim - 1> &                                 quadrature,
-  const Mapping<dim, spacedim> &                              mapping,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
+  const Quadrature<dim - 1>                                  &quadrature,
+  const Mapping<dim, spacedim>                               &mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &mapping_internal,
   const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                                                            mapping_data,
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -1378,7 +1379,7 @@ std::unique_ptr<typename FiniteElement<dim, spacedim>::InternalDataBase>
 FiniteElement<dim, spacedim>::get_subface_data(
   const UpdateFlags             flags,
   const Mapping<dim, spacedim> &mapping,
-  const Quadrature<dim - 1> &   quadrature,
+  const Quadrature<dim - 1>    &quadrature,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
     &output_data) const

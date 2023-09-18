@@ -106,7 +106,7 @@ namespace MGTools
   void
   compute_row_length_vector(const DoFHandler<dim, spacedim> &dofs,
                             const unsigned int               level,
-                            std::vector<unsigned int> &      row_lengths,
+                            std::vector<unsigned int>       &row_lengths,
                             const DoFTools::Coupling         flux_coupling)
   {
     Assert(row_lengths.size() == dofs.n_dofs(),
@@ -289,9 +289,9 @@ namespace MGTools
   // This is the template for 2d and 3d. See version for 1d above
   template <int dim, int spacedim>
   void
-  compute_row_length_vector(const DoFHandler<dim, spacedim> &   dofs,
+  compute_row_length_vector(const DoFHandler<dim, spacedim>    &dofs,
                             const unsigned int                  level,
-                            std::vector<unsigned int> &         row_lengths,
+                            std::vector<unsigned int>          &row_lengths,
                             const Table<2, DoFTools::Coupling> &couplings,
                             const Table<2, DoFTools::Coupling> &flux_couplings)
   {
@@ -574,7 +574,7 @@ namespace MGTools
   template <int dim, int spacedim, typename number>
   void
   make_sparsity_pattern(const DoFHandler<dim, spacedim> &dof,
-                        SparsityPatternBase &            sparsity,
+                        SparsityPatternBase             &sparsity,
                         const unsigned int               level,
                         const AffineConstraints<number> &constraints,
                         const bool                       keep_constrained_dofs)
@@ -604,7 +604,7 @@ namespace MGTools
   template <int dim, int spacedim, typename number>
   void
   make_flux_sparsity_pattern(const DoFHandler<dim, spacedim> &dof,
-                             SparsityPatternBase &            sparsity,
+                             SparsityPatternBase             &sparsity,
                              const unsigned int               level,
                              const AffineConstraints<number> &constraints,
                              const bool keep_constrained_dofs)
@@ -678,7 +678,7 @@ namespace MGTools
   template <int dim, int spacedim>
   void
   make_flux_sparsity_pattern_edge(const DoFHandler<dim, spacedim> &dof,
-                                  SparsityPatternBase &            sparsity,
+                                  SparsityPatternBase             &sparsity,
                                   const unsigned int               level)
   {
     Assert((level >= 1) && (level < dof.get_triangulation().n_global_levels()),
@@ -739,13 +739,13 @@ namespace MGTools
 
   template <int dim, int spacedim>
   void
-  make_flux_sparsity_pattern(const DoFHandler<dim, spacedim> &   dof,
-                             SparsityPatternBase &               sparsity,
+  make_flux_sparsity_pattern(const DoFHandler<dim, spacedim>    &dof,
+                             SparsityPatternBase                &sparsity,
                              const unsigned int                  level,
                              const Table<2, DoFTools::Coupling> &int_mask,
                              const Table<2, DoFTools::Coupling> &flux_mask)
   {
-    const FiniteElement<dim> &    fe     = dof.get_fe();
+    const FiniteElement<dim>     &fe     = dof.get_fe();
     const types::global_dof_index n_dofs = dof.n_dofs(level);
     const unsigned int            n_comp = fe.n_components();
     (void)n_dofs;
@@ -917,8 +917,8 @@ namespace MGTools
 
   template <int dim, int spacedim>
   void
-  make_flux_sparsity_pattern_edge(const DoFHandler<dim, spacedim> &   dof,
-                                  SparsityPatternBase &               sparsity,
+  make_flux_sparsity_pattern_edge(const DoFHandler<dim, spacedim>    &dof,
+                                  SparsityPatternBase                &sparsity,
                                   const unsigned int                  level,
                                   const Table<2, DoFTools::Coupling> &flux_mask)
   {
@@ -1013,7 +1013,7 @@ namespace MGTools
   void
   make_interface_sparsity_pattern(const DoFHandler<dim, spacedim> &dof,
                                   const MGConstrainedDoFs &mg_constrained_dofs,
-                                  SparsityPatternBase &    sparsity,
+                                  SparsityPatternBase     &sparsity,
                                   const unsigned int       level)
   {
     const types::global_dof_index n_dofs = dof.n_dofs(level);
@@ -1053,7 +1053,7 @@ namespace MGTools
   template <int dim, int spacedim>
   void
   count_dofs_per_component(
-    const DoFHandler<dim, spacedim> &                  dof_handler,
+    const DoFHandler<dim, spacedim>                   &dof_handler,
     std::vector<std::vector<types::global_dof_index>> &result,
     bool                                               only_once,
     std::vector<unsigned int>                          target_component)
@@ -1066,7 +1066,7 @@ namespace MGTools
     Assert(result.size() == nlevels,
            ExcDimensionMismatch(result.size(), nlevels));
 
-    if (target_component.size() == 0)
+    if (target_component.empty())
       {
         target_component.resize(n_components);
         for (unsigned int i = 0; i < n_components; ++i)
@@ -1155,7 +1155,7 @@ namespace MGTools
   template <int dim, int spacedim>
   void
   count_dofs_per_block(
-    const DoFHandler<dim, spacedim> &                  dof_handler,
+    const DoFHandler<dim, spacedim>                   &dof_handler,
     std::vector<std::vector<types::global_dof_index>> &dofs_per_block,
     std::vector<unsigned int>                          target_block)
   {
@@ -1171,7 +1171,7 @@ namespace MGTools
     // If the empty vector was given as
     // default argument, set up this
     // vector as identity.
-    if (target_block.size() == 0)
+    if (target_block.empty())
       {
         target_block.resize(n_blocks);
         for (unsigned int i = 0; i < n_blocks; ++i)
@@ -1217,7 +1217,7 @@ namespace MGTools
 
             std::vector<bool> tmp(n_blocks, false);
             tmp[i]          = true;
-            block_select[i] = tmp;
+            block_select[i] = BlockMask(tmp);
 
             tasks += Threads::new_task(
               fun_ptr, l, dof_handler, block_select[i], dofs_in_block[i]);
@@ -1240,9 +1240,9 @@ namespace MGTools
   make_boundary_list(
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim> *>
-      &                                             function_map,
+                                                   &function_map,
     std::vector<std::set<types::global_dof_index>> &boundary_indices,
-    const ComponentMask &                           component_mask)
+    const ComponentMask                            &component_mask)
   {
     Assert(boundary_indices.size() == dof.get_triangulation().n_global_levels(),
            ExcDimensionMismatch(boundary_indices.size(),
@@ -1262,11 +1262,11 @@ namespace MGTools
 
   template <int dim, int spacedim>
   void
-  make_boundary_list(const DoFHandler<dim, spacedim> &           dof,
+  make_boundary_list(const DoFHandler<dim, spacedim>            &dof,
                      const std::map<types::boundary_id,
                                     const Function<spacedim> *> &function_map,
                      std::vector<IndexSet> &boundary_indices,
-                     const ComponentMask &  component_mask)
+                     const ComponentMask   &component_mask)
   {
     Assert(boundary_indices.size() == dof.get_triangulation().n_global_levels(),
            ExcDimensionMismatch(boundary_indices.size(),
@@ -1283,15 +1283,15 @@ namespace MGTools
 
   template <int dim, int spacedim>
   void
-  make_boundary_list(const DoFHandler<dim, spacedim> &   dof,
+  make_boundary_list(const DoFHandler<dim, spacedim>    &dof,
                      const std::set<types::boundary_id> &boundary_ids,
-                     std::vector<IndexSet> &             boundary_indices,
-                     const ComponentMask &               component_mask)
+                     std::vector<IndexSet>              &boundary_indices,
+                     const ComponentMask                &component_mask)
   {
     boundary_indices.resize(dof.get_triangulation().n_global_levels());
 
     // if for whatever reason we were passed an empty set, return immediately
-    if (boundary_ids.size() == 0)
+    if (boundary_ids.empty())
       return;
 
     for (unsigned int i = 0; i < dof.get_triangulation().n_global_levels(); ++i)
@@ -1432,10 +1432,8 @@ namespace MGTools
          ++level)
       {
         std::sort(dofs_by_level[level].begin(), dofs_by_level[level].end());
-        boundary_indices[level].add_indices(
-          dofs_by_level[level].begin(),
-          std::unique(dofs_by_level[level].begin(),
-                      dofs_by_level[level].end()));
+        boundary_indices[level].add_indices(dofs_by_level[level].begin(),
+                                            dofs_by_level[level].end());
       }
   }
 
@@ -1444,7 +1442,7 @@ namespace MGTools
   template <int dim, int spacedim>
   void
   extract_inner_interface_dofs(const DoFHandler<dim, spacedim> &mg_dof_handler,
-                               std::vector<IndexSet> &          interface_dofs)
+                               std::vector<IndexSet>           &interface_dofs)
   {
     Assert(interface_dofs.size() ==
              mg_dof_handler.get_triangulation().n_global_levels(),
@@ -1521,8 +1519,7 @@ namespace MGTools
         interface_dofs[l].clear();
         std::sort(tmp_interface_dofs[l].begin(), tmp_interface_dofs[l].end());
         interface_dofs[l].add_indices(tmp_interface_dofs[l].begin(),
-                                      std::unique(tmp_interface_dofs[l].begin(),
-                                                  tmp_interface_dofs[l].end()));
+                                      tmp_interface_dofs[l].end());
         interface_dofs[l].compress();
       }
   }

@@ -62,9 +62,8 @@ template <int dim, int spacedim>
 std::shared_ptr<const Utilities::MPI::Partitioner>
 create_partitioner(const DoFHandler<dim, spacedim> &dof_handler)
 {
-  IndexSet locally_relevant_dofs;
-
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   return std::make_shared<const Utilities::MPI::Partitioner>(
     dof_handler.locally_owned_dofs(),
@@ -74,8 +73,8 @@ create_partitioner(const DoFHandler<dim, spacedim> &dof_handler)
 
 template <int dim>
 void
-print(const Mapping<dim> &                              mapping,
-      const DoFHandler<dim> &                           dof_handler,
+print(const Mapping<dim>                               &mapping,
+      const DoFHandler<dim>                            &dof_handler,
       const LinearAlgebra::distributed::Vector<double> &result,
       const unsigned int                                counter)
 {

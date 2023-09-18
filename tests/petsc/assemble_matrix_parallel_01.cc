@@ -18,11 +18,6 @@
 // same as deal.II/assemble_matrix_parallel_01, but for PETSc matrices
 // and vectors
 //
-// This test requires PETSc to be configured with the option
-// "--with-threadsafety" in case of debug builds of PETSc
-// For optimized builds, the above option is needed only in case
-// users want PETSc to produce useful logs with "-log_view" runtime
-// option
 #include <deal.II/base/function.h>
 #include <deal.II/base/graph_coloring.h>
 #include <deal.II/base/quadrature_lib.h>
@@ -53,6 +48,8 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 
+#include <petscconf.h>
+
 #include <complex>
 #include <iostream>
 
@@ -66,7 +63,7 @@ namespace Assembly
     struct Data
     {
       Data(const hp::FECollection<dim> &fe,
-           const hp::QCollection<dim> & quadrature)
+           const hp::QCollection<dim>  &quadrature)
         : hp_fe_values(fe,
                        quadrature,
                        update_values | update_gradients |
@@ -123,14 +120,14 @@ private:
 
   void
   local_assemble(const typename DoFHandler<dim>::active_cell_iterator &cell,
-                 Assembly::Scratch::Data<dim> &                        scratch,
-                 Assembly::Copy::Data &                                data);
+                 Assembly::Scratch::Data<dim>                         &scratch,
+                 Assembly::Copy::Data                                 &data);
   void
   copy_local_to_global(const Assembly::Copy::Data &data);
 
   std::vector<types::global_dof_index>
   get_conflict_indices(
-    typename DoFHandler<dim>::active_cell_iterator const &cell) const;
+    const typename DoFHandler<dim>::active_cell_iterator &cell) const;
 
   Triangulation<dim> triangulation;
 
@@ -238,7 +235,7 @@ LaplaceProblem<dim>::~LaplaceProblem()
 template <int dim>
 std::vector<types::global_dof_index>
 LaplaceProblem<dim>::get_conflict_indices(
-  typename DoFHandler<dim>::active_cell_iterator const &cell) const
+  const typename DoFHandler<dim>::active_cell_iterator &cell) const
 {
   std::vector<types::global_dof_index> local_dof_indices(
     cell->get_fe().dofs_per_cell);
@@ -274,7 +271,7 @@ LaplaceProblem<dim>::setup_system()
     dof_handler.begin_active(),
     dof_handler.end(),
     static_cast<std::function<std::vector<types::global_dof_index>(
-      typename DoFHandler<dim>::active_cell_iterator const &)>>(
+      const typename DoFHandler<dim>::active_cell_iterator &)>>(
       std::bind(&LaplaceProblem<dim>::get_conflict_indices,
                 this,
                 std::placeholders::_1)));
@@ -297,8 +294,8 @@ template <int dim>
 void
 LaplaceProblem<dim>::local_assemble(
   const typename DoFHandler<dim>::active_cell_iterator &cell,
-  Assembly::Scratch::Data<dim> &                        scratch,
-  Assembly::Copy::Data &                                data)
+  Assembly::Scratch::Data<dim>                         &scratch,
+  Assembly::Copy::Data                                 &data)
 {
   const unsigned int dofs_per_cell = cell->get_fe().dofs_per_cell;
 
@@ -384,6 +381,12 @@ template <int dim>
 void
 LaplaceProblem<dim>::assemble_test()
 {
+  // This test requires PETSc to be configured with the option
+  // "--with-threadsafety" in case of debug builds of PETSc.
+  // For optimized builds, the above option is needed only in case
+  // users want PETSc to produce useful logs with "-log_view" runtime
+  // option
+#if !defined(PETSC_USE_DEBUG) || defined(PETSC_HAVE_THREADSAFETY)
   test_matrix = 0;
   test_rhs    = 0;
 
@@ -405,11 +408,18 @@ LaplaceProblem<dim>::assemble_test()
   test_rhs.compress(VectorOperation::add);
 
   test_matrix.add(-1, reference_matrix);
-
-  // there should not even be roundoff difference between matrices
-  deallog << "error in matrix: " << test_matrix.frobenius_norm() << std::endl;
   test_rhs.add(-1., reference_rhs);
-  deallog << "error in vector: " << test_rhs.l2_norm() << std::endl;
+
+  auto mnorm = test_matrix.frobenius_norm();
+  auto vnorm = test_rhs.l2_norm();
+#else
+  auto mnorm = 0.0;
+  auto vnorm = 0.0;
+#endif
+
+  // there should not even be roundoff difference
+  deallog << "error in matrix: " << mnorm << std::endl;
+  deallog << "error in vector: " << vnorm << std::endl;
 }
 
 

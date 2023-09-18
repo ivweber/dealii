@@ -84,9 +84,9 @@ test(const FiniteElement<dim, spacedim> &fe, const unsigned int n_components)
   DoFHandler<dim> dof_handler(tria);
   dof_handler.distribute_dofs(fe);
 
-  IndexSet owned_dofs = dof_handler.locally_owned_dofs();
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet &owned_dofs = dof_handler.locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   LinearAlgebra::distributed::Vector<double> solution;
 
@@ -129,10 +129,10 @@ test(const FiniteElement<dim, spacedim> &fe, const unsigned int n_components)
   // files are created.
   if (Utilities::MPI::this_mpi_process(comm) == 0)
     {
-      std::ifstream h5((output_basename + ".h5").c_str());
+      std::ifstream h5(output_basename + ".h5");
       AssertThrow(h5.good(), ExcIO());
 
-      std::ifstream xdmf((output_basename + ".xdmf").c_str());
+      std::ifstream xdmf(output_basename + ".xdmf");
       AssertThrow(h5.good(), ExcIO());
 
       deallog << "Files " << output_basename + ".h5"

@@ -63,7 +63,7 @@ public:
     time_stepper.residual = [&](const double      t,
                                 const VectorType &y,
                                 const VectorType &y_dot,
-                                VectorType &      res) {
+                                VectorType       &res) {
       res[0] = y_dot[0] + kappa * y[0];
     };
 
@@ -74,19 +74,14 @@ public:
       J = kappa + alpha;
     };
 
-    // Used only in ver < 4.0.0
-    time_stepper.solve_jacobian_system =
-      [&](const VectorType &src, VectorType &dst) { dst[0] = src[0] / J; };
-
-    // Used in ver >= 4.0.0
     time_stepper.solve_with_jacobian =
       [&](const VectorType &src, VectorType &dst, const double) {
         dst[0] = src[0] / J;
       };
 
     time_stepper.output_step = [&](const double       t,
-                                   const VectorType & sol,
-                                   const VectorType & sol_dot,
+                                   const VectorType  &sol,
+                                   const VectorType  &sol_dot,
                                    const unsigned int step_number) {
       deallog << "Intermediate output:" << std::endl;
       deallog << "  t =" << t << std::endl;

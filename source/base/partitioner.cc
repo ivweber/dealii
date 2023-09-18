@@ -135,14 +135,14 @@ namespace Utilities
 
 
     void
-    Partitioner::reinit(const IndexSet &vector_space_vector_index_set,
-                        const IndexSet &read_write_vector_index_set,
+    Partitioner::reinit(const IndexSet &locally_owned_indices,
+                        const IndexSet &ghost_indices,
                         const MPI_Comm  communicator_in)
     {
       have_ghost_indices = false;
       communicator       = communicator_in;
-      set_owned_indices(vector_space_vector_index_set);
-      set_ghost_indices(read_write_vector_index_set);
+      set_owned_indices(locally_owned_indices);
+      set_ghost_indices(ghost_indices);
     }
 
 
@@ -150,16 +150,8 @@ namespace Utilities
     void
     Partitioner::set_owned_indices(const IndexSet &locally_owned_indices)
     {
-      if (Utilities::MPI::job_supports_mpi() == true)
-        {
-          my_pid  = Utilities::MPI::this_mpi_process(communicator);
-          n_procs = Utilities::MPI::n_mpi_processes(communicator);
-        }
-      else
-        {
-          my_pid  = 0;
-          n_procs = 1;
-        }
+      my_pid  = Utilities::MPI::this_mpi_process(communicator);
+      n_procs = Utilities::MPI::n_mpi_processes(communicator);
 
       // set the local range
       Assert(locally_owned_indices.is_contiguous() == true,

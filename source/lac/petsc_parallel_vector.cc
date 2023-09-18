@@ -28,6 +28,14 @@ namespace PETScWrappers
 {
   namespace MPI
   {
+    // Check that the class we declare here satisfies the
+    // vector-space-vector concept. If we catch it here,
+    // any mistake in the vector class declaration would
+    // show up in uses of this class later on as well.
+#  ifdef DEAL_II_HAVE_CXX20
+    static_assert(concepts::is_vector_space_vector<Vector>);
+#  endif
+
     Vector::Vector()
     {
       // virtual functions called in constructors and destructors never use the
@@ -341,20 +349,16 @@ namespace PETScWrappers
     Vector::all_zero() const
     {
       unsigned int has_nonzero = VectorBase::all_zero() ? 0 : 1;
-#  ifdef DEAL_II_WITH_MPI
       // in parallel, check that the vector
       // is zero on _all_ processors.
       unsigned int num_nonzero =
         Utilities::MPI::sum(has_nonzero, this->get_mpi_communicator());
       return num_nonzero == 0;
-#  else
-      return has_nonzero == 0;
-#  endif
     }
 
 
     void
-    Vector::print(std::ostream &     out,
+    Vector::print(std::ostream      &out,
                   const unsigned int precision,
                   const bool         scientific,
                   const bool         across) const

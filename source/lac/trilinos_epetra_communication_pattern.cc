@@ -30,31 +30,31 @@ namespace LinearAlgebra
   namespace EpetraWrappers
   {
     CommunicationPattern::CommunicationPattern(
-      const IndexSet &vector_space_vector_index_set,
-      const IndexSet &read_write_vector_index_set,
+      const IndexSet &locally_owned_indices,
+      const IndexSet &ghost_indices,
       const MPI_Comm  communicator)
     {
       // virtual functions called in constructors and destructors never use the
       // override in a derived class
       // for clarity be explicit on which function is called
-      CommunicationPattern::reinit(vector_space_vector_index_set,
-                                   read_write_vector_index_set,
+      CommunicationPattern::reinit(locally_owned_indices,
+                                   ghost_indices,
                                    communicator);
     }
 
 
 
     void
-    CommunicationPattern::reinit(const IndexSet &vector_space_vector_index_set,
-                                 const IndexSet &read_write_vector_index_set,
+    CommunicationPattern::reinit(const IndexSet &locally_owned_indices,
+                                 const IndexSet &ghost_indices,
                                  const MPI_Comm  communicator)
     {
       comm = std::make_shared<const MPI_Comm>(communicator);
 
       Epetra_Map vector_space_vector_map =
-        vector_space_vector_index_set.make_trilinos_map(*comm, false);
+        locally_owned_indices.make_trilinos_map(*comm, false);
       Epetra_Map read_write_vector_map =
-        read_write_vector_index_set.make_trilinos_map(*comm, true);
+        ghost_indices.make_trilinos_map(*comm, true);
 
       // Target map is read_write_vector_map
       // Source map is vector_space_vector_map. This map must have uniquely

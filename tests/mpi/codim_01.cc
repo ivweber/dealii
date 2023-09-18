@@ -36,7 +36,7 @@
 template <int dim, int spacedim>
 void
 write_vtk(const parallel::distributed::Triangulation<dim, spacedim> &tria,
-          const char *                                               filename)
+          const char                                                *filename)
 {
   AssertThrow(tria.are_vertices_communicated_to_p4est(),
               ExcMessage("To use this function the flag "
@@ -104,7 +104,7 @@ test(std::ostream & /*out*/)
   name[1] += tr.locally_owned_subdomain();
 
   {
-    std::ofstream file(name.c_str());
+    std::ofstream file(name);
     data_out.build_patches();
     data_out.write_vtu(file);
   }

@@ -29,13 +29,13 @@
 namespace LA
 {
 #if defined(DEAL_II_WITH_PETSC) && \
-  (!defined(DEAL_II_WITH_TRILINOS) || defined(FORCE_USE_OF_PETSC))
+  (!defined(DEAL_II_TRILINOS_WITH_NOX) || defined(FORCE_USE_OF_PETSC))
   using namespace dealii::LinearAlgebraPETSc;
 #  define USE_PETSC_LA
-#elif defined(DEAL_II_WITH_TRILINOS)
+#elif defined(DEAL_II_TRILINOS_WITH_NOX)
   using namespace dealii::LinearAlgebraTrilinos;
 #else
-#  error DEAL_II_WITH_PETSC or DEAL_II_WITH_TRILINOS required
+#  error DEAL_II_WITH_PETSC or DEAL_II_TRILINOS_WITH_NOX required
 #endif
 } // namespace LA
 
@@ -98,13 +98,13 @@ namespace MPI_nonlinear_solver_selector_test
     setup_system(const bool initial_step);
     void
     solve(const LA::MPI::Vector &rhs,
-          LA::MPI::Vector &      solution,
+          LA::MPI::Vector       &solution,
           const double           tolerance);
     void
     compute_and_factorize_jacobian(const LA::MPI::Vector &evaluation_point);
     void
     compute_residual(const LA::MPI::Vector &evaluation_point,
-                     LA::MPI::Vector &      residual);
+                     LA::MPI::Vector       &residual);
 
     MPI_Comm mpi_communicator;
 
@@ -313,7 +313,7 @@ namespace MPI_nonlinear_solver_selector_test
   void
   MinimalSurfaceProblem<dim>::compute_residual(
     const LA::MPI::Vector &evaluation_point,
-    LA::MPI::Vector &      residual)
+    LA::MPI::Vector       &residual)
   {
     deallog << "  Computing residual vector..." << std::flush;
     residual = 0.;
@@ -382,7 +382,7 @@ namespace MPI_nonlinear_solver_selector_test
   template <int dim>
   void
   MinimalSurfaceProblem<dim>::solve(const LA::MPI::Vector &rhs,
-                                    LA::MPI::Vector &      solution,
+                                    LA::MPI::Vector       &solution,
                                     const double /*tolerance*/)
   {
     deallog << "  Solving linear system" << std::endl;
@@ -450,7 +450,7 @@ namespace MPI_nonlinear_solver_selector_test
     };
 
     nonlinear_solver.residual = [&](const LA::MPI::Vector &evaluation_point,
-                                    LA::MPI::Vector &      residual) {
+                                    LA::MPI::Vector       &residual) {
       compute_residual(evaluation_point, residual);
     };
 
@@ -459,9 +459,9 @@ namespace MPI_nonlinear_solver_selector_test
     };
 
     nonlinear_solver.solve_with_jacobian = [&](const LA::MPI::Vector &rhs,
-                                               LA::MPI::Vector &      dst,
+                                               LA::MPI::Vector       &dst,
                                                const double tolerance) {
-      this->solve(rhs, dst, tolerance);
+      solve(rhs, dst, tolerance);
     };
 
     nonlinear_solver.solve(current_solution);

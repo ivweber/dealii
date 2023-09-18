@@ -89,10 +89,10 @@ public:
   LaplaceOperator(){};
 
   void
-  initialize(const Mapping<dim> &             mapping,
-             const DoFHandler<dim> &          dof_handler,
+  initialize(const Mapping<dim>              &mapping,
+             const DoFHandler<dim>           &dof_handler,
              const AffineConstraints<number> &constraints,
-             const DoFHandler<dim> &          dg_dof_handler)
+             const DoFHandler<dim>           &dg_dof_handler)
   {
     const QGauss<1> quad(dof_handler.get_fe().degree + 1);
     const QGauss<1> dg_quad(dg_dof_handler.get_fe().degree + 1);
@@ -116,8 +116,8 @@ public:
   }
 
   void
-  initialize(const Mapping<dim> &             mapping,
-             const DoFHandler<dim> &          dof_handler,
+  initialize(const Mapping<dim>              &mapping,
+             const DoFHandler<dim>           &dof_handler,
              const AffineConstraints<number> &constraints)
   {
     const QGauss<1> quad(dof_handler.get_fe().degree + 1);
@@ -139,7 +139,7 @@ public:
   }
 
   void
-  vmult(VectorType &      dst,
+  vmult(VectorType       &dst,
         const VectorType &src,
         const std::function<void(const unsigned int, const unsigned int)>
           &operation_before_loop,
@@ -180,7 +180,7 @@ public:
   }
 
   void
-  initialize_dof_vector(VectorType &       vector,
+  initialize_dof_vector(VectorType        &vector,
                         const unsigned int component = 0) const
   {
     data.initialize_dof_vector(vector, component);
@@ -195,7 +195,7 @@ public:
       compute_diagonal<dim, -1, 0, 1, number, VectorizedArray<number>>(
         data, inverse_diagonal_entries->get_vector(), [](auto &eval) {
           eval.evaluate(EvaluationFlags::gradients);
-          for (unsigned int q = 0; q < eval.n_q_points; ++q)
+          for (const unsigned int q : eval.quadrature_point_indices())
             eval.submit_gradient(eval.get_gradient(q), q);
           eval.integrate(EvaluationFlags::gradients);
         });
@@ -221,9 +221,9 @@ public:
 
 private:
   void
-  local_apply(const MatrixFree<dim, number> &              data,
-              VectorType &                                 dst,
-              const VectorType &                           src,
+  local_apply(const MatrixFree<dim, number>               &data,
+              VectorType                                  &dst,
+              const VectorType                            &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, -1, 0, 1, number> eval(data);
@@ -232,7 +232,7 @@ private:
       {
         eval.reinit(cell);
         eval.gather_evaluate(src, EvaluationFlags::gradients);
-        for (unsigned int q = 0; q < eval.n_q_points; ++q)
+        for (const unsigned int q : eval.quadrature_point_indices())
           eval.submit_gradient(eval.get_gradient(q), q);
         eval.integrate_scatter(EvaluationFlags::gradients, dst);
       }
@@ -246,7 +246,7 @@ private:
 
 template <typename Number>
 void
-make_zero_mean(const std::vector<unsigned int> &           constrained_dofs,
+make_zero_mean(const std::vector<unsigned int>            &constrained_dofs,
                LinearAlgebra::distributed::Vector<Number> &vec)
 {
   // set constrained entries to zero
@@ -285,7 +285,7 @@ public:
 
   void
   initialize(const MGSmootherBase<VectorType> &coarse_smooth,
-             const std::vector<unsigned int> & constrained_dofs)
+             const std::vector<unsigned int>  &constrained_dofs)
   {
     this->coarse_smooth    = &coarse_smooth;
     this->constrained_dofs = &constrained_dofs;
@@ -293,8 +293,8 @@ public:
 
   void
   operator()(const unsigned int level,
-             VectorType &       dst,
-             const VectorType & src) const override
+             VectorType        &dst,
+             const VectorType  &src) const override
   {
     src_copy.reinit(src, true);
     src_copy.copy_locally_owned_data_from(src);
@@ -305,7 +305,7 @@ public:
 
 private:
   SmartPointer<const MGSmootherBase<VectorType>> coarse_smooth;
-  const std::vector<unsigned int> *              constrained_dofs;
+  const std::vector<unsigned int>               *constrained_dofs;
 
   mutable VectorType src_copy;
 };
@@ -462,8 +462,8 @@ LaplaceProblem<dim>::create_coarse_triangulations()
 {
   coarse_triangulations =
     MGTransferGlobalCoarseningTools::create_geometric_coarsening_sequence(
-      triangulation/*,
-                     RepartitioningPolicyTools::MinimalGranularityPolicy<dim>(16)*/);
+      triangulation,
+      RepartitioningPolicyTools::MinimalGranularityPolicy<dim>(16));
 }
 
 
@@ -502,8 +502,7 @@ LaplaceProblem<dim>::setup_dofs()
       else
         dof_h.distribute_dofs(*fes[level + 1 - coarse_triangulations.size()]);
 
-      IndexSet relevant_dofs;
-      DoFTools::extract_locally_relevant_dofs(dof_h, relevant_dofs);
+      IndexSet relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof_h);
       AffineConstraints<float> &constraints = level_constraints[level];
       constraints.reinit(relevant_dofs);
       DoFTools::make_hanging_node_constraints(dof_h, constraints);
@@ -517,7 +516,7 @@ LaplaceProblem<dim>::setup_dofs()
                                                 additional_data);
 
       // now create the final constraints object
-      DoFTools::extract_locally_relevant_dofs(dof_h, relevant_dofs);
+      relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof_h);
       constraints.clear();
       constraints.reinit(relevant_dofs);
       DoFTools::make_hanging_node_constraints(dof_h, constraints);
@@ -662,7 +661,7 @@ LaplaceProblem<dim>::compute_rhs()
           eval.reinit(cell);
           dg_eval.reinit(cell);
           dg_eval.gather_evaluate(dg_rhs, EvaluationFlags::values);
-          for (unsigned int q = 0; q < eval.n_q_points; ++q)
+          for (const unsigned int q : eval.quadrature_point_indices())
             eval.submit_value(dg_eval.get_value(q), q);
           eval.integrate_scatter(EvaluationFlags::values, rhs);
         }

@@ -19,7 +19,6 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/quadrature.h>
-#include <deal.II/base/std_cxx17/optional.h>
 #include <deal.II/base/subscriptor.h>
 
 #include <deal.II/distributed/tria.h>
@@ -33,6 +32,7 @@
 #include <deal.II/lac/vector.h>
 
 #include <map>
+#include <optional>
 #include <type_traits>
 #include <vector>
 
@@ -170,9 +170,9 @@ public:
   get_data(const CellIteratorType &cell) const;
 
   /**
-   * Returns a std_cxx17::optional indicating whether @p cell contains an
+   * Returns a std::optional indicating whether @p cell contains an
    * associated data or not. If data is available, dereferencing the
-   * std_cxx17::optional reveals a vector of pointers to the underlying data
+   * std::optional reveals a vector of pointers to the underlying data
    * at the quadrature points.
    * A possible additional typename @p T is the class to which the base class
    * DataType could be cast. Since @p DataType is stored as shared pointers,
@@ -186,13 +186,13 @@ public:
    * initialize() the cell data.
    */
   template <typename T = DataType>
-  std_cxx17::optional<std::vector<std::shared_ptr<T>>>
+  std::optional<std::vector<std::shared_ptr<T>>>
   try_get_data(const CellIteratorType &cell);
 
   /**
-   * Returns a std_cxx17::optional indicating whether @p cell contains an
+   * Returns a std::optional indicating whether @p cell contains an
    * associated data or not. If data is available, dereferencing the
-   * std_cxx17::optional reveals a vector of constant pointers to the
+   * std::optional reveals a vector of constant pointers to the
    * underlying data at the quadrature points.
    * A possible additional typename @p T is the class to which the base class
    * DataType could be cast. Since @p DataType is stored as shared pointers,
@@ -206,7 +206,7 @@ public:
    * initialize() the cell data.
    */
   template <typename T = DataType>
-  std_cxx17::optional<std::vector<std::shared_ptr<const T>>>
+  std::optional<std::vector<std::shared_ptr<const T>>>
   try_get_data(const CellIteratorType &cell) const;
 
 private:
@@ -440,7 +440,7 @@ namespace parallel
     {
     public:
       static_assert(
-        std::is_base_of<TransferableQuadraturePointData, DataType>::value,
+        std::is_base_of_v<TransferableQuadraturePointData, DataType>,
         "User's DataType class should be derived from TransferableQuadraturePointData");
 
       /**
@@ -475,7 +475,7 @@ namespace parallel
        */
       void
       prepare_for_coarsening_and_refinement(
-        parallel::distributed::Triangulation<dim> &  tria,
+        parallel::distributed::Triangulation<dim>   &tria,
         CellDataStorage<CellIteratorType, DataType> &data_storage);
 
       /**
@@ -500,9 +500,8 @@ namespace parallel
       std::vector<char>
       pack_function(
         const typename parallel::distributed::Triangulation<dim>::cell_iterator
-          &cell,
-        const typename parallel::distributed::Triangulation<dim>::CellStatus
-          status);
+                        &cell,
+        const CellStatus status);
 
       /**
        * A callback function used to unpack the data on the current mesh that
@@ -512,9 +511,8 @@ namespace parallel
       void
       unpack_function(
         const typename parallel::distributed::Triangulation<dim>::cell_iterator
-          &cell,
-        const typename parallel::distributed::Triangulation<dim>::CellStatus
-          status,
+                        &cell,
+        const CellStatus status,
         const boost::iterator_range<std::vector<char>::const_iterator>
           &data_range);
 
@@ -606,7 +604,7 @@ CellDataStorage<CellIteratorType, DataType>::initialize(
   const CellIteratorType &cell,
   const unsigned int      n_q_points)
 {
-  static_assert(std::is_base_of<DataType, T>::value,
+  static_assert(std::is_base_of_v<DataType, T>,
                 "User's T class should be derived from user's DataType class");
   // The first time this method is called, it has to initialize the reference
   // to the triangulation object
@@ -696,7 +694,7 @@ inline std::vector<std::shared_ptr<T>>
 CellDataStorage<CellIteratorType, DataType>::get_data(
   const CellIteratorType &cell)
 {
-  static_assert(std::is_base_of<DataType, T>::value,
+  static_assert(std::is_base_of_v<DataType, T>,
                 "User's T class should be derived from user's DataType class");
   Assert(&cell->get_triangulation() == tria, ExcTriangulationMismatch());
 
@@ -725,7 +723,7 @@ inline std::vector<std::shared_ptr<const T>>
 CellDataStorage<CellIteratorType, DataType>::get_data(
   const CellIteratorType &cell) const
 {
-  static_assert(std::is_base_of<DataType, T>::value,
+  static_assert(std::is_base_of_v<DataType, T>,
                 "User's T class should be derived from user's DataType class");
   Assert(&cell->get_triangulation() == tria, ExcTriangulationMismatch());
 
@@ -746,11 +744,11 @@ CellDataStorage<CellIteratorType, DataType>::get_data(
 
 template <typename CellIteratorType, typename DataType>
 template <typename T>
-inline std_cxx17::optional<std::vector<std::shared_ptr<T>>>
+inline std::optional<std::vector<std::shared_ptr<T>>>
 CellDataStorage<CellIteratorType, DataType>::try_get_data(
   const CellIteratorType &cell)
 {
-  static_assert(std::is_base_of<DataType, T>::value,
+  static_assert(std::is_base_of_v<DataType, T>,
                 "User's T class should be derived from user's DataType class");
   Assert(&cell->get_triangulation() == tria, ExcTriangulationMismatch());
 
@@ -777,11 +775,11 @@ CellDataStorage<CellIteratorType, DataType>::try_get_data(
 
 template <typename CellIteratorType, typename DataType>
 template <typename T>
-inline std_cxx17::optional<std::vector<std::shared_ptr<const T>>>
+inline std::optional<std::vector<std::shared_ptr<const T>>>
 CellDataStorage<CellIteratorType, DataType>::try_get_data(
   const CellIteratorType &cell) const
 {
-  static_assert(std::is_base_of<DataType, T>::value,
+  static_assert(std::is_base_of_v<DataType, T>,
                 "User's T class should be derived from user's DataType class");
   Assert(&cell->get_triangulation() == tria, ExcTriangulationMismatch());
 
@@ -820,13 +818,12 @@ CellDataStorage<CellIteratorType, DataType>::try_get_data(
  */
 template <typename CellIteratorType, typename DataType>
 inline void
-pack_cell_data(const CellIteratorType &                           cell,
+pack_cell_data(const CellIteratorType                            &cell,
                const CellDataStorage<CellIteratorType, DataType> *data_storage,
-               FullMatrix<double> &                               matrix_data)
+               FullMatrix<double>                                &matrix_data)
 {
-  static_assert(
-    std::is_base_of<TransferableQuadraturePointData, DataType>::value,
-    "User's DataType class should be derived from QPData");
+  static_assert(std::is_base_of_v<TransferableQuadraturePointData, DataType>,
+                "User's DataType class should be derived from QPData");
 
   if (const auto qpd = data_storage->try_get_data(cell))
     {
@@ -858,13 +855,12 @@ pack_cell_data(const CellIteratorType &                           cell,
  */
 template <typename CellIteratorType, typename DataType>
 inline void
-unpack_to_cell_data(const CellIteratorType &                     cell,
-                    const FullMatrix<double> &                   values_at_qp,
+unpack_to_cell_data(const CellIteratorType                      &cell,
+                    const FullMatrix<double>                    &values_at_qp,
                     CellDataStorage<CellIteratorType, DataType> *data_storage)
 {
-  static_assert(
-    std::is_base_of<TransferableQuadraturePointData, DataType>::value,
-    "User's DataType class should be derived from QPData");
+  static_assert(std::is_base_of_v<TransferableQuadraturePointData, DataType>,
+                "User's DataType class should be derived from QPData");
 
   if (const auto qpd = data_storage->try_get_data(cell))
     {
@@ -893,8 +889,8 @@ namespace parallel
     template <int dim, typename DataType>
     inline ContinuousQuadratureDataTransfer<dim, DataType>::
       ContinuousQuadratureDataTransfer(const FiniteElement<dim> &projection_fe_,
-                                       const Quadrature<dim> &   lhs_quadrature,
-                                       const Quadrature<dim> &   rhs_quadrature)
+                                       const Quadrature<dim>    &lhs_quadrature,
+                                       const Quadrature<dim>    &rhs_quadrature)
       : projection_fe(
           std::unique_ptr<const FiniteElement<dim>>(projection_fe_.clone()))
       , data_size_in_bytes(0)
@@ -926,7 +922,7 @@ namespace parallel
     inline void
     ContinuousQuadratureDataTransfer<dim, DataType>::
       prepare_for_coarsening_and_refinement(
-        parallel::distributed::Triangulation<dim> &  tr_,
+        parallel::distributed::Triangulation<dim>   &tr_,
         CellDataStorage<CellIteratorType, DataType> &data_storage_)
     {
       Assert(data_storage == nullptr,
@@ -935,11 +931,11 @@ namespace parallel
       data_storage  = &data_storage_;
 
       handle = triangulation->register_data_attach(
-        [this](
-          const typename parallel::distributed::Triangulation<
-            dim>::cell_iterator &cell,
-          const typename parallel::distributed::Triangulation<dim>::CellStatus
-            status) { return this->pack_function(cell, status); },
+        [this](const typename parallel::distributed::Triangulation<
+                 dim>::cell_iterator &cell,
+               const CellStatus       status) {
+          return this->pack_function(cell, status);
+        },
         /*returns_variable_size_data=*/true);
     }
 
@@ -951,13 +947,13 @@ namespace parallel
     {
       triangulation->notify_ready_to_unpack(
         handle,
-        [this](
-          const typename parallel::distributed::Triangulation<
-            dim>::cell_iterator &cell,
-          const typename parallel::distributed::Triangulation<dim>::CellStatus
-            status,
-          const boost::iterator_range<std::vector<char>::const_iterator>
-            &data_range) { this->unpack_function(cell, status, data_range); });
+        [this](const typename parallel::distributed::Triangulation<
+                 dim>::cell_iterator &cell,
+               const CellStatus       status,
+               const boost::iterator_range<std::vector<char>::const_iterator>
+                 &data_range) {
+          this->unpack_function(cell, status, data_range);
+        });
 
       // invalidate the pointers
       data_storage  = nullptr;
@@ -971,8 +967,7 @@ namespace parallel
     ContinuousQuadratureDataTransfer<dim, DataType>::pack_function(
       const typename parallel::distributed::Triangulation<dim>::cell_iterator
         &cell,
-      const typename parallel::distributed::Triangulation<
-        dim>::CellStatus /*status*/)
+      const CellStatus /*status*/)
     {
       pack_cell_data(cell, data_storage, matrix_quadrature);
 
@@ -991,14 +986,12 @@ namespace parallel
     inline void
     ContinuousQuadratureDataTransfer<dim, DataType>::unpack_function(
       const typename parallel::distributed::Triangulation<dim>::cell_iterator
-        &cell,
-      const typename parallel::distributed::Triangulation<dim>::CellStatus
-        status,
+                      &cell,
+      const CellStatus status,
       const boost::iterator_range<std::vector<char>::const_iterator>
         &data_range)
     {
-      Assert((status !=
-              parallel::distributed::Triangulation<dim, dim>::CELL_COARSEN),
+      Assert((status != CellStatus::children_will_be_coarsened),
              ExcNotImplemented());
       (void)status;
 

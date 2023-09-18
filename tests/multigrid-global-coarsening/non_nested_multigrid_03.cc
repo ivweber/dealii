@@ -64,9 +64,8 @@ test(const unsigned int n_refinements, const unsigned int fe_degree_fine)
       dof_handler.distribute_dofs(*fe);
 
       // set up constraints
-      IndexSet locally_relevant_dofs;
-      DoFTools::extract_locally_relevant_dofs(dof_handler,
-                                              locally_relevant_dofs);
+      const IndexSet locally_relevant_dofs =
+        DoFTools::extract_locally_relevant_dofs(dof_handler);
       constraint.reinit(locally_relevant_dofs);
       VectorTools::interpolate_boundary_values(
         mapping, dof_handler, 0, Functions::ZeroFunction<dim>(), constraint);
@@ -77,10 +76,12 @@ test(const unsigned int n_refinements, const unsigned int fe_degree_fine)
     }
 
   // set up transfer operator
+  typename MGTwoLevelTransferNonNested<dim, VectorType>::AdditionalData data;
+  data.enforce_all_points_found = false;
   for (unsigned int l = min_level; l < max_level; ++l)
     {
       transfers[l + 1] =
-        std::make_shared<MGTwoLevelTransferNonNested<dim, VectorType>>();
+        std::make_shared<MGTwoLevelTransferNonNested<dim, VectorType>>(data);
       transfers[l + 1]->reinit(dof_handlers[l + 1],
                                dof_handlers[l],
                                mappings[l + 1],

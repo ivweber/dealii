@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Bruno Blais, Toni El Geitani Nehme, Rene Gassmoeller, Peter Munch
  */
@@ -22,6 +21,7 @@
 #include <deal.II/base/bounding_box.h>
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/base/discrete_time.h>
+#include <deal.II/base/function_lib.h>
 #include <deal.II/base/mpi.h>
 #include <deal.II/base/parameter_acceptor.h>
 #include <deal.II/base/timer.h>
@@ -100,15 +100,15 @@ namespace Step68
     // describe the details of the particle tracking simulation and its
     // discretization. The following parameters are about where output should
     // written to, the spatial discretization of the velocity (the default is
-    // $Q_1$), the time step and the output frequency (how many time steps
-    // should elapse before we generate graphical output again):
+    // $Q_1$), the time step and the output interval (how many time
+    // steps should elapse before we generate graphical output again):
     std::string output_directory = "./";
 
-    unsigned int velocity_degree       = 1;
-    double       time_step             = 0.002;
-    double       final_time            = 4.0;
-    unsigned int output_frequency      = 10;
-    unsigned int repartition_frequency = 5;
+    unsigned int velocity_degree      = 1;
+    double       time_step            = 0.002;
+    double       final_time           = 4.0;
+    unsigned int output_interval      = 10;
+    unsigned int repartition_interval = 5;
 
     // We allow every grid to be refined independently. In this tutorial, no
     // physics is resolved on the fluid grid, and its velocity is calculated
@@ -128,15 +128,15 @@ namespace Step68
     add_parameter(
       "Velocity degree", velocity_degree, "", prm, Patterns::Integer(1));
 
-    add_parameter("Output frequency",
-                  output_frequency,
-                  "Iteration frequency at which output results are written",
+    add_parameter("Output interval",
+                  output_interval,
+                  "Iteration interval between which output results are written",
                   prm,
                   Patterns::Integer(1));
 
-    add_parameter("Repartition frequency",
-                  repartition_frequency,
-                  "Iteration frequency at which the mesh is load balanced",
+    add_parameter("Repartition interval",
+                  repartition_interval,
+                  "Iteration interval at which the mesh is load balanced",
                   prm,
                   Patterns::Integer(1));
 
@@ -162,49 +162,6 @@ namespace Step68
       "Refinement of the volumetric mesh used to insert the particles",
       prm,
       Patterns::Integer(0));
-  }
-
-
-
-  // @sect3{Velocity profile}
-
-  // The velocity profile is provided as a Function object.
-  // This function is hard-coded within
-  // the example.
-  template <int dim>
-  class Vortex : public Function<dim>
-  {
-  public:
-    Vortex()
-      : Function<dim>(dim)
-    {}
-
-
-    virtual void vector_value(const Point<dim> &point,
-                              Vector<double> &  values) const override;
-  };
-
-
-  // The velocity profile for the Rayleigh-Kothe vertex is time-dependent.
-  // Consequently, the current time in the
-  // simulation (t) must be gathered from the Function object.
-  template <int dim>
-  void Vortex<dim>::vector_value(const Point<dim> &point,
-                                 Vector<double> &  values) const
-  {
-    const double T = 4;
-    const double t = this->get_time();
-
-    const double px = numbers::PI * point(0);
-    const double py = numbers::PI * point(1);
-    const double pt = numbers::PI / T * t;
-
-    values[0] = -2 * cos(pt) * pow(sin(px), 2) * sin(py) * cos(py);
-    values[1] = 2 * cos(pt) * pow(sin(py), 2) * sin(px) * cos(px);
-    if (dim == 3)
-      {
-        values[2] = 0;
-      }
   }
 
 
@@ -253,9 +210,8 @@ namespace Step68
     // `private`.
     unsigned int cell_weight(
       const typename parallel::distributed::Triangulation<dim>::cell_iterator
-        &cell,
-      const typename parallel::distributed::Triangulation<dim>::CellStatus
-        status) const;
+                      &cell,
+      const CellStatus status) const;
 
     // The following two functions are responsible for outputting the simulation
     // results for the particles and for the velocity profile on the background
@@ -279,7 +235,7 @@ namespace Step68
     MappingQ1<dim>                             mapping;
     LinearAlgebra::distributed::Vector<double> velocity_field;
 
-    Vortex<dim> velocity;
+    Functions::RayleighKotheVortex<dim> velocity;
 
     ConditionalOStream pcout;
 
@@ -305,7 +261,8 @@ namespace Step68
     , mpi_communicator(MPI_COMM_WORLD)
     , background_triangulation(mpi_communicator)
     , fluid_dh(background_triangulation)
-    , fluid_fe(FE_Q<dim>(par.velocity_degree), dim)
+    , fluid_fe(FE_Q<dim>(par.velocity_degree) ^ dim)
+    , velocity(4.0)
     , pcout(std::cout, Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
     , interpolated_velocity(interpolated_velocity)
 
@@ -329,9 +286,8 @@ namespace Step68
   template <int dim>
   unsigned int ParticleTracking<dim>::cell_weight(
     const typename parallel::distributed::Triangulation<dim>::cell_iterator
-      &                                                                  cell,
-    const typename parallel::distributed::Triangulation<dim>::CellStatus status)
-    const
+                    &cell,
+    const CellStatus status) const
   {
     // First, we introduce a base weight that will be assigned to every cell.
     const unsigned int base_weight = 1;
@@ -347,21 +303,21 @@ namespace Step68
     const unsigned int particle_weight = 10;
 
     // This example does not use adaptive refinement, therefore every cell
-    // should have the status `CELL_PERSIST`. However this function can also
-    // be used to distribute load during refinement, therefore we consider
-    // refined or coarsened cells as well.
+    // should have the status `CellStatus::cell_will_persist`. However this
+    // function can also be used to distribute load during refinement, therefore
+    // we consider refined or coarsened cells as well.
     unsigned int n_particles_in_cell = 0;
     switch (status)
       {
-        case parallel::distributed::Triangulation<dim>::CELL_PERSIST:
-        case parallel::distributed::Triangulation<dim>::CELL_REFINE:
+        case CellStatus::cell_will_persist:
+        case CellStatus::cell_will_be_refined:
           n_particles_in_cell = particle_handler.n_particles_in_cell(cell);
           break;
 
-        case parallel::distributed::Triangulation<dim>::CELL_INVALID:
+        case CellStatus::cell_invalid:
           break;
 
-        case parallel::distributed::Triangulation<dim>::CELL_COARSEN:
+        case CellStatus::children_will_be_coarsened:
           for (const auto &child : cell->child_iterators())
             n_particles_in_cell += particle_handler.n_particles_in_cell(child);
           break;
@@ -399,11 +355,11 @@ namespace Step68
     // of this class, but for the purpose of this example we want to group the
     // particle related instructions.
     background_triangulation.signals.weight.connect(
-      [&](
-        const typename parallel::distributed::Triangulation<dim>::cell_iterator
-          &cell,
-        const typename parallel::distributed::Triangulation<dim>::CellStatus
-          status) -> unsigned int { return this->cell_weight(cell, status); });
+      [&](const typename parallel::distributed::Triangulation<
+            dim>::cell_iterator &cell,
+          const CellStatus       status) -> unsigned int {
+        return this->cell_weight(cell, status);
+      });
 
     // This initializes the background triangulation where the particles are
     // living and the number of properties of the particles.
@@ -536,11 +492,14 @@ namespace Step68
   // In contrast to the previous function in this function we
   // integrate the particle trajectories by interpolating the value of
   // the velocity field at the degrees of freedom to the position of
-  // the particles.
+  // the particles. This is achieved using the FEPointEvaluation object.
   template <int dim>
   void ParticleTracking<dim>::euler_step_interpolated(const double dt)
   {
     Vector<double> local_dof_values(fluid_fe.dofs_per_cell);
+
+    FEPointEvaluation<dim, dim> evaluator(mapping, fluid_fe, update_values);
+    std::vector<Point<dim>>     particle_positions;
 
     // We loop over all the local particles. Although this could be achieved
     // directly by looping over all the cells, this would force us
@@ -561,42 +520,35 @@ namespace Step68
 
         // Next, compute the velocity at the particle locations by evaluating
         // the finite element solution at the position of the particles.
-        // This is essentially an optimized version of the particle advection
-        // functionality in step 19, but instead of creating quadrature
-        // objects and FEValues objects for each cell, we do the
-        // evaluation by hand, which is somewhat more efficient and only
-        // matters for this tutorial, because the particle work is the
-        // dominant cost of the whole program.
+        // This is achieved using FEPointEvaluation object.
         const auto pic = particle_handler.particles_in_cell(cell);
         Assert(pic.begin() == particle, ExcInternalError());
+        particle_positions.clear();
         for (auto &p : pic)
+          particle_positions.push_back(p.get_reference_location());
+
+        evaluator.reinit(cell, particle_positions);
+        evaluator.evaluate(make_array_view(local_dof_values),
+                           EvaluationFlags::values);
+
+        // We move the particles using the interpolated velocity field
+        for (unsigned int particle_index = 0; particle != pic.end();
+             ++particle, ++particle_index)
           {
-            const Point<dim> reference_location = p.get_reference_location();
-            Tensor<1, dim>   particle_velocity;
-            for (unsigned int j = 0; j < fluid_fe.dofs_per_cell; ++j)
-              {
-                const auto comp_j = fluid_fe.system_to_component_index(j);
-
-                particle_velocity[comp_j.first] +=
-                  fluid_fe.shape_value(j, reference_location) *
-                  local_dof_values[j];
-              }
-
-            Point<dim> particle_location = particle->get_location();
-            for (int d = 0; d < dim; ++d)
-              particle_location[d] += particle_velocity[d] * dt;
-            p.set_location(particle_location);
+            Point<dim>            particle_location = particle->get_location();
+            const Tensor<1, dim> &particle_velocity =
+              evaluator.get_value(particle_index);
+            particle_location += particle_velocity * dt;
+            particle->set_location(particle_location);
 
             // Again, we store the particle velocity and the processor id in the
             // particle properties for visualization purposes.
-            ArrayView<double> properties = p.get_properties();
+            ArrayView<double> properties = particle->get_properties();
             for (int d = 0; d < dim; ++d)
               properties[d] = particle_velocity[d];
 
             properties[dim] =
               Utilities::MPI::this_mpi_process(mpi_communicator);
-
-            ++particle;
           }
       }
   }
@@ -718,7 +670,7 @@ namespace Step68
         discrete_time.advance_time();
         velocity.set_time(discrete_time.get_previous_time());
 
-        if ((discrete_time.get_step_number() % par.repartition_frequency) == 0)
+        if ((discrete_time.get_step_number() % par.repartition_interval) == 0)
           {
             particle_handler.prepare_for_coarsening_and_refinement();
             background_triangulation.repartition();
@@ -741,7 +693,7 @@ namespace Step68
         // <code>sort_particles_into_subdomains_and_cells</code>
         particle_handler.sort_particles_into_subdomains_and_cells();
 
-        if ((discrete_time.get_step_number() % par.output_frequency) == 0)
+        if ((discrete_time.get_step_number() % par.output_interval) == 0)
           {
             output_particles(discrete_time.get_step_number());
             if (interpolated_velocity)

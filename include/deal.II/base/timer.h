@@ -160,7 +160,7 @@ public:
    * Print the data returned by Timer::get_last_lap_wall_time_data() to the
    * given stream.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   print_last_lap_wall_time_data(StreamType &stream) const;
 
@@ -168,7 +168,7 @@ public:
    * Print the data returned by Timer::get_accumulated_wall_time_data() to the
    * given stream.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   print_accumulated_wall_time_data(StreamType &stream) const;
 
@@ -670,7 +670,7 @@ public:
    * @param output_type A variable indicating what kind of timing the output
    * should represent (CPU or wall time).
    */
-  TimerOutput(std::ostream &        stream,
+  TimerOutput(std::ostream         &stream,
               const OutputFrequency output_frequency,
               const OutputType      output_type);
 
@@ -684,7 +684,7 @@ public:
    * @param output_type A variable indicating what kind of timing the output
    * should represent (CPU or wall time).
    */
-  TimerOutput(ConditionalOStream &  stream,
+  TimerOutput(ConditionalOStream   &stream,
               const OutputFrequency output_frequency,
               const OutputType      output_type);
 
@@ -712,7 +712,7 @@ public:
    * each section.
    */
   TimerOutput(const MPI_Comm        mpi_comm,
-              std::ostream &        stream,
+              std::ostream         &stream,
               const OutputFrequency output_frequency,
               const OutputType      output_type);
 
@@ -740,7 +740,7 @@ public:
    * each section.)
    */
   TimerOutput(const MPI_Comm        mpi_comm,
-              ConditionalOStream &  stream,
+              ConditionalOStream   &stream,
               const OutputFrequency output_frequency,
               const OutputType      output_type);
 
@@ -918,7 +918,7 @@ Timer::get_accumulated_wall_time_data() const
 
 
 
-template <class StreamType>
+template <typename StreamType>
 inline void
 Timer::print_last_lap_wall_time_data(StreamType &stream) const
 {
@@ -930,7 +930,7 @@ Timer::print_last_lap_wall_time_data(StreamType &stream) const
 
 
 
-template <class StreamType>
+template <typename StreamType>
 inline void
 Timer::print_accumulated_wall_time_data(StreamType &stream) const
 {
@@ -943,7 +943,7 @@ Timer::print_accumulated_wall_time_data(StreamType &stream) const
 
 
 inline TimerOutput::Scope::Scope(dealii::TimerOutput &timer_,
-                                 const std::string &  section_name_)
+                                 const std::string   &section_name_)
   : timer(timer_)
   , section_name(section_name_)
   , in(true)

@@ -48,7 +48,7 @@ FE_RT_Bubbles<dim>::FE_RT_Bubbles(const unsigned int deg)
                              FiniteElementData<dim>::Hdiv),
       get_ria_vector(deg),
       std::vector<ComponentMask>(PolynomialsRT_Bubbles<dim>::n_polynomials(deg),
-                                 std::vector<bool>(dim, true)))
+                                 ComponentMask(std::vector<bool>(dim, true))))
 {
   Assert(dim >= 2, ExcImpossibleInDim(dim));
   Assert(
@@ -307,7 +307,7 @@ template <int dim>
 void
 FE_RT_Bubbles<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->generalized_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),

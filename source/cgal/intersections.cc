@@ -22,8 +22,6 @@
 #ifdef DEAL_II_WITH_CGAL
 
 #  include <deal.II/base/quadrature_lib.h>
-#  include <deal.II/base/std_cxx17/optional.h>
-#  include <deal.II/base/std_cxx17/variant.h>
 #  include <deal.II/base/utilities.h>
 
 #  include <deal.II/fe/mapping.h>
@@ -55,7 +53,9 @@
 #  include <deal.II/cgal/utilities.h>
 
 #  include <fstream>
+#  include <optional>
 #  include <type_traits>
+#  include <variant>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -83,8 +83,7 @@ namespace CGALWrappers
 
   struct FaceInfo2
   {
-    FaceInfo2()
-    {}
+    FaceInfo2() = default;
     int nesting_level;
     bool
     in_domain()
@@ -130,7 +129,7 @@ namespace CGALWrappers
        * what we want to use because we like to use std data types.
        */
       template <typename... Types>
-      std_cxx17::optional<std_cxx17::variant<Types...>>
+      std::optional<std::variant<Types...>>
       convert_boost_to_std(const boost::optional<boost::variant<Types...>> &x)
       {
         if (x)
@@ -155,7 +154,7 @@ namespace CGALWrappers
 
 
     void
-    mark_domains(CDT &                 ct,
+    mark_domains(CDT                  &ct,
                  Face_handle           start,
                  int                   index,
                  std::list<CDT::Edge> &border)
@@ -214,17 +213,17 @@ namespace CGALWrappers
 
     // Collection of utilities that compute intersection between simplices
     // identified by array of points. The return type is the one of
-    // CGAL::intersection(), i.e. a std_cxx17::optional<std_cxx17::variant<>>.
+    // CGAL::intersection(), i.e. a std::optional<std::variant<>>.
     // Intersection between 2d and 3d objects and 1d/3d objects are available
     // only with CGAL versions greater or equal than 5.5, hence the
     // corresponding functions are guarded by #ifdef directives. All the
     // signatures follow the convection that the first entity has an intrinsic
     // dimension higher than the second one.
 
-    std_cxx17::optional<std_cxx17::variant<CGALPoint2,
-                                           CGALSegment2,
-                                           CGALTriangle2,
-                                           std::vector<CGALPoint2>>>
+    std::optional<std::variant<CGALPoint2,
+                               CGALSegment2,
+                               CGALTriangle2,
+                               std::vector<CGALPoint2>>>
     compute_intersection_triangle_triangle(
       const ArrayView<const Point<2>> &triangle0,
       const ArrayView<const Point<2>> &triangle1)
@@ -251,7 +250,7 @@ namespace CGALWrappers
     }
 
 
-    std_cxx17::optional<std_cxx17::variant<CGALPoint2, CGALSegment2>>
+    std::optional<std::variant<CGALPoint2, CGALSegment2>>
     compute_intersection_triangle_segment(
       const ArrayView<const Point<2>> &triangle,
       const ArrayView<const Point<2>> &segment)
@@ -312,7 +311,7 @@ namespace CGALWrappers
 
 
 
-    std_cxx17::optional<std_cxx17::variant<CGALPoint3, CGALSegment3>>
+    std::optional<std::variant<CGALPoint3, CGALSegment3>>
     compute_intersection_tetra_segment(
       const ArrayView<const Point<3>> &tetrahedron,
       const ArrayView<const Point<3>> &segment)
@@ -352,10 +351,10 @@ namespace CGALWrappers
 
 
     // tetra, triangle
-    std_cxx17::optional<std_cxx17::variant<CGALPoint3,
-                                           CGALSegment3,
-                                           CGALTriangle3,
-                                           std::vector<CGALPoint3>>>
+    std::optional<std::variant<CGALPoint3,
+                               CGALSegment3,
+                               CGALTriangle3,
+                               std::vector<CGALPoint3>>>
     compute_intersection_tetra_triangle(
       const ArrayView<const Point<3>> &tetrahedron,
       const ArrayView<const Point<3>> &triangle)
@@ -408,7 +407,7 @@ namespace CGALWrappers
 
       if (!intersection_test.empty())
         {
-          const auto &       poly      = intersection_test[0].outer_boundary();
+          const auto        &poly      = intersection_test[0].outer_boundary();
           const unsigned int size_poly = poly.size();
           if (size_poly == 3)
             {
@@ -828,8 +827,8 @@ namespace CGALWrappers
   compute_intersection_of_cells(
     const typename Triangulation<dim0, spacedim>::cell_iterator &cell0,
     const typename Triangulation<dim1, spacedim>::cell_iterator &cell1,
-    const Mapping<dim0, spacedim> &                              mapping0,
-    const Mapping<dim1, spacedim> &                              mapping1,
+    const Mapping<dim0, spacedim>                               &mapping0,
+    const Mapping<dim1, spacedim>                               &mapping1,
     const double                                                 tol)
   {
     Assert(mapping0.get_vertices(cell0).size() ==
@@ -881,8 +880,8 @@ std::vector<std::array<Point<spacedim>, dim1 + 1>>
 compute_intersection_of_cells(
   const typename Triangulation<dim0, spacedim>::cell_iterator &cell0,
   const typename Triangulation<dim1, spacedim>::cell_iterator &cell1,
-  const Mapping<dim0, spacedim> &                              mapping0,
-  const Mapping<dim1, spacedim> &                              mapping1,
+  const Mapping<dim0, spacedim>                               &mapping0,
+  const Mapping<dim1, spacedim>                               &mapping1,
   const double                                                 tol)
 {
   (void)cell0;

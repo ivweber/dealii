@@ -102,13 +102,12 @@ test()
   // IndexSets and constraints
   const IndexSet &locally_owned_dofs_euler =
     dof_handler_euler.locally_owned_dofs();
-  IndexSet locally_relevant_dofs_euler;
-  DoFTools::extract_locally_relevant_dofs(dof_handler_euler,
-                                          locally_relevant_dofs_euler);
+  const IndexSet locally_relevant_dofs_euler =
+    DoFTools::extract_locally_relevant_dofs(dof_handler_euler);
 
   const IndexSet &locally_owned_dofs = dof_handler.locally_owned_dofs();
-  IndexSet        locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet  locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   // constraints:
   AffineConstraints<double> constraints_euler;
@@ -160,7 +159,7 @@ test()
   matrix_free->initialize_dof_vector(dst3);
   matrix_free->initialize_dof_vector(dst4);
 
-  for (unsigned int i = 0; i < src.local_size(); ++i)
+  for (unsigned int i = 0; i < src.locally_owned_size(); ++i)
     src.local_element(i) = random_value<NumberType>();
 
   MatrixFreeOperators::MassOperator<
@@ -194,7 +193,7 @@ test()
       for (const unsigned int vertex_no : GeometryInfo<dim>::vertex_indices())
         if (vertex_touched[cell->vertex_index(vertex_no)] == false)
           {
-            Point<dim> &   v = cell->vertex(vertex_no);
+            Point<dim>    &v = cell->vertex(vertex_no);
             Tensor<1, dim> d;
             for (unsigned int i = 0; i < dim; ++i)
               d[i] = displacement_function.value(v, i);

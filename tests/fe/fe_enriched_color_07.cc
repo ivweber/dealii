@@ -92,8 +92,8 @@ public:
   {}
 
   void
-  initialize(const Point<dim> & center,
-             const double &     sigma,
+  initialize(const Point<dim>  &center,
+             const double      &sigma,
              const std::string &func_expr);
   double
   value(const Point<dim> &p, const unsigned int component = 0) const;
@@ -101,13 +101,13 @@ public:
   gradient(const Point<dim> &p, const unsigned int component = 0) const;
   virtual void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<double> &          value_list) const;
+             std::vector<double>           &value_list) const;
 };
 
 template <int dim>
 void
-SigmaFunction<dim>::initialize(const Point<dim> & _center,
-                               const double &     sigma,
+SigmaFunction<dim>::initialize(const Point<dim>  &_center,
+                               const double      &sigma,
                                const std::string &func_expr)
 {
   center = _center;
@@ -135,7 +135,7 @@ SigmaFunction<dim>::initialize(const Point<dim> & _center,
 
 template <int dim>
 inline double
-SigmaFunction<dim>::value(const Point<dim> & p,
+SigmaFunction<dim>::value(const Point<dim>  &p,
                           const unsigned int component) const
 {
   const Point<dim> d(p - center);
@@ -145,7 +145,7 @@ SigmaFunction<dim>::value(const Point<dim> & p,
 
 template <int dim>
 inline Tensor<1, dim>
-SigmaFunction<dim>::gradient(const Point<dim> & p,
+SigmaFunction<dim>::gradient(const Point<dim>  &p,
                              const unsigned int component) const
 {
   const Point<dim> d(p - center);
@@ -155,7 +155,7 @@ SigmaFunction<dim>::gradient(const Point<dim> & p,
 template <int dim>
 void
 SigmaFunction<dim>::value_list(const std::vector<Point<dim>> &points,
-                               std::vector<double> &          value_list) const
+                               std::vector<double>           &value_list) const
 {
   const unsigned int n_points = points.size();
 
@@ -203,7 +203,7 @@ template <int dim>
 class SplineEnrichmentFunction : public Function<dim>
 {
 public:
-  SplineEnrichmentFunction(const Point<dim> &         origin,
+  SplineEnrichmentFunction(const Point<dim>          &origin,
                            const std::vector<double> &interpolation_points_1d,
                            const std::vector<double> &interpolation_values_1d)
     : Function<dim>(1)
@@ -267,23 +267,23 @@ struct ParameterCollection
 {
   ParameterCollection(const std::string &file_name);
 
-  ParameterCollection(const int &                dim,
-                      const double &             size,
-                      const unsigned int &       shape,
-                      const unsigned int &       global_refinement,
-                      const unsigned int &       cycles,
-                      const unsigned int &       fe_base_degree,
-                      const unsigned int &       fe_enriched_degree,
-                      const unsigned int &       max_iterations,
-                      const double &             tolerance,
-                      const std::string &        rhs_value_expr,
-                      const std::string &        boundary_value_expr,
-                      const std::string &        rhs_radial_problem,
-                      const std::string &        boundary_radial_problem,
-                      const std::string &        exact_soln_expr,
-                      const unsigned int &       patches,
-                      const unsigned int &       debug_level,
-                      const unsigned int &       n_enrichments,
+  ParameterCollection(const int                 &dim,
+                      const double              &size,
+                      const unsigned int        &shape,
+                      const unsigned int        &global_refinement,
+                      const unsigned int        &cycles,
+                      const unsigned int        &fe_base_degree,
+                      const unsigned int        &fe_enriched_degree,
+                      const unsigned int        &max_iterations,
+                      const double              &tolerance,
+                      const std::string         &rhs_value_expr,
+                      const std::string         &boundary_value_expr,
+                      const std::string         &rhs_radial_problem,
+                      const std::string         &boundary_radial_problem,
+                      const std::string         &exact_soln_expr,
+                      const unsigned int        &patches,
+                      const unsigned int        &debug_level,
+                      const unsigned int        &n_enrichments,
                       const std::vector<double> &points_enrichments,
                       const std::vector<double> &radii_predicates,
                       const std::vector<double> &sigmas);
@@ -503,23 +503,23 @@ ParameterCollection::ParameterCollection(const std::string &file_name)
 
 
 ParameterCollection::ParameterCollection(
-  const int &                dim,
-  const double &             size,
-  const unsigned int &       shape,
-  const unsigned int &       global_refinement,
-  const unsigned int &       cycles,
-  const unsigned int &       fe_base_degree,
-  const unsigned int &       fe_enriched_degree,
-  const unsigned int &       max_iterations,
-  const double &             tolerance,
-  const std::string &        rhs_value_expr,
-  const std::string &        boundary_value_expr,
-  const std::string &        rhs_radial_problem,
-  const std::string &        boundary_radial_problem,
-  const std::string &        exact_soln_expr,
-  const unsigned int &       patches,
-  const unsigned int &       debug_level,
-  const unsigned int &       n_enrichments,
+  const int                 &dim,
+  const double              &size,
+  const unsigned int        &shape,
+  const unsigned int        &global_refinement,
+  const unsigned int        &cycles,
+  const unsigned int        &fe_base_degree,
+  const unsigned int        &fe_enriched_degree,
+  const unsigned int        &max_iterations,
+  const double              &tolerance,
+  const std::string         &rhs_value_expr,
+  const std::string         &boundary_value_expr,
+  const std::string         &rhs_radial_problem,
+  const std::string         &boundary_radial_problem,
+  const std::string         &exact_soln_expr,
+  const unsigned int        &patches,
+  const unsigned int        &debug_level,
+  const unsigned int        &n_enrichments,
   const std::vector<double> &points_enrichments,
   const std::vector<double> &radii_predicates,
   const std::vector<double> &sigmas)
@@ -609,16 +609,16 @@ ParameterCollection::print()
 class EstimateEnrichmentFunction
 {
 public:
-  EstimateEnrichmentFunction(const Point<1> &   center,
-                             const double &     domain_size,
-                             const double &     sigma,
+  EstimateEnrichmentFunction(const Point<1>    &center,
+                             const double      &domain_size,
+                             const double      &sigma,
                              const std::string &rhs_expr,
                              const std::string &boundary_expr,
                              const unsigned int refinement = 11);
-  EstimateEnrichmentFunction(const Point<1> &   center,
-                             const double &     left_bound,
-                             const double &     right_bound,
-                             const double &     sigma,
+  EstimateEnrichmentFunction(const Point<1>    &center,
+                             const double      &left_bound,
+                             const double      &right_bound,
+                             const double      &sigma,
                              const std::string &rhs_expr,
                              const std::string &boundary_expr,
                              const unsigned int refinement = 11);
@@ -667,9 +667,9 @@ private:
 };
 
 EstimateEnrichmentFunction::EstimateEnrichmentFunction(
-  const Point<1> &   center,
-  const double &     domain_size,
-  const double &     sigma,
+  const Point<1>    &center,
+  const double      &domain_size,
+  const double      &sigma,
   const std::string &rhs_expr,
   const std::string &boundary_expr,
   const unsigned int refinement)
@@ -689,10 +689,10 @@ EstimateEnrichmentFunction::EstimateEnrichmentFunction(
 
 
 EstimateEnrichmentFunction::EstimateEnrichmentFunction(
-  const Point<1> &   center,
-  const double &     left_bound,
-  const double &     right_bound,
-  const double &     sigma,
+  const Point<1>    &center,
+  const double      &left_bound,
+  const double      &right_bound,
+  const double      &sigma,
   const std::string &rhs_expr,
   const std::string &boundary_expr,
   const unsigned int refinement)
@@ -910,7 +910,7 @@ EstimateEnrichmentFunction::evaluate_at_x_values(
 
 
 double
-EstimateEnrichmentFunction::value(const Point<1> &    p,
+EstimateEnrichmentFunction::value(const Point<1>     &p,
                                   const unsigned int &component)
 {
   return VectorTools::point_value(dof_handler, solution, p);
@@ -988,7 +988,7 @@ plot_shape_function(DoFHandler<dim> &dof_handler, unsigned int patches = 5)
         dealii::Utilities::int_to_string(0);
 
       const std::string filename = base_filename + ".gp";
-      std::ofstream     f(filename.c_str());
+      std::ofstream     f(filename);
 
       f << "set terminal png size 400,410 enhanced font \"Helvetica,8\""
         << std::endl
@@ -1030,7 +1030,7 @@ plot_shape_function(DoFHandler<dim> &dof_handler, unsigned int patches = 5)
   data_out.build_patches(patches);
 
   std::string   filename = "shape_functions.vtu";
-  std::ofstream output(filename.c_str());
+  std::ofstream output(filename);
   data_out.write_vtu(output);
 
   std::cout << "...finished plotting shape functions" << std::endl;
@@ -1339,12 +1339,15 @@ LaplaceProblem<dim>::build_fe_space()
   pcout << "...building fe space" << std::endl;
 
   make_enrichment_functions();
-  static ColorEnriched::Helper<dim> fe_space(fe_base,
-                                             fe_enriched,
-                                             vec_predicates,
-                                             vec_enrichments);
+
+  static std::unique_ptr<ColorEnriched::Helper<dim>> fe_space;
+  fe_space = std::make_unique<ColorEnriched::Helper<dim>>(fe_base,
+                                                          fe_enriched,
+                                                          vec_predicates,
+                                                          vec_enrichments);
+
   fe_collection = std::make_shared<const hp::FECollection<dim>>(
-    fe_space.build_fe_collection(dof_handler));
+    fe_space->build_fe_collection(dof_handler));
   pcout << "size of fe collection: " << fe_collection->size() << std::endl;
 
   if (prm.debug_level == 9)
@@ -1358,7 +1361,7 @@ LaplaceProblem<dim>::build_fe_space()
             "fe_indices" + dealii::Utilities::int_to_string(dim) + "_p" +
             dealii::Utilities::int_to_string(0);
           const std::string filename = base_filename + ".gp";
-          std::ofstream     f(filename.c_str());
+          std::ofstream     f(filename);
 
           f << "set terminal png size 400,410 enhanced font \"Helvetica,8\""
             << std::endl
@@ -1388,7 +1391,7 @@ LaplaceProblem<dim>::build_fe_space()
             "cell_id" + dealii::Utilities::int_to_string(dim) + "_p" +
             dealii::Utilities::int_to_string(0);
           const std::string filename = base_filename + ".gp";
-          std::ofstream     f(filename.c_str());
+          std::ofstream     f(filename);
 
           f << "set terminal png size 400,410 enhanced font \"Helvetica,8\""
             << std::endl
@@ -1436,9 +1439,8 @@ LaplaceProblem<dim>::setup_system()
   DoFRenumbering::subdomain_wise(dof_handler);
   std::vector<IndexSet> locally_owned_dofs_per_proc =
     DoFTools::locally_owned_dofs_per_subdomain(dof_handler);
-  locally_owned_dofs = locally_owned_dofs_per_proc[this_mpi_process];
-  locally_relevant_dofs.clear();
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  locally_owned_dofs    = locally_owned_dofs_per_proc[this_mpi_process];
+  locally_relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   constraints.clear();
   constraints.reinit(locally_relevant_dofs);
@@ -1669,7 +1671,7 @@ LaplaceProblem<dim>::output_results(const unsigned int cycle)
       std::string filename = "solution-";
       filename += Utilities::to_string(cycle);
       filename += ".vtk";
-      std::ofstream output(filename.c_str());
+      std::ofstream output(filename);
 
       DataOut<dim> data_out;
       data_out.attach_dof_handler(dof_handler);
@@ -1843,158 +1845,119 @@ main(int argc, char **argv)
 {
   Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
   MPILogInitAll                    all;
+
+  /*
+   * Case 1: single source with known solution
+   */
   {
-    /*
-     * Case 1: single source with known solution
-     */
-    {
-      ParameterCollection prm(
-        2,     // dimension
-        2,     // domain size
-        1,     // cube shape
-        3,     // global refinement
-        5,     // num of cycles grid is refined and solved again
-        1,     // fe base degree
-        1,     // fe enriched degree
-        50000, // max iterations
-        1e-9,  // tolerance
-        // rhs value
-        "-(exp(-(x*x + y*y)/(2*sigma*sigma))*(- 2*sigma*sigma + x*x + y*y))/(2*sigma*sigma*sigma*sigma*sigma*sigma*pi)",
-        // boundary value
-        "1.0/(2*pi*sigma*sigma)*exp(-(x*x + y*y)/(2*sigma*sigma))",
-        // rhs value for radial problem solved to find enrichment function
-        "-(exp(-(x*x)/(2*sigma*sigma))*(- 2*sigma*sigma + x*x))/(2*sigma*sigma*sigma*sigma*sigma*sigma*pi)",
-        // boundary value for radial problem
-        "1.0/(2*pi*sigma*sigma)*exp(-(x*x)/(2*sigma*sigma))",
-        // exact solution expression. If null nothing is done
-        "1.0/(2*pi*sigma*sigma)*exp(-(x*x + y*y)/(2*sigma*sigma))",
-        1, // patches
-        1, // debug level
-        1, // num enrichments
-        // enrichment points interpreted 2 at a time if dimension is 2
-        {0, 0},
-        // radii defining different predicates
-        {0.4},
-        // sigmas defining different predicates
-        {0.1});
+    ParameterCollection prm(
+      2,     // dimension
+      2,     // domain size
+      1,     // cube shape
+      3,     // global refinement
+      2,     // num of cycles grid is refined and solved again
+      1,     // fe base degree
+      1,     // fe enriched degree
+      50000, // max iterations
+      1e-9,  // tolerance
+      // rhs value
+      "-(exp(-(x*x + y*y)/(2*sigma*sigma))*(- 2*sigma*sigma + x*x + y*y))/(2*sigma*sigma*sigma*sigma*sigma*sigma*pi)",
+      // boundary value
+      "1.0/(2*pi*sigma*sigma)*exp(-(x*x + y*y)/(2*sigma*sigma))",
+      // rhs value for radial problem solved to find enrichment function
+      "-(exp(-(x*x)/(2*sigma*sigma))*(- 2*sigma*sigma + x*x))/(2*sigma*sigma*sigma*sigma*sigma*sigma*pi)",
+      // boundary value for radial problem
+      "1.0/(2*pi*sigma*sigma)*exp(-(x*x)/(2*sigma*sigma))",
+      // exact solution expression. If null nothing is done
+      "1.0/(2*pi*sigma*sigma)*exp(-(x*x + y*y)/(2*sigma*sigma))",
+      1, // patches
+      1, // debug level
+      1, // num enrichments
+      // enrichment points interpreted 2 at a time if dimension is 2
+      {0, 0},
+      // radii defining different predicates
+      {0.4},
+      // sigmas defining different predicates
+      {0.1});
+
+    LaplaceProblem<2> problem(prm);
+    problem.run();
+  }
+
+  /*
+   * Case 2: 3 sources
+   */
+  {
+    ParameterCollection prm(
+      2,     // dimension
+      4,     // domain size
+      1,     // cube shape
+      3,     // global refinement
+      1,     // num of cycles grid is refined and solved again
+      1,     // fe base degree
+      1,     // fe enriched degree
+      50000, // max iterations
+      1e-9,  // tolerance
+      // rhs value
+      "1.0/(2*pi*sigma*sigma)*exp(-(x*x + y*y)/(2*sigma*sigma))",
+      // boundary value
+      "0",
+      // rhs value for radial problem solved to find enrichment function
+      "1.0/(2*pi*sigma*sigma)*exp(-(x*x)/(2*sigma*sigma))",
+      // boundary value for radial problem
+      "0",
+      // exact solution expression. If null nothing is done
+      "",
+      1, // patches
+      1, // debug level
+      3, // num enrichments
+      // enrichment points interpreted 2 at a time if dimension is 2
+      {0.5, 0.5, 0, 0, -1, -1},
+      // radii defining different predicates
+      {0.4, 0.4, 0.4},
+      // sigmas defining different predicates
+      {0.1, 0.1, 0.1});
 
 
-      if (prm.dim == 2)
-        {
-          LaplaceProblem<2> problem(prm);
-          problem.run();
-        }
-      else if (prm.dim == 3)
-        {
-          LaplaceProblem<3> problem(prm);
-          problem.run();
-        }
-      else
-        AssertThrow(false,
-                    ExcMessage("Dimension incorrect. dim can be 2 or 3"));
-    }
+    LaplaceProblem<2> problem(prm);
+    problem.run();
+  }
 
+  /*
+   * Case 3: five sources 3d
+   */
+  {
+    ParameterCollection prm(
+      3,     // dimension
+      8,     // domain size
+      1,     // cube shape
+      4,     // global refinement
+      0,     // num of cycles grid is refined and solved again
+      1,     // fe base degree
+      1,     // fe enriched degree
+      50000, // max iterations
+      1e-9,  // tolerance
+      // rhs value
+      "1.0/(2*pi*sigma*sigma)*exp(-(x*x + y*y + z*z)/(2*sigma*sigma))",
+      // boundary value
+      "0",
+      // rhs value for radial problem solved to find enrichment function
+      "1.0/(2*pi*sigma*sigma)*exp(-(x*x)/(2*sigma*sigma))",
+      // boundary value for radial problem
+      "0",
+      // exact solution expression. If null nothing is done
+      "",
+      1, // patches
+      1, // debug level
+      5, // num enrichments
+      // enrichment points interpreted 3 at a time if dimension is 3
+      {1.5, 1.5, 1.5, 1, 1, 1, 0, 0, 0, -1, -1, -1, 1, -1, -1},
+      // radii defining different predicates
+      {0.45, 0.45, 0.45, 0.45, 0.45},
+      // sigmas defining different predicates
+      {0.1, 0.1, 0.1, 0.1, 0.1});
 
-
-    /*
-     * Case 2: 3 sources
-     */
-    {
-      ParameterCollection prm(
-        2,     // dimension
-        4,     // domain size
-        1,     // cube shape
-        3,     // global refinement
-        4,     // num of cycles grid is refined and solved again
-        1,     // fe base degree
-        1,     // fe enriched degree
-        50000, // max iterations
-        1e-9,  // tolerance
-        // rhs value
-        "1.0/(2*pi*sigma*sigma)*exp(-(x*x + y*y)/(2*sigma*sigma))",
-        // boundary value
-        "0",
-        // rhs value for radial problem solved to find enrichment function
-        "1.0/(2*pi*sigma*sigma)*exp(-(x*x)/(2*sigma*sigma))",
-        // boundary value for radial problem
-        "0",
-        // exact solution expression. If null nothing is done
-        "",
-        1, // patches
-        1, // debug level
-        3, // num enrichments
-        // enrichment points interpreted 2 at a time if dimension is 2
-        {0.5, 0.5, 0, 0, -1, -1},
-        // radii defining different predicates
-        {0.4, 0.4, 0.4},
-        // sigmas defining different predicates
-        {0.1, 0.1, 0.1});
-
-
-      if (prm.dim == 2)
-        {
-          LaplaceProblem<2> problem(prm);
-          problem.run();
-        }
-      else if (prm.dim == 3)
-        {
-          LaplaceProblem<3> problem(prm);
-          problem.run();
-        }
-      else
-        AssertThrow(false,
-                    ExcMessage("Dimension incorrect. dim can be 2 or 3"));
-    }
-
-
-    /*
-     * Case 3: five sources 3d
-     */
-    {
-      ParameterCollection prm(
-        3,     // dimension
-        8,     // domain size
-        1,     // cube shape
-        4,     // global refinement
-        2,     // num of cycles grid is refined and solved again
-        1,     // fe base degree
-        1,     // fe enriched degree
-        50000, // max iterations
-        1e-9,  // tolerance
-        // rhs value
-        "1.0/(2*pi*sigma*sigma)*exp(-(x*x + y*y + z*z)/(2*sigma*sigma))",
-        // boundary value
-        "0",
-        // rhs value for radial problem solved to find enrichment function
-        "1.0/(2*pi*sigma*sigma)*exp(-(x*x)/(2*sigma*sigma))",
-        // boundary value for radial problem
-        "0",
-        // exact solution expression. If null nothing is done
-        "",
-        1, // patches
-        1, // debug level
-        5, // num enrichments
-        // enrichment points interpreted 3 at a time if dimension is 3
-        {1.5, 1.5, 1.5, 1, 1, 1, 0, 0, 0, -1, -1, -1, 1, -1, -1},
-        // radii defining different predicates
-        {0.45, 0.45, 0.45, 0.45, 0.45},
-        // sigmas defining different predicates
-        {0.1, 0.1, 0.1, 0.1, 0.1});
-
-
-      if (prm.dim == 2)
-        {
-          LaplaceProblem<2> problem(prm);
-          problem.run();
-        }
-      else if (prm.dim == 3)
-        {
-          LaplaceProblem<3> problem(prm);
-          problem.run();
-        }
-      else
-        AssertThrow(false,
-                    ExcMessage("Dimension incorrect. dim can be 2 or 3"));
-    }
+    LaplaceProblem<3> problem(prm);
+    problem.run();
   }
 }

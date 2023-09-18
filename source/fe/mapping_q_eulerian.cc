@@ -28,7 +28,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -44,11 +43,11 @@ DEAL_II_NAMESPACE_OPEN
 // .... MAPPING Q EULERIAN CONSTRUCTOR
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 MappingQEulerian<dim, VectorType, spacedim>::MappingQEulerian(
   const unsigned int               degree,
   const DoFHandler<dim, spacedim> &euler_dof_handler,
-  const VectorType &               euler_vector,
+  const VectorType                &euler_vector,
   const unsigned int               level)
   : MappingQ<dim, spacedim>(degree)
   , euler_vector(&euler_vector)
@@ -62,7 +61,7 @@ MappingQEulerian<dim, VectorType, spacedim>::MappingQEulerian(
 
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 std::unique_ptr<Mapping<dim, spacedim>>
 MappingQEulerian<dim, VectorType, spacedim>::clone() const
 {
@@ -74,7 +73,7 @@ MappingQEulerian<dim, VectorType, spacedim>::clone() const
 
 // .... SUPPORT QUADRATURE CONSTRUCTOR
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 MappingQEulerian<dim, VectorType, spacedim>::SupportQuadrature::
   SupportQuadrature(const unsigned int map_degree)
   : Quadrature<dim>(Utilities::fixed_power<dim>(map_degree + 1))
@@ -99,7 +98,7 @@ MappingQEulerian<dim, VectorType, spacedim>::SupportQuadrature::
 
 // .... COMPUTE MAPPING SUPPORT POINTS
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 boost::container::small_vector<Point<spacedim>,
                                GeometryInfo<dim>::vertices_per_cell>
 MappingQEulerian<dim, VectorType, spacedim>::get_vertices(
@@ -118,7 +117,7 @@ MappingQEulerian<dim, VectorType, spacedim>::get_vertices(
 
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 std::vector<Point<spacedim>>
 MappingQEulerian<dim, VectorType, spacedim>::compute_mapping_support_points(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell) const
@@ -191,12 +190,12 @@ MappingQEulerian<dim, VectorType, spacedim>::compute_mapping_support_points(
 
 
 
-template <int dim, class VectorType, int spacedim>
+template <int dim, typename VectorType, int spacedim>
 CellSimilarity::Similarity
 MappingQEulerian<dim, VectorType, spacedim>::fill_fe_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const CellSimilarity::Similarity,
-  const Quadrature<dim> &                                  quadrature,
+  const Quadrature<dim>                                   &quadrature,
   const typename Mapping<dim, spacedim>::InternalDataBase &internal_data,
   internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &output_data) const

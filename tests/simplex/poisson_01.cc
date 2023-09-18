@@ -98,9 +98,9 @@ template <int dim, int spacedim = dim>
 void
 test(const Triangulation<dim, spacedim> &tria,
      const FiniteElement<dim, spacedim> &fe,
-     const Quadrature<dim> &             quad,
-     const hp::QCollection<dim - 1> &    face_quad,
-     const Mapping<dim, spacedim> &      mapping,
+     const Quadrature<dim>              &quad,
+     const hp::QCollection<dim - 1>     &face_quad,
+     const Mapping<dim, spacedim>       &mapping,
      const double                        r_boundary,
      const bool                          do_use_fe_face_values = true)
 {
@@ -149,8 +149,8 @@ test(const Triangulation<dim, spacedim> &tria,
 
   const MPI_Comm comm = get_communicator(dof_handler.get_triangulation());
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
 
 #ifdef DEAL_II_WITH_TRILINOS

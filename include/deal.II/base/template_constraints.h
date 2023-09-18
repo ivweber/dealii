@@ -94,9 +94,9 @@ namespace internal
     struct nonesuch : private nonesuch_base
     {
       ~nonesuch()                = delete;
-      nonesuch(nonesuch const &) = delete;
+      nonesuch(const nonesuch &) = delete;
       void
-      operator=(nonesuch const &) = delete;
+      operator=(const nonesuch &) = delete;
     };
 
     template <class Default, template <class...> class Op, class... Args>
@@ -165,15 +165,6 @@ namespace internal
 {
   namespace TemplateConstraints
   {
-    // TODO: Once we are able to use DEAL_II_HAVE_CXX17, the following classes
-    // can be made much simpler with the help of fold expressions, see
-    // https://en.cppreference.com/w/cpp/language/fold
-
-    // helper struct for is_base_of_all and all_same_as
-    template <bool... Values>
-    struct BoolStorage;
-
-
     /**
      * A helper class whose `value` member is true or false depending on
      * whether all of the given boolean template arguments are `true`.
@@ -185,9 +176,7 @@ namespace internal
     template <bool... Values>
     struct all_true
     {
-      static constexpr bool value =
-        std::is_same<BoolStorage<Values..., true>,
-                     BoolStorage<true, Values...>>::value;
+      static constexpr bool value = (Values && ...);
     };
 
 
@@ -196,20 +185,9 @@ namespace internal
      * boolean template arguments are true.
      */
     template <bool... Values>
-    struct any_true;
-
-
-    template <bool V1, bool... Values>
-    struct any_true<V1, Values...>
+    struct any_true
     {
-      static constexpr bool value = V1 || any_true<Values...>::value;
-    };
-
-
-    template <>
-    struct any_true<>
-    {
-      static constexpr bool value = false;
+      static constexpr bool value = (Values || ...);
     };
   } // namespace TemplateConstraints
 } // namespace internal
@@ -224,7 +202,7 @@ template <class Base, class... Derived>
 struct is_base_of_all
 {
   static constexpr bool value = internal::TemplateConstraints::all_true<
-    std::is_base_of<Base, Derived>::value...>::value;
+    std::is_base_of_v<Base, Derived>...>::value;
 };
 
 
@@ -235,11 +213,11 @@ struct is_base_of_all
  * parameter pack are equal to the `Type` given as first template
  * argument. The result is stored in the member variable `value`.
  */
-template <class Type, class... Types>
+template <typename Type, class... Types>
 struct all_same_as
 {
   static constexpr bool value = internal::TemplateConstraints::all_true<
-    std::is_same<Type, Types>::value...>::value;
+    std::is_same_v<Type, Types>...>::value;
 };
 
 
@@ -250,11 +228,11 @@ struct all_same_as
  * parameter pack are equal to the `Type` given as first template
  * argument. The result is stored in the member variable `value`.
  */
-template <class Type, class... Types>
+template <typename Type, class... Types>
 struct is_same_as_any_of
 {
   static constexpr bool value = internal::TemplateConstraints::any_true<
-    std::is_same<Type, Types>::value...>::value;
+    std::is_same_v<Type, Types>...>::value;
 };
 
 
@@ -274,7 +252,7 @@ struct is_same_as_any_of
  * do with something like
  * @code
  *   template <typename T>
- *   typename std::enable_if<std::is_floating_point<T>::value, T>::type
+ *   typename std::enable_if<std::is_floating_point_v<T>, T>::type
  *   abs (const T t);
  * @endcode
  * which declares a function template `abs()` that can only be
@@ -306,7 +284,7 @@ struct enable_if_all
  * do with something like
  * @code
  *   template <typename T>
- *   std::enable_if_t<std::is_floating_point<T>::value, T>
+ *   std::enable_if_t<std::is_floating_point_v<T>, T>
  *   abs (const T t);
  * @endcode
  * which declares a function template `abs()` that can only be
@@ -342,7 +320,7 @@ constexpr bool has_begin_and_end =
  * @deprecated Use `std_cxx20::identity_type` instead.
  */
 template <typename T>
-using identity DEAL_II_DEPRECATED_EARLY = std_cxx20::type_identity<T>;
+using identity DEAL_II_DEPRECATED = std_cxx20::type_identity<T>;
 
 
 /**
@@ -481,8 +459,7 @@ template <typename T, typename U>
 struct ProductType
 {
   using type =
-    typename internal::ProductTypeImpl<typename std::decay<T>::type,
-                                       typename std::decay<U>::type>::type;
+    typename internal::ProductTypeImpl<std::decay_t<T>, std::decay_t<U>>::type;
 };
 
 namespace internal
@@ -717,8 +694,8 @@ namespace concepts
    * example, on class Triangulation.
    */
   template <int dim, int spacedim>
-  concept is_valid_dim_spacedim = (dim >= 1 && spacedim <= 3 &&
-                                   dim <= spacedim);
+  concept is_valid_dim_spacedim =
+    (dim >= 1 && spacedim <= 3 && dim <= spacedim);
 
   namespace internal
   {
@@ -737,10 +714,6 @@ namespace concepts
     template <typename Number>
     inline constexpr bool is_dealii_vector_type<dealii::BlockVector<Number>> =
       true;
-
-    template <typename Number>
-    inline constexpr bool
-      is_dealii_vector_type<dealii::LinearAlgebra::Vector<Number>> = true;
 
     template <typename Number>
     inline constexpr bool
@@ -876,9 +849,8 @@ namespace concepts
    * not.
    */
   template <typename VectorType>
-  concept is_writable_dealii_vector_type = is_dealii_vector_type<VectorType> &&
-                                           (std::is_const_v<VectorType> ==
-                                            false);
+  concept is_writable_dealii_vector_type =
+    is_dealii_vector_type<VectorType> && (std::is_const_v<VectorType> == false);
 
   /**
    * A concept that tests whether a given template argument is a deal.II
@@ -977,7 +949,88 @@ namespace concepts
   template <typename MeshType>
   concept is_triangulation_or_dof_handler =
     internal::is_triangulation_or_dof_handler<MeshType>;
+
+  /**
+   * A concept that tests whether a class `VectorType` has the required
+   * interface to serve as a vector in vector-space operations -- principally
+   * what is required to run iterative solvers: things such as norms, dot
+   * products, etc.
+   */
+  template <typename VectorType>
+  concept is_vector_space_vector = requires(VectorType                      U,
+                                            VectorType                      V,
+                                            VectorType                      W,
+                                            typename VectorType::value_type a,
+                                            typename VectorType::value_type b,
+                                            typename VectorType::value_type s) {
+    // Check local type requirements:
+    typename VectorType::value_type;
+    typename VectorType::size_type;
+    typename VectorType::real_type;
+
+    // Check some assignment and reinit operations;
+    U.reinit(V);
+    U.reinit(V, /* omit_zeroing_entries= */ true);
+
+    U = V;
+    U = a; // assignment of scalar
+
+    U.equ(a, V);
+
+    // Check scaling operations
+    U *= a;
+    U /= a;
+
+    U.scale(V);
+
+    // Vector additions:
+    U += V;
+    U -= V;
+
+    U.add(a);
+    U.add(a, V);
+    U.add(a, V, b, W);
+
+    U.sadd(s, a, V);
+
+    // Norms and similar stuff:
+    {
+      U.mean_value()
+    } -> std::convertible_to<typename VectorType::value_type>;
+
+    {
+      U.l1_norm()
+    } -> std::convertible_to<typename VectorType::real_type>;
+
+    {
+      U.l2_norm()
+    } -> std::convertible_to<typename VectorType::real_type>;
+
+    {
+      U.linfty_norm()
+    } -> std::convertible_to<typename VectorType::real_type>;
+
+    // Dot products:
+    {
+      U *V
+    } -> std::convertible_to<typename VectorType::value_type>;
+
+    {
+      U.add_and_dot(a, V, W)
+    } -> std::convertible_to<typename VectorType::value_type>;
+
+    // Some queries:
+    {
+      U.size()
+    } -> std::convertible_to<typename VectorType::size_type>;
+
+    {
+      U.all_zero()
+    } -> std::same_as<bool>;
+  };
+
 #endif
+
 } // namespace concepts
 
 

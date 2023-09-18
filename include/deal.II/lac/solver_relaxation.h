@@ -67,7 +67,7 @@ public:
   /**
    * Constructor.
    */
-  SolverRelaxation(SolverControl &       cn,
+  SolverRelaxation(SolverControl        &cn,
                    const AdditionalData &data = AdditionalData());
 
   /**
@@ -75,17 +75,17 @@ public:
    * R(x_k,b)$. The matrix <i>A</i> itself is only used to compute the
    * residual.
    */
-  template <typename MatrixType, class RelaxationType>
+  template <typename MatrixType, typename RelaxationType>
   void
-  solve(const MatrixType &    A,
-        VectorType &          x,
-        const VectorType &    b,
+  solve(const MatrixType     &A,
+        VectorType           &x,
+        const VectorType     &b,
         const RelaxationType &R);
 };
 
 //----------------------------------------------------------------------//
 
-template <class VectorType>
+template <typename VectorType>
 SolverRelaxation<VectorType>::SolverRelaxation(SolverControl &cn,
                                                const AdditionalData &)
   : SolverBase<VectorType>(cn)
@@ -93,12 +93,12 @@ SolverRelaxation<VectorType>::SolverRelaxation(SolverControl &cn,
 
 
 
-template <class VectorType>
-template <typename MatrixType, class RelaxationType>
+template <typename VectorType>
+template <typename MatrixType, typename RelaxationType>
 void
-SolverRelaxation<VectorType>::solve(const MatrixType &    A,
-                                    VectorType &          x,
-                                    const VectorType &    b,
+SolverRelaxation<VectorType>::solve(const MatrixType     &A,
+                                    VectorType           &x,
+                                    const VectorType     &b,
                                     const RelaxationType &R)
 {
   GrowingVectorMemory<VectorType> mem;
@@ -106,10 +106,10 @@ SolverRelaxation<VectorType>::solve(const MatrixType &    A,
 
   // Memory allocation
   typename VectorMemory<VectorType>::Pointer Vr(mem);
-  VectorType &                               r = *Vr;
+  VectorType                                &r = *Vr;
   r.reinit(x);
   typename VectorMemory<VectorType>::Pointer Vd(mem);
-  VectorType &                               d = *Vd;
+  VectorType                                &d = *Vd;
   d.reinit(x);
 
   LogStream::Prefix prefix("Relaxation");

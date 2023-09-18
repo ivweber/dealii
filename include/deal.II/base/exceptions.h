@@ -18,7 +18,9 @@
 
 #include <deal.II/base/config.h>
 
+DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <Kokkos_Core.hpp>
+DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #include <exception>
 #include <ostream>
@@ -1421,14 +1423,14 @@ namespace deal_II_exceptions
      *
      * @ref ExceptionBase
      */
-    template <class ExceptionType>
+    template <typename ExceptionType>
     [[noreturn]] void
     issue_error_noreturn(ExceptionHandling handling,
-                         const char *      file,
+                         const char       *file,
                          int               line,
-                         const char *      function,
-                         const char *      cond,
-                         const char *      exc_name,
+                         const char       *function,
+                         const char       *cond,
+                         const char       *exc_name,
                          ExceptionType     e)
     {
       // Fill the fields of the exception object
@@ -1471,16 +1473,16 @@ namespace deal_II_exceptions
      * @note This function is defined with a template for the same reasons as
      * issue_error_noreturn().
      */
-    template <class ExceptionType>
+    template <typename ExceptionType>
     void
-    issue_error_nothrow(const char *  file,
+    issue_error_nothrow(const char   *file,
                         int           line,
-                        const char *  function,
-                        const char *  cond,
-                        const char *  exc_name,
+                        const char   *function,
+                        const char   *cond,
+                        const char   *exc_name,
                         ExceptionType e) noexcept
     {
-      static_assert(std::is_base_of<ExceptionBase, ExceptionType>::value,
+      static_assert(std::is_base_of_v<ExceptionBase, ExceptionType>,
                     "The provided exception must inherit from ExceptionBase.");
       // Fill the fields of the exception object
       e.set_fields(file, line, function, cond, exc_name);

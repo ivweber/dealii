@@ -33,7 +33,7 @@ public:
 template <int dim>
 void
 BoundaryValues<dim>::vector_value(const Point<dim> &p,
-                                  Vector<double> &  values) const
+                                  Vector<double>   &values) const
 {
   (void)p;
   for (unsigned int i = 0; i < values.size(); ++i)
@@ -67,8 +67,8 @@ test()
   dof_handler.distribute_dofs(fe);
 
   AffineConstraints<Number> constraints;
-  IndexSet                  locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet            locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   constraints.reinit(locally_relevant_dofs);
 
@@ -111,14 +111,14 @@ test()
                          n_components,
                          Number,
                          VectorizedArrayType> &phi) {
-           phi.evaluate(false, true, false);
+           phi.evaluate(EvaluationFlags::gradients);
            for (unsigned int q = 0; q < phi.n_q_points; ++q)
              {
                phi.submit_symmetric_gradient(2.0 *
                                                phi.get_symmetric_gradient(q),
                                              q);
              }
-           phi.integrate(false, true);
+           phi.integrate(EvaluationFlags::gradients);
          });
 
   test.do_test();

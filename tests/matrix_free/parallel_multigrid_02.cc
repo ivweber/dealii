@@ -67,7 +67,7 @@ public:
 
   virtual void
   operator()(const unsigned int                                level,
-             LinearAlgebra::distributed::Vector<double> &      dst,
+             LinearAlgebra::distributed::Vector<double>       &dst,
              const LinearAlgebra::distributed::Vector<double> &src) const
   {
     ReductionControl solver_control(1e4, 1e-50, 1e-10);
@@ -86,19 +86,20 @@ template <int dim, int fe_degree, int n_q_points_1d, typename number>
 void
 do_test(const DoFHandler<dim> &dof)
 {
-  if (std::is_same<number, float>::value == true)
+  if (std::is_same_v<number, float> == true)
     {
       deallog.push("float");
     }
   else
-    {}
+    {
+    }
 
   deallog << "Testing " << dof.get_fe().get_name();
   deallog << std::endl;
   deallog << "Number of degrees of freedom: " << dof.n_dofs() << std::endl;
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof);
 
   // Dirichlet BC
   Functions::ZeroFunction<dim>                        zero_function;
@@ -172,8 +173,8 @@ do_test(const DoFHandler<dim> &dof)
       mg_additional_data.mg_level = level;
 
       AffineConstraints<double> level_constraints;
-      IndexSet                  relevant_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof, level, relevant_dofs);
+      const IndexSet            relevant_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof, level);
       level_constraints.reinit(relevant_dofs);
       level_constraints.add_lines(
         mg_constrained_dofs.get_boundary_indices(level));
@@ -234,7 +235,7 @@ do_test(const DoFHandler<dim> &dof)
     solver.solve(fine_matrix, sol, in, preconditioner);
   }
 
-  if (std::is_same<number, float>::value == true)
+  if (std::is_same_v<number, float> == true)
     deallog.pop();
 
   fine_matrix.clear();

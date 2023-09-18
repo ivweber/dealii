@@ -107,11 +107,26 @@ endforeach()
 # Custom targets for the testsuite:
 #
 
-# Setup tests:
-add_custom_target(setup_tests)
+#
+# Clear the test summary files that records how many tests have been configured.
+#
+set(_summary_files_prefix "${CMAKE_CURRENT_BINARY_DIR}/test_summary")
 
-# Remove all tests:
-add_custom_target(prune_tests)
+# Set up all tests and print a summary:
+add_custom_target(setup_tests
+  COMMAND ${CMAKE_COMMAND}
+    -D_summary_files_prefix="${_summary_files_prefix}"
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/print_summary_files.cmake
+  COMMENT "Setting up tests and printing test summary"
+  )
+
+# Remove all tests and also remove all test summary files:
+add_custom_target(prune_tests
+  COMMAND ${CMAKE_COMMAND}
+    -D_summary_files_prefix="${_summary_files_prefix}"
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/remove_summary_files.cmake
+  COMMENT "Cleaning tests and removing test summary files"
+  )
 
 foreach(_category ${_categories})
   set(_category_dir ${CMAKE_CURRENT_SOURCE_DIR}/${_category})
@@ -124,7 +139,8 @@ foreach(_category ${_categories})
     # Do not pass the generator with -G so that we use make instead of ninja
     # for the test projects. This is because calling ninja several times in
     # parallel for the same project will break the configuration.
-    set(_command ${CMAKE_COMMAND} ${_options} ${_category_dir} > /dev/null)
+
+    set(_command ${CMAKE_COMMAND} ${_options} ${_category_dir} > "${_summary_files_prefix}_${_category}")
   endif()
 
   add_custom_target(setup_tests_${_category}
@@ -148,25 +164,24 @@ foreach(_category ${_categories})
     )
 endforeach()
 
+#
+# Define a top-level "test" target that runs our quick tests wrapper.
+#
+
+add_custom_target(test
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/run_quick_tests.cmake
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  COMMENT "Running quicktests..."
+  USES_TERMINAL
+  )
+add_dependencies(test setup_tests_quick_tests)
 
 if(DEFINED DEAL_II_HAVE_TESTS_DIRECTORY)
-
   #
-  # Define a top-level "test" target that runs our quick tests wrapper.
-  #
-
-  # Use the first available build type (this prefers debug mode if available):
-  list(GET DEAL_II_BUILD_TYPES 0 _my_build)
-  add_custom_target(test
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=${_my_build} -P ${CMAKE_CURRENT_SOURCE_DIR}/run_quick_tests.cmake
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running quicktests..."
-    )
-
   # Depend on the library targets (to ensure that deal.II is actually
   # compiled), as well as on the setup_tests_quick_tests target to ensure
   # that quick tests are actually available.
-  add_dependencies(test setup_tests_quick_tests)
+  #
   foreach(_build ${DEAL_II_BUILD_TYPES})
     string(TOLOWER ${_build} _build_lowercase)
     add_dependencies(test ${DEAL_II_TARGET_NAME}_${_build_lowercase})
@@ -175,7 +190,6 @@ if(DEFINED DEAL_II_HAVE_TESTS_DIRECTORY)
   #
   # Add a dummy target to make files known to IDEs like qtcreator
   #
-
   file(GLOB _misc
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h

@@ -64,7 +64,7 @@ namespace hp
    *
    * @ingroup hp
    */
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   class FEValuesBase : public Subscriptor
   {
   public:
@@ -76,7 +76,7 @@ namespace hp
       const MappingCollection<dim, FEValuesType::space_dimension>
         &mapping_collection,
       const FECollection<dim, FEValuesType::space_dimension> &fe_collection,
-      const QCollection<q_dim> &                              q_collection,
+      const QCollection<q_dim>                               &q_collection,
       const UpdateFlags                                       update_flags);
 
     /**
@@ -88,7 +88,7 @@ namespace hp
       const MappingCollection<dim, FEValuesType::space_dimension>
         &mapping_collection,
       const FECollection<dim, FEValuesType::space_dimension> &fe_collection,
-      const std::vector<QCollection<q_dim>> &                 q_collection,
+      const std::vector<QCollection<q_dim>>                  &q_collection,
       const UpdateFlags                                       update_flags);
 
     /**
@@ -98,7 +98,7 @@ namespace hp
      */
     FEValuesBase(
       const FECollection<dim, FEValuesType::space_dimension> &fe_collection,
-      const QCollection<q_dim> &                              q_collection,
+      const QCollection<q_dim>                               &q_collection,
       const UpdateFlags                                       update_flags);
 
     /**
@@ -108,7 +108,7 @@ namespace hp
      */
     FEValuesBase(
       const FECollection<dim, FEValuesType::space_dimension> &fe_collection,
-      const std::vector<QCollection<q_dim>> &                 q_collection,
+      const std::vector<QCollection<q_dim>>                  &q_collection,
       const UpdateFlags                                       update_flags);
 
     /**
@@ -323,8 +323,8 @@ namespace hp
      * Constructor. Initialize this object with the given parameters.
      */
     FEValues(const MappingCollection<dim, spacedim> &mapping_collection,
-             const FECollection<dim, spacedim> &     fe_collection,
-             const QCollection<dim> &                q_collection,
+             const FECollection<dim, spacedim>      &fe_collection,
+             const QCollection<dim>                 &q_collection,
              const UpdateFlags                       update_flags);
 
 
@@ -334,7 +334,7 @@ namespace hp
      * MappingQ(1)) implicitly.
      */
     FEValues(const FECollection<dim, spacedim> &fe_collection,
-             const QCollection<dim> &           q_collection,
+             const QCollection<dim>            &q_collection,
              const UpdateFlags                  update_flags);
 
 
@@ -443,8 +443,8 @@ namespace hp
      * Constructor. Initialize this object with the given parameters.
      */
     FEFaceValues(const hp::MappingCollection<dim, spacedim> &mapping_collection,
-                 const hp::FECollection<dim, spacedim> &     fe_collection,
-                 const hp::QCollection<dim - 1> &            q_collection,
+                 const hp::FECollection<dim, spacedim>      &fe_collection,
+                 const hp::QCollection<dim - 1>             &q_collection,
                  const UpdateFlags                           update_flags);
 
     /**
@@ -457,7 +457,7 @@ namespace hp
      * this quadrature rule is use on all faces.
      */
     FEFaceValues(const hp::MappingCollection<dim, spacedim> &mapping_collection,
-                 const hp::FECollection<dim, spacedim> &     fe_collection,
+                 const hp::FECollection<dim, spacedim>      &fe_collection,
                  const std::vector<hp::QCollection<dim - 1>> &q_collections,
                  const UpdateFlags                            update_flags);
 
@@ -468,7 +468,7 @@ namespace hp
      * MappingQ(1)) implicitly.
      */
     FEFaceValues(const hp::FECollection<dim, spacedim> &fe_collection,
-                 const hp::QCollection<dim - 1> &       q_collection,
+                 const hp::QCollection<dim - 1>        &q_collection,
                  const UpdateFlags                      update_flags);
 
     /**
@@ -480,7 +480,7 @@ namespace hp
      * In the case that the collections only contains a single face quadrature,
      * this quadrature rule is use on all faces.
      */
-    FEFaceValues(const hp::FECollection<dim, spacedim> &      fe_collection,
+    FEFaceValues(const hp::FECollection<dim, spacedim>       &fe_collection,
                  const std::vector<hp::QCollection<dim - 1>> &q_collections,
                  const UpdateFlags                            update_flags);
 
@@ -547,7 +547,7 @@ namespace hp
      */
     template <bool lda>
     void
-    reinit(const TriaIterator<DoFCellAccessor<dim, spacedim, lda>> &   cell,
+    reinit(const TriaIterator<DoFCellAccessor<dim, spacedim, lda>>    &cell,
            const typename Triangulation<dim, spacedim>::face_iterator &face,
            const unsigned int q_index       = numbers::invalid_unsigned_int,
            const unsigned int mapping_index = numbers::invalid_unsigned_int,
@@ -604,8 +604,8 @@ namespace hp
      */
     FESubfaceValues(
       const hp::MappingCollection<dim, spacedim> &mapping_collection,
-      const hp::FECollection<dim, spacedim> &     fe_collection,
-      const hp::QCollection<dim - 1> &            q_collection,
+      const hp::FECollection<dim, spacedim>      &fe_collection,
+      const hp::QCollection<dim - 1>             &q_collection,
       const UpdateFlags                           update_flags);
 
 
@@ -615,7 +615,7 @@ namespace hp
      * MappingQ(1)) implicitly.
      */
     FESubfaceValues(const hp::FECollection<dim, spacedim> &fe_collection,
-                    const hp::QCollection<dim - 1> &       q_collection,
+                    const hp::QCollection<dim - 1>        &q_collection,
                     const UpdateFlags                      update_flags);
 
     /**
@@ -690,7 +690,7 @@ namespace hp
 
 namespace hp
 {
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   inline const FEValuesType &
   FEValuesBase<dim, q_dim, FEValuesType>::get_present_fe_values() const
   {
@@ -699,7 +699,7 @@ namespace hp
 
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   inline const FECollection<dim, FEValuesType::space_dimension> &
   FEValuesBase<dim, q_dim, FEValuesType>::get_fe_collection() const
   {
@@ -708,7 +708,7 @@ namespace hp
 
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   inline const MappingCollection<dim, FEValuesType::space_dimension> &
   FEValuesBase<dim, q_dim, FEValuesType>::get_mapping_collection() const
   {
@@ -717,7 +717,7 @@ namespace hp
 
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   inline const QCollection<q_dim> &
   FEValuesBase<dim, q_dim, FEValuesType>::get_quadrature_collection() const
   {
@@ -726,7 +726,7 @@ namespace hp
 
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   inline UpdateFlags
   FEValuesBase<dim, q_dim, FEValuesType>::get_update_flags() const
   {

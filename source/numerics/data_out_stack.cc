@@ -100,7 +100,7 @@ DataOutStack<dim, spacedim>::declare_data_vector(
   // not called after some parameter
   // values have already been
   // processed
-  Assert(patches.size() == 0, ExcDataAlreadyAdded());
+  Assert(patches.empty(), ExcDataAlreadyAdded());
 
   // also make sure that no name is
   // used twice
@@ -135,7 +135,7 @@ template <int dim, int spacedim>
 template <typename number>
 void
 DataOutStack<dim, spacedim>::add_data_vector(const Vector<number> &vec,
-                                             const std::string &   name)
+                                             const std::string    &name)
 {
   const unsigned int n_components = dof_handler->get_fe(0).n_components();
 
@@ -169,7 +169,7 @@ template <int dim, int spacedim>
 template <typename number>
 void
 DataOutStack<dim, spacedim>::add_data_vector(
-  const Vector<number> &          vec,
+  const Vector<number>           &vec,
   const std::vector<std::string> &names)
 {
   Assert(dof_handler != nullptr,

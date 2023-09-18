@@ -71,9 +71,9 @@ SubCellData::check_consistency(const unsigned int dim) const
   switch (dim)
     {
       case 1:
-        return ((boundary_lines.size() == 0) && (boundary_quads.size() == 0));
+        return ((boundary_lines.empty()) && (boundary_quads.empty()));
       case 2:
-        return (boundary_quads.size() == 0);
+        return (boundary_quads.empty());
     }
   return true;
 }
@@ -109,7 +109,7 @@ namespace TriangulationDescription
          */
         void
         collect(
-          const std::vector<unsigned int> &                  relevant_processes,
+          const std::vector<unsigned int>                   &relevant_processes,
           const std::vector<DescriptionTemp<dim, spacedim>> &description_temp,
           const MPI_Comm                                     comm,
           const bool vertices_have_unique_ids)
@@ -268,28 +268,33 @@ namespace TriangulationDescription
           {
             std::sort(this->coarse_cell_vertices.begin(),
                       this->coarse_cell_vertices.end(),
-                      [](const auto &a, const auto &b) {
+                      [](const std::pair<unsigned int, Point<spacedim>> &a,
+                         const std::pair<unsigned int, Point<spacedim>> &b) {
                         return a.first < b.first;
                       });
             this->coarse_cell_vertices.erase(
-              std::unique(this->coarse_cell_vertices.begin(),
-                          this->coarse_cell_vertices.end(),
-                          [](const auto &a, const auto &b) {
-                            if (a.first == b.first)
-                              {
-                                Assert(a.second.distance(b.second) < 10e-8,
-                                       ExcInternalError());
-                                return true;
-                              }
-                            return false;
-                          }),
+              std::unique(
+                this->coarse_cell_vertices.begin(),
+                this->coarse_cell_vertices.end(),
+                [](const std::pair<unsigned int, Point<spacedim>> &a,
+                   const std::pair<unsigned int, Point<spacedim>> &b) {
+                  if (a.first == b.first)
+                    {
+                      Assert(a.second.distance(b.second) <=
+                               1e-7 *
+                                 std::max(a.second.norm(), b.second.norm()),
+                             ExcInternalError());
+                      return true;
+                    }
+                  return false;
+                }),
               this->coarse_cell_vertices.end());
           }
 
           // make cells unique
           for (unsigned int i = 0; i < this->cell_infos.size(); ++i)
             {
-              if (this->cell_infos[i].size() == 0)
+              if (this->cell_infos[i].empty())
                 continue;
 
               std::sort(this->cell_infos[i].begin(),
@@ -380,7 +385,7 @@ namespace TriangulationDescription
       void
       mark_cell_and_its_parents(
         const TriaIterator<CellAccessor<dim, spacedim>> &cell,
-        std::vector<std::vector<bool>> &                 cell_marked)
+        std::vector<std::vector<bool>>                  &cell_marked)
       {
         cell_marked[cell->level()][cell->index()] = true;
         if (cell->level() != 0)
@@ -400,10 +405,10 @@ namespace TriangulationDescription
           const dealii::Triangulation<dim, spacedim> &tria,
           const std::function<types::subdomain_id(
             const typename dealii::Triangulation<dim, spacedim>::cell_iterator
-              &)> &                                   subdomain_id_function,
+              &)>                                    &subdomain_id_function,
           const std::function<types::subdomain_id(
             const typename dealii::Triangulation<dim, spacedim>::cell_iterator
-              &)> &                                level_subdomain_id_function,
+              &)>                                 &level_subdomain_id_function,
           const MPI_Comm                           comm,
           const TriangulationDescription::Settings settings)
           : tria(tria)
@@ -442,7 +447,7 @@ namespace TriangulationDescription
           // (also taking into account periodicity)
           const auto
             add_vertices_of_cell_to_vertices_owned_by_locally_owned_cells =
-              [this](const auto &       cell,
+              [this](const auto        &cell,
                      std::vector<bool> &vertices_owned_by_locally_owned_cells) {
                 // add local vertices
                 for (const auto v : cell->vertex_indices())
@@ -789,7 +794,7 @@ namespace TriangulationDescription
     Description<dim, spacedim>
     create_description_from_triangulation_in_groups(
       const std::function<void(dealii::Triangulation<dim, spacedim> &)>
-        &                                            serial_grid_generator,
+                                                    &serial_grid_generator,
       const std::function<void(dealii::Triangulation<dim, spacedim> &,
                                const MPI_Comm,
                                const unsigned int)> &serial_grid_partitioner,
@@ -918,7 +923,7 @@ namespace TriangulationDescription
     template <int dim, int spacedim>
     Description<dim, spacedim>
     create_description_from_triangulation(
-      const Triangulation<dim, spacedim> &              tria,
+      const Triangulation<dim, spacedim>               &tria,
       const LinearAlgebra::distributed::Vector<double> &partition,
       const TriangulationDescription::Settings          settings)
     {
@@ -985,10 +990,10 @@ namespace TriangulationDescription
     template <int dim, int spacedim>
     Description<dim, spacedim>
     create_description_from_triangulation(
-      const Triangulation<dim, spacedim> &              tria,
+      const Triangulation<dim, spacedim>               &tria,
       const LinearAlgebra::distributed::Vector<double> &partition,
       const std::vector<LinearAlgebra::distributed::Vector<double>>
-        &                                      partitions_mg,
+                                              &partitions_mg,
       const TriangulationDescription::Settings settings_in)
     {
 #ifdef DEAL_II_WITH_MPI

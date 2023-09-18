@@ -200,13 +200,12 @@ test(const unsigned int n_ref = 0)
   // IndexSets and constraints
   const IndexSet &locally_owned_dofs_euler =
     dof_handler_euler.locally_owned_dofs();
-  IndexSet locally_relevant_dofs_euler;
-  DoFTools::extract_locally_relevant_dofs(dof_handler_euler,
-                                          locally_relevant_dofs_euler);
+  const IndexSet locally_relevant_dofs_euler =
+    DoFTools::extract_locally_relevant_dofs(dof_handler_euler);
 
   const IndexSet &locally_owned_dofs = dof_handler.locally_owned_dofs();
-  IndexSet        locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet  locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   // constraints:
   AffineConstraints<double> constraints_euler;
@@ -253,10 +252,8 @@ test(const unsigned int n_ref = 0)
   // the bug observed.
   for (unsigned int level = min_level; level <= max_level; ++level)
     {
-      IndexSet relevant_mg_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof_handler_euler,
-                                                    level,
-                                                    relevant_mg_dofs);
+      const IndexSet relevant_mg_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof_handler_euler, level);
       displacement_level[level].reinit(dof_handler_euler.locally_owned_mg_dofs(
                                          level),
                                        relevant_mg_dofs,
@@ -335,16 +332,16 @@ test(const unsigned int n_ref = 0)
         update_quadrature_points;
 
       AffineConstraints<double> level_constraints;
-      IndexSet                  relevant_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof_handler,
-                                                    level,
-                                                    relevant_dofs);
+      const IndexSet            relevant_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof_handler, level);
       level_constraints.reinit(relevant_dofs);
       level_constraints.add_lines(
         mg_constrained_dofs.get_boundary_indices(level));
       level_constraints.close();
 
       MatrixFree<dim, LevelNumberType> mg_level_euler;
+
+      displacement_level[level].update_ghost_values();
 
       MappingQEulerian<dim, LinearAlgebra::distributed::Vector<LevelNumberType>>
         euler_level(euler_fe_degree,

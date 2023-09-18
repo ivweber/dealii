@@ -232,7 +232,7 @@ namespace internal
        * constructor assumes that no postprocessor is going to be used.
        */
       DataEntryBase(const DoFHandler<dim, spacedim> *dofs,
-                    const std::vector<std::string> & names,
+                    const std::vector<std::string>  &names,
                     const std::vector<
                       DataComponentInterpretation::DataComponentInterpretation>
                       &data_component_interpretation);
@@ -242,7 +242,7 @@ namespace internal
        * case, the names and vector declarations are going to be acquired from
        * the postprocessor.
        */
-      DataEntryBase(const DoFHandler<dim, spacedim> *  dofs,
+      DataEntryBase(const DoFHandler<dim, spacedim>   *dofs,
                     const DataPostprocessor<spacedim> *data_postprocessor);
 
       /**
@@ -274,7 +274,7 @@ namespace internal
        */
       virtual void
       get_function_values(
-        const FEValuesBase<dim, spacedim> &  fe_patch_values,
+        const FEValuesBase<dim, spacedim>   &fe_patch_values,
         const ComponentExtractor             extract_component,
         std::vector<dealii::Vector<double>> &patch_values_system) const = 0;
 
@@ -286,7 +286,7 @@ namespace internal
       get_function_gradients(
         const FEValuesBase<dim, spacedim> &fe_patch_values,
         const ComponentExtractor           extract_component,
-        std::vector<Tensor<1, spacedim>> & patch_gradients) const = 0;
+        std::vector<Tensor<1, spacedim>>  &patch_gradients) const = 0;
 
       /**
        * Given a FEValuesBase object, extract the gradients on the present
@@ -307,7 +307,7 @@ namespace internal
       get_function_hessians(
         const FEValuesBase<dim, spacedim> &fe_patch_values,
         const ComponentExtractor           extract_component,
-        std::vector<Tensor<2, spacedim>> & patch_hessians) const = 0;
+        std::vector<Tensor<2, spacedim>>  &patch_hessians) const = 0;
 
       /**
        * Given a FEValuesBase object, extract the second derivatives on the
@@ -398,10 +398,10 @@ namespace internal
         const unsigned int               n_datasets,
         const unsigned int               n_subdivisions,
         const std::vector<unsigned int> &n_postprocessor_outputs,
-        const Mapping<dim, spacedim> &   mapping,
+        const Mapping<dim, spacedim>    &mapping,
         const std::vector<
           std::shared_ptr<dealii::hp::FECollection<dim, spacedim>>>
-          &               finite_elements,
+                         &finite_elements,
         const UpdateFlags update_flags,
         const bool        use_face_values);
 
@@ -412,7 +412,7 @@ namespace internal
         const dealii::hp::MappingCollection<dim, spacedim> &mapping,
         const std::vector<
           std::shared_ptr<dealii::hp::FECollection<dim, spacedim>>>
-          &               finite_elements,
+                         &finite_elements,
         const UpdateFlags update_flags,
         const bool        use_face_values);
 
@@ -422,7 +422,7 @@ namespace internal
       reinit_all_fe_values(
         std::vector<std::shared_ptr<DataEntryBase<dim, spacedim>>> &dof_data,
         const typename dealii::Triangulation<dim, spacedim>::cell_iterator
-          &                cell,
+                          &cell,
         const unsigned int face = numbers::invalid_unsigned_int);
 
       const FEValuesBase<dim, spacedim> &
@@ -726,10 +726,10 @@ public:
    * which FEValues can extract values on a cell using the
    * FEValuesBase::get_function_values() function.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   add_data_vector(
-    const VectorType &              data,
+    const VectorType               &data,
     const std::vector<std::string> &names,
     const DataVectorType            type = type_automatic,
     const std::vector<DataComponentInterpretation::DataComponentInterpretation>
@@ -751,11 +751,11 @@ public:
    * which FEValues can extract values on a cell using the
    * FEValuesBase::get_function_values() function.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   add_data_vector(
-    const VectorType &   data,
-    const std::string &  name,
+    const VectorType    &data,
+    const std::string   &name,
     const DataVectorType type = type_automatic,
     const std::vector<DataComponentInterpretation::DataComponentInterpretation>
       &data_component_interpretation = {});
@@ -775,12 +775,12 @@ public:
    * represents dof data, the data vector type argument present in the other
    * methods above is not necessary.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   add_data_vector(
     const DoFHandler<dim, spacedim> &dof_handler,
-    const VectorType &               data,
-    const std::vector<std::string> & names,
+    const VectorType                &data,
+    const std::vector<std::string>  &names,
     const std::vector<DataComponentInterpretation::DataComponentInterpretation>
       &data_component_interpretation = {});
 
@@ -789,12 +789,12 @@ public:
    * This function is an abbreviation of the function above with only a scalar
    * @p dof_handler given and a single data name.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   add_data_vector(
     const DoFHandler<dim, spacedim> &dof_handler,
-    const VectorType &               data,
-    const std::string &              name,
+    const VectorType                &data,
+    const std::string               &name,
     const std::vector<DataComponentInterpretation::DataComponentInterpretation>
       &data_component_interpretation = {});
 
@@ -824,9 +824,9 @@ public:
    * error by declaring the data postprocessor variable before the DataOut
    * variable as objects are destroyed in reverse order of declaration.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
-  add_data_vector(const VectorType &                 data,
+  add_data_vector(const VectorType                  &data,
                   const DataPostprocessor<spacedim> &data_postprocessor);
 
   /**
@@ -835,10 +835,10 @@ public:
    * postprocessor can only read data from the given DoFHandler and solution
    * vector, not other solution vectors or DoFHandlers.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
-  add_data_vector(const DoFHandler<dim, spacedim> &  dof_handler,
-                  const VectorType &                 data,
+  add_data_vector(const DoFHandler<dim, spacedim>   &dof_handler,
+                  const VectorType                  &data,
                   const DataPostprocessor<spacedim> &data_postprocessor);
 
   /**
@@ -858,12 +858,12 @@ public:
    * The handling of @p names and @p data_component_interpretation is identical
    * to the add_data_vector() function.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   add_mg_data_vector(
     const DoFHandler<dim, spacedim> &dof_handler,
     const MGLevelObject<VectorType> &data,
-    const std::vector<std::string> & names,
+    const std::vector<std::string>  &names,
     const std::vector<DataComponentInterpretation::DataComponentInterpretation>
       &data_component_interpretation = std::vector<
         DataComponentInterpretation::DataComponentInterpretation>());
@@ -871,11 +871,11 @@ public:
   /**
    * Scalar version of the function above.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   add_mg_data_vector(const DoFHandler<dim, spacedim> &dof_handler,
                      const MGLevelObject<VectorType> &data,
-                     const std::string &              name);
+                     const std::string               &name);
 
   /**
    * Release the pointers to the data vectors. This allows output of a new set
@@ -1030,15 +1030,15 @@ private:
   /**
    * Common function called by the four public add_data_vector methods.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   add_data_vector_internal(
     const DoFHandler<dim, spacedim> *dof_handler,
-    const VectorType &               data,
-    const std::vector<std::string> & names,
+    const VectorType                &data,
+    const std::vector<std::string>  &names,
     const DataVectorType             type,
     const std::vector<DataComponentInterpretation::DataComponentInterpretation>
-      &        data_component_interpretation,
+              &data_component_interpretation,
     const bool deduce_output_names);
 };
 
@@ -1049,8 +1049,8 @@ template <int dim, int patch_dim, int spacedim, int patch_spacedim>
 template <typename VectorType>
 void
 DataOut_DoFData<dim, patch_dim, spacedim, patch_spacedim>::add_data_vector(
-  const VectorType &   vec,
-  const std::string &  name,
+  const VectorType    &vec,
+  const std::string   &name,
   const DataVectorType type,
   const std::vector<DataComponentInterpretation::DataComponentInterpretation>
     &data_component_interpretation)
@@ -1068,7 +1068,7 @@ template <int dim, int patch_dim, int spacedim, int patch_spacedim>
 template <typename VectorType>
 void
 DataOut_DoFData<dim, patch_dim, spacedim, patch_spacedim>::add_data_vector(
-  const VectorType &              vec,
+  const VectorType               &vec,
   const std::vector<std::string> &names,
   const DataVectorType            type,
   const std::vector<DataComponentInterpretation::DataComponentInterpretation>
@@ -1087,8 +1087,8 @@ template <typename VectorType>
 void
 DataOut_DoFData<dim, patch_dim, spacedim, patch_spacedim>::add_data_vector(
   const DoFHandler<dim, spacedim> &dof_handler,
-  const VectorType &               data,
-  const std::string &              name,
+  const VectorType                &data,
+  const std::string               &name,
   const std::vector<DataComponentInterpretation::DataComponentInterpretation>
     &data_component_interpretation)
 {
@@ -1108,8 +1108,8 @@ template <typename VectorType>
 void
 DataOut_DoFData<dim, patch_dim, spacedim, patch_spacedim>::add_data_vector(
   const DoFHandler<dim, spacedim> &dof_handler,
-  const VectorType &               data,
-  const std::vector<std::string> & names,
+  const VectorType                &data,
+  const std::vector<std::string>  &names,
   const std::vector<DataComponentInterpretation::DataComponentInterpretation>
     &data_component_interpretation)
 {
@@ -1127,7 +1127,7 @@ template <int dim, int patch_dim, int spacedim, int patch_spacedim>
 template <typename VectorType>
 void
 DataOut_DoFData<dim, patch_dim, spacedim, patch_spacedim>::add_data_vector(
-  const VectorType &                 vec,
+  const VectorType                  &vec,
   const DataPostprocessor<spacedim> &data_postprocessor)
 {
   Assert(dofs != nullptr,
@@ -1142,7 +1142,7 @@ template <int dim2, int spacedim2>
 void
 DataOut_DoFData<dim, patch_dim, spacedim, patch_spacedim>::merge_patches(
   const DataOut_DoFData<dim2, patch_dim, spacedim2, patch_spacedim> &source,
-  const Point<patch_spacedim> &                                      shift)
+  const Point<patch_spacedim>                                       &shift)
 {
   const std::vector<Patch> &source_patches = source.get_patches();
   Assert((patches.size() != 0) && (source_patches.size() != 0),

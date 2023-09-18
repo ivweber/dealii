@@ -187,7 +187,7 @@ public:
 
   virtual void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<double> &          values,
+             std::vector<double>           &values,
              const unsigned int             component = 0) const;
 };
 
@@ -208,7 +208,7 @@ Coefficient<dim>::value(const Point<dim> &p, const unsigned int) const
 template <int dim>
 void
 Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                             std::vector<double> &          values,
+                             std::vector<double>           &values,
                              const unsigned int             component) const
 {
   const unsigned int n_points = points.size();
@@ -987,7 +987,7 @@ LaplaceProblem<dim>::output_results(const unsigned int cycle) const
   filename += ('0' + cycle);
   filename += ".eps";
 
-  std::ofstream output(filename.c_str());
+  std::ofstream output(filename);
 
   GridOut grid_out;
   grid_out.write_eps(triangulation, output);
@@ -1186,7 +1186,7 @@ main()
   // exiting the program with an
   // error code (this is what the
   // <code>return 1;</code> does):
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

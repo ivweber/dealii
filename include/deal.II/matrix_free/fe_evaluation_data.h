@@ -49,9 +49,9 @@ namespace internal
     std::string,
     << "You are requesting information from an FEEvaluation/FEFaceEvaluation "
     << "object for which this kind of information has not been computed. What "
-    << "information these objects compute is determined by the update_* flags you "
-    << "pass to MatrixFree::reinit() via MatrixFree::AdditionalData. Here, "
-    << "the operation you are attempting requires the <" << arg1
+    << "information these objects compute is determined by the update_* flags "
+    << "you pass to MatrixFree::reinit() via MatrixFree::AdditionalData. "
+    << "Here, the operation you are attempting requires the <" << arg1
     << "> flag to be set, but it was apparently not specified "
     << "upon initialization.");
 } // namespace internal
@@ -173,7 +173,7 @@ public:
     const internal::MatrixFreeFunctions::FaceToCellTopology<n_lanes> &face);
 
   /**
-   * @name 1: Access to geometry data at quadrature points
+   * @name Access to geometry data at quadrature points
    */
   /** @{ */
 
@@ -240,7 +240,7 @@ public:
   /** @} */
 
   /**
-   * @name 2: Access to internal data arrays
+   * @name Access to internal data arrays
    */
   /** @{ */
   /**
@@ -352,7 +352,7 @@ public:
   /** @} */
 
   /**
-   * @name 3: Information about the current cell this class operates on
+   * @name Information about the current cell this class operates on
    */
   /** @{ */
 
@@ -560,7 +560,7 @@ public:
   /** @} */
 
   /**
-   * @name 3: Functions to access cell- and face-data vectors.
+   * @name Functions to access cell- and face-data vectors.
    */
   /** @{ */
 
@@ -620,8 +620,8 @@ public:
    */
   struct InitializationData
   {
-    const ShapeInfoType *         shape_info;
-    const DoFInfo *               dof_info;
+    const ShapeInfoType          *shape_info;
+    const DoFInfo                *dof_info;
     const MappingInfoStorageType *mapping_data;
     unsigned int                  active_fe_index;
     unsigned int                  active_quad_index;
@@ -647,7 +647,7 @@ protected:
   FEEvaluationData(
     const std::shared_ptr<
       internal::MatrixFreeFunctions::MappingDataOnTheFly<dim, Number>>
-      &                mapping_data,
+                      &mapping_data,
     const unsigned int n_fe_components,
     const unsigned int first_selected_component);
 
@@ -1087,7 +1087,7 @@ template <int dim, typename Number, bool is_face>
 inline FEEvaluationData<dim, Number, is_face>::FEEvaluationData(
   const std::shared_ptr<
     internal::MatrixFreeFunctions::MappingDataOnTheFly<dim, Number>>
-    &                mapped_geometry,
+                    &mapped_geometry,
   const unsigned int n_fe_components,
   const unsigned int first_selected_component)
   : data(nullptr)
@@ -1205,7 +1205,9 @@ FEEvaluationData<dim, Number, is_face>::set_data_pointers(
     (n_components * ((dim * (dim + 1)) / 2 + 2 * dim + 2) *
      n_quadrature_points);
 
-  const unsigned int allocated_size = size_scratch_data + size_data_arrays;
+  // include 12 extra fields to insert some padding between values, gradients
+  // and hessians, which helps to reduce the probability of cache conflicts
+  const unsigned int allocated_size = size_scratch_data + size_data_arrays + 12;
 #  ifdef DEBUG
   scratch_data_array->clear();
   scratch_data_array->resize(allocated_size,
@@ -1213,23 +1215,24 @@ FEEvaluationData<dim, Number, is_face>::set_data_pointers(
 #  else
   scratch_data_array->resize_fast(allocated_size);
 #  endif
-  scratch_data.reinit(scratch_data_array->begin() + size_data_arrays,
+  scratch_data.reinit(scratch_data_array->begin() + size_data_arrays + 12,
                       size_scratch_data);
 
   // set the pointers to the correct position in the data array
   values_dofs = scratch_data_array->begin();
-  values_quad = scratch_data_array->begin() + n_components * dofs_per_component;
+  values_quad =
+    scratch_data_array->begin() + 4 + n_components * dofs_per_component;
   values_from_gradients_quad =
-    scratch_data_array->begin() +
+    scratch_data_array->begin() + 6 +
     n_components * (dofs_per_component + n_quadrature_points);
   gradients_quad =
-    scratch_data_array->begin() +
+    scratch_data_array->begin() + 8 +
     n_components * (dofs_per_component + 2 * n_quadrature_points);
   gradients_from_hessians_quad =
-    scratch_data_array->begin() +
+    scratch_data_array->begin() + 12 +
     n_components * (dofs_per_component + (dim + 2) * n_quadrature_points);
   hessians_quad =
-    scratch_data_array->begin() +
+    scratch_data_array->begin() + 12 +
     n_components * (dofs_per_component + (2 * dim + 2) * n_quadrature_points);
 }
 
@@ -1660,9 +1663,9 @@ namespace internal
             typename FU>
   inline void
   process_cell_or_face_data(const std::array<unsigned int, N> indices,
-                            VectorOfArrayType &               array,
-                            ArrayType &                       out,
-                            const FU &                        fu)
+                            VectorOfArrayType                &array,
+                            ArrayType                        &out,
+                            const FU                         &fu)
   {
     for (unsigned int i = 0; i < N; ++i)
       if (indices[i] != numbers::invalid_unsigned_int)
@@ -1675,8 +1678,8 @@ namespace internal
   template <std::size_t N, typename VectorOfArrayType, typename ArrayType>
   inline void
   set_valid_element_to_array(const std::array<unsigned int, N> indices,
-                             const VectorOfArrayType &         array,
-                             ArrayType &                       out)
+                             const VectorOfArrayType          &array,
+                             ArrayType                        &out)
   {
     AssertDimension(indices.size(), out.size());
     AssertDimension(indices.size(), array[0].size());

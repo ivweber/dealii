@@ -79,10 +79,10 @@ namespace
   template <int dim, typename number, int spacedim>
   void
   reinit_vector_by_components(
-    const DoFHandler<dim, spacedim> &                  mg_dof,
-    MGLevelObject<BlockVector<number>> &               v,
-    const std::vector<bool> &                          sel,
-    const std::vector<unsigned int> &                  target_comp,
+    const DoFHandler<dim, spacedim>                   &mg_dof,
+    MGLevelObject<BlockVector<number>>                &v,
+    const std::vector<bool>                           &sel,
+    const std::vector<unsigned int>                   &target_comp,
     std::vector<std::vector<types::global_dof_index>> &ndofs)
   {
     std::vector<bool>         selected         = sel;
@@ -98,7 +98,7 @@ namespace
     // directly after this function was
     // called, we use the arguments
     // directly.
-    if (target_component.size() == 0)
+    if (target_component.empty())
       {
         target_component.resize(ncomp);
         for (unsigned int i = 0; i < ncomp; ++i)
@@ -107,7 +107,7 @@ namespace
 
     // If selected is an empty vector,
     // all components are selected.
-    if (selected.size() == 0)
+    if (selected.empty())
       {
         selected.resize(target_component.size());
         std::fill_n(selected.begin(), ncomp, false);
@@ -122,7 +122,7 @@ namespace
     const unsigned int n_selected =
       std::accumulate(selected.begin(), selected.end(), 0u);
 
-    if (ndofs.size() == 0)
+    if (ndofs.empty())
       {
         std::vector<std::vector<types::global_dof_index>> new_dofs(
           mg_dof.get_triangulation().n_levels(),
@@ -178,10 +178,10 @@ namespace
   template <int dim, typename number, int spacedim>
   void
   reinit_vector_by_components(
-    const DoFHandler<dim, spacedim> &                  mg_dof,
-    MGLevelObject<dealii::Vector<number>> &            v,
-    const ComponentMask &                              component_mask,
-    const std::vector<unsigned int> &                  target_component,
+    const DoFHandler<dim, spacedim>                   &mg_dof,
+    MGLevelObject<dealii::Vector<number>>             &v,
+    const ComponentMask                               &component_mask,
+    const std::vector<unsigned int>                   &target_component,
     std::vector<std::vector<types::global_dof_index>> &ndofs)
   {
     Assert(component_mask.represents_n_components(target_component.size()),
@@ -192,7 +192,7 @@ namespace
       if (component_mask[i])
         selected_block = target_component[i];
 
-    if (ndofs.size() == 0)
+    if (ndofs.empty())
       {
         std::vector<std::vector<types::global_dof_index>> new_dofs(
           mg_dof.get_triangulation().n_levels(),
@@ -214,8 +214,8 @@ template <int dim, class InVector, int spacedim>
 void
 MGTransferSelect<number>::do_copy_to_mg(
   const DoFHandler<dim, spacedim> &mg_dof_handler,
-  MGLevelObject<Vector<number>> &  dst,
-  const InVector &                 src) const
+  MGLevelObject<Vector<number>>   &dst,
+  const InVector                  &src) const
 {
   dst = 0;
 
@@ -259,7 +259,7 @@ MGTransferComponentBase::build(const DoFHandler<dim, spacedim> &mg_dof)
   // Fill target component with
   // standard values (identity) if it
   // is empty
-  if (target_component.size() == 0)
+  if (target_component.empty())
     {
       target_component.resize(mg_dof.get_fe(0).n_components());
       for (unsigned int i = 0; i < target_component.size(); ++i)
@@ -280,7 +280,7 @@ MGTransferComponentBase::build(const DoFHandler<dim, spacedim> &mg_dof)
   // Do the same for the multilevel
   // components. These may be
   // different.
-  if (mg_target_component.size() == 0)
+  if (mg_target_component.empty())
     {
       mg_target_component.resize(mg_dof.get_fe(0).n_components());
       for (unsigned int i = 0; i < mg_target_component.size(); ++i)
@@ -507,7 +507,7 @@ MGTransferComponentBase::build(const DoFHandler<dim, spacedim> &mg_dof)
                                     mg_target_component);
       for (unsigned int level = 0; level < n_levels - 1; ++level)
         {
-          if (boundary_indices[level].size() == 0)
+          if (boundary_indices[level].empty())
             continue;
 
           for (unsigned int iblock = 0; iblock < n_components; ++iblock)
@@ -562,11 +562,11 @@ template <typename number>
 template <int dim, int spacedim>
 void
 MGTransferSelect<number>::build(
-  const DoFHandler<dim, spacedim> &                     mg_dof,
+  const DoFHandler<dim, spacedim>                      &mg_dof,
   unsigned int                                          select,
   unsigned int                                          mg_select,
-  const std::vector<unsigned int> &                     t_component,
-  const std::vector<unsigned int> &                     mg_t_component,
+  const std::vector<unsigned int>                      &t_component,
+  const std::vector<unsigned int>                      &mg_t_component,
   const std::vector<std::set<types::global_dof_index>> &bdry_indices)
 {
   const FiniteElement<dim> &fe    = mg_dof.get_fe();

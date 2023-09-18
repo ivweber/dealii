@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, University of Heidelberg, 1999
  */
@@ -125,7 +124,7 @@ template <int dim>
 class RightHandSide : public Function<dim>
 {
 public:
-  virtual double value(const Point<dim> & p,
+  virtual double value(const Point<dim>  &p,
                        const unsigned int component = 0) const override;
 };
 
@@ -135,7 +134,7 @@ template <int dim>
 class BoundaryValues : public Function<dim>
 {
 public:
-  virtual double value(const Point<dim> & p,
+  virtual double value(const Point<dim>  &p,
                        const unsigned int component = 0) const override;
 };
 

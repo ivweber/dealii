@@ -51,6 +51,7 @@ class TriaActiveIterator;
 namespace parallel
 {
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   class TriangulationBase;
 }
 
@@ -355,7 +356,7 @@ protected:
   TriaAccessorBase(const Triangulation<dim, spacedim> *parent = nullptr,
                    const int                           level  = -1,
                    const int                           index  = -1,
-                   const AccessorData *                       = nullptr);
+                   const AccessorData                       * = nullptr);
 
   /**
    * Copy constructor. Creates an object with exactly the same data.
@@ -609,7 +610,7 @@ public:
    * semantic sense, and we generate an exception when such an object is
    * actually generated.
    */
-  InvalidAccessor(const void *        parent     = nullptr,
+  InvalidAccessor(const void         *parent     = nullptr,
                   const int           level      = -1,
                   const int           index      = -1,
                   const AccessorData *local_data = nullptr);
@@ -768,7 +769,7 @@ public:
   TriaAccessor(const Triangulation<dim, spacedim> *parent     = nullptr,
                const int                           level      = -1,
                const int                           index      = -1,
-               const AccessorData *                local_data = nullptr);
+               const AccessorData                 *local_data = nullptr);
 
   /**
    * The copy constructor is not deleted but copied constructed elements should
@@ -952,6 +953,8 @@ public:
   /**
    * Return an integer representation that uniquely encodes the orientation,
    * flip, and rotation of a @p face.
+   *
+   * @ingroup reordering
    */
   unsigned char
   combined_face_orientation(const unsigned int face) const;
@@ -1031,13 +1034,6 @@ public:
    */
   unsigned int
   n_children() const;
-
-  /**
-   * @deprecated Use n_active_descendants() instead.
-   */
-  DEAL_II_DEPRECATED
-  unsigned int
-  number_of_children() const;
 
   /**
    * Compute and return the number of active descendants of this objects. For
@@ -1701,6 +1697,11 @@ public:
    * after applying quadrature equals the summing the JxW values returned by
    * the FEValues or FEFaceValues object you will want to use for the
    * integral.
+   *
+   * @note There is no analytic formula for the area of a bilinear face (i.e.,
+   * something with a quadrilateral reference cell) in 3D. This function uses
+   * the quadrature defined by QGauss<2>(4) to approximate the measure in this
+   * case.
    */
   double
   measure() const;
@@ -1822,6 +1823,8 @@ private:
    *
    * It is only possible to set the face_orientation of cells in 3d (i.e.
    * <code>structdim==3 && dim==3</code>).
+   *
+   * @ingroup reordering
    */
   void
   set_combined_face_orientation(const unsigned int  face,
@@ -1950,7 +1953,7 @@ public:
   TriaAccessor(const Triangulation<dim, spacedim> *tria  = nullptr,
                const int                           level = 0,
                const int                           index = 0,
-               const AccessorData *                      = nullptr);
+               const AccessorData                      * = nullptr);
 
   /**
    * Constructor. Should never be called and thus produces an error.
@@ -2146,6 +2149,8 @@ public:
 
   /**
    * @brief Always return 0
+   *
+   * @ingroup reordering
    */
   static unsigned char
   combined_face_orientation(const unsigned int face);
@@ -2204,14 +2209,6 @@ public:
    */
   static unsigned int
   n_active_descendants();
-
-  /**
-   * @deprecated Use n_active_descendants() instead.
-   */
-  DEAL_II_DEPRECATED
-  static unsigned int
-  number_of_children();
-
 
   /**
    * Return the number of times that this object is refined. Always 0.
@@ -2396,7 +2393,7 @@ public:
   TriaAccessor(const Triangulation<1, spacedim> *tria = nullptr,
                const int                              = 0,
                const int                              = 0,
-               const AccessorData *                   = nullptr);
+               const AccessorData                   * = nullptr);
 
   /**
    * Constructor. Should never be called and thus produces an error.
@@ -2821,6 +2818,8 @@ public:
 
   /**
    * @brief Always return 0
+   *
+   * @ingroup reordering
    */
   static unsigned char
   combined_face_orientation(const unsigned int face);
@@ -2879,14 +2878,6 @@ public:
    */
   static unsigned int
   n_active_descendants();
-
-  /**
-   * @deprecated Use n_active_descendants() instead.
-   */
-  DEAL_II_DEPRECATED
-  static unsigned int
-  number_of_children();
-
 
   /**
    * Return the number of times that this object is refined. Always 0.
@@ -3104,7 +3095,7 @@ public:
   CellAccessor(const Triangulation<dim, spacedim> *parent     = nullptr,
                const int                           level      = -1,
                const int                           index      = -1,
-               const AccessorData *                local_data = nullptr);
+               const AccessorData                 *local_data = nullptr);
 
   /**
    * Copy constructor.
@@ -3192,6 +3183,19 @@ public:
    */
   TriaActiveIterator<DoFCellAccessor<dim, spacedim, false>>
   as_dof_handler_iterator(const DoFHandler<dim, spacedim> &dof_handler) const;
+
+  /**
+   * A function similar to as_dof_handler_iterator(). It converts
+   * a Triangulation active/level cell iterator to a
+   * DoFHandler active level cell iterator, or a DoFHandler level active/cell
+   * iterator to a level cell iterator of another DoFHandler. The
+   * @p iterator must be associated with the triangulation of the
+   * @p dof_handler.
+   */
+  TriaIterator<DoFCellAccessor<dim, spacedim, true>>
+  as_dof_handler_level_iterator(
+    const DoFHandler<dim, spacedim> &dof_handler) const;
+
 
   /**
    * @}

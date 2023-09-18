@@ -688,7 +688,32 @@ namespace internal
       }
 
 
-      inline static unsigned int
+
+      template <int dim, int spacedim>
+      inline static unsigned char
+      combined_face_orientation(
+        const TriaAccessor<1, dim, spacedim> & /*accessor*/,
+        const unsigned int /*face*/)
+      {
+        // There is only one way to orient a vertex
+        return ReferenceCell::default_combined_face_orientation();
+      }
+
+
+
+      template <int dim, int spacedim>
+      inline static unsigned char
+      combined_face_orientation(const TriaAccessor<2, dim, spacedim> &accessor,
+                                const unsigned int                    face)
+      {
+        return line_orientation(accessor, face) == true ?
+                 ReferenceCell::default_combined_face_orientation() :
+                 ReferenceCell::reversed_combined_line_orientation();
+      }
+
+
+
+      inline static unsigned char
       combined_face_orientation(const TriaAccessor<3, 3, 3> &accessor,
                                 const unsigned int           face)
       {
@@ -1228,7 +1253,7 @@ inline TriaAccessor<structdim, dim, spacedim>::TriaAccessor(
   const Triangulation<dim, spacedim> *parent,
   const int                           level,
   const int                           index,
-  const AccessorData *                local_data)
+  const AccessorData                 *local_data)
   : TriaAccessorBase<structdim, dim, spacedim>(parent, level, index, local_data)
 {}
 
@@ -1363,8 +1388,8 @@ inline unsigned char
 TriaAccessor<structdim, dim, spacedim>::combined_face_orientation(
   const unsigned int face) const
 {
-  return this->face_orientation(face) + 4 * this->face_flip(face) +
-         2 * this->face_rotation(face);
+  return dealii::internal::TriaAccessorImplementation::Implementation::
+    combined_face_orientation(*this, face);
 }
 
 
@@ -1965,15 +1990,6 @@ TriaAccessor<structdim, dim, spacedim>::max_refinement_depth() const
   for (unsigned int c = 0; c < n_children(); ++c)
     max_depth = std::max(max_depth, child(c)->max_refinement_depth() + 1);
   return max_depth;
-}
-
-
-
-template <int structdim, int dim, int spacedim>
-unsigned int
-TriaAccessor<structdim, dim, spacedim>::number_of_children() const
-{
-  return n_active_descendants();
 }
 
 
@@ -2753,15 +2769,6 @@ TriaAccessor<0, dim, spacedim>::n_children()
 
 template <int dim, int spacedim>
 inline unsigned int
-TriaAccessor<0, dim, spacedim>::number_of_children()
-{
-  return 0;
-}
-
-
-
-template <int dim, int spacedim>
-inline unsigned int
 TriaAccessor<0, dim, spacedim>::n_active_descendants()
 {
   return 0;
@@ -3207,15 +3214,6 @@ TriaAccessor<0, 1, spacedim>::n_children()
 
 template <int spacedim>
 inline unsigned int
-TriaAccessor<0, 1, spacedim>::number_of_children()
-{
-  return 0;
-}
-
-
-
-template <int spacedim>
-inline unsigned int
 TriaAccessor<0, 1, spacedim>::n_active_descendants()
 {
   return 0;
@@ -3384,7 +3382,7 @@ inline CellAccessor<dim, spacedim>::CellAccessor(
   const Triangulation<dim, spacedim> *parent,
   const int                           level,
   const int                           index,
-  const AccessorData *                local_data)
+  const AccessorData                 *local_data)
   : TriaAccessor<dim, dim, spacedim>(parent, level, index, local_data)
 {}
 
@@ -3479,6 +3477,7 @@ template <int dim, int spacedim>
 inline TriaIterator<TriaAccessor<dim - 1, dim, spacedim>>
 CellAccessor<dim, spacedim>::face(const unsigned int i) const
 {
+  AssertIndexRange(i, this->n_faces());
   return dealii::internal::CellAccessorImplementation::get_face(*this, i);
 }
 

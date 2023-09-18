@@ -184,7 +184,7 @@ plot_shape_function()
 
   std::string filename =
     "shape_functions_" + dealii::Utilities::int_to_string(dim) + "D.vtu";
-  std::ofstream output(filename.c_str());
+  std::ofstream output(filename);
   data_out.write_vtu(output);
 
   dof_handler.clear();
@@ -207,7 +207,7 @@ main(int argc, char **argv)
       plot_shape_function<3>();
 #endif
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

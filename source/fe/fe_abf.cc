@@ -51,7 +51,7 @@ FE_ABF<dim>::FE_ABF(const unsigned int deg)
                              FiniteElementData<dim>::Hdiv),
       std::vector<bool>(PolynomialsABF<dim>::n_polynomials(deg), true),
       std::vector<ComponentMask>(PolynomialsABF<dim>::n_polynomials(deg),
-                                 std::vector<bool>(dim, true)))
+                                 ComponentMask(std::vector<bool>(dim, true))))
   , rt_order(deg)
 {
   Assert(dim >= 2, ExcImpossibleInDim(dim));
@@ -563,7 +563,7 @@ template <int dim>
 void
 FE_ABF<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->generalized_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),

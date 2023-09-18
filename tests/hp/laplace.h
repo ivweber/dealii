@@ -255,8 +255,7 @@ Laplace<dim>::setup_system()
 
   locally_owned_dofs = dof_handler.locally_owned_dofs();
 
-  locally_relevant_dofs.clear();
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  locally_relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof_handler);
   AssertThrow(locally_relevant_dofs.n_elements() == dof_handler.n_dofs(),
               ExcInternalError());
 
@@ -324,7 +323,7 @@ Laplace<dim>::assemble()
       {
         hp_fe_values.reinit(cell);
         const FEValues<dim> &fe_values = hp_fe_values.get_present_fe_values();
-        const unsigned int & dofs_per_cell = fe_values.dofs_per_cell;
+        const unsigned int  &dofs_per_cell = fe_values.dofs_per_cell;
 
         local_dof_indices.resize(dofs_per_cell);
         cell_matrix.reinit(dofs_per_cell, dofs_per_cell);
@@ -371,7 +370,7 @@ Laplace<dim>::assemble()
 
 
 
-//#define DIRECT
+// #define DIRECT
 
 template <int dim>
 void
@@ -602,7 +601,7 @@ Laplace<dim>::print_errors()
       error_table.write_text(std::cout);
 
       const std::string fname = output_name + ".gp";
-      std::ofstream     output(fname.c_str(), std::ios::out | std::ios::trunc);
+      std::ofstream     output(fname, std::ios::out | std::ios::trunc);
 
       // use Gnuplot datablocks:
       output << "$data << EOD" << std::endl;

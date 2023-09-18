@@ -137,7 +137,8 @@ namespace Step40
     dof_handler.distribute_dofs(fe);
 
     locally_owned_dofs = dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     locally_relevant_solution.reinit(locally_owned_dofs,
                                      locally_relevant_dofs,
@@ -370,7 +371,7 @@ test_mpi()
         laplace_problem_2d.run();
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

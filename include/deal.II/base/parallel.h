@@ -34,6 +34,8 @@
 #  include <tbb/parallel_for.h>
 #  include <tbb/parallel_reduce.h>
 #  include <tbb/partitioner.h>
+#else
+#  include <boost/range/iterator_range.hpp>
 #endif
 
 #ifdef DEAL_II_HAVE_CXX20
@@ -81,7 +83,7 @@ namespace parallel
     void
     parallel_for(Iterator           x_begin,
                  Iterator           x_end,
-                 const Functor &    functor,
+                 const Functor     &functor,
                  const unsigned int grainsize)
     {
       tbb::parallel_for(tbb::blocked_range<Iterator>(x_begin, x_end, grainsize),
@@ -98,7 +100,7 @@ namespace parallel
     void
     parallel_for(Iterator                                          x_begin,
                  Iterator                                          x_end,
-                 const Functor &                                   functor,
+                 const Functor                                    &functor,
                  const unsigned int                                grainsize,
                  const std::shared_ptr<tbb::affinity_partitioner> &partitioner)
     {
@@ -106,6 +108,22 @@ namespace parallel
                         functor,
                         *partitioner);
     }
+
+#else
+
+    /**
+     * Just execute things sequentially.
+     */
+    template <typename Iterator, typename Functor>
+    void
+    parallel_for(Iterator       x_begin,
+                 Iterator       x_end,
+                 const Functor &functor,
+                 const unsigned int)
+    {
+      functor(boost::iterator_range<Iterator>(x_begin, x_end));
+    }
+
 #endif
   } // namespace internal
 
@@ -148,7 +166,7 @@ namespace parallel
   void transform(const InputIterator &begin_in,
                  const InputIterator &end_in,
                  OutputIterator       out,
-                 const Function &     function,
+                 const Function      &function,
                  const unsigned int   grainsize)
   {
 #ifndef DEAL_II_WITH_TBB
@@ -224,7 +242,7 @@ namespace parallel
                  const InputIterator1 &end_in1,
                  InputIterator2        in2,
                  OutputIterator        out,
-                 const Function &      function,
+                 const Function       &function,
                  const unsigned int    grainsize)
   {
 #ifndef DEAL_II_WITH_TBB
@@ -307,7 +325,7 @@ namespace parallel
                  InputIterator2        in2,
                  InputIterator3        in3,
                  OutputIterator        out,
-                 const Function &      function,
+                 const Function       &function,
                  const unsigned int    grainsize)
   {
 #ifndef DEAL_II_WITH_TBB
@@ -351,7 +369,7 @@ namespace parallel
     template <typename Iterator, typename Function>
     DEAL_II_CXX20_REQUIRES((std::invocable<Function, Iterator, Iterator>))
     void apply_to_subranges(const tbb::blocked_range<Iterator> &range,
-                            const Function &                    f)
+                            const Function                     &f)
     {
       f(range.begin(), range.end());
     }
@@ -432,9 +450,9 @@ namespace parallel
    */
   template <typename Iterator, typename Function>
   DEAL_II_CXX20_REQUIRES((std::invocable<Function, Iterator, Iterator>))
-  void apply_to_subranges(const Iterator &                            begin,
+  void apply_to_subranges(const Iterator                             &begin,
                           const std_cxx20::type_identity_t<Iterator> &end,
-                          const Function &                            f,
+                          const Function                             &f,
                           const unsigned int                          grainsize)
   {
 #ifndef DEAL_II_WITH_TBB
@@ -520,7 +538,9 @@ namespace parallel
    * This function works a lot like the apply_to_subranges() function, but it
    * allows to accumulate numerical results computed on each subrange into one
    * number. The type of this number is given by the `ResultType` template
-   * argument that needs to be explicitly specified.
+   * argument that needs to be explicitly specified, and results are added
+   * up (i.e., the reduction of results from subranges happens by adding up
+   * these results).
    *
    * An example of use of this function is to compute the value of the
    * expression $x^T A x$ for a square matrix $A$ and a vector $x$. The sum
@@ -532,12 +552,12 @@ namespace parallel
    *     return
    *      std::sqrt
    *       (parallel::accumulate_from_subranges<double>
-   *        (0, A.n_rows(),
-   *         [&](const unsigned int begin_row,
+   *        ([&](const unsigned int begin_row,
    *             const unsigned int end_row)
    *         {
-   *           mat_vec_on_subranges(begin_row, end_row, A, x, y);
+   *           mat_norm_sqr_on_subranges(begin_row, end_row, A, x);
    *         },
+   *         0, A.n_rows(),
    *         50);
    *   }
    *
@@ -586,8 +606,8 @@ namespace parallel
      std::convertible_to<std::invoke_result_t<Function, Iterator, Iterator>,
                          ResultType>))
   ResultType
-    accumulate_from_subranges(const Function &                            f,
-                              const Iterator &                            begin,
+    accumulate_from_subranges(const Function                             &f,
+                              const Iterator                             &begin,
                               const std_cxx20::type_identity_t<Iterator> &end,
                               const unsigned int grainsize)
   {

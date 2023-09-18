@@ -108,9 +108,9 @@ namespace StokesClass
        *     the inverse of the S block (Schur complement matrix).
        **/
       BlockSchurPreconditioner(const StokesMatrixType &S,
-                               const MassMatrixType &  Mass,
+                               const MassMatrixType   &Mass,
                                const PreconditionerMp &Mppreconditioner,
-                               const PreconditionerA & Apreconditioner,
+                               const PreconditionerA  &Apreconditioner,
                                const bool              do_solve_A,
                                const double            A_block_tolerance,
                                const double            S_block_tolerance);
@@ -119,7 +119,7 @@ namespace StokesClass
        * Matrix vector product with this preconditioner object.
        */
       void
-      vmult(LinearAlgebra::distributed::BlockVector<double> &      dst,
+      vmult(LinearAlgebra::distributed::BlockVector<double>       &dst,
             const LinearAlgebra::distributed::BlockVector<double> &src) const;
 
       unsigned int
@@ -132,9 +132,9 @@ namespace StokesClass
        * References to the various matrix object this preconditioner works on.
        */
       const StokesMatrixType &stokes_matrix;
-      const MassMatrixType &  mass_matrix;
+      const MassMatrixType   &mass_matrix;
       const PreconditionerMp &mp_preconditioner;
-      const PreconditionerA & a_preconditioner;
+      const PreconditionerA  &a_preconditioner;
 
       /**
        * Whether to actually invert the $\tilde A$ part of the preconditioner
@@ -157,9 +157,9 @@ namespace StokesClass
                              PreconditionerA,
                              PreconditionerMp>::
       BlockSchurPreconditioner(const StokesMatrixType &S,
-                               const MassMatrixType &  Mass,
+                               const MassMatrixType   &Mass,
                                const PreconditionerMp &Mppreconditioner,
-                               const PreconditionerA & Apreconditioner,
+                               const PreconditionerA  &Apreconditioner,
                                const bool              do_solve_A,
                                const double            A_block_tolerance,
                                const double            S_block_tolerance)
@@ -209,7 +209,7 @@ namespace StokesClass
                              MassMatrixType,
                              PreconditionerA,
                              PreconditionerMp>::
-      vmult(LinearAlgebra::distributed::BlockVector<double> &      dst,
+      vmult(LinearAlgebra::distributed::BlockVector<double>       &dst,
             const LinearAlgebra::distributed::BlockVector<double> &src) const
     {
       LinearAlgebra::distributed::BlockVector<double> utmp(src);
@@ -303,7 +303,7 @@ namespace StokesClass
     value(const Point<dim> &p, const unsigned int component = 0) const;
     virtual void
     value_list(const std::vector<Point<dim>> &points,
-               std::vector<double> &          values,
+               std::vector<double>           &values,
                const unsigned int             component = 0) const;
 
     Sinker<dim> sinker;
@@ -331,7 +331,7 @@ namespace StokesClass
   template <int dim>
   void
   Viscosity<dim>::value_list(const std::vector<Point<dim>> &points,
-                             std::vector<double> &          values,
+                             std::vector<double>           &values,
                              const unsigned int             component) const
   {
     Assert(values.size() == points.size(),
@@ -359,7 +359,7 @@ namespace StokesClass
   template <int dim>
   void
   RightHandSide<dim>::vector_value(const Point<dim> &p,
-                                   Vector<double> &  values) const
+                                   Vector<double>   &values) const
   {
     double Chi = 1.0;
     for (unsigned int s = 0; s < sinker.n_sinkers; ++s)
@@ -421,7 +421,7 @@ namespace StokesClass
   void
   ExactSolution_BoundaryValues_u<dim>::vector_value(
     const Point<dim> &p,
-    Vector<double> &  values) const
+    Vector<double>   &values) const
   {
     (void)p;
     for (unsigned int i = 0; i < values.size(); ++i)
@@ -450,12 +450,12 @@ namespace StokesClass
 
   private:
     virtual void
-    apply_add(LinearAlgebra::distributed::BlockVector<number> &      dst,
+    apply_add(LinearAlgebra::distributed::BlockVector<number>       &dst,
               const LinearAlgebra::distributed::BlockVector<number> &src) const;
 
     void
-    local_apply(const dealii::MatrixFree<dim, number> &                data,
-                LinearAlgebra::distributed::BlockVector<number> &      dst,
+    local_apply(const dealii::MatrixFree<dim, number>                 &data,
+                LinearAlgebra::distributed::BlockVector<number>       &dst,
                 const LinearAlgebra::distributed::BlockVector<number> &src,
                 const std::pair<unsigned int, unsigned int> &cell_range) const;
 
@@ -501,10 +501,10 @@ namespace StokesClass
   template <int dim, int degree_v, typename number>
   void
   StokesOperator<dim, degree_v, number>::local_apply(
-    const dealii::MatrixFree<dim, number> &                data,
-    LinearAlgebra::distributed::BlockVector<number> &      dst,
+    const dealii::MatrixFree<dim, number>                 &data,
+    LinearAlgebra::distributed::BlockVector<number>       &dst,
     const LinearAlgebra::distributed::BlockVector<number> &src,
-    const std::pair<unsigned int, unsigned int> &          cell_range) const
+    const std::pair<unsigned int, unsigned int>           &cell_range) const
   {
     using vector_t = VectorizedArray<number>;
     FEEvaluation<dim, degree_v, degree_v + 1, dim, number>   velocity(data, 0);
@@ -544,7 +544,7 @@ namespace StokesClass
   template <int dim, int degree_v, typename number>
   void
   StokesOperator<dim, degree_v, number>::apply_add(
-    LinearAlgebra::distributed::BlockVector<number> &      dst,
+    LinearAlgebra::distributed::BlockVector<number>       &dst,
     const LinearAlgebra::distributed::BlockVector<number> &src) const
   {
     MatrixFreeOperators::
@@ -578,20 +578,20 @@ namespace StokesClass
 
   private:
     virtual void
-    apply_add(LinearAlgebra::distributed::Vector<number> &      dst,
+    apply_add(LinearAlgebra::distributed::Vector<number>       &dst,
               const LinearAlgebra::distributed::Vector<number> &src) const;
 
     void
-    local_apply(const dealii::MatrixFree<dim, number> &           data,
-                LinearAlgebra::distributed::Vector<number> &      dst,
+    local_apply(const dealii::MatrixFree<dim, number>            &data,
+                LinearAlgebra::distributed::Vector<number>       &dst,
                 const LinearAlgebra::distributed::Vector<number> &src,
                 const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     void
     local_compute_diagonal(
-      const MatrixFree<dim, number> &              data,
-      LinearAlgebra::distributed::Vector<number> & dst,
-      const unsigned int &                         dummy,
+      const MatrixFree<dim, number>               &data,
+      LinearAlgebra::distributed::Vector<number>  &dst,
+      const unsigned int                          &dummy,
       const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     Table<2, VectorizedArray<number>> one_over_viscosity;
@@ -634,10 +634,10 @@ namespace StokesClass
   template <int dim, int degree_p, typename number>
   void
   MassMatrixOperator<dim, degree_p, number>::local_apply(
-    const dealii::MatrixFree<dim, number> &           data,
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    const dealii::MatrixFree<dim, number>            &data,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src,
-    const std::pair<unsigned int, unsigned int> &     cell_range) const
+    const std::pair<unsigned int, unsigned int>      &cell_range) const
   {
     FEEvaluation<dim, degree_p, degree_p + 2, 1, number> pressure(data);
 
@@ -660,7 +660,7 @@ namespace StokesClass
   template <int dim, int degree_p, typename number>
   void
   MassMatrixOperator<dim, degree_p, number>::apply_add(
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src) const
   {
     MatrixFreeOperators::Base<dim,
@@ -692,7 +692,7 @@ namespace StokesClass
 
     this->set_constrained_entries_to_one(diagonal);
     inverse_diagonal              = diagonal;
-    const unsigned int local_size = inverse_diagonal.local_size();
+    const unsigned int local_size = inverse_diagonal.locally_owned_size();
     for (unsigned int i = 0; i < local_size; ++i)
       {
         Assert(inverse_diagonal.local_element(i) > 0.,
@@ -705,7 +705,7 @@ namespace StokesClass
   template <int dim, int degree_p, typename number>
   void
   MassMatrixOperator<dim, degree_p, number>::local_compute_diagonal(
-    const MatrixFree<dim, number> &             data,
+    const MatrixFree<dim, number>              &data,
     LinearAlgebra::distributed::Vector<number> &dst,
     const unsigned int &,
     const std::pair<unsigned int, unsigned int> &cell_range) const
@@ -756,20 +756,20 @@ namespace StokesClass
 
   private:
     virtual void
-    apply_add(LinearAlgebra::distributed::Vector<number> &      dst,
+    apply_add(LinearAlgebra::distributed::Vector<number>       &dst,
               const LinearAlgebra::distributed::Vector<number> &src) const;
 
     void
-    local_apply(const dealii::MatrixFree<dim, number> &           data,
-                LinearAlgebra::distributed::Vector<number> &      dst,
+    local_apply(const dealii::MatrixFree<dim, number>            &data,
+                LinearAlgebra::distributed::Vector<number>       &dst,
                 const LinearAlgebra::distributed::Vector<number> &src,
                 const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     void
     local_compute_diagonal(
-      const MatrixFree<dim, number> &              data,
-      LinearAlgebra::distributed::Vector<number> & dst,
-      const unsigned int &                         dummy,
+      const MatrixFree<dim, number>               &data,
+      LinearAlgebra::distributed::Vector<number>  &dst,
+      const unsigned int                          &dummy,
       const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     Table<2, VectorizedArray<number>> viscosity_x_2;
@@ -814,10 +814,10 @@ namespace StokesClass
   template <int dim, int degree_v, typename number>
   void
   ABlockOperator<dim, degree_v, number>::local_apply(
-    const dealii::MatrixFree<dim, number> &           data,
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    const dealii::MatrixFree<dim, number>            &data,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src,
-    const std::pair<unsigned int, unsigned int> &     cell_range) const
+    const std::pair<unsigned int, unsigned int>      &cell_range) const
   {
     FEEvaluation<dim, degree_v, degree_v + 1, dim, number> velocity(data);
 
@@ -841,7 +841,7 @@ namespace StokesClass
   template <int dim, int degree_v, typename number>
   void
   ABlockOperator<dim, degree_v, number>::apply_add(
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src) const
   {
     MatrixFreeOperators::Base<dim,
@@ -865,7 +865,7 @@ namespace StokesClass
 
     this->set_constrained_entries_to_one(inverse_diagonal);
 
-    for (unsigned int i = 0; i < inverse_diagonal.local_size(); ++i)
+    for (unsigned int i = 0; i < inverse_diagonal.locally_owned_size(); ++i)
       {
         Assert(inverse_diagonal.local_element(i) > 0.,
                ExcMessage("No diagonal entry in a positive definite operator "
@@ -877,7 +877,7 @@ namespace StokesClass
   template <int dim, int degree_v, typename number>
   void
   ABlockOperator<dim, degree_v, number>::local_compute_diagonal(
-    const MatrixFree<dim, number> &             data,
+    const MatrixFree<dim, number>              &data,
     LinearAlgebra::distributed::Vector<number> &dst,
     const unsigned int &,
     const std::pair<unsigned int, unsigned int> &cell_range) const
@@ -1035,9 +1035,8 @@ namespace StokesClass
     dof_handler_p.clear();
     dof_handler_p.distribute_dofs(fe_p);
 
-    IndexSet locally_relevant_dofs_u;
-    DoFTools::extract_locally_relevant_dofs(dof_handler_u,
-                                            locally_relevant_dofs_u);
+    const IndexSet locally_relevant_dofs_u =
+      DoFTools::extract_locally_relevant_dofs(dof_handler_u);
     constraints_u.reinit(locally_relevant_dofs_u);
     DoFTools::make_hanging_node_constraints(dof_handler_u, constraints_u);
 
@@ -1045,9 +1044,8 @@ namespace StokesClass
       dof_handler_u, 0, ExactSolution_BoundaryValues_u<dim>(), constraints_u);
     constraints_u.close();
 
-    IndexSet locally_relevant_dofs_p;
-    DoFTools::extract_locally_relevant_dofs(dof_handler_p,
-                                            locally_relevant_dofs_p);
+    const IndexSet locally_relevant_dofs_p =
+      DoFTools::extract_locally_relevant_dofs(dof_handler_p);
     constraints_p.reinit(locally_relevant_dofs_p);
     DoFTools::make_hanging_node_constraints(dof_handler_p, constraints_p);
     constraints_p.close();
@@ -1112,10 +1110,8 @@ namespace StokesClass
 
     for (unsigned int level = 0; level < n_levels; ++level)
       {
-        IndexSet relevant_dofs;
-        DoFTools::extract_locally_relevant_level_dofs(dof_handler_u,
-                                                      level,
-                                                      relevant_dofs);
+        const IndexSet relevant_dofs =
+          DoFTools::extract_locally_relevant_level_dofs(dof_handler_u, level);
         AffineConstraints<double> level_constraints;
         level_constraints.reinit(relevant_dofs);
         level_constraints.add_lines(
@@ -1173,9 +1169,8 @@ namespace StokesClass
 
     // Create constraints with no Dirchlet info
     AffineConstraints<double> constraints_u_no_dirchlet;
-    IndexSet                  locally_relevant_dofs_u;
-    DoFTools::extract_locally_relevant_dofs(dof_handler_u,
-                                            locally_relevant_dofs_u);
+    const IndexSet            locally_relevant_dofs_u =
+      DoFTools::extract_locally_relevant_dofs(dof_handler_u);
     constraints_u_no_dirchlet.reinit(locally_relevant_dofs_u);
     DoFTools::make_hanging_node_constraints(dof_handler_u,
                                             constraints_u_no_dirchlet);
@@ -1279,7 +1274,7 @@ namespace StokesClass
     mg_transfer.initialize_constraints(mg_constrained_dofs);
     mg_transfer.build(dof_handler_u);
 
-    LevelMatrixType &  coarse_matrix = mg_matrices[0];
+    LevelMatrixType   &coarse_matrix = mg_matrices[0];
     SolverControl      coarse_solver_control(1000, 1e-12, false, false);
     SolverCG<vector_t> coarse_solver(coarse_solver_control);
 
@@ -1467,7 +1462,7 @@ main(int argc, char *argv[])
         deallog.pop();
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

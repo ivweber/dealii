@@ -18,7 +18,6 @@
 
 #include <deal.II/base/bounding_box.h>
 #include <deal.II/base/smartpointer.h>
-#include <deal.II/base/std_cxx17/optional.h>
 
 #include <deal.II/dofs/dof_handler.h>
 
@@ -37,6 +36,7 @@
 #include <deal.II/non_matching/quadrature_generator.h>
 
 #include <deque>
+#include <optional>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -107,7 +107,7 @@ namespace NonMatching
    * can, for example, happen if the relative size of the cut is similar to the
    * floating-point accuracy. Since the FEValues-like objects are not allowed to
    * contain 0 points, the object that get_inside/outside/surface_fe_values()
-   * returns is wrapped in a std_cxx17::optional. This requires us to check if
+   * returns is wrapped in a std::optional. This requires us to check if
    * the returned FEValues-like object contains a value before we use it:
    * @code
    * NonMatching::FEValues<dim> fe_values(...);
@@ -116,7 +116,7 @@ namespace NonMatching
    *  {
    *    fe_values.reinit(cell);
    *
-   *    const std_cxx17::optional<FEValues<dim>> &fe_values_inside =
+   *    const std::optional<FEValues<dim>> &fe_values_inside =
    *      fe_values.get_inside_fe_values();
    *
    *    if (fe_values_inside)
@@ -167,14 +167,14 @@ namespace NonMatching
      * and @p level_set are stored internally, so these need to have a longer life
      * span than the instance of this class.
      */
-    template <class VectorType>
+    template <typename VectorType>
     FEValues(const hp::FECollection<dim> &fe_collection,
-             const Quadrature<1> &        quadrature,
+             const Quadrature<1>         &quadrature,
              const RegionUpdateFlags      region_update_flags,
-             const MeshClassifier<dim> &  mesh_classifier,
-             const DoFHandler<dim> &      dof_handler,
-             const VectorType &           level_set,
-             const AdditionalData &       additional_data = AdditionalData());
+             const MeshClassifier<dim>   &mesh_classifier,
+             const DoFHandler<dim>       &dof_handler,
+             const VectorType            &level_set,
+             const AdditionalData        &additional_data = AdditionalData());
 
     /**
      * Constructor.
@@ -202,15 +202,15 @@ namespace NonMatching
      * internally, so these need to have a longer life span than the instance of
      * this class.
      */
-    template <class VectorType>
+    template <typename VectorType>
     FEValues(const hp::MappingCollection<dim> &mapping_collection,
-             const hp::FECollection<dim> &     fe_collection,
-             const hp::QCollection<dim> &      q_collection,
-             const hp::QCollection<1> &        q_collection_1d,
+             const hp::FECollection<dim>      &fe_collection,
+             const hp::QCollection<dim>       &q_collection,
+             const hp::QCollection<1>         &q_collection_1d,
              const RegionUpdateFlags           region_update_flags,
-             const MeshClassifier<dim> &       mesh_classifier,
-             const DoFHandler<dim> &           dof_handler,
-             const VectorType &                level_set,
+             const MeshClassifier<dim>        &mesh_classifier,
+             const DoFHandler<dim>            &dof_handler,
+             const VectorType                 &level_set,
              const AdditionalData &additional_data = AdditionalData());
 
     /**
@@ -234,7 +234,7 @@ namespace NonMatching
      * cell is completely located in the outside domain, the returned
      * optional will not contain a value.
      */
-    const std_cxx17::optional<dealii::FEValues<dim>> &
+    const std::optional<dealii::FEValues<dim>> &
     get_inside_fe_values() const;
 
     /**
@@ -245,7 +245,7 @@ namespace NonMatching
      * cell is completely located in the inside domain, the returned
      * optional will not contain a value.
      */
-    const std_cxx17::optional<dealii::FEValues<dim>> &
+    const std::optional<dealii::FEValues<dim>> &
     get_outside_fe_values() const;
 
     /**
@@ -255,7 +255,7 @@ namespace NonMatching
      * @note If the quadrature rule over the region is empty, e.g. because the
      * cell is not intersected, the returned optional will not contain a value.
      */
-    const std_cxx17::optional<FEImmersedSurfaceValues<dim>> &
+    const std::optional<FEImmersedSurfaceValues<dim>> &
     get_surface_fe_values() const;
 
   private:
@@ -316,7 +316,7 @@ namespace NonMatching
      * This container is a std::deque, which is compatible with the `FEValues`
      * class that does not have a copy-constructor.
      */
-    std::deque<std_cxx17::optional<dealii::FEValues<dim>>>
+    std::deque<std::optional<dealii::FEValues<dim>>>
       fe_values_inside_full_quadrature;
 
     /**
@@ -332,7 +332,7 @@ namespace NonMatching
      * This container is a std::deque, which is compatible with the `FEValues`
      * class that does not have a copy-constructor.
      */
-    std::deque<std_cxx17::optional<dealii::FEValues<dim>>>
+    std::deque<std::optional<dealii::FEValues<dim>>>
       fe_values_outside_full_quadrature;
 
     /**
@@ -342,7 +342,7 @@ namespace NonMatching
      * or if 0 quadrature points were generated, this optional will not contain
      * a value.
      */
-    std_cxx17::optional<dealii::FEValues<dim>> fe_values_inside;
+    std::optional<dealii::FEValues<dim>> fe_values_inside;
 
     /**
      * FEValues object created with a quadrature rule integrating over the
@@ -351,7 +351,7 @@ namespace NonMatching
      * or if 0 quadrature points were generated, this optional will not contain
      * a value.
      */
-    std_cxx17::optional<dealii::FEValues<dim>> fe_values_outside;
+    std::optional<dealii::FEValues<dim>> fe_values_outside;
 
     /**
      * FEImmersedSurfaceValues object created with a quadrature rule integrating
@@ -360,8 +360,7 @@ namespace NonMatching
      * intersected or if 0 quadrature points were generated, this optional will
      * not contain a value.
      */
-    std_cxx17::optional<NonMatching::FEImmersedSurfaceValues<dim>>
-      fe_values_surface;
+    std::optional<NonMatching::FEImmersedSurfaceValues<dim>> fe_values_surface;
 
     /**
      * Object that generates the immersed quadrature rules.
@@ -394,7 +393,7 @@ namespace NonMatching
    * or get_outside_fe_values(). For the same reason as described in
    * NonMatching::FEValues, the returned the FEInterfaceValues objects that
    * get_inside/outside_fe_values() returns is wrapped in a
-   * std_cxx17::optional. Assembling using this class would then typically be
+   * std::optional. Assembling using this class would then typically be
    * done in the following way:
    *
    * @code
@@ -414,7 +413,7 @@ namespace NonMatching
    *                                       cell->neighbor_of_neighbor(face_index),
    *                                       neighbor_subface_index);
    *
-   *          const std_cxx17::optional<dealii::FEInterfaceValues<dim>>
+   *          const std::optional<dealii::FEInterfaceValues<dim>>
    *            &inside_fe_values = fe_interface_values.get_inside_fe_values();
    *
    *          // Check if the returned optional contains a value
@@ -461,13 +460,13 @@ namespace NonMatching
      * and @p level_set are stored internally, so these need to have a longer life
      * span than the instance of this class.
      */
-    template <class VectorType>
+    template <typename VectorType>
     FEInterfaceValues(const hp::FECollection<dim> &fe_collection,
-                      const Quadrature<1> &        quadrature,
+                      const Quadrature<1>         &quadrature,
                       const RegionUpdateFlags      region_update_flags,
-                      const MeshClassifier<dim> &  mesh_classifier,
-                      const DoFHandler<dim> &      dof_handler,
-                      const VectorType &           level_set,
+                      const MeshClassifier<dim>   &mesh_classifier,
+                      const DoFHandler<dim>       &dof_handler,
+                      const VectorType            &level_set,
                       const AdditionalData &additional_data = AdditionalData());
 
     /**
@@ -496,15 +495,15 @@ namespace NonMatching
      * internally, so these need to have a longer life span than the instance of
      * this class.
      */
-    template <class VectorType>
+    template <typename VectorType>
     FEInterfaceValues(const hp::MappingCollection<dim> &mapping_collection,
-                      const hp::FECollection<dim> &     fe_collection,
-                      const hp::QCollection<dim - 1> &  q_collection,
-                      const hp::QCollection<1> &        q_collection_1d,
+                      const hp::FECollection<dim>      &fe_collection,
+                      const hp::QCollection<dim - 1>   &q_collection,
+                      const hp::QCollection<1>         &q_collection_1d,
                       const RegionUpdateFlags           region_update_flags,
-                      const MeshClassifier<dim> &       mesh_classifier,
-                      const DoFHandler<dim> &           dof_handler,
-                      const VectorType &                level_set,
+                      const MeshClassifier<dim>        &mesh_classifier,
+                      const DoFHandler<dim>            &dof_handler,
+                      const VectorType                 &level_set,
                       const AdditionalData &additional_data = AdditionalData());
 
     /**
@@ -520,9 +519,9 @@ namespace NonMatching
      * implemented, the passed values of these must equal
      * numbers::invalid_unsigned_int.
      */
-    template <class CellIteratorType, class CellNeighborIteratorType>
+    template <typename CellIteratorType, typename CellNeighborIteratorType>
     void
-    reinit(const CellIteratorType &        cell,
+    reinit(const CellIteratorType         &cell,
            const unsigned int              face_no,
            const unsigned int              sub_face_no,
            const CellNeighborIteratorType &cell_neighbor,
@@ -537,7 +536,7 @@ namespace NonMatching
      * FEInterfaceValues object can be retrieved for each region using the
      * functions get_inside_fe_values() or get_outside_fe_values().
      */
-    template <class CellIteratorType>
+    template <typename CellIteratorType>
     void
     reinit(const CellIteratorType &cell, const unsigned int face_no);
 
@@ -550,7 +549,7 @@ namespace NonMatching
      * cell is completely located in the outside domain, the returned
      * optional will not contain a value.
      */
-    const std_cxx17::optional<dealii::FEInterfaceValues<dim>> &
+    const std::optional<dealii::FEInterfaceValues<dim>> &
     get_inside_fe_values() const;
 
     /**
@@ -562,7 +561,7 @@ namespace NonMatching
      * cell is completely located in the inside domain, the returned
      * optional will not contain a value.
      */
-    const std_cxx17::optional<dealii::FEInterfaceValues<dim>> &
+    const std::optional<dealii::FEInterfaceValues<dim>> &
     get_outside_fe_values() const;
 
   private:
@@ -638,7 +637,7 @@ namespace NonMatching
      * This container is a std::deque, which is compatible with the
      * `FEInterfaceValues` class that does not have a copy-constructor.
      */
-    std::deque<std_cxx17::optional<dealii::FEInterfaceValues<dim>>>
+    std::deque<std::optional<dealii::FEInterfaceValues<dim>>>
       fe_values_inside_full_quadrature;
 
     /**
@@ -655,7 +654,7 @@ namespace NonMatching
      * This container is a std::deque, which is compatible with the
      * `FEInterfaceValues` class that does not have a copy-constructor.
      */
-    std::deque<std_cxx17::optional<dealii::FEInterfaceValues<dim>>>
+    std::deque<std::optional<dealii::FEInterfaceValues<dim>>>
       fe_values_outside_full_quadrature;
 
     /**
@@ -665,7 +664,7 @@ namespace NonMatching
      * intersected or if 0 quadrature points were generated, this optional will
      * not contain a value.
      */
-    std_cxx17::optional<dealii::FEInterfaceValues<dim>> fe_values_inside;
+    std::optional<dealii::FEInterfaceValues<dim>> fe_values_inside;
 
     /**
      * FEInterfaceValues object created with a quadrature rule integrating over
@@ -674,7 +673,7 @@ namespace NonMatching
      * intersected or if 0 quadrature points were generated, this optional will
      * not contain a value.
      */
-    std_cxx17::optional<dealii::FEInterfaceValues<dim>> fe_values_outside;
+    std::optional<dealii::FEInterfaceValues<dim>> fe_values_outside;
 
     /**
      * Object that generates the immersed quadrature rules.
@@ -688,7 +687,7 @@ namespace NonMatching
   /*---------------------- Inline functions ---------------------*/
 
   template <int dim>
-  template <class CellIteratorType>
+  template <typename CellIteratorType>
   inline void
   FEInterfaceValues<dim>::reinit(const CellIteratorType &cell,
                                  const unsigned int      face_no)
@@ -706,9 +705,9 @@ namespace NonMatching
 
 
   template <int dim>
-  template <class CellIteratorType, class CellNeighborIteratorType>
+  template <typename CellIteratorType, typename CellNeighborIteratorType>
   inline void
-  FEInterfaceValues<dim>::reinit(const CellIteratorType &        cell,
+  FEInterfaceValues<dim>::reinit(const CellIteratorType         &cell,
                                  const unsigned int              face_no,
                                  const unsigned int              sub_face_no,
                                  const CellNeighborIteratorType &cell_neighbor,

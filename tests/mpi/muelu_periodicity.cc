@@ -69,7 +69,7 @@ namespace Step22
     void
     get_point_value(const Point<dim> point,
                     const int        proc,
-                    Vector<double> & value) const;
+                    Vector<double>  &value) const;
     void
     check_periodicity(const unsigned int cycle) const;
     void
@@ -119,7 +119,7 @@ namespace Step22
 
   template <int dim>
   double
-  BoundaryValues<dim>::value(const Point<dim> & p,
+  BoundaryValues<dim>::value(const Point<dim>  &p,
                              const unsigned int component) const
   {
     Assert(component < this->n_components,
@@ -136,7 +136,7 @@ namespace Step22
   template <int dim>
   void
   BoundaryValues<dim>::vector_value(const Point<dim> &p,
-                                    Vector<double> &  values) const
+                                    Vector<double>   &values) const
   {
     for (unsigned int c = 0; c < this->n_components; ++c)
       values(c) = BoundaryValues<dim>::value(p, c);
@@ -172,7 +172,7 @@ namespace Step22
   template <int dim>
   void
   RightHandSide<dim>::vector_value(const Point<dim> &p,
-                                   Vector<double> &  values) const
+                                   Vector<double>   &values) const
   {
     for (unsigned int c = 0; c < this->n_components; ++c)
       values(c) = RightHandSide<dim>::value(p, c);
@@ -184,13 +184,13 @@ namespace Step22
   class InverseMatrix : public Preconditioner
   {
   public:
-    InverseMatrix(const Matrix &        m,
+    InverseMatrix(const Matrix         &m,
                   const Preconditioner &preconditioner,
-                  const IndexSet &      locally_owned,
+                  const IndexSet       &locally_owned,
                   const MPI_Comm        mpi_communicator);
 
     void
-    vmult(TrilinosWrappers::MPI::Vector &      dst,
+    vmult(TrilinosWrappers::MPI::Vector       &dst,
           const TrilinosWrappers::MPI::Vector &src) const;
 
   private:
@@ -203,9 +203,9 @@ namespace Step22
 
   template <class Matrix, class Preconditioner>
   InverseMatrix<Matrix, Preconditioner>::InverseMatrix(
-    const Matrix &        m,
+    const Matrix         &m,
     const Preconditioner &preconditioner,
-    const IndexSet &      locally_owned,
+    const IndexSet       &locally_owned,
     const MPI_Comm        mpi_communicator)
     : matrix(&m)
     , preconditioner(&preconditioner)
@@ -217,7 +217,7 @@ namespace Step22
   template <class Matrix, class Preconditioner>
   void
   InverseMatrix<Matrix, Preconditioner>::vmult(
-    TrilinosWrappers::MPI::Vector &      dst,
+    TrilinosWrappers::MPI::Vector       &dst,
     const TrilinosWrappers::MPI::Vector &src) const
   {
     SolverControl              solver_control(src.size(),
@@ -240,13 +240,13 @@ namespace Step22
   public:
     SchurComplement(const TrilinosWrappers::BlockSparseMatrix &system_matrix,
                     const InverseMatrix<TrilinosWrappers::SparseMatrix,
-                                        Preconditioner> &      A_inverse,
-                    const IndexSet &                           owned_pres,
-                    const IndexSet &                           relevant_pres,
+                                        Preconditioner>       &A_inverse,
+                    const IndexSet                            &owned_pres,
+                    const IndexSet                            &relevant_pres,
                     const MPI_Comm mpi_communicator);
 
     void
-    vmult(TrilinosWrappers::MPI::Vector &      dst,
+    vmult(TrilinosWrappers::MPI::Vector       &dst,
           const TrilinosWrappers::MPI::Vector &src) const;
 
   private:
@@ -263,7 +263,7 @@ namespace Step22
   SchurComplement<Preconditioner>::SchurComplement(
     const TrilinosWrappers::BlockSparseMatrix &system_matrix,
     const InverseMatrix<TrilinosWrappers::SparseMatrix, Preconditioner>
-      &             A_inverse,
+                   &A_inverse,
     const IndexSet &owned_vel,
     const IndexSet &relevant_vel,
     const MPI_Comm  mpi_communicator)
@@ -277,7 +277,7 @@ namespace Step22
   template <class Preconditioner>
   void
   SchurComplement<Preconditioner>::vmult(
-    TrilinosWrappers::MPI::Vector &      dst,
+    TrilinosWrappers::MPI::Vector       &dst,
     const TrilinosWrappers::MPI::Vector &src) const
   {
     system_matrix->block(0, 1).vmult(tmp1, src);
@@ -330,9 +330,8 @@ namespace Step22
       owned_partitioning.push_back(locally_owned_dofs.get_view(n_u, n_u + n_p));
 
       relevant_partitioning.clear();
-      IndexSet locally_relevant_dofs;
-      DoFTools::extract_locally_relevant_dofs(dof_handler,
-                                              locally_relevant_dofs);
+      const IndexSet locally_relevant_dofs =
+        DoFTools::extract_locally_relevant_dofs(dof_handler);
       relevant_partitioning.push_back(locally_relevant_dofs.get_view(0, n_u));
       relevant_partitioning.push_back(
         locally_relevant_dofs.get_view(n_u, n_u + n_p));
@@ -580,7 +579,7 @@ namespace Step22
   void
   StokesProblem<dim>::get_point_value(const Point<dim> point,
                                       const int        proc,
-                                      Vector<double> & value) const
+                                      Vector<double>  &value) const
   {
     typename DoFHandler<dim>::active_cell_iterator cell =
       GridTools::find_active_cell_around_point(dof_handler, point);
@@ -685,7 +684,7 @@ namespace Step22
       << Utilities::int_to_string(triangulation.locally_owned_subdomain(), 2)
       << ".vtu";
 
-    std::ofstream output(filename.str().c_str());
+    std::ofstream output(filename.str());
     data_out.write_vtu(output);
 
     if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
@@ -700,7 +699,7 @@ namespace Step22
         const std::string pvtu_filename =
           ("solution-" + Utilities::int_to_string(refinement_cycle, 2) +
            ".pvtu");
-        std::ofstream pvtu_output(pvtu_filename.c_str());
+        std::ofstream pvtu_output(pvtu_filename);
         data_out.write_pvtu_record(pvtu_output, filenames);
       }
   }
@@ -814,7 +813,7 @@ main(int argc, char *argv[])
           flow_problem.run();
         }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

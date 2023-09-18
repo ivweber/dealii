@@ -87,9 +87,8 @@ test()
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints(relevant_set);
   DoFTools::make_hanging_node_constraints(dof, constraints);
@@ -125,7 +124,7 @@ test()
     owned_set, MPI_COMM_WORLD);
 
   LinearAlgebra::ReadWriteVector<Number> rw_in(owned_set);
-  for (unsigned int i = 0; i < in_dev.local_size(); ++i)
+  for (unsigned int i = 0; i < in_dev.locally_owned_size(); ++i)
     {
       const unsigned int glob_index = owned_set.nth_index_in_set(i);
       if (constraints.is_constrained(glob_index))

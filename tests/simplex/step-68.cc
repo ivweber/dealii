@@ -88,14 +88,14 @@ namespace Step68
 
     virtual void
     vector_value(const Point<dim> &point,
-                 Vector<double> &  values) const override;
+                 Vector<double>   &values) const override;
   };
 
 
   template <int dim>
   void
   Vortex<dim>::vector_value(const Point<dim> &point,
-                            Vector<double> &  values) const
+                            Vector<double>   &values) const
   {
     const double T = 4;
     const double t = this->get_time();
@@ -299,8 +299,8 @@ namespace Step68
   {
     fluid_dh.distribute_dofs(fluid_fe);
     const IndexSet locally_owned_dofs = fluid_dh.locally_owned_dofs();
-    IndexSet       locally_relevant_dofs;
-    DoFTools::extract_locally_relevant_dofs(fluid_dh, locally_relevant_dofs);
+    const IndexSet locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(fluid_dh);
 
     velocity_field.reinit(locally_owned_dofs,
                           locally_relevant_dofs,
@@ -316,7 +316,7 @@ namespace Step68
   void
   ParticleTracking<dim>::interpolate_function_to_field()
   {
-    velocity_field.zero_out_ghosts();
+    velocity_field.zero_out_ghost_values();
     VectorTools::interpolate(mapping, fluid_dh, velocity, velocity_field);
     velocity_field.update_ghost_values();
   }
@@ -549,7 +549,7 @@ main(int argc, char *argv[])
       Step68::ParticleTracking<2> particle_tracking;
       particle_tracking.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

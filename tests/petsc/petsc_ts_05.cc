@@ -50,7 +50,7 @@ public:
     , testerrrecoverable(_testerrrec)
     , testcase(_testcase)
   {
-    bool throw_error = false;
+    throw_error = false;
 
     time_stepper.explicit_function =
       [&](const real_type t, const VectorType &y, VectorType &res) -> void {
@@ -85,8 +85,8 @@ public:
                                              const VectorType &y,
                                              const VectorType &y_dot,
                                              const real_type   shift,
-                                             MatrixType &      A,
-                                             MatrixType &      P) -> void {
+                                             MatrixType       &A,
+                                             MatrixType       &P) -> void {
           deallog << "Evaluating implicit Jacobian at t=" << t << std::endl;
           if (throw_error)
             {
@@ -141,7 +141,7 @@ public:
         };
 
         time_stepper.solve_with_jacobian = [&](const VectorType &src,
-                                               VectorType &      dst) -> void {
+                                               VectorType       &dst) -> void {
           deallog << "Solving with Jacobian" << std::endl;
           if (throw_error && testcase == 2)
             {
@@ -197,6 +197,7 @@ private:
   bool        testerr;
   bool        testerrrecoverable;
   int         testcase;
+  bool        throw_error;
 };
 
 

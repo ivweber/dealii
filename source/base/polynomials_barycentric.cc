@@ -147,23 +147,22 @@ BarycentricPolynomials<dim>::BarycentricPolynomials(
 template <int dim>
 void
 BarycentricPolynomials<dim>::evaluate(
-  const Point<dim> &           unit_point,
-  std::vector<double> &        values,
+  const Point<dim>            &unit_point,
+  std::vector<double>         &values,
   std::vector<Tensor<1, dim>> &grads,
   std::vector<Tensor<2, dim>> &grad_grads,
   std::vector<Tensor<3, dim>> &third_derivatives,
   std::vector<Tensor<4, dim>> &fourth_derivatives) const
 {
-  Assert(values.size() == this->n() || values.size() == 0,
+  Assert(values.size() == this->n() || values.empty(),
          ExcDimensionMismatch2(values.size(), this->n(), 0));
-  Assert(grads.size() == this->n() || grads.size() == 0,
+  Assert(grads.size() == this->n() || grads.empty(),
          ExcDimensionMismatch2(grads.size(), this->n(), 0));
-  Assert(grad_grads.size() == this->n() || grad_grads.size() == 0,
+  Assert(grad_grads.size() == this->n() || grad_grads.empty(),
          ExcDimensionMismatch2(grad_grads.size(), this->n(), 0));
-  Assert(third_derivatives.size() == this->n() || third_derivatives.size() == 0,
+  Assert(third_derivatives.size() == this->n() || third_derivatives.empty(),
          ExcDimensionMismatch2(third_derivatives.size(), this->n(), 0));
-  Assert(fourth_derivatives.size() == this->n() ||
-           fourth_derivatives.size() == 0,
+  Assert(fourth_derivatives.size() == this->n() || fourth_derivatives.empty(),
          ExcDimensionMismatch2(fourth_derivatives.size(), this->n(), 0));
 
   for (std::size_t i = 0; i < polys.size(); ++i)
@@ -206,7 +205,7 @@ BarycentricPolynomials<dim>::evaluate(
 template <int dim>
 double
 BarycentricPolynomials<dim>::compute_value(const unsigned int i,
-                                           const Point<dim> & p) const
+                                           const Point<dim>  &p) const
 {
   AssertIndexRange(i, this->n());
   return polys[i].value(p);
@@ -217,7 +216,7 @@ BarycentricPolynomials<dim>::compute_value(const unsigned int i,
 template <int dim>
 Tensor<1, dim>
 BarycentricPolynomials<dim>::compute_1st_derivative(const unsigned int i,
-                                                    const Point<dim> & p) const
+                                                    const Point<dim>  &p) const
 {
   Tensor<1, dim> result;
   for (unsigned int d = 0; d < dim; ++d)
@@ -230,7 +229,7 @@ BarycentricPolynomials<dim>::compute_1st_derivative(const unsigned int i,
 template <int dim>
 Tensor<2, dim>
 BarycentricPolynomials<dim>::compute_2nd_derivative(const unsigned int i,
-                                                    const Point<dim> & p) const
+                                                    const Point<dim>  &p) const
 {
   Tensor<2, dim> result;
   for (unsigned int d0 = 0; d0 < dim; ++d0)
@@ -245,7 +244,7 @@ BarycentricPolynomials<dim>::compute_2nd_derivative(const unsigned int i,
 template <int dim>
 Tensor<3, dim>
 BarycentricPolynomials<dim>::compute_3rd_derivative(const unsigned int i,
-                                                    const Point<dim> & p) const
+                                                    const Point<dim>  &p) const
 {
   Tensor<3, dim> result;
   for (unsigned int d0 = 0; d0 < dim; ++d0)
@@ -261,7 +260,7 @@ BarycentricPolynomials<dim>::compute_3rd_derivative(const unsigned int i,
 template <int dim>
 Tensor<4, dim>
 BarycentricPolynomials<dim>::compute_4th_derivative(const unsigned int i,
-                                                    const Point<dim> & p) const
+                                                    const Point<dim>  &p) const
 {
   Tensor<4, dim> result;
   for (unsigned int d0 = 0; d0 < dim; ++d0)
@@ -279,7 +278,7 @@ BarycentricPolynomials<dim>::compute_4th_derivative(const unsigned int i,
 template <int dim>
 Tensor<1, dim>
 BarycentricPolynomials<dim>::compute_grad(const unsigned int i,
-                                          const Point<dim> & p) const
+                                          const Point<dim>  &p) const
 {
   return compute_1st_derivative(i, p);
 }
@@ -289,7 +288,7 @@ BarycentricPolynomials<dim>::compute_grad(const unsigned int i,
 template <int dim>
 Tensor<2, dim>
 BarycentricPolynomials<dim>::compute_grad_grad(const unsigned int i,
-                                               const Point<dim> & p) const
+                                               const Point<dim>  &p) const
 {
   return compute_2nd_derivative(i, p);
 }

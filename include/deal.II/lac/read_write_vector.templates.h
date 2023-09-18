@@ -23,7 +23,6 @@
 
 #include <deal.II/lac/exceptions.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/read_write_vector.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/vector_operations_internal.h>
@@ -98,8 +97,8 @@ namespace LinearAlgebra
       static void
       import_elements(
         const std::shared_ptr<const ::dealii::Utilities::MPI::Partitioner>
-          &                                               communication_pattern,
-        const Number *                                    values,
+                                                         &communication_pattern,
+        const Number                                     *values,
         const VectorOperation::values                     operation,
         ::dealii::LinearAlgebra::ReadWriteVector<Number> &rw_vector)
       {
@@ -109,8 +108,8 @@ namespace LinearAlgebra
         (void)rw_vector;
 
         static_assert(
-          std::is_same<MemorySpace, ::dealii::MemorySpace::Host>::value ||
-            std::is_same<MemorySpace, ::dealii::MemorySpace::Default>::value,
+          std::is_same_v<MemorySpace, ::dealii::MemorySpace::Host> ||
+            std::is_same_v<MemorySpace, ::dealii::MemorySpace::Default>,
           "MemorySpace should be Host or Default");
       }
     };
@@ -126,8 +125,8 @@ namespace LinearAlgebra
       static void
       import_elements(
         const std::shared_ptr<const ::dealii::Utilities::MPI::Partitioner>
-          &                                               communication_pattern,
-        const Number *                                    values,
+                                                         &communication_pattern,
+        const Number                                     *values,
         const VectorOperation::values                     operation,
         ::dealii::LinearAlgebra::ReadWriteVector<Number> &rw_vector)
       {
@@ -170,8 +169,8 @@ namespace LinearAlgebra
       static void
       import_elements(
         const std::shared_ptr<const ::dealii::Utilities::MPI::Partitioner>
-          &                                               communication_pattern,
-        const Number *                                    values,
+                                                         &communication_pattern,
+        const Number                                     *values,
         const VectorOperation::values                     operation,
         ::dealii::LinearAlgebra::ReadWriteVector<Number> &rw_vector)
       {
@@ -419,7 +418,7 @@ namespace LinearAlgebra
   {
     template <typename VectorType, typename Number>
     void
-    import_serial_vector(const VectorType &       values,
+    import_serial_vector(const VectorType        &values,
                          VectorOperation::values  operation,
                          ReadWriteVector<Number> &rw_vector)
     {
@@ -452,21 +451,6 @@ namespace LinearAlgebra
   ReadWriteVector<Number>::import_elements(
     const dealii::Vector<Number> &vec,
     VectorOperation::values       operation,
-    const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-      &communication_pattern)
-  {
-    (void)communication_pattern;
-
-    internal::import_serial_vector(vec, operation, *this);
-  }
-
-
-
-  template <typename Number>
-  void
-  ReadWriteVector<Number>::import_elements(
-    const LinearAlgebra::Vector<Number> &vec,
-    VectorOperation::values              operation,
     const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
       &communication_pattern)
   {
@@ -520,7 +504,7 @@ namespace LinearAlgebra
     void
     copy_petsc_vector(const PETSC_Number *petsc_start_ptr,
                       const PETSC_Number *petsc_end_ptr,
-                      Number *            ptr)
+                      Number             *ptr)
     {
       std::copy(petsc_start_ptr, petsc_end_ptr, ptr);
     }
@@ -529,7 +513,7 @@ namespace LinearAlgebra
     void
     copy_petsc_vector(const std::complex<PETSC_Number> *petsc_start_ptr,
                       const std::complex<PETSC_Number> *petsc_end_ptr,
-                      std::complex<Number> *            ptr)
+                      std::complex<Number>             *ptr)
     {
       std::copy(petsc_start_ptr, petsc_end_ptr, ptr);
     }
@@ -579,11 +563,11 @@ namespace LinearAlgebra
 #  ifdef DEAL_II_TRILINOS_WITH_TPETRA
   template <typename Number>
   template <typename Dummy>
-  std::enable_if_t<std::is_same<Dummy, Number>::value &&
+  std::enable_if_t<std::is_same_v<Dummy, Number> &&
                    dealii::is_tpetra_type<Number>::value>
   ReadWriteVector<Number>::import_elements(
     const Tpetra::Vector<Number, int, types::signed_global_dof_index> &vector,
-    const IndexSet &        source_elements,
+    const IndexSet         &source_elements,
     VectorOperation::values operation,
     const MPI_Comm          mpi_comm,
     const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
@@ -635,7 +619,7 @@ namespace LinearAlgebra
     const auto *new_values = target_vector.getData().get();
     const auto  size       = target_vector.getLocalLength();
 
-    using size_type = typename std::decay<decltype(size)>::type;
+    using size_type = std::decay_t<decltype(size)>;
 
     Assert(size == 0 || values != nullptr, ExcInternalError("Export failed."));
     AssertDimension(size, stored_elements.n_elements());
@@ -700,7 +684,7 @@ namespace LinearAlgebra
   void
   ReadWriteVector<Number>::import_elements(
     const Epetra_MultiVector &multivector,
-    const IndexSet &          source_elements,
+    const IndexSet           &source_elements,
     VectorOperation::values   operation,
     const MPI_Comm            mpi_comm,
     const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
@@ -864,7 +848,7 @@ namespace LinearAlgebra
 #  ifdef DEAL_II_TRILINOS_WITH_TPETRA
   template <typename Number>
   template <typename Dummy>
-  std::enable_if_t<std::is_same<Dummy, Number>::value &&
+  std::enable_if_t<std::is_same_v<Dummy, Number> &&
                    dealii::is_tpetra_type<Number>::value>
   ReadWriteVector<Number>::import_elements(
     const LinearAlgebra::TpetraWrappers::Vector<Number> &trilinos_vec,
@@ -1017,7 +1001,7 @@ namespace LinearAlgebra
 
   template <typename Number>
   void
-  ReadWriteVector<Number>::print(std::ostream &     out,
+  ReadWriteVector<Number>::print(std::ostream      &out,
                                  const unsigned int precision,
                                  const bool         scientific) const
   {

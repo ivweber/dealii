@@ -42,9 +42,9 @@ namespace Utilities
     Partitioner::export_to_ghosted_array_start(
       const unsigned int                              communication_channel,
       const ArrayView<const Number, MemorySpaceType> &locally_owned_array,
-      const ArrayView<Number, MemorySpaceType> &      temporary_storage,
-      const ArrayView<Number, MemorySpaceType> &      ghost_array,
-      std::vector<MPI_Request> &                      requests) const
+      const ArrayView<Number, MemorySpaceType>       &temporary_storage,
+      const ArrayView<Number, MemorySpaceType>       &ghost_array,
+      std::vector<MPI_Request>                       &requests) const
     {
       AssertDimension(temporary_storage.size(), n_import_indices());
       AssertIndexRange(communication_channel, 200);
@@ -60,7 +60,7 @@ namespace Utilities
       if (n_import_targets > 0)
         AssertDimension(locally_owned_array.size(), locally_owned_size());
 
-      Assert(requests.size() == 0,
+      Assert(requests.empty(),
              ExcMessage("Another operation seems to still be running. "
                         "Call update_ghost_values_finish() first."));
 
@@ -111,17 +111,15 @@ namespace Utilities
       // performance reasons as this can significantly decrease the number of
       // kernel launched. The indices are expanded the first time the function
       // is called.
-      if ((std::is_same<MemorySpaceType, MemorySpace::Default>::value) &&
-          (import_indices_plain_dev.size() == 0))
+      if ((std::is_same_v<MemorySpaceType, MemorySpace::Default>)&&(
+            import_indices_plain_dev.empty()))
         initialize_import_indices_plain_dev();
 #    endif
 
       for (unsigned int i = 0; i < n_import_targets; ++i)
         {
 #    if defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-          if DEAL_II_CONSTEXPR_IN_CONDITIONAL (std::is_same<
-                                                 MemorySpaceType,
-                                                 MemorySpace::Default>::value)
+          if constexpr (std::is_same_v<MemorySpaceType, MemorySpace::Default>)
             {
               const auto chunk_size = import_indices_plain_dev[i].size();
               using IndexType       = decltype(chunk_size);
@@ -185,7 +183,7 @@ namespace Utilities
     void
     Partitioner::export_to_ghosted_array_finish(
       const ArrayView<Number, MemorySpaceType> &ghost_array,
-      std::vector<MPI_Request> &                requests) const
+      std::vector<MPI_Request>                 &requests) const
     {
       Assert(ghost_array.size() == n_ghost_indices() ||
                ghost_array.size() == n_ghost_indices_in_larger_set,
@@ -219,8 +217,8 @@ namespace Utilities
                 {
                   const unsigned int chunk_size =
                     ghost_range.second - ghost_range.first;
-                  if DEAL_II_CONSTEXPR_IN_CONDITIONAL (
-                    std::is_same<MemorySpaceType, MemorySpace::Host>::value)
+                  if constexpr (std::is_same_v<MemorySpaceType,
+                                               MemorySpace::Host>)
                     {
                       // If source and destination are overlapping, we must be
                       // careful to use an appropriate copy function.
@@ -297,7 +295,7 @@ namespace Utilities
       const unsigned int                        communication_channel,
       const ArrayView<Number, MemorySpaceType> &ghost_array,
       const ArrayView<Number, MemorySpaceType> &temporary_storage,
-      std::vector<MPI_Request> &                requests) const
+      std::vector<MPI_Request>                 &requests) const
     {
       AssertDimension(temporary_storage.size(), n_import_indices());
       AssertIndexRange(communication_channel, 200);
@@ -327,7 +325,7 @@ namespace Utilities
       const unsigned int n_import_targets = import_targets_data.size();
       const unsigned int n_ghost_targets  = ghost_targets_data.size();
 
-      Assert(requests.size() == 0,
+      Assert(requests.empty(),
              ExcMessage("Another compress operation seems to still be running. "
                         "Call compress_finish() first."));
 
@@ -391,8 +389,8 @@ namespace Utilities
                   if (ghost_array_ptr + offset !=
                       ghost_array.data() + my_ghosts->first)
                     {
-                      if DEAL_II_CONSTEXPR_IN_CONDITIONAL (
-                        std::is_same<MemorySpaceType, MemorySpace::Host>::value)
+                      if constexpr (std::is_same_v<MemorySpaceType,
+                                                   MemorySpace::Host>)
                         {
                           if (offset > my_ghosts->first)
                             std::copy_backward(ghost_array.data() +
@@ -450,7 +448,7 @@ namespace Utilities
             ExcMessage("Index overflow: Maximum message size in MPI is 2GB. "
                        "The number of ghost entries times the size of 'Number' "
                        "exceeds this value. This is not supported."));
-          if (std::is_same<MemorySpaceType, MemorySpace::Default>::value)
+          if (std::is_same_v<MemorySpaceType, MemorySpace::Default>)
             Kokkos::fence();
           const int ierr =
             MPI_Isend(ghost_array_ptr,
@@ -475,7 +473,7 @@ namespace Utilities
       // standards. To avoid this, we use std::abs on default types but
       // simply return the number on unsigned types
       template <typename Number>
-      std::enable_if_t<!std::is_unsigned<Number>::value,
+      std::enable_if_t<!std::is_unsigned_v<Number>,
                        typename numbers::NumberTraits<Number>::real_type>
       get_abs(const Number a)
       {
@@ -483,7 +481,7 @@ namespace Utilities
       }
 
       template <typename Number>
-      std::enable_if_t<std::is_unsigned<Number>::value, Number>
+      std::enable_if_t<std::is_unsigned_v<Number>, Number>
       get_abs(const Number a)
       {
         return a;
@@ -535,9 +533,9 @@ namespace Utilities
     Partitioner::import_from_ghosted_array_finish(
       const VectorOperation::values                   vector_operation,
       const ArrayView<const Number, MemorySpaceType> &temporary_storage,
-      const ArrayView<Number, MemorySpaceType> &      locally_owned_array,
-      const ArrayView<Number, MemorySpaceType> &      ghost_array,
-      std::vector<MPI_Request> &                      requests) const
+      const ArrayView<Number, MemorySpaceType>       &locally_owned_array,
+      const ArrayView<Number, MemorySpaceType>       &ghost_array,
+      std::vector<MPI_Request>                       &requests) const
     {
       AssertDimension(temporary_storage.size(), n_import_indices());
       Assert(ghost_array.size() == n_ghost_indices() ||
@@ -580,8 +578,8 @@ namespace Utilities
       // performance reasons as this can significantly decrease the number of
       // kernel launched. The indices are expanded the first time the function
       // is called.
-      if ((std::is_same<MemorySpaceType, MemorySpace::Default>::value) &&
-          (import_indices_plain_dev.size() == 0))
+      if ((std::is_same_v<MemorySpaceType, MemorySpace::Default>)&&(
+            import_indices_plain_dev.empty()))
         initialize_import_indices_plain_dev();
 #    endif
 
@@ -597,13 +595,11 @@ namespace Utilities
 
           const Number *read_position = temporary_storage.data();
 #    if defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-          if DEAL_II_CONSTEXPR_IN_CONDITIONAL (std::is_same<
-                                                 MemorySpaceType,
-                                                 MemorySpace::Default>::value)
+          if constexpr (std::is_same_v<MemorySpaceType, MemorySpace::Default>)
             {
               if (vector_operation == VectorOperation::add)
                 {
-                  for (auto const &import_indices_plain :
+                  for (const auto &import_indices_plain :
                        import_indices_plain_dev)
                     {
                       const auto chunk_size = import_indices_plain.size();
@@ -627,7 +623,7 @@ namespace Utilities
                 }
               else if (vector_operation == VectorOperation::min)
                 {
-                  for (auto const &import_indices_plain :
+                  for (const auto &import_indices_plain :
                        import_indices_plain_dev)
                     {
                       const auto chunk_size = import_indices_plain.size();
@@ -654,7 +650,7 @@ namespace Utilities
                 }
               else if (vector_operation == VectorOperation::max)
                 {
-                  for (auto const &import_indices_plain :
+                  for (const auto &import_indices_plain :
                        import_indices_plain_dev)
                     {
                       const auto chunk_size = import_indices_plain.size();
@@ -681,7 +677,7 @@ namespace Utilities
                 }
               else
                 {
-                  for (auto const &import_indices_plain :
+                  for (const auto &import_indices_plain :
                        import_indices_plain_dev)
                     {
                       // We can't easily assert here, so we just move the
@@ -777,9 +773,7 @@ namespace Utilities
           Assert(ghost_array.begin() != nullptr, ExcInternalError());
 
 #    if defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-          if DEAL_II_CONSTEXPR_IN_CONDITIONAL (std::is_same<
-                                                 MemorySpaceType,
-                                                 MemorySpace::Default>::value)
+          if constexpr (std::is_same_v<MemorySpaceType, MemorySpace::Default>)
             {
               Kokkos::deep_copy(
                 Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
@@ -789,8 +783,7 @@ namespace Utilities
           else
 #    endif
             {
-              if DEAL_II_CONSTEXPR_IN_CONDITIONAL (std::is_trivial<
-                                                     Number>::value)
+              if constexpr (std::is_trivial_v<Number>)
                 {
                   std::memset(ghost_array.data(),
                               0,

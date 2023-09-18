@@ -114,9 +114,9 @@ namespace NonMatching
      * Vector. The triangulation attached to DoFHandler is the one that will be
      * classified.
      */
-    template <class VectorType>
+    template <typename VectorType>
     MeshClassifier(const DoFHandler<dim> &level_set_dof_handler,
-                   const VectorType &     level_set);
+                   const VectorType      &level_set);
 
     /**
      * Constructor. Takes the triangulation that should be classified, a
@@ -126,7 +126,7 @@ namespace NonMatching
      * @note The Function and the FiniteElement must both have a single component.
      */
     MeshClassifier(const Triangulation<dim> &triangulation,
-                   const Function<dim> &     level_set,
+                   const Function<dim>      &level_set,
                    const FiniteElement<dim> &element);
 
     /**

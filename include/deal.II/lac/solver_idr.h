@@ -115,7 +115,7 @@ namespace internal
  * these steps is stored and therefore there will be multiple values per
  * iteration.
  */
-template <class VectorType = Vector<double>>
+template <typename VectorType = Vector<double>>
 class SolverIDR : public SolverBase<VectorType>
 {
 public:
@@ -137,15 +137,15 @@ public:
   /**
    * Constructor.
    */
-  SolverIDR(SolverControl &           cn,
+  SolverIDR(SolverControl            &cn,
             VectorMemory<VectorType> &mem,
-            const AdditionalData &    data = AdditionalData());
+            const AdditionalData     &data = AdditionalData());
 
   /**
    * Constructor. Use an object of type GrowingVectorMemory as a default to
    * allocate memory.
    */
-  explicit SolverIDR(SolverControl &       cn,
+  explicit SolverIDR(SolverControl        &cn,
                      const AdditionalData &data = AdditionalData());
 
   /**
@@ -158,9 +158,9 @@ public:
    */
   template <typename MatrixType, typename PreconditionerType>
   void
-  solve(const MatrixType &        A,
-        VectorType &              x,
-        const VectorType &        b,
+  solve(const MatrixType         &A,
+        VectorType               &x,
+        const VectorType         &b,
         const PreconditionerType &preconditioner);
 
 protected:
@@ -171,9 +171,9 @@ protected:
    */
   virtual void
   print_vectors(const unsigned int step,
-                const VectorType & x,
-                const VectorType & r,
-                const VectorType & d) const;
+                const VectorType  &x,
+                const VectorType  &r,
+                const VectorType  &d) const;
 
 private:
   /**
@@ -192,7 +192,7 @@ namespace internal
 {
   namespace SolverIDRImplementation
   {
-    template <class VectorType>
+    template <typename VectorType>
     inline TmpVectors<VectorType>::TmpVectors(const unsigned int        s_param,
                                               VectorMemory<VectorType> &vmem)
       : mem(vmem)
@@ -201,7 +201,7 @@ namespace internal
 
 
 
-    template <class VectorType>
+    template <typename VectorType>
     inline VectorType &
     TmpVectors<VectorType>::operator[](const unsigned int i) const
     {
@@ -213,10 +213,10 @@ namespace internal
 
 
 
-    template <class VectorType>
+    template <typename VectorType>
     inline VectorType &
     TmpVectors<VectorType>::operator()(const unsigned int i,
-                                       const VectorType & temp)
+                                       const VectorType  &temp)
     {
       AssertIndexRange(i, data.size());
       if (data[i] == nullptr)
@@ -278,17 +278,17 @@ namespace internal
 
 
 
-template <class VectorType>
-SolverIDR<VectorType>::SolverIDR(SolverControl &           cn,
+template <typename VectorType>
+SolverIDR<VectorType>::SolverIDR(SolverControl            &cn,
                                  VectorMemory<VectorType> &mem,
-                                 const AdditionalData &    data)
+                                 const AdditionalData     &data)
   : SolverBase<VectorType>(cn, mem)
   , additional_data(data)
 {}
 
 
 
-template <class VectorType>
+template <typename VectorType>
 SolverIDR<VectorType>::SolverIDR(SolverControl &cn, const AdditionalData &data)
   : SolverBase<VectorType>(cn)
   , additional_data(data)
@@ -296,7 +296,7 @@ SolverIDR<VectorType>::SolverIDR(SolverControl &cn, const AdditionalData &data)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 SolverIDR<VectorType>::print_vectors(const unsigned int,
                                      const VectorType &,
@@ -306,12 +306,12 @@ SolverIDR<VectorType>::print_vectors(const unsigned int,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 template <typename MatrixType, typename PreconditionerType>
 void
-SolverIDR<VectorType>::solve(const MatrixType &        A,
-                             VectorType &              x,
-                             const VectorType &        b,
+SolverIDR<VectorType>::solve(const MatrixType         &A,
+                             VectorType               &x,
+                             const VectorType         &b,
                              const PreconditionerType &preconditioner)
 {
   LogStream::Prefix prefix("IDR(s)");

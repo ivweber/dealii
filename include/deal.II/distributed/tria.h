@@ -290,9 +290,6 @@ namespace parallel
       using active_cell_iterator =
         typename dealii::Triangulation<dim, spacedim>::active_cell_iterator;
 
-      using CellStatus =
-        typename dealii::Triangulation<dim, spacedim>::CellStatus;
-
       /**
        * Configuration flags for distributed Triangulations to be set in the
        * constructor. Settings can be combined using bitwise OR.
@@ -440,7 +437,7 @@ namespace parallel
        */
       virtual void
       create_triangulation(const std::vector<Point<spacedim>> &vertices,
-                           const std::vector<CellData<dim>> &  cells,
+                           const std::vector<CellData<dim>>   &cells,
                            const SubCellData &subcelldata) override;
 
       /**

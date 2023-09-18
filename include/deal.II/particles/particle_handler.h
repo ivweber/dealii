@@ -95,7 +95,7 @@ namespace Particles
      * the initialize function.
      */
     ParticleHandler(const Triangulation<dim, spacedim> &tria,
-                    const Mapping<dim, spacedim> &      mapping,
+                    const Mapping<dim, spacedim>       &mapping,
                     const unsigned int                  n_properties = 0);
 
     /**
@@ -110,7 +110,7 @@ namespace Particles
      */
     void
     initialize(const Triangulation<dim, spacedim> &tria,
-               const Mapping<dim, spacedim> &      mapping,
+               const Mapping<dim, spacedim>       &mapping,
                const unsigned int                  n_properties = 0);
 
     /**
@@ -303,8 +303,8 @@ namespace Particles
      */
     particle_iterator
     insert_particle(
-      const Point<spacedim> &     position,
-      const Point<dim> &          reference_position,
+      const Point<spacedim>      &position,
+      const Point<dim>           &reference_position,
       const types::particle_index particle_index,
       const typename Triangulation<dim, spacedim>::active_cell_iterator &cell,
       const ArrayView<const double> &properties = {});
@@ -397,8 +397,8 @@ namespace Particles
     insert_global_particles(
       const std::vector<Point<spacedim>> &positions,
       const std::vector<std::vector<BoundingBox<spacedim>>>
-        &                                       global_bounding_boxes,
-      const std::vector<std::vector<double>> &  properties = {},
+                                               &global_bounding_boxes,
+      const std::vector<std::vector<double>>   &properties = {},
       const std::vector<types::particle_index> &ids        = {});
 
     /**
@@ -480,9 +480,9 @@ namespace Particles
      * be interpreted as a displacement vector, or a vector of absolute
      * positions.
      */
-    template <class VectorType>
+    template <typename VectorType>
     std::enable_if_t<
-      std::is_convertible<VectorType *, Function<spacedim> *>::value == false>
+      std::is_convertible_v<VectorType *, Function<spacedim> *> == false>
     set_particle_positions(const VectorType &input_vector,
                            const bool        displace_particles = true);
 
@@ -560,7 +560,7 @@ namespace Particles
      * @param[in] add_to_output_vector Control if the function should set the
      * entries of the @p output_vector or if should add to them.
      */
-    template <class VectorType>
+    template <typename VectorType>
     void
     get_particle_positions(VectorType &output_vector,
                            const bool  add_to_output_vector = false);
@@ -878,7 +878,7 @@ namespace Particles
      */
     particle_iterator
     insert_particle(
-      const void *&                                                      data,
+      const void                                                       *&data,
       const typename Triangulation<dim, spacedim>::active_cell_iterator &cell);
 
     /**
@@ -1143,7 +1143,7 @@ namespace Particles
     std::vector<char>
     pack_callback(
       const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-      const typename Triangulation<dim, spacedim>::CellStatus     status) const;
+      const CellStatus                                            status) const;
 
     /**
      * Called by listener functions after a refinement step for each cell
@@ -1152,7 +1152,7 @@ namespace Particles
     void
     unpack_callback(
       const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-      const typename Triangulation<dim, spacedim>::CellStatus     status,
+      const CellStatus                                            status,
       const boost::iterator_range<std::vector<char>::const_iterator>
         &data_range);
 
@@ -1324,15 +1324,15 @@ namespace Particles
     // the domain is distributed differently after resuming from a checkpoint.
     ar //&particles
       &global_number_of_particles &global_max_particles_per_cell
-        &                          next_free_particle_index;
+        &next_free_particle_index;
   }
 
 
 
   template <int dim, int spacedim>
-  template <class VectorType>
+  template <typename VectorType>
   inline std::enable_if_t<
-    std::is_convertible<VectorType *, Function<spacedim> *>::value == false>
+    std::is_convertible_v<VectorType *, Function<spacedim> *> == false>
   ParticleHandler<dim, spacedim>::set_particle_positions(
     const VectorType &input_vector,
     const bool        displace_particles)
@@ -1354,7 +1354,7 @@ namespace Particles
 
 
   template <int dim, int spacedim>
-  template <class VectorType>
+  template <typename VectorType>
   inline void
   ParticleHandler<dim, spacedim>::get_particle_positions(
     VectorType &output_vector,

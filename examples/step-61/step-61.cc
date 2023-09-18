@@ -12,8 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
- *      Author: Zhuoran Wang, Colorado State University, 2018
+ *
+ * Author: Zhuoran Wang, Colorado State University, 2018
  */
 
 // @sect3{Include files}
@@ -139,7 +139,7 @@ namespace Step61
 
   template <int dim>
   void Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                                    std::vector<Tensor<2, dim>> &  values) const
+                                    std::vector<Tensor<2, dim>>   &values) const
   {
     AssertDimension(points.size(), values.size());
     for (unsigned int p = 0; p < points.size(); ++p)
@@ -156,7 +156,7 @@ namespace Step61
       : Function<dim>(2)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -175,7 +175,7 @@ namespace Step61
   class RightHandSide : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -210,7 +210,7 @@ namespace Step61
       : Function<dim>(2)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component) const override;
   };
 
@@ -260,7 +260,7 @@ namespace Step61
   // interface pressures, $p^\circ$ and $p^\partial$.
   template <int dim>
   WGDarcyEquation<dim>::WGDarcyEquation(const unsigned int degree)
-    : fe(FE_DGQ<dim>(degree), 1, FE_FaceQ<dim>(degree), 1)
+    : fe(FE_DGQ<dim>(degree), FE_FaceQ<dim>(degree))
     , dof_handler(triangulation)
     , fe_dgrt(degree)
     , dof_handler_dgrt(triangulation)

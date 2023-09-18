@@ -108,9 +108,9 @@ namespace Utilities
     std::vector<std::array<std::uint64_t, effective_dim>>
     inverse_Hilbert_space_filling_curve_effective(
       const std::vector<Point<dim, Number>> &points,
-      const Point<dim, Number> &             bl,
-      const std::array<LongDouble, dim> &    extents,
-      const std::bitset<dim> &               valid_extents,
+      const Point<dim, Number>              &bl,
+      const std::array<LongDouble, dim>     &extents,
+      const std::bitset<dim>                &valid_extents,
       const int                              min_bits,
       const Integer                          max_int)
     {
@@ -152,7 +152,7 @@ namespace Utilities
     using LongDouble = long double;
 
     // return if there is nothing to do
-    if (points.size() == 0)
+    if (points.empty())
       return std::vector<std::array<std::uint64_t, dim>>();
 
     // get bounding box:
@@ -487,9 +487,9 @@ namespace Utilities
     // https://en.cppreference.com/w/cpp/string/basic_string/to_string). So
     // resort to boost::lexical_cast for all other types (in
     // particular for floating point types.
-    std::string lc_string = (std::is_integral<number>::value ?
-                               std::to_string(value) :
-                               boost::lexical_cast<std::string>(value));
+    std::string lc_string =
+      (std::is_integral_v<number> ? std::to_string(value) :
+                                    boost::lexical_cast<std::string>(value));
 
     if ((digits != numbers::invalid_unsigned_int) &&
         (lc_string.size() < digits))
@@ -630,7 +630,7 @@ namespace Utilities
     //   first part to something useful, but stopped converting short
     //   of the terminating '\0' character. This happens, for example,
     //   if the given string is "1234 abc".
-    AssertThrow(!((errno != 0) || (s.size() == 0) ||
+    AssertThrow(!((errno != 0) || (s.empty()) ||
                   ((s.size() > 0) && (*p != '\0'))),
                 ExcMessage("Can't convert <" + s + "> to an integer."));
 
@@ -678,7 +678,7 @@ namespace Utilities
     //   first part to something useful, but stopped converting short
     //   of the terminating '\0' character. This happens, for example,
     //   if the given string is "1.234 abc".
-    AssertThrow(!((errno != 0) || (s.size() == 0) ||
+    AssertThrow(!((errno != 0) || (s.empty()) ||
                   ((s.size() > 0) && (*p != '\0'))),
                 ExcMessage("Can't convert <" + s + "> to a double."));
 
@@ -935,7 +935,7 @@ namespace Utilities
 
 #endif
 
-    const std::string
+    std::string
     get_current_vectorization_level()
     {
       switch (DEAL_II_VECTORIZATION_WIDTH_IN_BITS)
@@ -1014,7 +1014,7 @@ namespace Utilities
     get_time()
     {
       std::time_t time1 = std::time(nullptr);
-      std::tm *   time  = std::localtime(&time1);
+      std::tm    *time  = std::localtime(&time1);
 
       std::ostringstream o;
       o << time->tm_hour << ":" << (time->tm_min < 10 ? "0" : "")
@@ -1030,7 +1030,7 @@ namespace Utilities
     get_date()
     {
       std::time_t time1 = std::time(nullptr);
-      std::tm *   time  = std::localtime(&time1);
+      std::tm    *time  = std::localtime(&time1);
 
       std::ostringstream o;
       o << time->tm_year + 1900 << "/" << time->tm_mon + 1 << "/"

@@ -15,12 +15,14 @@
 
 #include <deal.II/base/function_tools.h>
 
+#include "deal.II/fe/fe_q.h"
+#include "deal.II/fe/fe_q_iso_q1.h"
+
 #include <deal.II/grid/reference_cell.h>
 
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_epetra_vector.h>
@@ -52,7 +54,7 @@ namespace NonMatching
       void
       tensor_point_with_1D_quadrature(const Point<dim - 1> &point,
                                       const double          weight,
-                                      const Quadrature<1> & quadrature1D,
+                                      const Quadrature<1>  &quadrature1D,
                                       const double          start,
                                       const double          end,
                                       const unsigned int    component_in_dim,
@@ -80,7 +82,7 @@ namespace NonMatching
       template <int dim>
       void
       add_tensor_product(const Quadrature<dim - 1> &lower,
-                         const Quadrature<1> &      quadrature1D,
+                         const Quadrature<1>       &quadrature1D,
                          const double               start,
                          const double               end,
                          const unsigned int         component_in_dim,
@@ -104,7 +106,7 @@ namespace NonMatching
       Definiteness
       pointwise_definiteness(
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &               functions,
+                         &functions,
         const Point<dim> &point)
       {
         Assert(functions.size() > 0,
@@ -147,8 +149,8 @@ namespace NonMatching
        */
       template <int dim>
       void
-      take_min_max_at_vertices(const Function<dim> &      function,
-                               const BoundingBox<dim> &   box,
+      take_min_max_at_vertices(const Function<dim>       &function,
+                               const BoundingBox<dim>    &box,
                                std::pair<double, double> &value_bounds)
       {
         const ReferenceCell &cube = ReferenceCells::get_hypercube<dim>();
@@ -177,8 +179,8 @@ namespace NonMatching
       void
       estimate_function_bounds(
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                               functions,
-        const BoundingBox<dim> &          box,
+                                         &functions,
+        const BoundingBox<dim>           &box,
         std::vector<FunctionBounds<dim>> &all_function_bounds)
       {
         all_function_bounds.clear();
@@ -271,13 +273,13 @@ namespace NonMatching
 
 
       template <int dim>
-      std_cxx17::optional<HeightDirectionData>
+      std::optional<HeightDirectionData>
       find_best_height_direction(
         const std::vector<FunctionBounds<dim>> &all_function_bounds)
       {
         // Minimum (taken over the indefinite functions) on the lower bound on
         // each component of the gradient.
-        std_cxx17::optional<std::array<double, dim>> min_lower_abs_grad;
+        std::optional<std::array<double, dim>> min_lower_abs_grad;
 
         for (const FunctionBounds<dim> &bounds : all_function_bounds)
           {
@@ -320,7 +322,7 @@ namespace NonMatching
             return data;
           }
 
-        return std_cxx17::optional<HeightDirectionData>();
+        return std::optional<HeightDirectionData>();
       }
 
 
@@ -361,8 +363,8 @@ namespace NonMatching
        */
       template <int dim>
       void
-      map_quadrature_to_box(const Quadrature<dim> &    unit_quadrature,
-                            const BoundingBox<dim> &   box,
+      map_quadrature_to_box(const Quadrature<dim>     &unit_quadrature,
+                            const BoundingBox<dim>    &box,
                             ExtendableQuadrature<dim> &quadrature)
       {
         for (unsigned int i = 0; i < unit_quadrature.size(); ++i)
@@ -390,8 +392,8 @@ namespace NonMatching
       void
       restrict_to_top_and_bottom(
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                                                     functions,
-        const BoundingBox<dim> &                                box,
+                                                               &functions,
+        const BoundingBox<dim>                                 &box,
         const unsigned int                                      direction,
         std::vector<Functions::CoordinateRestriction<dim - 1>> &restrictions)
       {
@@ -426,8 +428,8 @@ namespace NonMatching
       void
       restrict_to_point(
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                                                functions,
-        const Point<dim - 1> &                             point,
+                                                          &functions,
+        const Point<dim - 1>                              &point,
         const unsigned int                                 open_direction,
         std::vector<Functions::PointRestriction<dim - 1>> &restrictions)
       {
@@ -460,16 +462,16 @@ namespace NonMatching
       template <int dim>
       void
       distribute_points_between_roots(
-        const Quadrature<1> &      quadrature1D,
-        const BoundingBox<1> &     interval,
+        const Quadrature<1>       &quadrature1D,
+        const BoundingBox<1>      &interval,
         const std::vector<double> &roots,
-        const Point<dim - 1> &     point,
+        const Point<dim - 1>      &point,
         const double               weight,
         const unsigned int         height_function_direction,
         const std::vector<std::reference_wrapper<const Function<1>>>
-          &                             level_sets,
+                                       &level_sets,
         const AdditionalQGeneratorData &additional_data,
-        QPartitioning<dim> &            q_partitioning)
+        QPartitioning<dim>             &q_partitioning)
       {
         // Make this int to avoid a warning signed/unsigned comparison.
         const int n_roots = roots.size();
@@ -531,8 +533,8 @@ namespace NonMatching
       void
       RootFinder::find_roots(
         const std::vector<std::reference_wrapper<const Function<1>>> &functions,
-        const BoundingBox<1> &                                        interval,
-        std::vector<double> &                                         roots)
+        const BoundingBox<1>                                         &interval,
+        std::vector<double>                                          &roots)
       {
         for (const Function<1> &function : functions)
           {
@@ -552,10 +554,10 @@ namespace NonMatching
 
 
       void
-      RootFinder::find_roots(const Function<1> &   function,
+      RootFinder::find_roots(const Function<1>    &function,
                              const BoundingBox<1> &interval,
                              const unsigned int    recursion_depth,
-                             std::vector<double> & roots)
+                             std::vector<double>  &roots)
       {
         // Compute function values at end points.
         const double left_value  = function.value(interval.vertex(0));
@@ -643,6 +645,16 @@ namespace NonMatching
 
 
       template <int dim>
+      inline void
+      ExtendableQuadrature<dim>::clear()
+      {
+        this->quadrature_points.clear();
+        this->weights.clear();
+      }
+
+
+
+      template <int dim>
       void
       ExtendableQuadrature<dim>::push_back(const Point<dim> &point,
                                            const double      weight)
@@ -671,6 +683,18 @@ namespace NonMatching
 
 
 
+      template <int dim>
+      void
+      QPartitioning<dim>::clear()
+      {
+        positive.clear();
+        negative.clear();
+        indefinite.clear();
+        surface.clear();
+      }
+
+
+
       /**
        * Takes a (dim-1)-dimensional point from the cross-section (orthogonal
        * to direction) of the box. Creates the two dim-dimensional points, which
@@ -680,10 +704,10 @@ namespace NonMatching
        */
       template <int dim>
       Point<dim>
-      face_projection_closest_zero_contour(const Point<dim - 1> &  point,
+      face_projection_closest_zero_contour(const Point<dim - 1>   &point,
                                            const unsigned int      direction,
                                            const BoundingBox<dim> &box,
-                                           const Function<dim> &   level_set)
+                                           const Function<dim>    &level_set)
       {
         const Point<dim> bottom_point =
           dealii::internal::create_higher_dim_point(point,
@@ -707,7 +731,7 @@ namespace NonMatching
 
       template <int dim, int spacedim>
       UpThroughDimensionCreator<dim, spacedim>::UpThroughDimensionCreator(
-        const hp::QCollection<1> &      q_collection1D,
+        const hp::QCollection<1>       &q_collection1D,
         const AdditionalQGeneratorData &additional_data)
         : q_collection1D(&q_collection1D)
         , additional_data(additional_data)
@@ -724,11 +748,11 @@ namespace NonMatching
       void
       UpThroughDimensionCreator<dim, spacedim>::generate(
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                        level_sets,
-        const BoundingBox<dim> &   box,
+                                  &level_sets,
+        const BoundingBox<dim>    &box,
         const Quadrature<dim - 1> &low_dim_quadrature,
         const unsigned int         height_function_direction,
-        QPartitioning<dim> &       q_partitioning)
+        QPartitioning<dim>        &q_partitioning)
       {
         const Quadrature<1> &quadrature1D = (*q_collection1D)[q_index];
 
@@ -782,8 +806,8 @@ namespace NonMatching
         const Point<dim - 1> &point,
         const double          weight,
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                             level_sets,
-        const BoundingBox<dim> &        box,
+                                       &level_sets,
+        const BoundingBox<dim>         &box,
         const unsigned int              height_function_direction,
         ImmersedSurfaceQuadrature<dim> &surface_quadrature)
       {
@@ -843,7 +867,7 @@ namespace NonMatching
 
       template <int dim, int spacedim>
       QGeneratorBase<dim, spacedim>::QGeneratorBase(
-        const hp::QCollection<1> &      q_collection1D,
+        const hp::QCollection<1>       &q_collection1D,
         const AdditionalQGeneratorData &additional_data)
         : additional_data(additional_data)
         , q_collection1D(&q_collection1D)
@@ -855,7 +879,7 @@ namespace NonMatching
 
       template <int dim, int spacedim>
       QGenerator<dim, spacedim>::QGenerator(
-        const hp::QCollection<1> &      q_collection1D,
+        const hp::QCollection<1>       &q_collection1D,
         const AdditionalQGeneratorData &additional_data)
         : QGeneratorBase<dim, spacedim>(q_collection1D, additional_data)
         , low_dim_algorithm(q_collection1D, additional_data)
@@ -871,7 +895,7 @@ namespace NonMatching
       void
       QGeneratorBase<dim, spacedim>::clear_quadratures()
       {
-        q_partitioning = QPartitioning<dim>();
+        q_partitioning.clear();
       }
 
 
@@ -889,7 +913,7 @@ namespace NonMatching
       void
       QGenerator<dim, spacedim>::generate(
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                     level_sets,
+                               &level_sets,
         const BoundingBox<dim> &box,
         const unsigned int      n_box_splits)
       {
@@ -920,7 +944,7 @@ namespace NonMatching
           }
         else
           {
-            const std_cxx17::optional<HeightDirectionData> data =
+            const std::optional<HeightDirectionData> data =
               find_best_height_direction(all_function_bounds);
 
             // Check larger than a constant to avoid that min_abs_dfdx is only
@@ -955,7 +979,7 @@ namespace NonMatching
        * will be non-set.
        */
       template <int dim>
-      std_cxx17::optional<unsigned int>
+      std::optional<unsigned int>
       direction_of_largest_extent(const BoundingBox<dim> &box)
       {
         // Get the side lengths for each direction and sort them.
@@ -972,7 +996,7 @@ namespace NonMatching
         // function isn't called in 1d, so the (dim - 2)-element exists.
         if (boost::math::epsilon_difference(side_lengths[dim - 1].first,
                                             side_lengths[dim - 2].first) < 100)
-          return std_cxx17::optional<unsigned int>();
+          return std::optional<unsigned int>();
 
         return side_lengths.back().second;
       }
@@ -993,10 +1017,10 @@ namespace NonMatching
       template <int dim>
       unsigned int
       compute_split_direction(
-        const BoundingBox<dim> &                        box,
-        const std_cxx17::optional<HeightDirectionData> &height_direction_data)
+        const BoundingBox<dim>                   &box,
+        const std::optional<HeightDirectionData> &height_direction_data)
       {
-        const std_cxx17::optional<unsigned int> direction =
+        const std::optional<unsigned int> direction =
           direction_of_largest_extent(box);
 
         if (direction)
@@ -1055,10 +1079,10 @@ namespace NonMatching
       void
       QGenerator<dim, spacedim>::split_box_and_recurse(
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                                             level_sets,
-        const BoundingBox<dim> &                        box,
-        const std_cxx17::optional<HeightDirectionData> &direction_data,
-        const unsigned int                              n_box_splits)
+                                                 &level_sets,
+        const BoundingBox<dim>                   &box,
+        const std::optional<HeightDirectionData> &direction_data,
+        const unsigned int                        n_box_splits)
       {
         if (this->additional_data.split_in_half)
           {
@@ -1089,7 +1113,7 @@ namespace NonMatching
       QGenerator<dim, spacedim>::create_low_dim_quadratures(
         const unsigned int height_function_direction,
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                     level_sets,
+                               &level_sets,
         const BoundingBox<dim> &box,
         const unsigned int      n_box_splits)
       {
@@ -1118,7 +1142,7 @@ namespace NonMatching
       QGenerator<dim, spacedim>::create_high_dim_quadratures(
         const unsigned int height_function_direction,
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                     level_sets,
+                               &level_sets,
         const BoundingBox<dim> &box)
       {
         const QPartitioning<dim - 1> &low_dim_quadratures =
@@ -1154,7 +1178,7 @@ namespace NonMatching
       void
       QGenerator<dim, spacedim>::use_midpoint_method(
         const std::vector<std::reference_wrapper<const Function<dim>>>
-          &                     level_sets,
+                               &level_sets,
         const BoundingBox<dim> &box)
       {
         const Point<dim>   center = box.center();
@@ -1184,7 +1208,7 @@ namespace NonMatching
 
       template <int spacedim>
       QGenerator<1, spacedim>::QGenerator(
-        const hp::QCollection<1> &      q_collection1D,
+        const hp::QCollection<1>       &q_collection1D,
         const AdditionalQGeneratorData &additional_data)
         : QGeneratorBase<1, spacedim>(q_collection1D, additional_data)
         , root_finder(
@@ -1201,7 +1225,7 @@ namespace NonMatching
       void
       QGenerator<1, spacedim>::generate(
         const std::vector<std::reference_wrapper<const Function<1>>>
-          &                   level_sets,
+                             &level_sets,
         const BoundingBox<1> &box,
         const unsigned int    n_box_splits)
       {
@@ -1308,7 +1332,7 @@ namespace NonMatching
        * function must be called to specify which cell the function should be
        * evaluated on.
        */
-      template <int dim, class VectorType = Vector<double>>
+      template <int dim, typename VectorType = Vector<double>>
       class RefSpaceFEFieldFunction : public CellWiseFunction<dim>
       {
       public:
@@ -1320,7 +1344,7 @@ namespace NonMatching
          * object.
          */
         RefSpaceFEFieldFunction(const DoFHandler<dim> &dof_handler,
-                                const VectorType &     dof_values);
+                                const VectorType      &dof_values);
 
         /**
          * @copydoc CellWiseFunction::set_active_cell()
@@ -1330,6 +1354,25 @@ namespace NonMatching
                           &cell) override;
 
         /**
+         * @copydoc CellWiseFunction::set_subcell()
+         */
+        void
+        set_subcell(const std::vector<unsigned int> &mask,
+                    const BoundingBox<dim>          &subcell_box) override;
+
+        /**
+         * @copydoc CellWiseFunction::is_fe_q_iso_q1()
+         */
+        bool
+        is_fe_q_iso_q1() const override;
+
+        /**
+         * @copydoc CellWiseFunction::n_subdivisions()
+         */
+        unsigned int
+        n_subdivisions() const override;
+
+        /**
          * @copydoc Function::value()
          *
          * @note The set_active_cell function must be called before this function.
@@ -1337,7 +1380,7 @@ namespace NonMatching
          * checked.
          */
         double
-        value(const Point<dim> & point,
+        value(const Point<dim>  &point,
               const unsigned int component = 0) const override;
 
         /**
@@ -1348,7 +1391,7 @@ namespace NonMatching
          * checked.
          */
         Tensor<1, dim>
-        gradient(const Point<dim> & point,
+        gradient(const Point<dim>  &point,
                  const unsigned int component = 0) const override;
 
         /**
@@ -1359,7 +1402,7 @@ namespace NonMatching
          * checked.
          */
         SymmetricTensor<2, dim>
-        hessian(const Point<dim> & point,
+        hessian(const Point<dim>  &point,
                 const unsigned int component = 0) const override;
 
       private:
@@ -1387,15 +1430,32 @@ namespace NonMatching
         SmartPointer<const FiniteElement<dim>> element;
 
         /**
-         * DOF-indices of the cell in the last call to set_active_cell()
+         * DOF-indices of the cell in the last call to set_active_cell().
          */
         std::vector<types::global_dof_index> local_dof_indices;
 
         /**
          * Local solution values of the cell in the last call to
-         * set_active_cell()
+         * set_active_cell().
          */
         std::vector<typename VectorType::value_type> local_dof_values;
+
+        /**
+         * Local solution values of the subcell after the last call to
+         * set_subcell().
+         */
+        std::vector<typename VectorType::value_type> local_dof_values_subcell;
+
+        /**
+         * Bounding box of the subcell after the last call to set_subcell().
+         */
+        BoundingBox<dim> subcell_box;
+
+        /**
+         * Number of subdivisions per line of the FE_Q_iso_Q1 element. Set to
+         * numbers::invalid_unsigned_int for other elements.
+         */
+        unsigned int n_subdivisions_per_line;
 
         /**
          * Description of the 1d polynomial basis for tensor product elements
@@ -1417,12 +1477,13 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       RefSpaceFEFieldFunction<dim, VectorType>::RefSpaceFEFieldFunction(
         const DoFHandler<dim> &dof_handler,
-        const VectorType &     dof_values)
+        const VectorType      &dof_values)
         : dof_handler(&dof_handler)
         , global_dof_values(&dof_values)
+        , n_subdivisions_per_line(numbers::invalid_unsigned_int)
       {
         Assert(dof_handler.n_dofs() == dof_values.size(),
                ExcDimensionMismatch(dof_handler.n_dofs(), dof_values.size()));
@@ -1430,7 +1491,7 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       void
       RefSpaceFEFieldFunction<dim, VectorType>::set_active_cell(
         const typename Triangulation<dim>::active_cell_iterator &cell)
@@ -1441,11 +1502,10 @@ namespace NonMatching
             "The incoming cell must belong to the triangulation associated with "
             "the DoFHandler passed to the constructor."));
 
-        const typename DoFHandler<dim>::active_cell_iterator dof_handler_cell(
-          &dof_handler->get_triangulation(),
-          cell->level(),
-          cell->index(),
-          dof_handler);
+        const auto dof_handler_cell =
+          cell->as_dof_handler_iterator(*dof_handler);
+
+        const FE_Q<dim> fe_q1(1);
 
         // Save the element and the local dof values, since this is what we need
         // to evaluate the function.
@@ -1458,9 +1518,22 @@ namespace NonMatching
             poly.clear();
             element = &dof_handler_cell->get_fe();
 
-            if (element->n_base_elements() == 1 &&
-                dealii::internal::FEPointEvaluation::is_fast_path_supported(
-                  *element, 0))
+            const FiniteElement<dim> *fe = &dof_handler_cell->get_fe();
+
+            if (const FE_Q_iso_Q1<dim> *fe_q_iso_q1 =
+                  dynamic_cast<const FE_Q_iso_Q1<dim> *>(
+                    &dof_handler_cell->get_fe()))
+              {
+                this->n_subdivisions_per_line = fe_q_iso_q1->get_degree();
+                fe                            = &fe_q1;
+                local_dof_values_subcell.resize(fe_q1.n_dofs_per_cell());
+              }
+            else
+              this->n_subdivisions_per_line = numbers::invalid_unsigned_int;
+
+            if (fe->n_base_elements() == 1 &&
+                dealii::internal::FEPointEvaluation::is_fast_path_supported(*fe,
+                                                                            0))
               {
                 dealii::internal::MatrixFreeFunctions::ShapeInfo<double>
                   shape_info;
@@ -1469,7 +1542,7 @@ namespace NonMatching
                 renumber = shape_info.lexicographic_numbering;
                 poly =
                   dealii::internal::FEPointEvaluation::get_polynomial_space(
-                    element->base_element(0));
+                    fe->base_element(0));
 
                 polynomials_are_hat_functions =
                   (poly.size() == 2 && poly[0].value(0.) == 1. &&
@@ -1493,7 +1566,39 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
+      void
+      RefSpaceFEFieldFunction<dim, VectorType>::set_subcell(
+        const std::vector<unsigned int> &mask,
+        const BoundingBox<dim>          &subcell_box)
+      {
+        for (unsigned int i = 0; i < local_dof_values_subcell.size(); ++i)
+          local_dof_values_subcell[i] = local_dof_values[renumber[mask[i]]];
+
+        this->subcell_box = subcell_box;
+      }
+
+
+
+      template <int dim, typename VectorType>
+      bool
+      RefSpaceFEFieldFunction<dim, VectorType>::is_fe_q_iso_q1() const
+      {
+        return n_subdivisions_per_line != numbers::invalid_unsigned_int;
+      }
+
+
+
+      template <int dim, typename VectorType>
+      unsigned int
+      RefSpaceFEFieldFunction<dim, VectorType>::n_subdivisions() const
+      {
+        return n_subdivisions_per_line;
+      }
+
+
+
+      template <int dim, typename VectorType>
       bool
       RefSpaceFEFieldFunction<dim, VectorType>::cell_is_set() const
       {
@@ -1504,10 +1609,10 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       double
       RefSpaceFEFieldFunction<dim, VectorType>::value(
-        const Point<dim> & point,
+        const Point<dim>  &point,
         const unsigned int component) const
       {
         AssertIndexRange(component, this->n_components);
@@ -1518,10 +1623,11 @@ namespace NonMatching
             // TODO: this could be extended to a component that is not zero
             return dealii::internal::evaluate_tensor_product_value(
               poly,
-              local_dof_values,
-              point,
+              this->is_fe_q_iso_q1() ? local_dof_values_subcell :
+                                       local_dof_values,
+              this->is_fe_q_iso_q1() ? subcell_box.real_to_unit(point) : point,
               polynomials_are_hat_functions,
-              renumber);
+              this->is_fe_q_iso_q1() ? std::vector<unsigned int>() : renumber);
           }
         else
           {
@@ -1536,10 +1642,10 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       Tensor<1, dim>
       RefSpaceFEFieldFunction<dim, VectorType>::gradient(
-        const Point<dim> & point,
+        const Point<dim>  &point,
         const unsigned int component) const
       {
         AssertIndexRange(component, this->n_components);
@@ -1550,10 +1656,13 @@ namespace NonMatching
             // TODO: this could be extended to a component that is not zero
             return dealii::internal::evaluate_tensor_product_value_and_gradient(
                      poly,
-                     local_dof_values,
-                     point,
+                     this->is_fe_q_iso_q1() ? local_dof_values_subcell :
+                                              local_dof_values,
+                     this->is_fe_q_iso_q1() ? subcell_box.real_to_unit(point) :
+                                              point,
                      polynomials_are_hat_functions,
-                     renumber)
+                     this->is_fe_q_iso_q1() ? std::vector<unsigned int>() :
+                                              renumber)
               .second;
           }
         else
@@ -1569,10 +1678,10 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       SymmetricTensor<2, dim>
       RefSpaceFEFieldFunction<dim, VectorType>::hessian(
-        const Point<dim> & point,
+        const Point<dim>  &point,
         const unsigned int component) const
       {
         AssertIndexRange(component, this->n_components);
@@ -1582,7 +1691,11 @@ namespace NonMatching
           {
             // TODO: this could be extended to a component that is not zero
             return dealii::internal::evaluate_tensor_product_hessian(
-              poly, local_dof_values, point, renumber);
+              poly,
+              this->is_fe_q_iso_q1() ? local_dof_values_subcell :
+                                       local_dof_values,
+              this->is_fe_q_iso_q1() ? subcell_box.real_to_unit(point) : point,
+              this->is_fe_q_iso_q1() ? std::vector<unsigned int>() : renumber);
           }
         else
           {
@@ -1594,6 +1707,57 @@ namespace NonMatching
 
             return symmetrize(hessian);
           }
+      }
+
+
+
+      template <int dim>
+      BoundingBox<dim>
+      create_subcell_box(const BoundingBox<dim>              &unit_box,
+                         const std::array<unsigned int, dim> &subcell_indices,
+                         const unsigned int                   n_subdivisions)
+      {
+        std::pair<Point<dim>, Point<dim>> corners;
+        for (unsigned int d = 0; d < dim; ++d)
+          {
+            AssertIndexRange(subcell_indices[d], n_subdivisions + 1);
+
+            const double split_box_side_length =
+              (1. / n_subdivisions) * unit_box.side_length(d);
+            corners.first[d]  = subcell_indices[d] * split_box_side_length;
+            corners.second[d] = corners.first[d] + split_box_side_length;
+          }
+
+        return BoundingBox<dim>(corners);
+      }
+
+
+
+      template <int dim>
+      std::vector<unsigned int>
+      setup_lexicographic_mask(
+        const std::array<unsigned int, dim> &subcell_indices,
+        unsigned int                         dofs_per_line)
+      {
+        // This code expands the tensor product space, with `mask` increasing
+        // in size by a factor `2` for each iteration in `d`. Note how the
+        // indices in the next line are appended at the end of the vector.
+        std::vector<unsigned int> mask;
+        mask.reserve(1 << dim);
+        mask.push_back(0);
+        unsigned int stride = 1;
+        for (unsigned int d = 0; d < dim; ++d)
+          {
+            const unsigned int previous_mask_size = 1U << d;
+            AssertDimension(mask.size(), previous_mask_size);
+            for (unsigned int i = 0; i < previous_mask_size; ++i)
+              {
+                mask[i] += subcell_indices[d] * stride;
+                mask.push_back(stride + mask[i]);
+              }
+            stride *= dofs_per_line;
+          }
+        return mask;
       }
     } // namespace DiscreteQuadratureGeneratorImplementation
   }   // namespace internal
@@ -1622,7 +1786,7 @@ namespace NonMatching
   template <int dim>
   QuadratureGenerator<dim>::QuadratureGenerator(
     const hp::QCollection<1> &q_collection,
-    const AdditionalData &    additional_data)
+    const AdditionalData     &additional_data)
     : q_generator(q_collection, additional_data)
   {
     Assert(q_collection.size() > 0,
@@ -1633,16 +1797,34 @@ namespace NonMatching
 
   template <int dim>
   void
-  QuadratureGenerator<dim>::generate(const Function<dim> &   level_set,
+  QuadratureGenerator<dim>::clear_quadratures()
+  {
+    q_generator.clear_quadratures();
+  }
+
+
+
+  template <int dim>
+  void
+  QuadratureGenerator<dim>::generate(const Function<dim>    &level_set,
                                      const BoundingBox<dim> &box)
+  {
+    clear_quadratures();
+    generate_append(level_set, box);
+  }
+
+
+
+  template <int dim>
+  void
+  QuadratureGenerator<dim>::generate_append(const Function<dim>    &level_set,
+                                            const BoundingBox<dim> &box)
   {
     Assert(level_set.n_components == 1,
            ExcMessage(
              "The incoming function should be a scalar level set function,"
              " it should have one component."));
     Assert(box.volume() > 0, ExcMessage("Incoming box has zero volume."));
-
-    q_generator.clear_quadratures();
 
     std::vector<std::reference_wrapper<const Function<dim>>> level_sets;
     level_sets.push_back(level_set);
@@ -1654,7 +1836,7 @@ namespace NonMatching
     // zero. If you call generate() with a ZeroFunction nothing good can be
     // done. You will end up here.
     Assert(
-      q_generator.get_quadratures().indefinite.size() == 0,
+      q_generator.get_quadratures().indefinite.empty(),
       ExcMessage(
         "Generation of quadrature rules failed. This can mean that the level "
         "set function is degenerate in some way, e.g. oscillating extremely "
@@ -1701,7 +1883,7 @@ namespace NonMatching
   template <int dim>
   FaceQuadratureGenerator<dim>::FaceQuadratureGenerator(
     const hp::QCollection<1> &quadratures1D,
-    const AdditionalData &    additional_data)
+    const AdditionalData     &additional_data)
     : quadrature_generator(quadratures1D, additional_data)
   {}
 
@@ -1709,9 +1891,31 @@ namespace NonMatching
 
   template <int dim>
   void
-  FaceQuadratureGenerator<dim>::generate(const Function<dim> &   level_set,
+  FaceQuadratureGenerator<dim>::clear_quadratures()
+  {
+    quadrature_generator.clear_quadratures();
+    surface_quadrature.clear();
+  }
+
+
+
+  template <int dim>
+  void
+  FaceQuadratureGenerator<dim>::generate(const Function<dim>    &level_set,
                                          const BoundingBox<dim> &box,
                                          const unsigned int      face_index)
+  {
+    clear_quadratures();
+    generate_append(level_set, box, face_index);
+  }
+
+
+
+  template <int dim>
+  void
+  FaceQuadratureGenerator<dim>::generate_append(const Function<dim> &level_set,
+                                                const BoundingBox<dim> &box,
+                                                const unsigned int face_index)
   {
     AssertIndexRange(face_index, GeometryInfo<dim>::faces_per_cell);
 
@@ -1731,7 +1935,8 @@ namespace NonMatching
     // Reuse the lower dimensional QuadratureGenerator on the face.
     const BoundingBox<dim - 1> cross_section =
       box.cross_section(face_normal_direction);
-    quadrature_generator.generate(face_restriction, cross_section);
+
+    quadrature_generator.generate_append(face_restriction, cross_section);
 
     // We need the dim-dimensional normals of the zero-contour.
     // Recompute these.
@@ -1797,7 +2002,7 @@ namespace NonMatching
 
   FaceQuadratureGenerator<1>::FaceQuadratureGenerator(
     const hp::QCollection<1> &quadratures1D,
-    const AdditionalData &    additional_data)
+    const AdditionalData     &additional_data)
   {
     (void)quadratures1D;
     (void)additional_data;
@@ -1806,9 +2011,28 @@ namespace NonMatching
 
 
   void
-  FaceQuadratureGenerator<1>::generate(const Function<1> &   level_set,
+  FaceQuadratureGenerator<1>::clear_quadratures()
+  {
+    // do nothing
+  }
+
+
+
+  void
+  FaceQuadratureGenerator<1>::generate(const Function<1>    &level_set,
                                        const BoundingBox<1> &box,
                                        const unsigned int    face_index)
+  {
+    clear_quadratures();
+    generate_append(level_set, box, face_index);
+  }
+
+
+
+  void
+  FaceQuadratureGenerator<1>::generate_append(const Function<1>    &level_set,
+                                              const BoundingBox<1> &box,
+                                              const unsigned int    face_index)
   {
     AssertIndexRange(face_index, GeometryInfo<1>::faces_per_cell);
 
@@ -1873,12 +2097,12 @@ namespace NonMatching
 
 
   template <int dim>
-  template <class VectorType>
+  template <typename VectorType>
   DiscreteQuadratureGenerator<dim>::DiscreteQuadratureGenerator(
     const hp::QCollection<1> &quadratures1D,
-    const DoFHandler<dim> &   dof_handler,
-    const VectorType &        level_set,
-    const AdditionalData &    additional_data)
+    const DoFHandler<dim>    &dof_handler,
+    const VectorType         &level_set,
+    const AdditionalData     &additional_data)
     : QuadratureGenerator<dim>(quadratures1D, additional_data)
     , reference_space_level_set(
         std::make_unique<internal::DiscreteQuadratureGeneratorImplementation::
@@ -1886,6 +2110,63 @@ namespace NonMatching
           dof_handler,
           level_set))
   {}
+
+
+
+  template <int dim>
+  void
+  DiscreteQuadratureGenerator<dim>::generate_fe_q_iso_q1(
+    const BoundingBox<dim> &unit_box)
+  {
+    const unsigned int n_subdivisions =
+      reference_space_level_set->n_subdivisions();
+
+    const unsigned int dofs_per_line = n_subdivisions + 1;
+
+    this->clear_quadratures();
+
+    // The triple nested loop below expands the tensor product of the
+    // subdivisions, increasing the size of 'all_subcell_indices' by a factor
+    // 'n_subdivisions' in each iteration. Note how 'n_subdivisions - 1'
+    // copies of the data are added at the end of the vector in each
+    // iteration over d. This code avoids a dimension-dependent
+    // number of nested loops over each direction, yet having the same
+    // effect.
+    std::vector<std::array<unsigned int, dim>> all_subcell_indices;
+    all_subcell_indices.reserve(Utilities::pow(n_subdivisions, dim));
+    all_subcell_indices.emplace_back();
+    for (unsigned d = 0; d < dim; ++d)
+      {
+        const unsigned int old_size = all_subcell_indices.size();
+        for (unsigned int i = 1; i < n_subdivisions; ++i)
+          {
+            for (unsigned int j = 0; j < old_size; ++j)
+              {
+                std::array<unsigned int, dim> next_entry =
+                  all_subcell_indices[j];
+                next_entry[d] = i;
+                all_subcell_indices.push_back(next_entry);
+              }
+          }
+      }
+
+
+    for (const auto &subcell_indices : all_subcell_indices)
+      {
+        const std::vector<unsigned int> lexicographic_mask =
+          internal::DiscreteQuadratureGeneratorImplementation::
+            setup_lexicographic_mask<dim>(subcell_indices, dofs_per_line);
+
+        const auto subcell_box =
+          internal::DiscreteQuadratureGeneratorImplementation::
+            create_subcell_box<dim>(unit_box, subcell_indices, n_subdivisions);
+
+        reference_space_level_set->set_subcell(lexicographic_mask, subcell_box);
+
+        QuadratureGenerator<dim>::generate_append(*reference_space_level_set,
+                                                  subcell_box);
+      }
+  }
 
 
 
@@ -1900,18 +2181,21 @@ namespace NonMatching
 
     reference_space_level_set->set_active_cell(cell);
     const BoundingBox<dim> unit_box = create_unit_bounding_box<dim>();
-    QuadratureGenerator<dim>::generate(*reference_space_level_set, unit_box);
+    if (reference_space_level_set->is_fe_q_iso_q1())
+      generate_fe_q_iso_q1(unit_box);
+    else
+      QuadratureGenerator<dim>::generate(*reference_space_level_set, unit_box);
   }
 
 
 
   template <int dim>
-  template <class VectorType>
+  template <typename VectorType>
   DiscreteFaceQuadratureGenerator<dim>::DiscreteFaceQuadratureGenerator(
     const hp::QCollection<1> &quadratures1D,
-    const DoFHandler<dim> &   dof_handler,
-    const VectorType &        level_set,
-    const AdditionalData &    additional_data)
+    const DoFHandler<dim>    &dof_handler,
+    const VectorType         &level_set,
+    const AdditionalData     &additional_data)
     : FaceQuadratureGenerator<dim>(quadratures1D, additional_data)
     , reference_space_level_set(
         std::make_unique<internal::DiscreteQuadratureGeneratorImplementation::
@@ -1919,6 +2203,71 @@ namespace NonMatching
           dof_handler,
           level_set))
   {}
+
+
+
+  template <int dim>
+  void
+  DiscreteFaceQuadratureGenerator<dim>::generate_fe_q_iso_q1(
+    const BoundingBox<dim> &unit_box,
+    unsigned int            face_index)
+  {
+    const unsigned int n_subdivisions =
+      reference_space_level_set->n_subdivisions();
+
+    const unsigned int dofs_per_line = n_subdivisions + 1;
+
+    this->clear_quadratures();
+
+    const unsigned int coordinate_direction_face   = face_index / 2;
+    const unsigned int coordinate_orientation_face = face_index % 2;
+
+    // The triple nested loop below expands the tensor product of the
+    // subdivisions, increasing the size of 'all_subcell_indices' by a factor
+    // 'n_subdivisions' in each iteration. Note how 'n_subdivisions - 1'
+    // copies of the data are added at the end of the vector in each
+    // iteration over d. This code avoids a dimension-dependent
+    // number of nested loops over each direction, yet having the same
+    // effect. To account for the face all subcell indices in the coordinate of
+    // the face direction are filled with the appropriate index depending on the
+    // coordinate orientation. The other two indices (on the face) are
+    // set accordingly in the nested loops (with a warp around).
+    std::vector<std::array<unsigned int, dim>> all_subcell_indices;
+    all_subcell_indices.reserve(Utilities::pow(n_subdivisions, dim));
+    all_subcell_indices.emplace_back();
+    all_subcell_indices[0][coordinate_direction_face] =
+      coordinate_orientation_face == 0 ? 0 : n_subdivisions - 1;
+    for (unsigned d = 0; d < dim - 1; ++d)
+      {
+        const unsigned int old_size = all_subcell_indices.size();
+        for (unsigned int i = 1; i < n_subdivisions; ++i)
+          {
+            for (unsigned int j = 0; j < old_size; ++j)
+              {
+                std::array<unsigned int, dim> next_entry =
+                  all_subcell_indices[j];
+                next_entry[(coordinate_direction_face + d + 1) % dim] = i;
+                all_subcell_indices.push_back(next_entry);
+              }
+          }
+      }
+
+    for (const auto &subcell_indices : all_subcell_indices)
+      {
+        const std::vector<unsigned int> lexicographic_mask =
+          internal::DiscreteQuadratureGeneratorImplementation::
+            setup_lexicographic_mask<dim>(subcell_indices, dofs_per_line);
+
+        const auto subcell_box =
+          internal::DiscreteQuadratureGeneratorImplementation::
+            create_subcell_box<dim>(unit_box, subcell_indices, n_subdivisions);
+
+        reference_space_level_set->set_subcell(lexicographic_mask, subcell_box);
+
+        FaceQuadratureGenerator<dim>::generate_append(
+          *reference_space_level_set, subcell_box, face_index);
+      }
+  }
 
 
 
@@ -1934,9 +2283,12 @@ namespace NonMatching
 
     reference_space_level_set->set_active_cell(cell);
     const BoundingBox<dim> unit_box = create_unit_bounding_box<dim>();
-    FaceQuadratureGenerator<dim>::generate(*reference_space_level_set,
-                                           unit_box,
-                                           face_index);
+    if (reference_space_level_set->is_fe_q_iso_q1())
+      generate_fe_q_iso_q1(unit_box, face_index);
+    else
+      FaceQuadratureGenerator<dim>::generate(*reference_space_level_set,
+                                             unit_box,
+                                             face_index);
   }
 } // namespace NonMatching
 #include "quadrature_generator.inst"

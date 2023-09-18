@@ -779,7 +779,7 @@ namespace Patterns
      * Constructor.
      */
     Tuple(const std::vector<std::unique_ptr<PatternBase>> &patterns,
-          const std::string &                              separator = ":");
+          const std::string                               &separator = ":");
 
     /**
      * Constructor. Same as above, specialized for const char *. This is
@@ -787,7 +787,7 @@ namespace Patterns
      * provided below.
      */
     Tuple(const std::vector<std::unique_ptr<PatternBase>> &patterns,
-          const char *                                     separator);
+          const char                                      *separator);
 
 
     /**
@@ -1320,7 +1320,7 @@ namespace Patterns
        * class template for particular kinds of template arguments @p T.
        */
       static std::string
-      to_string(const T &                    s,
+      to_string(const T                     &s,
                 const Patterns::PatternBase &p = *Convert<T>::to_pattern()) =
         delete;
 
@@ -1334,7 +1334,7 @@ namespace Patterns
        * class template for particular kinds of template arguments @p T.
        */
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &p = *Convert<T>::to_pattern()) =
         delete;
     };
@@ -1481,11 +1481,11 @@ namespace Patterns
 
     // Arithmetic types
     template <class T>
-    struct Convert<T, std::enable_if_t<std::is_arithmetic<T>::value>>
+    struct Convert<T, std::enable_if_t<std::is_arithmetic_v<T>>>
     {
       template <typename Dummy = T>
-      static std::enable_if_t<std::is_same<Dummy, T>::value &&
-                                std::is_same<T, bool>::value,
+      static std::enable_if_t<std::is_same_v<Dummy, T> &&
+                                std::is_same_v<T, bool>,
                               std::unique_ptr<Patterns::PatternBase>>
       to_pattern()
       {
@@ -1493,9 +1493,9 @@ namespace Patterns
       }
 
       template <typename Dummy = T>
-      static std::enable_if_t<std::is_same<Dummy, T>::value &&
-                                !std::is_same<T, bool>::value &&
-                                std::is_integral<T>::value,
+      static std::enable_if_t<std::is_same_v<Dummy, T> &&
+                                !std::is_same_v<T, bool> &&
+                                std::is_integral_v<T>,
                               std::unique_ptr<Patterns::PatternBase>>
       to_pattern()
       {
@@ -1504,9 +1504,9 @@ namespace Patterns
       }
 
       template <typename Dummy = T>
-      static std::enable_if_t<std::is_same<Dummy, T>::value &&
-                                !std::is_same<T, bool>::value &&
-                                std::is_floating_point<T>::value,
+      static std::enable_if_t<std::is_same_v<Dummy, T> &&
+                                !std::is_same_v<T, bool> &&
+                                std::is_floating_point_v<T>,
                               std::unique_ptr<Patterns::PatternBase>>
       to_pattern()
       {
@@ -1515,14 +1515,14 @@ namespace Patterns
       }
 
       static std::string
-      to_string(const T &                    value,
+      to_string(const T                     &value,
                 const Patterns::PatternBase &p = *Convert<T>::to_pattern())
       {
         std::stringstream str;
-        if (std::is_same<T, unsigned char>::value ||
-            std::is_same<T, signed char>::value || std::is_same<T, char>::value)
+        if (std::is_same_v<T, unsigned char> ||
+            std::is_same_v<T, signed char> || std::is_same_v<T, char>)
           str << static_cast<int>(value);
-        else if (std::is_same<T, bool>::value)
+        else if (std::is_same_v<T, bool>)
           str << (static_cast<bool>(value) ? "true" : "false");
         else
           str << value;
@@ -1531,19 +1531,18 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &p = *Convert<T>::to_pattern())
       {
         AssertThrow(p.match(s), ExcNoMatch(s, p.description()));
         T value;
-        if (std::is_same<T, bool>::value)
+        if (std::is_same_v<T, bool>)
           value = (s == "true");
         else
           {
             std::istringstream is(s);
-            if (std::is_same<T, unsigned char>::value ||
-                std::is_same<T, signed char>::value ||
-                std::is_same<T, char>::value)
+            if (std::is_same_v<T, unsigned char> ||
+                std::is_same_v<T, signed char> || std::is_same_v<T, char>)
               {
                 int i;
                 is >> i;
@@ -1629,15 +1628,15 @@ namespace Patterns
     template <typename T>
     struct is_list_compatible
     {
-      static constexpr bool const value =
-        internal::is_list_compatible<typename std::decay<T>::type>::value;
+      static constexpr const bool value =
+        internal::is_list_compatible<std::decay_t<T>>::value;
     };
 
     template <typename T>
     struct is_map_compatible
     {
-      static constexpr bool const value =
-        internal::is_map_compatible<typename std::decay<T>::type>::value;
+      static constexpr const bool value =
+        internal::is_map_compatible<std::decay_t<T>>::value;
     };
 
     namespace internal
@@ -1774,10 +1773,10 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a "
                                "string to a List type."));
@@ -1800,12 +1799,12 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(s), ExcNoMatch(s, pattern.description()));
 
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a string "
                                "to a List type."));
@@ -1845,10 +1844,10 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
-        auto p = dynamic_cast<const Patterns::Map *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::Map *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a Map pattern to convert a string to "
                                "a Map compatible type."));
@@ -1874,12 +1873,12 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(s), ExcNoMatch(s, pattern.description()));
 
-        auto p = dynamic_cast<const Patterns::Map *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::Map *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a Map pattern to convert a "
                                "string to a Map compatible type."));
@@ -1904,7 +1903,7 @@ namespace Patterns
     };
 
     // std::array
-    template <class ValueType, std::size_t N>
+    template <typename ValueType, std::size_t N>
     struct Convert<std::array<ValueType, N>>
     {
       using T = std::array<ValueType, N>;
@@ -1924,10 +1923,10 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a "
                                "string to a std::array."));
@@ -1950,12 +1949,12 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(s), ExcNoMatch(s, pattern.description()));
 
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a string "
                                "to a std::array."));
@@ -1991,10 +1990,10 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a string "
                                "to a List compatible type."));
@@ -2015,12 +2014,12 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(s), ExcNoMatch(s, pattern.description()));
 
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a string "
                                "to a List compatible type."));
@@ -2051,7 +2050,7 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         return Convert<Tensor<1, dim, Number>>::to_string(
@@ -2059,7 +2058,7 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         return T(Convert<Tensor<1, dim, Number>>::to_value(s, pattern));
@@ -2088,16 +2087,16 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a string "
                                "to a List compatible type."));
 
         const auto &expressions = t->get_expressions();
-        if (expressions.size() == 0)
+        if (expressions.empty())
           return std::string();
 
         std::string s = expressions[0];
@@ -2109,12 +2108,12 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(s), ExcNoMatch(s, pattern.description()));
 
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a string "
                                "to a List compatible type."));
@@ -2145,7 +2144,7 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         std::vector<bool> mask(t.size());
@@ -2156,7 +2155,7 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         const auto mask = Convert<std::vector<bool>>::to_value(s, pattern);
@@ -2185,10 +2184,10 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a string "
                                "to a List compatible type."));
@@ -2207,12 +2206,12 @@ namespace Patterns
        * Convert a string to a value, using the given pattern, or a default one.
        */
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(s), ExcNoMatch(s, pattern.description()));
 
-        auto p = dynamic_cast<const Patterns::List *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::List *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a List pattern to convert a string "
                                "to a List compatible type."));
@@ -2241,7 +2240,7 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(t), ExcNoMatch(t, pattern.description()));
@@ -2249,7 +2248,7 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(s), ExcNoMatch(s, pattern.description()));
@@ -2276,7 +2275,7 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         std::tuple<Key, Value> m(t);
@@ -2286,7 +2285,7 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         std::tuple<Key, Value> m;
@@ -2313,10 +2312,10 @@ namespace Patterns
 
       static std::string
       to_string(
-        const T &                    t,
+        const T                     &t,
         const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
-        auto p = dynamic_cast<const Patterns::Tuple *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::Tuple *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a Tuple pattern to convert a tuple "
                                "to a string."));
@@ -2331,12 +2330,12 @@ namespace Patterns
       }
 
       static T
-      to_value(const std::string &          s,
+      to_value(const std::string           &s,
                const Patterns::PatternBase &pattern = *Convert<T>::to_pattern())
       {
         AssertThrow(pattern.match(s), ExcNoMatch(s, pattern.description()));
 
-        auto p = dynamic_cast<const Patterns::Tuple *>(&pattern);
+        const auto *p = dynamic_cast<const Patterns::Tuple *>(&pattern);
         AssertThrow(p,
                     ExcMessage("I need a Tuple pattern to convert a string "
                                "to a tuple type."));
@@ -2349,7 +2348,7 @@ namespace Patterns
     private:
       template <std::size_t... U>
       static std::array<std::string, std::tuple_size<T>::value>
-      to_string_internal_1(const T &              t,
+      to_string_internal_1(const T               &t,
                            const Patterns::Tuple &pattern,
                            std::index_sequence<U...>)
       {
@@ -2369,7 +2368,7 @@ namespace Patterns
       template <std::size_t... U>
       static T
       to_value_internal_1(const std::vector<std::string> &s,
-                          const Patterns::Tuple &         pattern,
+                          const Patterns::Tuple          &pattern,
                           std::index_sequence<U...>)
       {
         return std::make_tuple(
@@ -2379,7 +2378,7 @@ namespace Patterns
 
       static T
       to_value_internal_2(const std::vector<std::string> &s,
-                          const Patterns::Tuple &         pattern)
+                          const Patterns::Tuple          &pattern)
       {
         return Convert<T>::to_value_internal_1(
           s, pattern, std::make_index_sequence<std::tuple_size<T>::value>{});

@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, University of Heidelberg, 1999
  */
@@ -84,7 +83,7 @@ void make_grid(Triangulation<2> &triangulation)
 
   for (unsigned int step = 0; step < 3; ++step)
     {
-      for (auto &cell : triangulation.active_cell_iterators())
+      for (const auto &cell : triangulation.active_cell_iterators())
         for (const auto v : cell->vertex_indices())
           {
             const double distance_from_center =
@@ -131,7 +130,7 @@ void make_grid(Triangulation<2> &triangulation)
 // gnuplot program that we will use for visualization in the results
 // section.
 void write_dof_locations(const DoFHandler<2> &dof_handler,
-                         const std::string &  filename)
+                         const std::string   &filename)
 {
   std::map<types::global_dof_index, Point<2>> dof_location_map =
     DoFTools::map_dofs_to_support_points(MappingQ1<2>(), dof_handler);

@@ -238,10 +238,9 @@ public:
    * object @p op for which the conversion function
    * <code>linear_operator</code> is defined.
    */
-  template <
-    typename Op,
-    typename = std::enable_if_t<
-      !std::is_base_of<LinearOperator<Range, Domain, Payload>, Op>::value>>
+  template <typename Op,
+            typename = std::enable_if_t<
+              !std::is_base_of_v<LinearOperator<Range, Domain, Payload>, Op>>>
   LinearOperator(const Op &op)
   {
     *this = linear_operator<Range, Domain, Payload, Op>(op);
@@ -257,10 +256,9 @@ public:
    * Templated copy assignment operator for an object @p op for which the
    * conversion function <code>linear_operator</code> is defined.
    */
-  template <
-    typename Op,
-    typename = std::enable_if_t<
-      !std::is_base_of<LinearOperator<Range, Domain, Payload>, Op>::value>>
+  template <typename Op,
+            typename = std::enable_if_t<
+              !std::is_base_of_v<LinearOperator<Range, Domain, Payload>, Op>>>
   LinearOperator<Range, Domain, Payload> &
   operator=(const Op &op)
   {
@@ -584,7 +582,7 @@ template <typename Range,
           typename Domain,
           typename Payload>
 LinearOperator<Range, Domain, Payload>
-operator*(const LinearOperator<Range, Intermediate, Payload> & first_op,
+operator*(const LinearOperator<Range, Intermediate, Payload>  &first_op,
           const LinearOperator<Intermediate, Domain, Payload> &second_op)
 {
   if (first_op.is_null_operator || second_op.is_null_operator)
@@ -699,8 +697,8 @@ template <typename Payload,
           typename Domain = Range>
 LinearOperator<Domain, Range, Payload>
 inverse_operator(const LinearOperator<Range, Domain, Payload> &op,
-                 Solver &                                      solver,
-                 const Preconditioner &                        preconditioner)
+                 Solver                                       &solver,
+                 const Preconditioner                         &preconditioner)
 {
   LinearOperator<Domain, Range, Payload> return_op{
     op.inverse_payload(solver, preconditioner)};
@@ -713,7 +711,7 @@ inverse_operator(const LinearOperator<Range, Domain, Payload> &op,
     solver.solve(op, v, u, preconditioner);
   };
 
-  return_op.vmult_add = [op, &solver, &preconditioner](Range &       v,
+  return_op.vmult_add = [op, &solver, &preconditioner](Range        &v,
                                                        const Domain &u) {
     GrowingVectorMemory<Range> vector_memory;
 
@@ -728,7 +726,7 @@ inverse_operator(const LinearOperator<Range, Domain, Payload> &op,
     solver.solve(transpose_operator(op), v, u, preconditioner);
   };
 
-  return_op.Tvmult_add = [op, &solver, &preconditioner](Range &       v,
+  return_op.Tvmult_add = [op, &solver, &preconditioner](Range        &v,
                                                         const Domain &u) {
     GrowingVectorMemory<Range> vector_memory;
 
@@ -756,7 +754,7 @@ template <typename Payload,
           typename Domain = Range>
 LinearOperator<Domain, Range, Payload>
 inverse_operator(const LinearOperator<Range, Domain, Payload> &op,
-                 Solver &                                      solver,
+                 Solver                                       &solver,
                  const LinearOperator<Range, Domain, Payload> &preconditioner)
 {
   LinearOperator<Domain, Range, Payload> return_op{
@@ -770,7 +768,7 @@ inverse_operator(const LinearOperator<Range, Domain, Payload> &op,
     solver.solve(op, v, u, preconditioner);
   };
 
-  return_op.vmult_add = [op, &solver, preconditioner](Range &       v,
+  return_op.vmult_add = [op, &solver, preconditioner](Range        &v,
                                                       const Domain &u) {
     GrowingVectorMemory<Range> vector_memory;
 
@@ -785,7 +783,7 @@ inverse_operator(const LinearOperator<Range, Domain, Payload> &op,
     solver.solve(transpose_operator(op), v, u, preconditioner);
   };
 
-  return_op.Tvmult_add = [op, &solver, preconditioner](Range &       v,
+  return_op.Tvmult_add = [op, &solver, preconditioner](Range        &v,
                                                        const Domain &u) {
     GrowingVectorMemory<Range> vector_memory;
 
@@ -814,7 +812,7 @@ template <typename Payload,
           typename Domain = Range>
 LinearOperator<Domain, Range, Payload>
 inverse_operator(const LinearOperator<Range, Domain, Payload> &op,
-                 Solver &                                      solver)
+                 Solver                                       &solver)
 {
   return inverse_operator(op, solver, identity_operator(op));
 }
@@ -834,7 +832,7 @@ template <typename Payload,
           typename Domain = Range>
 LinearOperator<Domain, Range, Payload>
 inverse_operator(const LinearOperator<Range, Domain, Payload> &op,
-                 Solver &                                      solver,
+                 Solver                                       &solver,
                  const PreconditionIdentity &)
 {
   return inverse_operator(op, solver);
@@ -1037,7 +1035,7 @@ namespace internal
       template <typename Matrix>
       static void
       reinit_range_vector(const Matrix &matrix,
-                          Vector &      v,
+                          Vector       &v,
                           bool          omit_zeroing_entries)
       {
         v.reinit(matrix.m(), omit_zeroing_entries);
@@ -1057,7 +1055,7 @@ namespace internal
       template <typename Matrix>
       static void
       reinit_domain_vector(const Matrix &matrix,
-                           Vector &      v,
+                           Vector       &v,
                            bool          omit_zeroing_entries)
       {
         v.reinit(matrix.n(), omit_zeroing_entries);
@@ -1183,7 +1181,7 @@ namespace internal
     template <typename Function, typename Range, typename Domain>
     void
     apply_with_intermediate_storage(Function      function,
-                                    Range &       v,
+                                    Range        &v,
                                     const Domain &u,
                                     bool          add)
     {
@@ -1210,7 +1208,7 @@ namespace internal
       template <typename Matrix>
       void
       operator()(LinearOperator<Range, Domain, Payload> &op,
-                 const Matrix &                          matrix)
+                 const Matrix                           &matrix)
       {
         op.vmult = [&matrix](Range &v, const Domain &u) {
           if (PointerComparison::equal(&v, &u))
@@ -1275,7 +1273,7 @@ namespace internal
       template <typename Matrix>
       void
       operator()(LinearOperator<Range, Domain, Payload> &op,
-                 const Matrix &                          matrix)
+                 const Matrix                           &matrix)
       {
         // As above ...
 
@@ -1460,7 +1458,7 @@ linear_operator(const OperatorExemplar &operator_exemplar, const Matrix &matrix)
 template <typename Range, typename Domain, typename Payload, typename Matrix>
 LinearOperator<Range, Domain, Payload>
 linear_operator(const LinearOperator<Range, Domain, Payload> &operator_exemplar,
-                const Matrix &                                matrix)
+                const Matrix                                 &matrix)
 {
   using namespace internal::LinearOperatorImplementation;
   // Initialize the payload based on the LinearOperator exemplar
@@ -1492,7 +1490,7 @@ template <
   typename Payload = internal::LinearOperatorImplementation::EmptyPayload,
   typename OperatorExemplar,
   typename Matrix,
-  typename = std::enable_if_t<!std::is_lvalue_reference<Matrix>::value>>
+  typename = std::enable_if_t<!std::is_lvalue_reference_v<Matrix>>>
 LinearOperator<Range, Domain, Payload>
 linear_operator(const OperatorExemplar &, Matrix &&) = delete;
 
@@ -1502,11 +1500,9 @@ template <
   typename Payload = internal::LinearOperatorImplementation::EmptyPayload,
   typename OperatorExemplar,
   typename Matrix,
-  typename =
-    std::enable_if_t<!std::is_lvalue_reference<OperatorExemplar>::value>,
+  typename = std::enable_if_t<!std::is_lvalue_reference_v<OperatorExemplar>>,
   typename = std::enable_if_t<
-    !std::is_same<OperatorExemplar,
-                  LinearOperator<Range, Domain, Payload>>::value>>
+    !std::is_same_v<OperatorExemplar, LinearOperator<Range, Domain, Payload>>>>
 LinearOperator<Range, Domain, Payload>
 linear_operator(OperatorExemplar &&, const Matrix &) = delete;
 
@@ -1516,12 +1512,10 @@ template <
   typename Payload = internal::LinearOperatorImplementation::EmptyPayload,
   typename OperatorExemplar,
   typename Matrix,
-  typename = std::enable_if_t<!std::is_lvalue_reference<Matrix>::value>,
-  typename =
-    std::enable_if_t<!std::is_lvalue_reference<OperatorExemplar>::value>,
+  typename = std::enable_if_t<!std::is_lvalue_reference_v<Matrix>>,
+  typename = std::enable_if_t<!std::is_lvalue_reference_v<OperatorExemplar>>,
   typename = std::enable_if_t<
-    !std::is_same<OperatorExemplar,
-                  LinearOperator<Range, Domain, Payload>>::value>>
+    !std::is_same_v<OperatorExemplar, LinearOperator<Range, Domain, Payload>>>>
 LinearOperator<Range, Domain, Payload>
 linear_operator(OperatorExemplar &&, Matrix &&) = delete;
 
@@ -1530,7 +1524,7 @@ template <
   typename Domain  = Range,
   typename Payload = internal::LinearOperatorImplementation::EmptyPayload,
   typename Matrix,
-  typename = std::enable_if_t<!std::is_lvalue_reference<Matrix>::value>>
+  typename = std::enable_if_t<!std::is_lvalue_reference_v<Matrix>>>
 LinearOperator<Range, Domain, Payload>
 linear_operator(const LinearOperator<Range, Domain, Payload> &,
                 Matrix &&) = delete;
@@ -1540,7 +1534,7 @@ template <
   typename Domain  = Range,
   typename Payload = internal::LinearOperatorImplementation::EmptyPayload,
   typename Matrix,
-  typename = std::enable_if_t<!std::is_lvalue_reference<Matrix>::value>>
+  typename = std::enable_if_t<!std::is_lvalue_reference_v<Matrix>>>
 LinearOperator<Range, Domain, Payload>
 linear_operator(Matrix &&) = delete;
 
@@ -1550,12 +1544,11 @@ template <
   typename Preconditioner,
   typename Range  = typename Solver::vector_type,
   typename Domain = Range,
-  typename = std::enable_if_t<!std::is_lvalue_reference<Preconditioner>::value>,
+  typename = std::enable_if_t<!std::is_lvalue_reference_v<Preconditioner>>,
+  typename =
+    std::enable_if_t<!std::is_same_v<Preconditioner, PreconditionIdentity>>,
   typename = std::enable_if_t<
-    !std::is_same<Preconditioner, PreconditionIdentity>::value>,
-  typename = std::enable_if_t<
-    !std::is_same<Preconditioner,
-                  LinearOperator<Range, Domain, Payload>>::value>>
+    !std::is_same_v<Preconditioner, LinearOperator<Range, Domain, Payload>>>>
 LinearOperator<Domain, Range, Payload>
 inverse_operator(const LinearOperator<Range, Domain, Payload> &,
                  Solver &,

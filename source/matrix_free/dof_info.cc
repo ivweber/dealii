@@ -22,6 +22,7 @@
 #include <deal.II/lac/sparsity_pattern.h>
 
 #include <deal.II/matrix_free/dof_info.templates.h>
+#include <deal.II/matrix_free/vector_data_exchange.h>
 
 #include <iostream>
 
@@ -33,7 +34,7 @@ namespace internal
   {
     // ensure that the type defined in both dof_info.h and
     // hanging_nodes_internal.h is consistent
-    static_assert(std::is_same<compressed_constraint_kind, std::uint8_t>::value,
+    static_assert(std::is_same_v<compressed_constraint_kind, std::uint8_t>,
                   "Unexpected type for compressed hanging node indicators!");
 
 
@@ -238,7 +239,7 @@ namespace internal
                   bool has_hanging_nodes = false;
 
                   const unsigned int fe_index =
-                    (cell_active_fe_index.size() == 0 ||
+                    (cell_active_fe_index.empty() ||
                      dofs_per_cell.size() == 1) ?
                       0 :
                       cell_active_fe_index[boundary_cells[i]];
@@ -296,9 +297,9 @@ namespace internal
 
     void
     DoFInfo::reorder_cells(
-      const TaskInfo &                  task_info,
-      const std::vector<unsigned int> & renumbering,
-      const std::vector<unsigned int> & constraint_pool_row_index,
+      const TaskInfo                   &task_info,
+      const std::vector<unsigned int>  &renumbering,
+      const std::vector<unsigned int>  &constraint_pool_row_index,
       const std::vector<unsigned char> &irregular_cells)
     {
       (void)constraint_pool_row_index;
@@ -638,7 +639,7 @@ namespace internal
                       AssertIndexRange(start_index, dof_indices.size());
                       dof_indices_contiguous[dof_access_cell]
                                             [i * vectorization_length + j] =
-                                              this->dof_indices.size() == 0 ?
+                                              this->dof_indices.empty() ?
                                                 0 :
                                                 this->dof_indices[start_index];
                     }
@@ -893,7 +894,7 @@ namespace internal
 
     void
     DoFInfo::compute_tight_partitioners(
-      const Table<2, ShapeInfo<double>> &       shape_info,
+      const Table<2, ShapeInfo<double>>        &shape_info,
       const unsigned int                        n_owned_cells,
       const unsigned int                        n_lanes,
       const std::vector<FaceToCellTopology<1>> &inner_faces,
@@ -930,9 +931,6 @@ namespace internal
                   part.local_to_global(plain_dof_indices[i]));
           }
         std::sort(ghost_indices.begin(), ghost_indices.end());
-        ghost_indices.erase(std::unique(ghost_indices.begin(),
-                                        ghost_indices.end()),
-                            ghost_indices.end());
         IndexSet compressed_set(part.size());
         compressed_set.add_indices(ghost_indices.begin(), ghost_indices.end());
         compressed_set.subtract_set(part.locally_owned_range());
@@ -1084,9 +1082,6 @@ namespace internal
                                          part.get_mpi_communicator()) != 0;
 
               std::sort(ghost_indices.begin(), ghost_indices.end());
-              ghost_indices.erase(std::unique(ghost_indices.begin(),
-                                              ghost_indices.end()),
-                                  ghost_indices.end());
               IndexSet compressed_set(part.size());
               compressed_set.add_indices(ghost_indices.begin(),
                                          ghost_indices.end());
@@ -1161,9 +1156,6 @@ namespace internal
                   }
               });
               std::sort(ghost_indices.begin(), ghost_indices.end());
-              ghost_indices.erase(std::unique(ghost_indices.begin(),
-                                              ghost_indices.end()),
-                                  ghost_indices.end());
               IndexSet compressed_set(part.size());
               compressed_set.add_indices(ghost_indices.begin(),
                                          ghost_indices.end());
@@ -1285,8 +1277,8 @@ namespace internal
       void
       compute_row_lengths(const unsigned int         begin,
                           const unsigned int         end,
-                          const DoFInfo &            dof_info,
-                          std::vector<std::mutex> &  mutexes,
+                          const DoFInfo             &dof_info,
+                          std::vector<std::mutex>   &mutexes,
                           std::vector<unsigned int> &row_lengths)
       {
         std::vector<unsigned int> scratch;
@@ -1324,10 +1316,10 @@ namespace internal
       void
       fill_connectivity_dofs(const unsigned int               begin,
                              const unsigned int               end,
-                             const DoFInfo &                  dof_info,
+                             const DoFInfo                   &dof_info,
                              const std::vector<unsigned int> &row_lengths,
-                             std::vector<std::mutex> &        mutexes,
-                             dealii::SparsityPattern &        connectivity_dof)
+                             std::vector<std::mutex>         &mutexes,
+                             dealii::SparsityPattern         &connectivity_dof)
       {
         std::vector<unsigned int> scratch;
         const unsigned int n_components = dof_info.start_components.back();
@@ -1362,10 +1354,10 @@ namespace internal
       void
       fill_connectivity(const unsigned int               begin,
                         const unsigned int               end,
-                        const DoFInfo &                  dof_info,
+                        const DoFInfo                   &dof_info,
                         const std::vector<unsigned int> &renumbering,
-                        const dealii::SparsityPattern &  connectivity_dof,
-                        DynamicSparsityPattern &         connectivity)
+                        const dealii::SparsityPattern   &connectivity_dof,
+                        DynamicSparsityPattern          &connectivity)
       {
         ordered_vector     row_entries;
         const unsigned int n_components = dof_info.start_components.back();
@@ -1397,9 +1389,9 @@ namespace internal
 
     void
     DoFInfo::make_connectivity_graph(
-      const TaskInfo &                 task_info,
+      const TaskInfo                  &task_info,
       const std::vector<unsigned int> &renumbering,
-      DynamicSparsityPattern &         connectivity) const
+      DynamicSparsityPattern          &connectivity) const
     {
       unsigned int n_rows = (vector_partitioner->local_range().second -
                              vector_partitioner->local_range().first) +

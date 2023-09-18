@@ -203,9 +203,8 @@ namespace Differentiation
        * potential ambiguities related to implicit conversions in either user
        * code or math functions that are loaded into the standard namespace.
        */
-      template <
-        typename NumberType,
-        typename = std::enable_if_t<std::is_arithmetic<NumberType>::value>>
+      template <typename NumberType,
+                typename = std::enable_if_t<std::is_arithmetic_v<NumberType>>>
       explicit Expression(const NumberType &value);
 
       /**
@@ -215,9 +214,8 @@ namespace Differentiation
        * potential ambiguities related to implicit conversions in either user
        * code or math functions that are loaded into the standard namespace.
        */
-      template <
-        typename NumberType,
-        typename = std::enable_if_t<std::is_arithmetic<NumberType>::value>>
+      template <typename NumberType,
+                typename = std::enable_if_t<std::is_arithmetic_v<NumberType>>>
       explicit Expression(const std::complex<NumberType> &value);
 
       /**
@@ -231,9 +229,8 @@ namespace Differentiation
        * It is expected that both the @p numerator and @p denominator
        * be integral types.
        */
-      template <
-        typename NumberType,
-        typename = std::enable_if_t<std::is_integral<NumberType>::value>>
+      template <typename NumberType,
+                typename = std::enable_if_t<std::is_integral_v<NumberType>>>
       Expression(const NumberType &numerator, const NumberType &denominator);
 
       /**
@@ -303,7 +300,7 @@ namespace Differentiation
        * argument.
        */
       Expression(const std::vector<std::pair<Expression, Expression>>
-                   &               condition_expression,
+                                  &condition_expression,
                  const Expression &expression_otherwise);
 
       /**
@@ -358,7 +355,7 @@ namespace Differentiation
        * This constructor initializes a function symbol with a string
        * representing its symbolic name.
        */
-      Expression(const std::string &         symbol_func,
+      Expression(const std::string          &symbol_func,
                  const types::symbol_vector &arguments);
 
       /**
@@ -1085,7 +1082,7 @@ namespace Differentiation
      */
     template <typename NumberType,
               typename = std::enable_if_t<
-                std::is_constructible<Expression, NumberType>::value>>
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator+(const NumberType &lhs, const Expression &rhs)
     {
@@ -1102,7 +1099,7 @@ namespace Differentiation
      */
     template <typename NumberType,
               typename = std::enable_if_t<
-                std::is_constructible<Expression, NumberType>::value>>
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator+(const Expression &lhs, const NumberType &rhs)
     {
@@ -1119,7 +1116,7 @@ namespace Differentiation
      */
     template <typename NumberType,
               typename = std::enable_if_t<
-                std::is_constructible<Expression, NumberType>::value>>
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator-(const NumberType &lhs, const Expression &rhs)
     {
@@ -1136,7 +1133,7 @@ namespace Differentiation
      */
     template <typename NumberType,
               typename = std::enable_if_t<
-                std::is_constructible<Expression, NumberType>::value>>
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator-(const Expression &lhs, const NumberType &rhs)
     {
@@ -1153,7 +1150,7 @@ namespace Differentiation
      */
     template <typename NumberType,
               typename = std::enable_if_t<
-                std::is_constructible<Expression, NumberType>::value>>
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator*(const NumberType &lhs, const Expression &rhs)
     {
@@ -1170,7 +1167,7 @@ namespace Differentiation
      */
     template <typename NumberType,
               typename = std::enable_if_t<
-                std::is_constructible<Expression, NumberType>::value>>
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator*(const Expression &lhs, const NumberType &rhs)
     {
@@ -1187,7 +1184,7 @@ namespace Differentiation
      */
     template <typename NumberType,
               typename = std::enable_if_t<
-                std::is_constructible<Expression, NumberType>::value>>
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator/(const NumberType &lhs, const Expression &rhs)
     {
@@ -1204,7 +1201,7 @@ namespace Differentiation
      */
     template <typename NumberType,
               typename = std::enable_if_t<
-                std::is_constructible<Expression, NumberType>::value>>
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator/(const Expression &lhs, const NumberType &rhs)
     {
@@ -1255,7 +1252,7 @@ namespace Differentiation
       std::stringstream sstream;
       sstream << *this;
       const std::string expr = sstream.str();
-      ar &              expr;
+      ar               &expr;
     }
 
 
@@ -1264,7 +1261,7 @@ namespace Differentiation
     Expression::load(Archive &ar, const unsigned int /*version*/)
     {
       std::string expr;
-      ar &        expr;
+      ar         &expr;
       parse(expr);
     }
 
@@ -1376,24 +1373,21 @@ namespace internal
       return t;
     }
 
-    template <typename T,
-              typename = std::enable_if_t<std::is_arithmetic<T>::value>>
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     static Differentiation::SD::Expression
     value(const T &t)
     {
       return Differentiation::SD::Expression(t);
     }
 
-    template <typename T,
-              typename = std::enable_if_t<std::is_arithmetic<T>::value>>
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     static Differentiation::SD::Expression
     value(T &&t)
     {
       return Differentiation::SD::Expression(t);
     }
 
-    template <typename T,
-              typename = std::enable_if_t<std::is_arithmetic<T>::value>>
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     static Differentiation::SD::Expression
     value(const std::complex<T> &t)
     {

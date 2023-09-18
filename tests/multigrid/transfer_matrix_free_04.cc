@@ -87,15 +87,13 @@ check(const unsigned int fe_degree)
           LinearAlgebra::distributed::Vector<Number> v1, v2;
           LinearAlgebra::distributed::Vector<double> v1_cpy, v2_cpy, v3;
           v1.reinit(mgdof.locally_owned_mg_dofs(level - 1), MPI_COMM_WORLD);
-          IndexSet relevant_set;
-          DoFTools::extract_locally_relevant_level_dofs(mgdof,
-                                                        level,
-                                                        relevant_set);
+          const IndexSet relevant_set =
+            DoFTools::extract_locally_relevant_level_dofs(mgdof, level);
           v2.reinit(mgdof.locally_owned_mg_dofs(level),
                     relevant_set,
                     MPI_COMM_WORLD);
           v3.reinit(mgdof.locally_owned_mg_dofs(level), MPI_COMM_WORLD);
-          for (unsigned int i = 0; i < v1.local_size(); ++i)
+          for (unsigned int i = 0; i < v1.locally_owned_size(); ++i)
             v1.local_element(i) = random_value<double>();
           v1_cpy = v1;
           transfer.prolongate(level, v2, v1);
@@ -119,7 +117,7 @@ check(const unsigned int fe_degree)
           v1.reinit(mgdof.locally_owned_mg_dofs(level), MPI_COMM_WORLD);
           v2.reinit(mgdof.locally_owned_mg_dofs(level - 1), MPI_COMM_WORLD);
           v3.reinit(mgdof.locally_owned_mg_dofs(level - 1), MPI_COMM_WORLD);
-          for (unsigned int i = 0; i < v1.local_size(); ++i)
+          for (unsigned int i = 0; i < v1.locally_owned_size(); ++i)
             v1.local_element(i) = random_value<double>();
           v1_cpy = v1;
           transfer.restrict_and_add(level, v2, v1);

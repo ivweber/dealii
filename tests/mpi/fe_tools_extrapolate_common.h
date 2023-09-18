@@ -43,7 +43,7 @@
 
 #include "../tests.h"
 
-//#define DEBUG_OUTPUT_VTK
+// #define DEBUG_OUTPUT_VTK
 
 template <int dim>
 class TestFunction : public Function<dim>
@@ -97,7 +97,7 @@ make_tria()
 template <int dim>
 DoFHandler<dim> *
 make_dof_handler(const parallel::distributed::Triangulation<dim> &tria,
-                 const FiniteElement<dim> &                       fe)
+                 const FiniteElement<dim>                        &fe)
 {
   DoFHandler<dim> *dof_handler = new DoFHandler<dim>(tria);
   dof_handler->distribute_dofs(fe);
@@ -109,8 +109,8 @@ make_dof_handler(const parallel::distributed::Triangulation<dim> &tria,
 // output some indicators for a given vector
 template <unsigned int dim, typename VectorType>
 void
-output_vector(const VectorType &     v,
-              const std::string &    output_name,
+output_vector(const VectorType      &v,
+              const std::string     &output_name,
               const DoFHandler<dim> &dof_handler)
 {
   DataOut<dim> data_out;
@@ -124,7 +124,7 @@ output_vector(const VectorType &     v,
     (output_name + "." +
      Utilities::int_to_string(Utilities::MPI::this_mpi_process(MPI_COMM_WORLD),
                               1));
-  std::ofstream output((filename + ".vtu").c_str());
+  std::ofstream output(filename + ".vtu");
   data_out.write_vtu(output);
 }
 
@@ -200,12 +200,12 @@ check_this(const FiniteElement<dim> &fe1, const FiniteElement<dim> &fe2)
   DoFTools::make_hanging_node_constraints(*dof2, cm2);
   cm2.close();
 
-  IndexSet locally_owned_dofs1 = dof1->locally_owned_dofs();
-  IndexSet locally_relevant_dofs1;
-  DoFTools::extract_locally_relevant_dofs(*dof1, locally_relevant_dofs1);
-  IndexSet locally_owned_dofs2 = dof2->locally_owned_dofs();
-  IndexSet locally_relevant_dofs2;
-  DoFTools::extract_locally_relevant_dofs(*dof2, locally_relevant_dofs2);
+  const IndexSet &locally_owned_dofs1 = dof1->locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs1 =
+    DoFTools::extract_locally_relevant_dofs(*dof1);
+  const IndexSet &locally_owned_dofs2 = dof2->locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs2 =
+    DoFTools::extract_locally_relevant_dofs(*dof2);
 
   VectorType in_ghosted =
     build_ghosted<VectorType>(locally_owned_dofs1, locally_relevant_dofs1);
@@ -331,12 +331,12 @@ check_this_dealii(const FiniteElement<dim> &fe1, const FiniteElement<dim> &fe2)
   DoFTools::make_hanging_node_constraints(*dof2, cm2);
   cm2.close();
 
-  IndexSet locally_owned_dofs1 = dof1->locally_owned_dofs();
-  IndexSet locally_relevant_dofs1;
-  DoFTools::extract_locally_relevant_dofs(*dof1, locally_relevant_dofs1);
-  IndexSet locally_owned_dofs2 = dof2->locally_owned_dofs();
-  IndexSet locally_relevant_dofs2;
-  DoFTools::extract_locally_relevant_dofs(*dof2, locally_relevant_dofs2);
+  const IndexSet &locally_owned_dofs1 = dof1->locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs1 =
+    DoFTools::extract_locally_relevant_dofs(*dof1);
+  const IndexSet &locally_owned_dofs2 = dof2->locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs2 =
+    DoFTools::extract_locally_relevant_dofs(*dof2);
 
   VectorType in_ghosted =
     build_ghosted<VectorType>(locally_owned_dofs1, locally_relevant_dofs1);

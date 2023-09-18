@@ -62,12 +62,12 @@ namespace internal
     template <int dim, typename Number, typename VectorizedArrayType>
     void
     MappingInfo<dim, Number, VectorizedArrayType>::initialize(
-      const dealii::Triangulation<dim> &                        tria,
+      const dealii::Triangulation<dim>                         &tria,
       const std::vector<std::pair<unsigned int, unsigned int>> &cells,
-      const FaceInfo<VectorizedArrayType::size()> &             face_info,
-      const std::vector<unsigned int> &                         active_fe_index,
+      const FaceInfo<VectorizedArrayType::size()>              &face_info,
+      const std::vector<unsigned int>                          &active_fe_index,
       const std::shared_ptr<dealii::hp::MappingCollection<dim>> &mapping,
-      const std::vector<dealii::hp::QCollection<dim>> &          quad,
+      const std::vector<dealii::hp::QCollection<dim>>           &quad,
       const UpdateFlags update_flags_cells,
       const UpdateFlags update_flags_boundary_faces,
       const UpdateFlags update_flags_inner_faces,
@@ -205,10 +205,10 @@ namespace internal
     template <int dim, typename Number, typename VectorizedArrayType>
     void
     MappingInfo<dim, Number, VectorizedArrayType>::update_mapping(
-      const dealii::Triangulation<dim> &                        tria,
+      const dealii::Triangulation<dim>                         &tria,
       const std::vector<std::pair<unsigned int, unsigned int>> &cells,
-      const FaceInfo<VectorizedArrayType::size()> &             face_info,
-      const std::vector<unsigned int> &                         active_fe_index,
+      const FaceInfo<VectorizedArrayType::size()>              &face_info,
+      const std::vector<unsigned int>                          &active_fe_index,
       const std::shared_ptr<dealii::hp::MappingCollection<dim>> &mapping)
     {
       AssertDimension(cells.size() / VectorizedArrayType::size(),
@@ -245,7 +245,7 @@ namespace internal
     inline DEAL_II_ALWAYS_INLINE void
     store_vectorized_array(const VectorizedArrayType1 value,
                            const unsigned int         offset,
-                           VectorizedArrayType2 &     result)
+                           VectorizedArrayType2      &result)
     {
       static_assert(VectorizedArrayType2::size() >=
                       VectorizedArrayType1::size(),
@@ -409,15 +409,15 @@ namespace internal
        */
       template <int dim, typename VectorizedArrayType>
       void
-      evaluate_on_cell(const dealii::Triangulation<dim> &           tria,
+      evaluate_on_cell(const dealii::Triangulation<dim>            &tria,
                        const std::pair<unsigned int, unsigned int> *cells,
                        const unsigned int                           my_q,
-                       GeometryType &                               cell_t_prev,
-                       GeometryType *                               cell_t,
-                       dealii::FEValues<dim, dim> &                 fe_val,
+                       GeometryType                                &cell_t_prev,
+                       GeometryType                                *cell_t,
+                       dealii::FEValues<dim, dim>                  &fe_val,
                        LocalData<dim,
                                  typename VectorizedArrayType::value_type,
-                                 VectorizedArrayType> &             cell_data)
+                                 VectorizedArrayType>              &cell_data)
       {
         const unsigned int n_q_points   = fe_val.n_quadrature_points;
         const UpdateFlags  update_flags = fe_val.get_update_flags();
@@ -602,10 +602,10 @@ namespace internal
       void
       initialize_cell_range(
         const std::pair<unsigned int, unsigned int>               cell_range,
-        const dealii::Triangulation<dim> &                        tria,
+        const dealii::Triangulation<dim>                         &tria,
         const std::vector<std::pair<unsigned int, unsigned int>> &cells,
-        const std::vector<unsigned int> &              active_fe_index,
-        const dealii::hp::MappingCollection<dim> &     mapping,
+        const std::vector<unsigned int>               &active_fe_index,
+        const dealii::hp::MappingCollection<dim>      &mapping,
         MappingInfo<dim, Number, VectorizedArrayType> &mapping_info,
         std::pair<
           std::vector<MappingInfoStorage<dim, dim, VectorizedArrayType>>,
@@ -878,8 +878,8 @@ namespace internal
 
       template <typename CONTAINER>
       void
-      merge_compressed_data(const CONTAINER &          source,
-                            CONTAINER &                destination,
+      merge_compressed_data(const CONTAINER           &source,
+                            CONTAINER                 &destination,
                             std::vector<unsigned int> &indices)
       {
         indices.resize(source.size());
@@ -908,8 +908,8 @@ namespace internal
       copy_data(
         const unsigned int                first_cell,
         const std::array<std::size_t, 2> &data_shift,
-        const std::vector<unsigned int> & indices_compressed,
-        const std::vector<GeometryType> & cell_type,
+        const std::vector<unsigned int>  &indices_compressed,
+        const std::vector<GeometryType>  &cell_type,
         MappingInfoStorage<structdim, dim, VectorizedArrayType>
           &data_cells_local,
         MappingInfoStorage<structdim, dim, VectorizedArrayType> &data_cells)
@@ -994,12 +994,12 @@ namespace internal
       mapping_q_query_fe_values(
         const unsigned int                                        begin_cell,
         const unsigned int                                        end_cell,
-        const MappingQ<dim> &                                     mapping_q,
-        const dealii::Triangulation<dim> &                        tria,
+        const MappingQ<dim>                                      &mapping_q,
+        const dealii::Triangulation<dim>                         &tria,
         const std::vector<std::pair<unsigned int, unsigned int>> &cell_array,
         const double                                              jacobian_size,
         std::vector<GeometryType> &preliminary_cell_type,
-        AlignedVector<double> &    plain_quadrature_points,
+        AlignedVector<double>     &plain_quadrature_points,
         AlignedVector<std::array<Tensor<2, dim>, dim + 1>>
           &jacobians_on_stencil)
       {
@@ -1067,10 +1067,10 @@ namespace internal
       mapping_q_find_compression(
         const double jacobian_size,
         const AlignedVector<std::array<Tensor<2, dim>, dim + 1>>
-          &                          jacobians_on_stencil,
+                                    &jacobians_on_stencil,
         const unsigned int           n_mapping_points,
         const AlignedVector<double> &plain_quadrature_points,
-        std::vector<GeometryType> &  preliminary_cell_type)
+        std::vector<GeometryType>   &preliminary_cell_type)
       {
         std::vector<unsigned int> cell_data_index(jacobians_on_stencil.size());
 
@@ -1154,10 +1154,10 @@ namespace internal
       mapping_q_compute_range(
         const unsigned int                 begin_cell,
         const unsigned int                 end_cell,
-        const std::vector<GeometryType> &  cell_type,
-        const std::vector<bool> &          process_cell,
+        const std::vector<GeometryType>   &cell_type,
+        const std::vector<bool>           &process_cell,
         const UpdateFlags                  update_flags_cells,
-        const AlignedVector<double> &      plain_quadrature_points,
+        const AlignedVector<double>       &plain_quadrature_points,
         const ShapeInfo<VectorizedDouble> &shape_info,
         MappingInfoStorage<dim, dim, VectorizedArrayType> &my_data)
       {
@@ -1230,7 +1230,7 @@ namespace internal
                       for (unsigned int e = 0; e < dim; ++e)
                         jac[d][e] =
                           eval
-                            .begin_gradients()[q + (d * dim + e) * n_q_points];
+                            .begin_gradients()[e + (d * n_q_points + q) * dim];
 
                     // eliminate roundoff errors
                     if (cell_type[cell] == cartesian)
@@ -1330,10 +1330,10 @@ namespace internal
     template <int dim, typename Number, typename VectorizedArrayType>
     void
     MappingInfo<dim, Number, VectorizedArrayType>::initialize_cells(
-      const dealii::Triangulation<dim> &                        tria,
+      const dealii::Triangulation<dim>                         &tria,
       const std::vector<std::pair<unsigned int, unsigned int>> &cells,
-      const std::vector<unsigned int> &                         active_fe_index,
-      const dealii::hp::MappingCollection<dim> &                mapping)
+      const std::vector<unsigned int>                          &active_fe_index,
+      const dealii::hp::MappingCollection<dim>                 &mapping)
     {
       const unsigned int n_cells = cells.size();
       const unsigned int n_lanes = VectorizedArrayType::size();
@@ -1575,12 +1575,12 @@ namespace internal
       void
       initialize_face_range(
         const std::pair<unsigned int, unsigned int>               face_range,
-        const dealii::Triangulation<dim> &                        tria,
+        const dealii::Triangulation<dim>                         &tria,
         const std::vector<std::pair<unsigned int, unsigned int>> &cells,
         const std::vector<FaceToCellTopology<VectorizedArrayType::size()>>
-          &                                            faces,
-        const std::vector<unsigned int> &              active_fe_index,
-        const dealii::hp::MappingCollection<dim> &     mapping_in,
+                                                      &faces,
+        const std::vector<unsigned int>               &active_fe_index,
+        const dealii::hp::MappingCollection<dim>      &mapping_in,
         MappingInfo<dim, Number, VectorizedArrayType> &mapping_info,
         std::pair<
           std::vector<MappingInfoStorage<dim - 1, dim, VectorizedArrayType>>,
@@ -2042,7 +2042,7 @@ namespace internal
         const unsigned int               last_face,
         const std::vector<GeometryType> &face_type,
         const std::vector<FaceToCellTopology<VectorizedArrayType::size()>>
-          &                                                    faces,
+                                                              &faces,
         MappingInfoStorage<dim - 1, dim, VectorizedArrayType> &data_faces)
       {
         for (unsigned int face = first_face; face < last_face; ++face)
@@ -2084,11 +2084,11 @@ namespace internal
         const unsigned int begin_face,
         const unsigned int end_face,
         const std::vector<FaceToCellTopology<VectorizedArrayType::size()>>
-          &                                faces,
-        const std::vector<GeometryType> &  face_type,
-        const std::vector<bool> &          process_face,
+                                          &faces,
+        const std::vector<GeometryType>   &face_type,
+        const std::vector<bool>           &process_face,
         const UpdateFlags                  update_flags_faces,
-        const AlignedVector<double> &      plain_quadrature_points,
+        const AlignedVector<double>       &plain_quadrature_points,
         const ShapeInfo<VectorizedDouble> &shape_info,
         MappingInfoStorage<dim - 1, dim, VectorizedArrayType> &my_data)
       {
@@ -2180,7 +2180,7 @@ namespace internal
                   for (unsigned int e = 0; e < dim; ++e)
                     for (unsigned int d = 0; d < dim; ++d)
                       jacobi[d][e] =
-                        eval.begin_gradients()[(d * dim + e) * n_q_points + q];
+                        eval.begin_gradients()[(d * n_q_points + q) * dim + e];
                   Tensor<2, dim, VectorizedDouble> inv_transp_jac =
                     transpose(invert(jacobi));
                   Tensor<3, dim, VectorizedDouble> jac_grad;
@@ -2250,7 +2250,7 @@ namespace internal
                       for (unsigned int d = 0; d < dim; ++d)
                         jac[d][ee] =
                           eval_int
-                            .begin_gradients()[(d * dim + e) * n_q_points + q];
+                            .begin_gradients()[(d * n_q_points + q) * dim + e];
                     }
                   Tensor<2, dim, VectorizedDouble> inv_jac = invert(jac);
                   for (unsigned int e = 0; e < dim; ++e)
@@ -2365,8 +2365,8 @@ namespace internal
                           for (unsigned int d = 0; d < dim; ++d)
                             jac[d][ee] =
                               eval_ext
-                                .begin_gradients()[(d * dim + e) * n_q_points +
-                                                   q];
+                                .begin_gradients()[(d * n_q_points + q) * dim +
+                                                   e];
                         }
                       Tensor<2, dim, VectorizedDouble> inv_jac = invert(jac);
                       for (unsigned int e = 0; e < dim; ++e)
@@ -2414,15 +2414,15 @@ namespace internal
     template <int dim, typename Number, typename VectorizedArrayType>
     void
     MappingInfo<dim, Number, VectorizedArrayType>::initialize_faces(
-      const dealii::Triangulation<dim> &                                  tria,
-      const std::vector<std::pair<unsigned int, unsigned int>> &          cells,
+      const dealii::Triangulation<dim>                                   &tria,
+      const std::vector<std::pair<unsigned int, unsigned int>>           &cells,
       const std::vector<FaceToCellTopology<VectorizedArrayType::size()>> &faces,
-      const std::vector<unsigned int> &         active_fe_index,
+      const std::vector<unsigned int>          &active_fe_index,
       const dealii::hp::MappingCollection<dim> &mapping)
     {
       face_type.resize(faces.size(), general);
 
-      if (faces.size() == 0)
+      if (faces.empty())
         return;
 
       // Create as many chunks of cells as we have threads and spawn the
@@ -2615,9 +2615,9 @@ namespace internal
     template <int dim, typename Number, typename VectorizedArrayType>
     void
     MappingInfo<dim, Number, VectorizedArrayType>::compute_mapping_q(
-      const dealii::Triangulation<dim> &                        tria,
+      const dealii::Triangulation<dim>                         &tria,
       const std::vector<std::pair<unsigned int, unsigned int>> &cell_array,
-      const FaceInfo<VectorizedArrayType::size()> &             face_info)
+      const FaceInfo<VectorizedArrayType::size()>              &face_info)
     {
       // step 1: extract quadrature point data with the data appropriate for
       // MappingQ
@@ -2685,7 +2685,7 @@ namespace internal
 
       using VectorizedDouble =
         VectorizedArray<double,
-                        ((std::is_same<Number, float>::value &&
+                        ((std::is_same_v<Number, float> &&
                           VectorizedArrayType::size() > 1) ?
                            VectorizedArrayType::size() / 2 :
                            VectorizedArrayType::size())>;
@@ -2987,10 +2987,10 @@ namespace internal
     template <int dim, typename Number, typename VectorizedArrayType>
     void
     MappingInfo<dim, Number, VectorizedArrayType>::initialize_faces_by_cells(
-      const dealii::Triangulation<dim> &                        tria,
+      const dealii::Triangulation<dim>                         &tria,
       const std::vector<std::pair<unsigned int, unsigned int>> &cells,
-      const FaceInfo<VectorizedArrayType::size()> &             face_info,
-      const dealii::hp::MappingCollection<dim> &                mapping_in)
+      const FaceInfo<VectorizedArrayType::size()>              &face_info,
+      const dealii::hp::MappingCollection<dim>                 &mapping_in)
     {
       if (update_flags_faces_by_cells == update_default)
         return;
@@ -3318,8 +3318,11 @@ namespace internal
     {
       std::size_t memory = MemoryConsumption::memory_consumption(cell_data);
       memory += MemoryConsumption::memory_consumption(face_data);
+      memory += MemoryConsumption::memory_consumption(face_data_by_cells);
       memory += cell_type.capacity() * sizeof(GeometryType);
       memory += face_type.capacity() * sizeof(GeometryType);
+      memory += faces_by_cells_type.capacity() *
+                GeometryInfo<dim>::faces_per_cell * sizeof(GeometryType);
       memory += sizeof(*this);
       return memory;
     }
@@ -3330,7 +3333,7 @@ namespace internal
     template <typename StreamType>
     void
     MappingInfo<dim, Number, VectorizedArrayType>::print_memory_consumption(
-      StreamType &    out,
+      StreamType     &out,
       const TaskInfo &task_info) const
     {
       out << "    Cell types:                      ";
@@ -3341,11 +3344,19 @@ namespace internal
       task_info.print_memory_statistics(out,
                                         face_type.capacity() *
                                           sizeof(GeometryType));
+
+      out << "    Faces by cells types:            ";
+      task_info.print_memory_statistics(out,
+                                        faces_by_cells_type.capacity() *
+                                          GeometryInfo<dim>::faces_per_cell *
+                                          sizeof(GeometryType));
+
       for (unsigned int j = 0; j < cell_data.size(); ++j)
         {
           out << "    Data component " << j << std::endl;
           cell_data[j].print_memory_consumption(out, task_info);
           face_data[j].print_memory_consumption(out, task_info);
+          face_data_by_cells[j].print_memory_consumption(out, task_info);
         }
     }
 

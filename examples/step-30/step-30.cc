@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Tobias Leicht, 2007
  */
@@ -59,7 +58,7 @@ namespace Step30
   {
   public:
     virtual void value_list(const std::vector<Point<dim>> &points,
-                            std::vector<double> &          values,
+                            std::vector<double>           &values,
                             const unsigned int /*component*/ = 0) const override
     {
       (void)points;
@@ -75,7 +74,7 @@ namespace Step30
   {
   public:
     virtual void value_list(const std::vector<Point<dim>> &points,
-                            std::vector<double> &          values,
+                            std::vector<double>           &values,
                             const unsigned int /*component*/ = 0) const override
     {
       AssertDimension(values.size(), points.size());
@@ -106,7 +105,7 @@ namespace Step30
     // of a cell. On the other hand, the solution $u(x,y)$ is exactly the same
     // as before.
     void value_list(const std::vector<Point<dim>> &points,
-                    std::vector<Point<dim>> &      values) const
+                    std::vector<Point<dim>>       &values) const
     {
       AssertDimension(values.size(), points.size());
 
@@ -139,19 +138,19 @@ namespace Step30
     DGTransportEquation();
 
     void assemble_cell_term(const FEValues<dim> &fe_v,
-                            FullMatrix<double> & ui_vi_matrix,
-                            Vector<double> &     cell_vector) const;
+                            FullMatrix<double>  &ui_vi_matrix,
+                            Vector<double>      &cell_vector) const;
 
     void assemble_boundary_term(const FEFaceValues<dim> &fe_v,
-                                FullMatrix<double> &     ui_vi_matrix,
-                                Vector<double> &         cell_vector) const;
+                                FullMatrix<double>      &ui_vi_matrix,
+                                Vector<double>          &cell_vector) const;
 
     void assemble_face_term(const FEFaceValuesBase<dim> &fe_v,
                             const FEFaceValuesBase<dim> &fe_v_neighbor,
-                            FullMatrix<double> &         ui_vi_matrix,
-                            FullMatrix<double> &         ue_vi_matrix,
-                            FullMatrix<double> &         ui_ve_matrix,
-                            FullMatrix<double> &         ue_ve_matrix) const;
+                            FullMatrix<double>          &ui_vi_matrix,
+                            FullMatrix<double>          &ue_vi_matrix,
+                            FullMatrix<double>          &ui_ve_matrix,
+                            FullMatrix<double>          &ue_ve_matrix) const;
 
   private:
     const Beta<dim>           beta_function;
@@ -182,8 +181,8 @@ namespace Step30
   template <int dim>
   void DGTransportEquation<dim>::assemble_cell_term(
     const FEValues<dim> &fe_v,
-    FullMatrix<double> & ui_vi_matrix,
-    Vector<double> &     cell_vector) const
+    FullMatrix<double>  &ui_vi_matrix,
+    Vector<double>      &cell_vector) const
   {
     const std::vector<double> &JxW = fe_v.get_JxW_values();
 
@@ -209,10 +208,10 @@ namespace Step30
   template <int dim>
   void DGTransportEquation<dim>::assemble_boundary_term(
     const FEFaceValues<dim> &fe_v,
-    FullMatrix<double> &     ui_vi_matrix,
-    Vector<double> &         cell_vector) const
+    FullMatrix<double>      &ui_vi_matrix,
+    Vector<double>          &cell_vector) const
   {
-    const std::vector<double> &        JxW     = fe_v.get_JxW_values();
+    const std::vector<double>         &JxW     = fe_v.get_JxW_values();
     const std::vector<Tensor<1, dim>> &normals = fe_v.get_normal_vectors();
 
     std::vector<Point<dim>> beta(fe_v.n_quadrature_points);
@@ -241,12 +240,12 @@ namespace Step30
   void DGTransportEquation<dim>::assemble_face_term(
     const FEFaceValuesBase<dim> &fe_v,
     const FEFaceValuesBase<dim> &fe_v_neighbor,
-    FullMatrix<double> &         ui_vi_matrix,
-    FullMatrix<double> &         ue_vi_matrix,
-    FullMatrix<double> &         ui_ve_matrix,
-    FullMatrix<double> &         ue_ve_matrix) const
+    FullMatrix<double>          &ui_vi_matrix,
+    FullMatrix<double>          &ue_vi_matrix,
+    FullMatrix<double>          &ui_ve_matrix,
+    FullMatrix<double>          &ue_ve_matrix) const
   {
-    const std::vector<double> &        JxW     = fe_v.get_JxW_values();
+    const std::vector<double>         &JxW     = fe_v.get_JxW_values();
     const std::vector<Tensor<1, dim>> &normals = fe_v.get_normal_vectors();
 
     std::vector<Point<dim>> beta(fe_v.n_quadrature_points);

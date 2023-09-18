@@ -144,8 +144,8 @@ namespace Step50
     mg_dof_handler.distribute_dofs(fe);
     mg_dof_handler.distribute_mg_dofs();
 
-    DoFTools::extract_locally_relevant_dofs(mg_dof_handler,
-                                            locally_relevant_set);
+    locally_relevant_set =
+      DoFTools::extract_locally_relevant_dofs(mg_dof_handler);
 
     solution.reinit(mg_dof_handler.locally_owned_dofs(), MPI_COMM_WORLD);
     system_rhs.reinit(mg_dof_handler.locally_owned_dofs(), MPI_COMM_WORLD);
@@ -281,10 +281,8 @@ namespace Step50
     for (unsigned int level = 0; level < triangulation.n_global_levels();
          ++level)
       {
-        IndexSet dofset;
-        DoFTools::extract_locally_relevant_level_dofs(mg_dof_handler,
-                                                      level,
-                                                      dofset);
+        const IndexSet dofset =
+          DoFTools::extract_locally_relevant_level_dofs(mg_dof_handler, level);
         boundary_constraints[level].reinit(dofset);
         boundary_constraints[level].add_lines(
           mg_constrained_dofs.get_refinement_edge_indices(level));
@@ -363,7 +361,7 @@ namespace Step50
   class MGCoarseAMG : public MGCoarseGridBase<VECTOR>
   {
   public:
-    MGCoarseAMG(const LA::MPI::SparseMatrix &                  coarse_matrix,
+    MGCoarseAMG(const LA::MPI::SparseMatrix                   &coarse_matrix,
                 const LA::MPI::PreconditionAMG::AdditionalData additional_data)
       : count(0)
     {
@@ -468,7 +466,7 @@ namespace Step50
   void
   LaplaceProblem<dim>::solve()
   {
-    matrix_t &         coarse_matrix = mg_matrices[0];
+    matrix_t          &coarse_matrix = mg_matrices[0];
     SolverControl      coarse_solver_control(1000, 1e-8, false, false);
     SolverCG<vector_t> coarse_solver(coarse_solver_control);
 
@@ -572,7 +570,7 @@ main(int argc, char *argv[])
       LaplaceProblem<2> laplace_problem(3 /*degree*/);
       laplace_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

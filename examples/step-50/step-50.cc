@@ -12,12 +12,11 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Thomas C. Clevenger, Clemson University
- *         Timo Heister, Clemson University
- *         Guido Kanschat, Heidelberg University
- *         Martin Kronbichler, Technical University of Munich
+ * Authors: Thomas C. Clevenger, Clemson University
+ *          Timo Heister, Clemson University
+ *          Guido Kanschat, Heidelberg University
+ *          Martin Kronbichler, Technical University of Munich
  */
 
 
@@ -101,7 +100,7 @@ using namespace dealii;
 namespace ChangeVectorTypes
 {
   template <typename number>
-  void copy(LA::MPI::Vector &                                 out,
+  void copy(LA::MPI::Vector                                  &out,
             const LinearAlgebra::distributed::Vector<number> &in)
   {
     LinearAlgebra::ReadWriteVector<double> rwv(out.locally_owned_elements());
@@ -119,7 +118,7 @@ namespace ChangeVectorTypes
 
   template <typename number>
   void copy(LinearAlgebra::distributed::Vector<number> &out,
-            const LA::MPI::Vector &                     in)
+            const LA::MPI::Vector                      &in)
   {
     LinearAlgebra::ReadWriteVector<double> rwv;
 #ifdef USE_PETSC_LA
@@ -249,8 +248,7 @@ Coefficient<dim>::make_coefficient_table(
 
   FEEvaluation<dim, -1, 0, 1, number> fe_eval(mf_storage);
 
-  const unsigned int n_cells    = mf_storage.n_cell_batches();
-  const unsigned int n_q_points = fe_eval.n_q_points;
+  const unsigned int n_cells = mf_storage.n_cell_batches();
 
   coefficient_table->reinit(n_cells, 1);
 
@@ -259,9 +257,9 @@ Coefficient<dim>::make_coefficient_table(
       fe_eval.reinit(cell);
 
       VectorizedArray<number> average_value = 0.;
-      for (unsigned int q = 0; q < n_q_points; ++q)
+      for (const unsigned int q : fe_eval.quadrature_point_indices())
         average_value += value(fe_eval.quadrature_point(q));
-      average_value /= n_q_points;
+      average_value /= fe_eval.n_q_points;
 
       (*coefficient_table)(cell, 0) = average_value;
     }
@@ -324,7 +322,7 @@ bool Settings::try_parse(const std::string &prm_filename)
                     Patterns::Bool(),
                     "Output graphical results.");
 
-  if (prm_filename.size() == 0)
+  if (prm_filename.empty())
     {
       std::cout << "****  Error: No input file provided!\n"
                 << "****  Error: Call this program as './step-50 input.prm\n"
@@ -948,7 +946,7 @@ void LaplaceProblem<dim, degree>::assemble_rhs()
       phi.read_dof_values_plain(solution_copy);
       phi.evaluate(EvaluationFlags::gradients);
 
-      for (unsigned int q = 0; q < phi.n_q_points; ++q)
+      for (const unsigned int q : phi.quadrature_point_indices())
         {
           phi.submit_gradient(-1.0 *
                                 (coefficient(cell, 0) * phi.get_gradient(q)),
@@ -1210,7 +1208,7 @@ void LaplaceProblem<dim, degree>::solve()
 template <int dim>
 struct ScratchData
 {
-  ScratchData(const Mapping<dim> &      mapping,
+  ScratchData(const Mapping<dim>       &mapping,
               const FiniteElement<dim> &fe,
               const unsigned int        quadrature_degree,
               const UpdateFlags         update_flags,
@@ -1277,9 +1275,9 @@ void LaplaceProblem<dim, degree>::estimate()
   using Iterator = typename DoFHandler<dim>::active_cell_iterator;
 
   // Assembler for cell residual $h^2 \| f + \epsilon \triangle u \|_K^2$
-  auto cell_worker = [&](const Iterator &  cell,
+  auto cell_worker = [&](const Iterator   &cell,
                          ScratchData<dim> &scratch_data,
-                         CopyData &        copy_data) {
+                         CopyData         &copy_data) {
     FEValues<dim> &fe_values = scratch_data.fe_values;
     fe_values.reinit(cell);
 
@@ -1306,14 +1304,14 @@ void LaplaceProblem<dim, degree>::estimate()
 
   // Assembler for face term $\sum_F h_F \| \jump{\epsilon \nabla u \cdot n}
   // \|_F^2$
-  auto face_worker = [&](const Iterator &    cell,
+  auto face_worker = [&](const Iterator     &cell,
                          const unsigned int &f,
                          const unsigned int &sf,
-                         const Iterator &    ncell,
+                         const Iterator     &ncell,
                          const unsigned int &nf,
                          const unsigned int &nsf,
-                         ScratchData<dim> &  scratch_data,
-                         CopyData &          copy_data) {
+                         ScratchData<dim>   &scratch_data,
+                         CopyData           &copy_data) {
     FEInterfaceValues<dim> &fe_interface_values =
       scratch_data.fe_interface_values;
     fe_interface_values.reinit(cell, f, sf, ncell, nf, nsf);
@@ -1358,7 +1356,7 @@ void LaplaceProblem<dim, degree>::estimate()
     if (copy_data.cell_index != numbers::invalid_unsigned_int)
       estimated_error_square_per_cell[copy_data.cell_index] += copy_data.value;
 
-    for (auto &cdf : copy_data.face_data)
+    for (const auto &cdf : copy_data.face_data)
       for (unsigned int j = 0; j < 2; ++j)
         estimated_error_square_per_cell[cdf.cell_indices[j]] += cdf.values[j];
   };

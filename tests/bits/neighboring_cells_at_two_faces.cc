@@ -16,7 +16,7 @@
 
 #include <deal.II/base/geometry_info.h>
 
-#include <deal.II/grid/grid_reordering.h>
+#include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
@@ -50,29 +50,29 @@ create_grid(Triangulation<2> &tria)
   const unsigned int n_points = 5;
 
   const Point<2>        points[n_points] = {Point<2>(0.0, 0.0),
-                                     Point<2>(1.0, 1.0),
-                                     Point<2>(2.0, 2.0),
-                                     Point<2>(0.0, 2.0),
-                                     Point<2>(2.0, 0.0)};
+                                            Point<2>(1.0, 1.0),
+                                            Point<2>(2.0, 2.0),
+                                            Point<2>(0.0, 2.0),
+                                            Point<2>(2.0, 0.0)};
   std::vector<Point<2>> vertices(n_points);
   vertices.assign(points, points + n_points);
 
   std::vector<CellData<2>> cells(2);
   cells[0].vertices[0] = 0;
   cells[0].vertices[1] = 1;
-  cells[0].vertices[2] = 2;
-  cells[0].vertices[3] = 3;
+  cells[0].vertices[2] = 3;
+  cells[0].vertices[3] = 2;
   cells[1].vertices[0] = 0;
   cells[1].vertices[1] = 4;
-  cells[1].vertices[2] = 2;
-  cells[1].vertices[3] = 1;
+  cells[1].vertices[2] = 1;
+  cells[1].vertices[3] = 2;
 
   // generate a triangulation
   // out of this
-  GridReordering<2>::reorder_cells(cells);
+  GridTools::consistently_order_cells(cells);
   try
     {
-      tria.create_triangulation_compatibility(vertices, cells, SubCellData());
+      tria.create_triangulation(vertices, cells, SubCellData());
     }
   catch (Triangulation<2>::DistortedCellList &dcv)
     {

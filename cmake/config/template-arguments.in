@@ -94,9 +94,6 @@ VECTOR_TYPES := {   Vector<double>;
                     BlockVector<double>;
                     BlockVector<float>;
 
-                    LinearAlgebra::Vector<double>;
-                    LinearAlgebra::Vector<float> ;
-
                     LinearAlgebra::distributed::Vector<double>;
                     LinearAlgebra::distributed::Vector<float> ;
 
@@ -105,7 +102,6 @@ VECTOR_TYPES := {   Vector<double>;
 
                     @DEAL_II_EXPAND_COMPLEX_VECTORS@;
                     @DEAL_II_EXPAND_COMPLEX_BLOCK_VECTORS@;
-                    @DEAL_II_EXPAND_COMPLEX_LA_VECTORS@;
                     @DEAL_II_EXPAND_COMPLEX_LA_PARALLEL_VECTORS@;
                     @DEAL_II_EXPAND_COMPLEX_LA_PARALLEL_BLOCK_VECTORS@;
 
@@ -129,9 +125,6 @@ REAL_VECTOR_TYPES  := {  Vector<double>;
                          BlockVector<double>;
                          BlockVector<float>;
 
-                         LinearAlgebra::Vector<double>;
-                         LinearAlgebra::Vector<float> ;
-
                          LinearAlgebra::distributed::Vector<double>;
                          LinearAlgebra::distributed::Vector<float> ;
 
@@ -151,9 +144,6 @@ REAL_VECTOR_TYPES  := {  Vector<double>;
 // real vector types excluding block vectors
 REAL_NONBLOCK_VECTORS := { Vector<double>;
                            Vector<float> ;
-
-                           LinearAlgebra::Vector<double>;
-                           LinearAlgebra::Vector<float> ;
 
                            LinearAlgebra::distributed::Vector<double>;
                            LinearAlgebra::distributed::Vector<float> ;
@@ -224,6 +214,7 @@ GENERAL_CONTAINER_TYPES := { std::vector;
 TRIANGULATION_AND_DOFHANDLER_TEMPLATES := { Triangulation;
                                             parallel::shared::Triangulation;
                                             parallel::distributed::Triangulation;
+                                            parallel::fullydistributed::Triangulation;
                                             DoFHandler }
 
 // concrete sequential Triangulation and DoFHandler with hard-coded
@@ -241,13 +232,15 @@ SEQUENTIAL_TRIANGULATION_AND_DOFHANDLERS := { Triangulation<deal_II_dimension, d
 TRIANGULATION_AND_DOFHANDLERS := { Triangulation<deal_II_dimension, deal_II_space_dimension>;
                                    parallel::shared::Triangulation<deal_II_dimension, deal_II_space_dimension>;
                                    parallel::distributed::Triangulation<deal_II_dimension, deal_II_space_dimension>;
+                                   parallel::fullydistributed::Triangulation<deal_II_dimension, deal_II_space_dimension>;
                                    DoFHandler<deal_II_dimension, deal_II_space_dimension> }
 
 // concrete Triangulation types (all types you can iterate over cells from)
 // with hard-coded <deal_II_dimension, deal_II_space_dimension>
 TRIANGULATIONS := { Triangulation<deal_II_dimension, deal_II_space_dimension>;
                     parallel::shared::Triangulation<deal_II_dimension, deal_II_space_dimension>;
-                    parallel::distributed::Triangulation<deal_II_dimension, deal_II_space_dimension>;}
+                    parallel::distributed::Triangulation<deal_II_dimension, deal_II_space_dimension>;
+                    parallel::fullydistributed::Triangulation<deal_II_dimension, deal_II_space_dimension>; }
 
 // all supported logical dimensions
 DIMENSIONS := { 1; 2; 3 }

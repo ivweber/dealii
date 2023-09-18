@@ -75,9 +75,9 @@ namespace MatrixTools
   void
   apply_boundary_values(
     const std::map<types::global_dof_index, number> &boundary_values,
-    SparseMatrix<number> &                           matrix,
-    Vector<number> &                                 solution,
-    Vector<number> &                                 right_hand_side,
+    SparseMatrix<number>                            &matrix,
+    Vector<number>                                  &solution,
+    Vector<number>                                  &right_hand_side,
     const bool                                       eliminate_columns)
   {
     Assert(matrix.n() == right_hand_side.size(),
@@ -89,7 +89,7 @@ namespace MatrixTools
 
     // if no boundary values are to be applied
     // simply return
-    if (boundary_values.size() == 0)
+    if (boundary_values.empty())
       return;
 
 
@@ -236,9 +236,9 @@ namespace MatrixTools
   void
   apply_boundary_values(
     const std::map<types::global_dof_index, number> &boundary_values,
-    BlockSparseMatrix<number> &                      matrix,
-    BlockVector<number> &                            solution,
-    BlockVector<number> &                            right_hand_side,
+    BlockSparseMatrix<number>                       &matrix,
+    BlockVector<number>                             &solution,
+    BlockVector<number>                             &right_hand_side,
     const bool                                       eliminate_columns)
   {
     const unsigned int blocks = matrix.n_block_rows();
@@ -260,7 +260,7 @@ namespace MatrixTools
 
     // if no boundary values are to be applied
     // simply return
-    if (boundary_values.size() == 0)
+    if (boundary_values.empty())
       return;
 
 
@@ -499,9 +499,9 @@ namespace MatrixTools
   void
   local_apply_boundary_values(
     const std::map<types::global_dof_index, number> &boundary_values,
-    const std::vector<types::global_dof_index> &     local_dof_indices,
-    FullMatrix<number> &                             local_matrix,
-    Vector<number> &                                 local_rhs,
+    const std::vector<types::global_dof_index>      &local_dof_indices,
+    FullMatrix<number>                              &local_matrix,
+    Vector<number>                                  &local_rhs,
     const bool                                       eliminate_columns)
   {
     Assert(local_dof_indices.size() == local_matrix.m(),
@@ -513,7 +513,7 @@ namespace MatrixTools
 
     // if there is nothing to do, then exit
     // right away
-    if (boundary_values.size() == 0)
+    if (boundary_values.empty())
       return;
 
     // otherwise traverse all the dofs used in

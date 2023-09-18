@@ -93,7 +93,7 @@ namespace Step68
 
     virtual void
     vector_value(const Point<dim> &point,
-                 Vector<double> &  values) const override;
+                 Vector<double>   &values) const override;
   };
 
 
@@ -103,7 +103,7 @@ namespace Step68
   template <int dim>
   void
   Vortex<dim>::vector_value(const Point<dim> &point,
-                            Vector<double> &  values) const
+                            Vector<double>   &values) const
   {
     const double T = 4;
     const double t = this->get_time();
@@ -172,9 +172,8 @@ namespace Step68
     unsigned int
     cell_weight(
       const typename parallel::distributed::Triangulation<dim>::cell_iterator
-        &cell,
-      const typename parallel::distributed::Triangulation<dim>::CellStatus
-        status) const;
+                      &cell,
+      const CellStatus status) const;
 
     // The following two functions are responsible for outputting the simulation
     // results for the particles and for the velocity profile on the background
@@ -257,9 +256,8 @@ namespace Step68
   unsigned int
   ParticleTracking<dim>::cell_weight(
     const typename parallel::distributed::Triangulation<dim>::cell_iterator
-      &                                                                  cell,
-    const typename parallel::distributed::Triangulation<dim>::CellStatus status)
-    const
+                    &cell,
+    const CellStatus status) const
   {
     // First, we introduce a base weight that will be assigned to every cell.
     const unsigned int base_weight = 1;
@@ -275,21 +273,21 @@ namespace Step68
     const unsigned int particle_weight = 10;
 
     // This example does not use adaptive refinement, therefore every cell
-    // should have the status `CELL_PERSIST`. However this function can also
-    // be used to distribute load during refinement, therefore we consider
-    // refined or coarsened cells as well.
+    // should have the status `CellStatus::cell_will_persist`. However this
+    // function can also be used to distribute load during refinement, therefore
+    // we consider refined or coarsened cells as well.
     unsigned int n_particles_in_cell = 0;
     switch (status)
       {
-        case parallel::distributed::Triangulation<dim>::CELL_PERSIST:
-        case parallel::distributed::Triangulation<dim>::CELL_REFINE:
+        case CellStatus::cell_will_persist:
+        case CellStatus::cell_will_be_refined:
           n_particles_in_cell = particle_handler.n_particles_in_cell(cell);
           break;
 
-        case parallel::distributed::Triangulation<dim>::CELL_INVALID:
+        case CellStatus::cell_invalid:
           break;
 
-        case parallel::distributed::Triangulation<dim>::CELL_COARSEN:
+        case CellStatus::children_will_be_coarsened:
           for (const auto &child : cell->child_iterators())
             n_particles_in_cell += particle_handler.n_particles_in_cell(child);
           break;
@@ -328,11 +326,11 @@ namespace Step68
     // of this class, but for the purpose of this example we want to group the
     // particle related instructions.
     background_triangulation.signals.weight.connect(
-      [&](
-        const typename parallel::distributed::Triangulation<dim>::cell_iterator
-          &cell,
-        const typename parallel::distributed::Triangulation<dim>::CellStatus
-          status) -> unsigned int { return this->cell_weight(cell, status); });
+      [&](const typename parallel::distributed::Triangulation<
+            dim>::cell_iterator &cell,
+          const CellStatus       status) -> unsigned int {
+        return this->cell_weight(cell, status);
+      });
 
     // This initializes the background triangulation where the particles are
     // living and the number of properties of the particles.
@@ -400,9 +398,9 @@ namespace Step68
   ParticleTracking<dim>::setup_background_dofs()
   {
     fluid_dh.distribute_dofs(fluid_fe);
-    const IndexSet locally_owned_dofs = fluid_dh.locally_owned_dofs();
-    IndexSet       locally_relevant_dofs;
-    DoFTools::extract_locally_relevant_dofs(fluid_dh, locally_relevant_dofs);
+    const IndexSet &locally_owned_dofs = fluid_dh.locally_owned_dofs();
+    const IndexSet  locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(fluid_dh);
 
     velocity_field.reinit(locally_owned_dofs,
                           locally_relevant_dofs,
@@ -418,7 +416,7 @@ namespace Step68
   void
   ParticleTracking<dim>::interpolate_function_to_field()
   {
-    velocity_field.zero_out_ghosts();
+    velocity_field.zero_out_ghost_values();
     VectorTools::interpolate(mapping, fluid_dh, velocity, velocity_field);
     velocity_field.update_ghost_values();
   }
@@ -753,7 +751,7 @@ main(int argc, char *argv[])
         particle_tracking.run();
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

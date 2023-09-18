@@ -97,7 +97,7 @@ MGTransferMatrixFree<dim, Number>::clear()
 template <int dim, typename Number>
 void
 MGTransferMatrixFree<dim, Number>::build(
-  const DoFHandler<dim, dim> &dof_handler,
+  const DoFHandler<dim> &dof_handler,
   const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
     &external_partitioners)
 {
@@ -203,7 +203,7 @@ MGTransferMatrixFree<dim, Number>::build(
 template <int dim, typename Number>
 void
 MGTransferMatrixFree<dim, Number>::build(
-  const DoFHandler<dim, dim> &dof_handler,
+  const DoFHandler<dim> &dof_handler,
   const std::function<void(const unsigned int,
                            LinearAlgebra::distributed::Vector<Number> &)>
     &initialize_dof_vector)
@@ -237,7 +237,7 @@ template <int dim, typename Number>
 void
 MGTransferMatrixFree<dim, Number>::prolongate(
   const unsigned int                                to_level,
-  LinearAlgebra::distributed::Vector<Number> &      dst,
+  LinearAlgebra::distributed::Vector<Number>       &dst,
   const LinearAlgebra::distributed::Vector<Number> &src) const
 {
   dst = 0;
@@ -250,7 +250,7 @@ template <int dim, typename Number>
 void
 MGTransferMatrixFree<dim, Number>::prolongate_and_add(
   const unsigned int                                to_level,
-  LinearAlgebra::distributed::Vector<Number> &      dst,
+  LinearAlgebra::distributed::Vector<Number>       &dst,
   const LinearAlgebra::distributed::Vector<Number> &src) const
 {
   Assert((to_level >= 1) && (to_level <= level_dof_indices.size()),
@@ -329,7 +329,7 @@ template <int dim, typename Number>
 void
 MGTransferMatrixFree<dim, Number>::restrict_and_add(
   const unsigned int                                from_level,
-  LinearAlgebra::distributed::Vector<Number> &      dst,
+  LinearAlgebra::distributed::Vector<Number>       &dst,
   const LinearAlgebra::distributed::Vector<Number> &src) const
 {
   Assert((from_level >= 1) && (from_level <= level_dof_indices.size()),
@@ -408,7 +408,7 @@ template <int degree>
 void
 MGTransferMatrixFree<dim, Number>::do_prolongate_add(
   const unsigned int                                to_level,
-  LinearAlgebra::distributed::Vector<Number> &      dst,
+  LinearAlgebra::distributed::Vector<Number>       &dst,
   const LinearAlgebra::distributed::Vector<Number> &src) const
 {
   const unsigned int vec_size        = VectorizedArray<Number>::size();
@@ -552,7 +552,7 @@ template <int degree>
 void
 MGTransferMatrixFree<dim, Number>::do_restrict_add(
   const unsigned int                                from_level,
-  LinearAlgebra::distributed::Vector<Number> &      dst,
+  LinearAlgebra::distributed::Vector<Number>       &dst,
   const LinearAlgebra::distributed::Vector<Number> &src) const
 {
   const unsigned int vec_size        = VectorizedArray<Number>::size();
@@ -756,7 +756,7 @@ MGTransferBlockMatrixFree<dim, Number>::initialize_constraints(
 template <int dim, typename Number>
 void
 MGTransferBlockMatrixFree<dim, Number>::build(
-  const DoFHandler<dim, dim> &dof_handler)
+  const DoFHandler<dim> &dof_handler)
 {
   AssertDimension(this->matrix_free_transfer_vector.size(), 1);
   this->matrix_free_transfer_vector[0].build(dof_handler);
@@ -767,7 +767,7 @@ MGTransferBlockMatrixFree<dim, Number>::build(
 template <int dim, typename Number>
 void
 MGTransferBlockMatrixFree<dim, Number>::build(
-  const std::vector<const DoFHandler<dim, dim> *> &dof_handler)
+  const std::vector<const DoFHandler<dim> *> &dof_handler)
 {
   AssertDimension(this->matrix_free_transfer_vector.size(), dof_handler.size());
   for (unsigned int i = 0; i < dof_handler.size(); ++i)

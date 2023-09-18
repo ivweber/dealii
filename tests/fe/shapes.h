@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef SHAPES_TEST_HEADER
-#define SHAPES_TEST_HEADER
+#ifndef dealii_tests_shapes_h
+#define dealii_tests_shapes_h
 
 // Show the shape functions implemented.
 
@@ -49,9 +49,9 @@ char fname[50];
 ////////////////////////////////////////////////////////////////////////////
 template <int dim>
 inline void
-plot_shape_functions(Mapping<dim> &      mapping,
+plot_shape_functions(Mapping<dim>       &mapping,
                      FiniteElement<dim> &finel,
-                     const char *        name)
+                     const char         *name)
 {
   Triangulation<dim> tr;
   DoFHandler<dim>    dof(tr);
@@ -127,9 +127,9 @@ plot_shape_functions(Mapping<dim> &      mapping,
 
 template <int dim>
 inline void
-plot_face_shape_functions(Mapping<dim> &      mapping,
+plot_face_shape_functions(Mapping<dim>       &mapping,
                           FiniteElement<dim> &finel,
-                          const char *        name,
+                          const char         *name,
                           UpdateFlags uflags = UpdateFlags(update_values |
                                                            update_gradients |
                                                            update_hessians))
@@ -395,8 +395,8 @@ plot_face_shape_functions(Mapping<1> &,
 template <int dim>
 void
 check_values_and_derivatives(const FiniteElement<dim> &fe,
-                             const FEValuesBase<dim> & fe_values,
-                             const Quadrature<dim> &   q)
+                             const FEValuesBase<dim>  &fe_values,
+                             const Quadrature<dim>    &q)
 {
   // check values
   for (unsigned int x = 0; x < q.size(); ++x)
@@ -487,7 +487,7 @@ check_values_and_derivatives(const FiniteElement<dim> &fe,
 
 template <int dim>
 void
-test_compute_functions(const Mapping<dim> &      mapping,
+test_compute_functions(const Mapping<dim>       &mapping,
                        const FiniteElement<dim> &fe,
                        const char *)
 {

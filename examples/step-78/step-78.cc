@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Tyler Anderson, Colorado State University, 2021
  */
@@ -78,11 +77,11 @@ namespace BlackScholesSolver
   public:
     Solution(const double maturity_time);
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
     virtual Tensor<1, dim>
-    gradient(const Point<dim> & p,
+    gradient(const Point<dim>  &p,
              const unsigned int component = 0) const override;
 
   private:
@@ -99,7 +98,7 @@ namespace BlackScholesSolver
 
 
   template <int dim>
-  double Solution<dim>::value(const Point<dim> & p,
+  double Solution<dim>::value(const Point<dim>  &p,
                               const unsigned int component) const
   {
     return -Utilities::fixed_power<2, double>(p(component)) -
@@ -108,7 +107,7 @@ namespace BlackScholesSolver
 
 
   template <int dim>
-  Tensor<1, dim> Solution<dim>::gradient(const Point<dim> & p,
+  Tensor<1, dim> Solution<dim>::gradient(const Point<dim>  &p,
                                          const unsigned int component) const
   {
     return Point<dim>(-2 * p(component));
@@ -130,7 +129,7 @@ namespace BlackScholesSolver
   public:
     InitialConditions(const double strike_price);
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
   private:
@@ -145,7 +144,7 @@ namespace BlackScholesSolver
 
 
   template <int dim>
-  double InitialConditions<dim>::value(const Point<dim> & p,
+  double InitialConditions<dim>::value(const Point<dim>  &p,
                                        const unsigned int component) const
   {
 #ifdef MMS
@@ -162,7 +161,7 @@ namespace BlackScholesSolver
   class LeftBoundaryValues : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -187,7 +186,7 @@ namespace BlackScholesSolver
   public:
     RightBoundaryValues(const double strike_price, const double interest_rate);
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
   private:
@@ -205,7 +204,7 @@ namespace BlackScholesSolver
 
 
   template <int dim>
-  double RightBoundaryValues<dim>::value(const Point<dim> & p,
+  double RightBoundaryValues<dim>::value(const Point<dim>  &p,
                                          const unsigned int component) const
   {
 #ifdef MMS
@@ -226,7 +225,7 @@ namespace BlackScholesSolver
   public:
     RightHandSide(const double asset_volatility, const double interest_rate);
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
   private:
@@ -244,7 +243,7 @@ namespace BlackScholesSolver
 
 
   template <int dim>
-  double RightHandSide<dim>::value(const Point<dim> & p,
+  double RightHandSide<dim>::value(const Point<dim>  &p,
                                    const unsigned int component) const
   {
 #ifdef MMS

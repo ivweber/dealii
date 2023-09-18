@@ -1,6 +1,13 @@
 name: tidy
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+    types:
+    - opened
+    - reopened
+    - synchronize
+    - ready_for_review
 
 concurrency:
   group: ${ {github.event_name }}-${{ github.workflow }}-${{ github.ref }}
@@ -11,8 +18,16 @@ jobs:
     name: tidy
     runs-on: [ubuntu-22.04]
 
+    #
+    # The following condition only runs the workflow on 'push' or if the
+    # 'pull_request' is not a draft. This is only useful for hackathons or
+    # other situations when the CI is massively overburdened with pull
+    # requests.
+    #
+    # if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: modules
       run: |
         sudo apt-get install -y software-properties-common

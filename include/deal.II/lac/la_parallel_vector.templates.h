@@ -84,10 +84,9 @@ namespace LinearAlgebra
       template <typename Number, typename MemorySpaceType>
       struct la_parallel_vector_templates_functions
       {
-        static_assert(
-          std::is_same<MemorySpaceType, MemorySpace::Host>::value ||
-            std::is_same<MemorySpaceType, MemorySpace::Default>::value,
-          "MemorySpace should be Host or Default");
+        static_assert(std::is_same_v<MemorySpaceType, MemorySpace::Host> ||
+                        std::is_same_v<MemorySpaceType, MemorySpace::Default>,
+                      "MemorySpace should be Host or Default");
 
         static void
         resize_val(
@@ -127,7 +126,7 @@ namespace LinearAlgebra
 
         static void
         resize_val(const types::global_dof_index new_alloc_size,
-                   types::global_dof_index &     allocated_size,
+                   types::global_dof_index      &allocated_size,
                    ::dealii::MemorySpace::
                      MemorySpaceData<Number, ::dealii::MemorySpace::Host> &data,
                    const MPI_Comm comm_shared)
@@ -253,7 +252,7 @@ namespace LinearAlgebra
           const ::dealii::LinearAlgebra::ReadWriteVector<Number> &V,
           VectorOperation::values                                 operation,
           const std::shared_ptr<const ::dealii::Utilities::MPI::Partitioner>
-            &             communication_pattern,
+                         &communication_pattern,
           const IndexSet &locally_owned_elem,
           ::dealii::MemorySpace::MemorySpaceData<Number,
                                                  ::dealii::MemorySpace::Host>
@@ -307,7 +306,7 @@ namespace LinearAlgebra
                             Number,
                             ::dealii::MemorySpace::Host> &data,
                           const unsigned int              size,
-                          RealType &                      max)
+                          RealType                       &max)
         {
           for (size_type i = 0; i < size; ++i)
             max =
@@ -325,17 +324,16 @@ namespace LinearAlgebra
         static void
         resize_val(
           const types::global_dof_index new_alloc_size,
-          types::global_dof_index &     allocated_size,
+          types::global_dof_index      &allocated_size,
           ::dealii::MemorySpace::MemorySpaceData<Number,
                                                  ::dealii::MemorySpace::Default>
-            &            data,
+                        &data,
           const MPI_Comm comm_sm)
         {
           (void)comm_sm;
 
           static_assert(
-            std::is_same<Number, float>::value ||
-              std::is_same<Number, double>::value,
+            std::is_same_v<Number, float> || std::is_same_v<Number, double>,
             "Number should be float or double for Default memory space");
 
           if (new_alloc_size > allocated_size)
@@ -360,7 +358,7 @@ namespace LinearAlgebra
           const ReadWriteVector<Number> &V,
           VectorOperation::values        operation,
           std::shared_ptr<const Utilities::MPI::Partitioner>
-            &             communication_pattern,
+                         &communication_pattern,
           const IndexSet &locally_owned_elem,
           ::dealii::MemorySpace::MemorySpaceData<Number,
                                                  ::dealii::MemorySpace::Default>
@@ -380,7 +378,7 @@ namespace LinearAlgebra
           // including ghost entries. this is not really efficient right now
           // because indices are translated twice, once by nth_index_in_set(i)
           // and once for operator() of tmp_vector
-          const IndexSet &                  v_stored = V.get_stored_elements();
+          const IndexSet                   &v_stored = V.get_stored_elements();
           const size_type                   n_elements = v_stored.n_elements();
           Kokkos::DefaultHostExecutionSpace host_exec;
           Kokkos::View<size_type *, Kokkos::HostSpace> indices(
@@ -468,9 +466,9 @@ namespace LinearAlgebra
                             Number,
                             ::dealii::MemorySpace::Default> &data,
                           const unsigned int                 size,
-                          RealType &                         result)
+                          RealType                          &result)
         {
-          static_assert(std::is_same<Number, RealType>::value,
+          static_assert(std::is_same_v<Number, RealType>,
                         "RealType should be the same type as Number");
 
           typename ::dealii::MemorySpace::Default::kokkos_space::execution_space
@@ -912,7 +910,7 @@ namespace LinearAlgebra
     void
     Vector<Number, MemorySpaceType>::import_elements(
       const Vector<Number, MemorySpaceType2> &src,
-      VectorOperation::values                 operation)
+      const VectorOperation::values           operation)
     {
       Assert(src.partitioner.get() != nullptr, ExcNotInitialized());
       Assert(partitioner->locally_owned_range() ==
@@ -949,22 +947,11 @@ namespace LinearAlgebra
 
     template <typename Number, typename MemorySpaceType>
     void
-    Vector<Number, MemorySpaceType>::zero_out_ghosts() const
-    {
-      this->zero_out_ghost_values();
-    }
-
-
-
-    template <typename Number, typename MemorySpaceType>
-    void
     Vector<Number, MemorySpaceType>::zero_out_ghost_values() const
     {
       Kokkos::pair<size_type, size_type> range(
         partitioner->locally_owned_size(),
         partitioner->locally_owned_size() + partitioner->n_ghost_indices());
-      if (data.values_host_buffer.size() > 0)
-        Kokkos::deep_copy(Kokkos::subview(data.values_host_buffer, range), 0);
       if (data.values.size() > 0)
         Kokkos::deep_copy(Kokkos::subview(data.values, range), 0);
 
@@ -991,8 +978,7 @@ namespace LinearAlgebra
       if (partitioner->n_import_indices() > 0)
         {
 #  if !defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-          if (std::is_same<MemorySpaceType,
-                           dealii::MemorySpace::Default>::value)
+          if (std::is_same_v<MemorySpaceType, dealii::MemorySpace::Default>)
             {
               if (import_data.values_host_buffer.size() == 0)
                 Kokkos::resize(import_data.values_host_buffer,
@@ -1008,15 +994,20 @@ namespace LinearAlgebra
         }
 
 #  if !defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-      if (std::is_same<MemorySpaceType, dealii::MemorySpace::Default>::value)
+      if (std::is_same_v<MemorySpaceType, dealii::MemorySpace::Default>)
         {
           // Move the data to the host and then move it back to the
           // device. We use values to store the elements because the function
           // uses a view of the array and thus we need the data on the host to
           // outlive the scope of the function.
           data.values_host_buffer =
+#    if KOKKOS_VERSION < 40000
             Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{},
                                                 data.values);
+#    else
+            Kokkos::create_mirror_view_and_copy(Kokkos::SharedHostPinnedSpace{},
+                                                data.values);
+#    endif
           partitioner->import_from_ghosted_array_start(
             operation,
             communication_channel,
@@ -1060,12 +1051,12 @@ namespace LinearAlgebra
 
       // in order to zero ghost part of the vector, we need to call
       // import_from_ghosted_array_finish() regardless of
-      // compress_requests.size() == 0
+      // compress_requests.empty()
 
       // make this function thread safe
       std::lock_guard<std::mutex> lock(mutex);
 #  if !defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-      if (std::is_same<MemorySpaceType, MemorySpace::Default>::value)
+      if (std::is_same_v<MemorySpaceType, MemorySpace::Default>)
         {
           Assert(partitioner->n_import_indices() == 0 ||
                    import_data.values_host_buffer.size() != 0,
@@ -1135,7 +1126,7 @@ namespace LinearAlgebra
       if (partitioner->n_import_indices() > 0)
         {
 #  if !defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-          if (std::is_same<MemorySpaceType, MemorySpace::Default>::value)
+          if (std::is_same_v<MemorySpaceType, MemorySpace::Default>)
             {
               if (import_data.values_host_buffer.size() == 0)
                 Kokkos::resize(import_data.values_host_buffer,
@@ -1151,15 +1142,20 @@ namespace LinearAlgebra
         }
 
 #  if !defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-      if (std::is_same<MemorySpaceType, MemorySpace::Default>::value)
+      if (std::is_same_v<MemorySpaceType, MemorySpace::Default>)
         {
           // Move the data to the host and then move it back to the
           // device. We use values to store the elements because the function
           // uses a view of the array and thus we need the data on the host to
           // outlive the scope of the function.
           data.values_host_buffer =
+#    if KOKKOS_VERSION < 40000
             Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{},
                                                 data.values);
+#    else
+            Kokkos::create_mirror_view_and_copy(Kokkos::SharedHostPinnedSpace{},
+                                                data.values);
+#    endif
 
           partitioner->export_to_ghosted_array_start<Number, MemorySpace::Host>(
             communication_channel,
@@ -1213,7 +1209,7 @@ namespace LinearAlgebra
           std::lock_guard<std::mutex> lock(mutex);
 
 #  if !defined(DEAL_II_MPI_WITH_DEVICE_SUPPORT)
-          if (std::is_same<MemorySpaceType, MemorySpace::Default>::value)
+          if (std::is_same_v<MemorySpaceType, MemorySpace::Default>)
             {
               partitioner->export_to_ghosted_array_finish(
                 ArrayView<Number, MemorySpace::Host>(
@@ -1254,9 +1250,9 @@ namespace LinearAlgebra
     void
     Vector<Number, MemorySpaceType>::import_elements(
       const ReadWriteVector<Number> &V,
-      VectorOperation::values        operation,
-      std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-        communication_pattern)
+      const VectorOperation::values  operation,
+      const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
+        &communication_pattern)
     {
       // If no communication pattern is given, create one. Otherwise, use the
       // given one.
@@ -1341,34 +1337,37 @@ namespace LinearAlgebra
 #ifdef DEAL_II_WITH_MPI
 
 #  ifdef DEBUG
-      if (Utilities::MPI::job_supports_mpi())
+      Assert(Utilities::MPI::job_supports_mpi() ||
+               (update_ghost_values_requests.empty() &&
+                compress_requests.empty()),
+             ExcInternalError());
+
+      // make sure that there are not outstanding requests from updating
+      // ghost values or compress
+      if (update_ghost_values_requests.size() > 0)
         {
-          // make sure that there are not outstanding requests from updating
-          // ghost values or compress
-          int flag = 1;
-          if (update_ghost_values_requests.size() > 0)
-            {
-              const int ierr = MPI_Testall(update_ghost_values_requests.size(),
-                                           update_ghost_values_requests.data(),
-                                           &flag,
-                                           MPI_STATUSES_IGNORE);
-              AssertThrowMPI(ierr);
-              Assert(flag == 1,
-                     ExcMessage(
-                       "MPI found unfinished update_ghost_values() requests "
-                       "when calling swap, which is not allowed."));
-            }
-          if (compress_requests.size() > 0)
-            {
-              const int ierr = MPI_Testall(compress_requests.size(),
-                                           compress_requests.data(),
-                                           &flag,
-                                           MPI_STATUSES_IGNORE);
-              AssertThrowMPI(ierr);
-              Assert(flag == 1,
-                     ExcMessage("MPI found unfinished compress() requests "
-                                "when calling swap, which is not allowed."));
-            }
+          int       flag = 1;
+          const int ierr = MPI_Testall(update_ghost_values_requests.size(),
+                                       update_ghost_values_requests.data(),
+                                       &flag,
+                                       MPI_STATUSES_IGNORE);
+          AssertThrowMPI(ierr);
+          Assert(flag == 1,
+                 ExcMessage(
+                   "MPI found unfinished update_ghost_values() requests "
+                   "when calling swap, which is not allowed."));
+        }
+      if (compress_requests.size() > 0)
+        {
+          int       flag = 1;
+          const int ierr = MPI_Testall(compress_requests.size(),
+                                       compress_requests.data(),
+                                       &flag,
+                                       MPI_STATUSES_IGNORE);
+          AssertThrowMPI(ierr);
+          Assert(flag == 1,
+                 ExcMessage("MPI found unfinished compress() requests "
+                            "when calling swap, which is not allowed."));
         }
 #  endif
 
@@ -1422,32 +1421,10 @@ namespace LinearAlgebra
 
 
     template <typename Number, typename MemorySpaceType>
-    void
-    Vector<Number, MemorySpaceType>::reinit(const VectorSpaceVector<Number> &V,
-                                            const bool omit_zeroing_entries)
-    {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert(dynamic_cast<const VectorType *>(&V) != nullptr,
-             ExcVectorTypeNotCompatible());
-      const VectorType &down_V = dynamic_cast<const VectorType &>(V);
-
-      reinit(down_V, omit_zeroing_entries);
-    }
-
-
-
-    template <typename Number, typename MemorySpaceType>
     Vector<Number, MemorySpaceType> &
     Vector<Number, MemorySpaceType>::operator+=(
-      const VectorSpaceVector<Number> &vv)
+      const Vector<Number, MemorySpaceType> &v)
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert(dynamic_cast<const VectorType *>(&vv) != nullptr,
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-
       AssertDimension(locally_owned_size(), v.locally_owned_size());
 
       dealii::internal::VectorOperations::
@@ -1468,14 +1445,8 @@ namespace LinearAlgebra
     template <typename Number, typename MemorySpaceType>
     Vector<Number, MemorySpaceType> &
     Vector<Number, MemorySpaceType>::operator-=(
-      const VectorSpaceVector<Number> &vv)
+      const Vector<Number, MemorySpaceType> &v)
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert(dynamic_cast<const VectorType *>(&vv) != nullptr,
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-
       AssertDimension(locally_owned_size(), v.locally_owned_size());
 
       dealii::internal::VectorOperations::
@@ -1512,15 +1483,9 @@ namespace LinearAlgebra
     template <typename Number, typename MemorySpaceType>
     void
     Vector<Number, MemorySpaceType>::add_local(
-      const Number                     a,
-      const VectorSpaceVector<Number> &vv)
+      const Number                           a,
+      const Vector<Number, MemorySpaceType> &v)
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert(dynamic_cast<const VectorType *>(&vv) != nullptr,
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-
       AssertIsFinite(a);
       AssertDimension(locally_owned_size(), v.locally_owned_size());
 
@@ -1541,8 +1506,9 @@ namespace LinearAlgebra
 
     template <typename Number, typename MemorySpaceType>
     void
-    Vector<Number, MemorySpaceType>::add(const Number                     a,
-                                         const VectorSpaceVector<Number> &vv)
+    Vector<Number, MemorySpaceType>::add(
+      const Number                           a,
+      const Vector<Number, MemorySpaceType> &vv)
     {
       add_local(a, vv);
 
@@ -1554,20 +1520,12 @@ namespace LinearAlgebra
 
     template <typename Number, typename MemorySpaceType>
     void
-    Vector<Number, MemorySpaceType>::add(const Number                     a,
-                                         const VectorSpaceVector<Number> &vv,
-                                         const Number                     b,
-                                         const VectorSpaceVector<Number> &ww)
+    Vector<Number, MemorySpaceType>::add(
+      const Number                           a,
+      const Vector<Number, MemorySpaceType> &v,
+      const Number                           b,
+      const Vector<Number, MemorySpaceType> &w)
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert(dynamic_cast<const VectorType *>(&vv) != nullptr,
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-      Assert(dynamic_cast<const VectorType *>(&ww) != nullptr,
-             ExcVectorTypeNotCompatible());
-      const VectorType &w = dynamic_cast<const VectorType &>(ww);
-
       AssertIsFinite(a);
       AssertIsFinite(b);
 
@@ -1593,7 +1551,7 @@ namespace LinearAlgebra
     template <typename Number, typename MemorySpaceType>
     void
     Vector<Number, MemorySpaceType>::add(const std::vector<size_type> &indices,
-                                         const std::vector<Number> &   values)
+                                         const std::vector<Number>    &values)
     {
       for (std::size_t i = 0; i < indices.size(); ++i)
         {
@@ -1629,16 +1587,10 @@ namespace LinearAlgebra
     template <typename Number, typename MemorySpaceType>
     void
     Vector<Number, MemorySpaceType>::sadd_local(
-      const Number                     x,
-      const Number                     a,
-      const VectorSpaceVector<Number> &vv)
+      const Number                           x,
+      const Number                           a,
+      const Vector<Number, MemorySpaceType> &v)
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert((dynamic_cast<const VectorType *>(&vv) != nullptr),
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-
       AssertIsFinite(x);
       AssertIsFinite(a);
       AssertDimension(locally_owned_size(), v.locally_owned_size());
@@ -1657,11 +1609,12 @@ namespace LinearAlgebra
 
     template <typename Number, typename MemorySpaceType>
     void
-    Vector<Number, MemorySpaceType>::sadd(const Number                     x,
-                                          const Number                     a,
-                                          const VectorSpaceVector<Number> &vv)
+    Vector<Number, MemorySpaceType>::sadd(
+      const Number                           x,
+      const Number                           a,
+      const Vector<Number, MemorySpaceType> &v)
     {
-      sadd_local(x, a, vv);
+      sadd_local(x, a, v);
 
       if (vector_is_ghosted)
         update_ghost_values();
@@ -1702,14 +1655,9 @@ namespace LinearAlgebra
 
     template <typename Number, typename MemorySpaceType>
     void
-    Vector<Number, MemorySpaceType>::scale(const VectorSpaceVector<Number> &vv)
+    Vector<Number, MemorySpaceType>::scale(
+      const Vector<Number, MemorySpaceType> &v)
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert(dynamic_cast<const VectorType *>(&vv) != nullptr,
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-
       AssertDimension(locally_owned_size(), v.locally_owned_size());
 
       dealii::internal::VectorOperations::
@@ -1724,15 +1672,10 @@ namespace LinearAlgebra
 
     template <typename Number, typename MemorySpaceType>
     void
-    Vector<Number, MemorySpaceType>::equ(const Number                     a,
-                                         const VectorSpaceVector<Number> &vv)
+    Vector<Number, MemorySpaceType>::equ(
+      const Number                           a,
+      const Vector<Number, MemorySpaceType> &v)
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert(dynamic_cast<const VectorType *>(&vv) != nullptr,
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-
       AssertIsFinite(a);
       AssertDimension(locally_owned_size(), v.locally_owned_size());
 
@@ -1747,6 +1690,22 @@ namespace LinearAlgebra
 
       if (vector_is_ghosted)
         update_ghost_values();
+    }
+
+
+
+    template <typename Number, typename MemorySpaceType>
+    void
+    Vector<Number, MemorySpaceType>::extract_subvector_to(
+      const ArrayView<const types::global_dof_index> &indices,
+      ArrayView<Number>                              &elements) const
+    {
+      AssertDimension(indices.size(), elements.size());
+      for (unsigned int i = 0; i < indices.size(); ++i)
+        {
+          AssertIndexRange(indices[i], size());
+          elements[i] = (*this)[indices[i]];
+        }
     }
 
 
@@ -1785,14 +1744,8 @@ namespace LinearAlgebra
     template <typename Number, typename MemorySpaceType>
     Number
     Vector<Number, MemorySpaceType>::operator*(
-      const VectorSpaceVector<Number> &vv) const
+      const Vector<Number, MemorySpaceType> &v) const
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert((dynamic_cast<const VectorType *>(&vv) != nullptr),
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-
       Number local_result = inner_product_local(v);
       if (partitioner->n_mpi_processes() > 1)
         return Utilities::MPI::sum(local_result,
@@ -2003,19 +1956,10 @@ namespace LinearAlgebra
     template <typename Number, typename MemorySpaceType>
     Number
     Vector<Number, MemorySpaceType>::add_and_dot(
-      const Number                     a,
-      const VectorSpaceVector<Number> &vv,
-      const VectorSpaceVector<Number> &ww)
+      const Number                           a,
+      const Vector<Number, MemorySpaceType> &v,
+      const Vector<Number, MemorySpaceType> &w)
     {
-      // Downcast. Throws an exception if invalid.
-      using VectorType = Vector<Number, MemorySpaceType>;
-      Assert((dynamic_cast<const VectorType *>(&vv) != nullptr),
-             ExcVectorTypeNotCompatible());
-      const VectorType &v = dynamic_cast<const VectorType &>(vv);
-      Assert((dynamic_cast<const VectorType *>(&ww) != nullptr),
-             ExcVectorTypeNotCompatible());
-      const VectorType &w = dynamic_cast<const VectorType &>(ww);
-
       Number local_result = add_and_dot_local(a, v, w);
       if (partitioner->n_mpi_processes() > 1)
         return Utilities::MPI::sum(local_result,
@@ -2070,7 +2014,7 @@ namespace LinearAlgebra
 
     template <typename Number, typename MemorySpaceType>
     void
-    Vector<Number, MemorySpaceType>::print(std::ostream &     out,
+    Vector<Number, MemorySpaceType>::print(std::ostream      &out,
                                            const unsigned int precision,
                                            const bool         scientific,
                                            const bool         across) const

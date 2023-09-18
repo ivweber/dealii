@@ -293,7 +293,7 @@ namespace parallel
        */
       virtual void
       create_triangulation(const std::vector<Point<spacedim>> &vertices,
-                           const std::vector<CellData<dim>> &  cells,
+                           const std::vector<CellData<dim>>   &cells,
                            const SubCellData &subcelldata) override;
 
       /**
@@ -319,6 +319,22 @@ namespace parallel
       virtual void
       copy_triangulation(
         const dealii::Triangulation<dim, spacedim> &other_tria) override;
+
+      /**
+       * Save the triangulation into the given file. This file needs to be
+       * reachable from all nodes in the computation on a shared network file
+       * system. See the SolutionTransfer class on how to store solution vectors
+       * into this file. Additional cell-based data can be saved using
+       * register_data_attach().
+       */
+      using parallel::TriangulationBase<dim, spacedim>::save;
+
+      /**
+       * Load the triangulation saved with save() back in. Cell-based data that
+       * was saved with register_data_attach() can be read in with
+       * notify_ready_to_unpack() after calling load().
+       */
+      using parallel::TriangulationBase<dim, spacedim>::load;
 
       /**
        * Read the data of this object from a stream for the purpose of
@@ -410,7 +426,7 @@ namespace parallel
     template <int dim, int spacedim>
     DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     template <class Archive>
-    void Triangulation<dim, spacedim>::load(Archive &          ar,
+    void Triangulation<dim, spacedim>::load(Archive           &ar,
                                             const unsigned int version)
     {
       dealii::Triangulation<dim, spacedim>::load(ar, version);

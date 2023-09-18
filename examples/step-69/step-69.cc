@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Matthias Maier, Texas A&M University;
  *          Ignacio Tomas, Texas A&M University, Sandia National Laboratories
@@ -149,7 +148,7 @@ namespace Step69
   {
   public:
     Discretization(const MPI_Comm     mpi_communicator,
-                   TimerOutput &      computing_timer,
+                   TimerOutput       &computing_timer,
                    const std::string &subsection = "Discretization");
 
     void setup();
@@ -214,9 +213,9 @@ namespace Step69
                std::tuple<Tensor<1, dim>, types::boundary_id, Point<dim>>>;
 
     OfflineData(const MPI_Comm             mpi_communicator,
-                TimerOutput &              computing_timer,
+                TimerOutput               &computing_timer,
                 const Discretization<dim> &discretization,
-                const std::string &        subsection = "OfflineData");
+                const std::string         &subsection = "OfflineData");
 
     void setup();
     void assemble();
@@ -239,7 +238,7 @@ namespace Step69
 
   private:
     const MPI_Comm mpi_communicator;
-    TimerOutput &  computing_timer;
+    TimerOutput   &computing_timer;
 
     SmartPointer<const Discretization<dim>> discretization;
   };
@@ -311,8 +310,8 @@ namespace Step69
     static DEAL_II_ALWAYS_INLINE inline flux_type flux(const state_type &U);
 
     static DEAL_II_ALWAYS_INLINE inline double
-    compute_lambda_max(const state_type &    U_i,
-                       const state_type &    U_j,
+    compute_lambda_max(const state_type     &U_i,
+                       const state_type     &U_j,
                        const Tensor<1, dim> &n_ij);
   };
 
@@ -390,10 +389,10 @@ namespace Step69
                                    n_solution_variables>;
 
     TimeStepping(const MPI_Comm            mpi_communicator,
-                 TimerOutput &             computing_timer,
-                 const OfflineData<dim> &  offline_data,
+                 TimerOutput              &computing_timer,
+                 const OfflineData<dim>   &offline_data,
                  const InitialValues<dim> &initial_values,
-                 const std::string &       subsection = "TimeStepping");
+                 const std::string        &subsection = "TimeStepping");
 
     void prepare();
 
@@ -401,7 +400,7 @@ namespace Step69
 
   private:
     const MPI_Comm mpi_communicator;
-    TimerOutput &  computing_timer;
+    TimerOutput   &computing_timer;
 
     SmartPointer<const OfflineData<dim>>   offline_data;
     SmartPointer<const InitialValues<dim>> initial_values;
@@ -442,9 +441,9 @@ namespace Step69
 
     SchlierenPostprocessor(
       const MPI_Comm          mpi_communicator,
-      TimerOutput &           computing_timer,
+      TimerOutput            &computing_timer,
       const OfflineData<dim> &offline_data,
-      const std::string &     subsection = "SchlierenPostprocessor");
+      const std::string      &subsection = "SchlierenPostprocessor");
 
     void prepare();
 
@@ -454,7 +453,7 @@ namespace Step69
 
   private:
     const MPI_Comm mpi_communicator;
-    TimerOutput &  computing_timer;
+    TimerOutput   &computing_timer;
 
     SmartPointer<const OfflineData<dim>> offline_data;
 
@@ -536,7 +535,7 @@ namespace Step69
   // ParameterAcceptor::add_parameter().
   template <int dim>
   Discretization<dim>::Discretization(const MPI_Comm     mpi_communicator,
-                                      TimerOutput &      computing_timer,
+                                      TimerOutput       &computing_timer,
                                       const std::string &subsection)
     : ParameterAcceptor(subsection)
     , mpi_communicator(mpi_communicator)
@@ -685,9 +684,9 @@ namespace Step69
   // initialization list.
   template <int dim>
   OfflineData<dim>::OfflineData(const MPI_Comm             mpi_communicator,
-                                TimerOutput &              computing_timer,
+                                TimerOutput               &computing_timer,
                                 const Discretization<dim> &discretization,
-                                const std::string &        subsection)
+                                const std::string         &subsection)
     : ParameterAcceptor(subsection)
     , dof_handler(discretization.triangulation)
     , mpi_communicator(mpi_communicator)
@@ -878,8 +877,8 @@ namespace Step69
 
     template <typename IteratorType>
     DEAL_II_ALWAYS_INLINE inline void
-    set_entry(SparseMatrix<double> &           matrix,
-              const IteratorType &             it,
+    set_entry(SparseMatrix<double>            &matrix,
+              const IteratorType              &it,
               SparseMatrix<double>::value_type value)
     {
       SparseMatrix<double>::iterator matrix_iterator(&matrix,
@@ -967,7 +966,7 @@ namespace Step69
     template <std::size_t k, int k2>
     DEAL_II_ALWAYS_INLINE inline void
     scatter(std::array<LinearAlgebra::distributed::Vector<double>, k> &U,
-            const Tensor<1, k2> &                                      tensor,
+            const Tensor<1, k2>                                       &tensor,
             const unsigned int                                         i)
     {
       static_assert(k == k2,
@@ -1008,7 +1007,7 @@ namespace Step69
   // Finally, assuming that $\mathbf{x}_i$ is a support point at the boundary,
   // the (nodal) normals are defined as:
   //
-  // @f{align*}
+  // @f{align*}{
   // \widehat{\boldsymbol{\nu}}_i \dealcoloneq
   //  \frac{\int_{\partial\Omega} \phi_i \widehat{\boldsymbol{\nu}} \,
   //  \, \mathrm{d}\mathbf{s}}{\big|\int_{\partial\Omega} \phi_i
@@ -1052,8 +1051,8 @@ namespace Step69
 
       const auto local_assemble_system = //
         [&](const typename DoFHandler<dim>::cell_iterator &cell,
-            MeshWorker::ScratchData<dim> &                 scratch,
-            CopyData<dim> &                                copy) {
+            MeshWorker::ScratchData<dim>                  &scratch,
+            CopyData<dim>                                 &copy) {
           copy.is_artificial = cell->is_artificial();
           if (copy.is_artificial)
             return;
@@ -1433,7 +1432,7 @@ namespace Step69
     template <int dim>
     DEAL_II_ALWAYS_INLINE inline std::array<double, 4> riemann_data_from_state(
       const typename ProblemDescription<dim>::state_type U,
-      const Tensor<1, dim> &                             n_ij)
+      const Tensor<1, dim>                              &n_ij)
     {
       Tensor<1, 3> projected_U;
       projected_U[0] = U[0];
@@ -1474,7 +1473,7 @@ namespace Step69
     // Next, we need two local wavenumbers that are defined in terms of a
     // primitive state $[\rho, u, p, a]$ and a given pressure $p^\ast$
     // @cite GuermondPopov2016  Eqn. (3.7):
-    // @f{align*}
+    // @f{align*}{
     //   \lambda^- = u - a\,\sqrt{1 + \frac{\gamma+1}{2\gamma}
     //   \left(\frac{p^\ast-p}{p}\right)_+}
     // @f}
@@ -1498,7 +1497,7 @@ namespace Step69
     }
 
     // Analougously @cite GuermondPopov2016 Eqn. (3.8):
-    // @f{align*}
+    // @f{align*}{
     //   \lambda^+ = u + a\,\sqrt{1 + \frac{\gamma+1}{2\gamma}
     //   \left(\frac{p^\ast-p}{p}\right)_+}
     // @f}
@@ -1557,7 +1556,7 @@ namespace Step69
     // general, not as sharp as the two-rarefaction estimate. But it will
     // save the day in the context of near vacuum conditions when the
     // two-rarefaction approximation might attain extreme values:
-    // @f{align*}
+    // @f{align*}{
     //   \lambda_{\text{exp}} = \max(u_i,u_j) + 5. \max(a_i, a_j).
     // @f}
     // @note The constant 5.0 multiplying the maximum of the sound speeds
@@ -1585,8 +1584,8 @@ namespace Step69
 
   template <int dim>
   DEAL_II_ALWAYS_INLINE inline double
-  ProblemDescription<dim>::compute_lambda_max(const state_type &    U_i,
-                                              const state_type &    U_j,
+  ProblemDescription<dim>::compute_lambda_max(const state_type     &U_i,
+                                              const state_type     &U_j,
                                               const Tensor<1, dim> &n_ij)
   {
     const auto riemann_data_i = riemann_data_from_state(U_i, n_ij);
@@ -1713,10 +1712,10 @@ namespace Step69
   template <int dim>
   TimeStepping<dim>::TimeStepping(
     const MPI_Comm            mpi_communicator,
-    TimerOutput &             computing_timer,
-    const OfflineData<dim> &  offline_data,
+    TimerOutput              &computing_timer,
+    const OfflineData<dim>   &offline_data,
     const InitialValues<dim> &initial_values,
-    const std::string &       subsection /*= "TimeStepping"*/)
+    const std::string        &subsection /*= "TimeStepping"*/)
     : ParameterAcceptor(subsection)
     , mpi_communicator(mpi_communicator)
     , computing_timer(computing_timer)
@@ -2125,9 +2124,9 @@ namespace Step69
   template <int dim>
   SchlierenPostprocessor<dim>::SchlierenPostprocessor(
     const MPI_Comm          mpi_communicator,
-    TimerOutput &           computing_timer,
+    TimerOutput            &computing_timer,
     const OfflineData<dim> &offline_data,
-    const std::string &     subsection /*= "SchlierenPostprocessor"*/)
+    const std::string      &subsection /*= "SchlierenPostprocessor"*/)
     : ParameterAcceptor(subsection)
     , mpi_communicator(mpi_communicator)
     , computing_timer(computing_timer)
@@ -2423,8 +2422,8 @@ namespace Step69
   namespace
   {
     void print_head(ConditionalOStream &pcout,
-                    const std::string & header,
-                    const std::string & secondary = "")
+                    const std::string  &header,
+                    const std::string  &secondary = "")
     {
       const auto header_size   = header.size();
       const auto padded_header = std::string((34 - header_size) / 2, ' ') +
@@ -2712,7 +2711,7 @@ namespace Step69
 
   template <int dim>
   void MainLoop<dim>::output(const typename MainLoop<dim>::vector_type &U,
-                             const std::string &                        name,
+                             const std::string                         &name,
                              const double                               t,
                              const unsigned int                         cycle)
   {

@@ -12,6 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
+ *
+ * Author: Simon Sticko, Uppsala University, 2021
  */
 
 // @sect3{Include files}
@@ -232,7 +234,7 @@ namespace Step85
   {
     std::cout << "Initializing matrices" << std::endl;
 
-    const auto face_has_flux_coupling = [&](const auto &       cell,
+    const auto face_has_flux_coupling = [&](const auto        &cell,
                                             const unsigned int face_index) {
       return this->face_has_ghost_penalty(cell, face_index);
     };
@@ -395,7 +397,7 @@ namespace Step85
         // produces anything useful. It can happen that the algorithm produces 0
         // quadrature points. When this happens, the returned optional will not
         // contain a value, even if the cell is formally intersected.
-        const std_cxx17::optional<FEValues<dim>> &inside_fe_values =
+        const std::optional<FEValues<dim>> &inside_fe_values =
           non_matching_fe_values.get_inside_fe_values();
 
         if (inside_fe_values)
@@ -427,13 +429,13 @@ namespace Step85
         // etc., one can use its normal_vector(..)-function to get an outward
         // normal to the immersed surface, $\Gamma$. In terms of the level set
         // function, this normal reads
-        // @f{equation*}
+        // @f{equation*}{
         //   n = \frac{\nabla \psi}{\| \nabla \psi \|}.
         // @f}
         // An additional benefit of std::optional is that we do not need any
         // other check for whether we are on intersected cells: In case we are
         // on an inside cell, we get an empty object here.
-        const std_cxx17::optional<NonMatching::FEImmersedSurfaceValues<dim>>
+        const std::optional<NonMatching::FEImmersedSurfaceValues<dim>>
           &surface_fe_values = non_matching_fe_values.get_surface_fe_values();
 
         if (surface_fe_values)
@@ -573,7 +575,7 @@ namespace Step85
   // To test that the implementation works as expected, we want to compute the
   // error in the solution in the $L^2$-norm. The analytical solution to the
   // Poisson problem stated in the introduction reads
-  // @f{align*}
+  // @f{align*}{
   //  u(x) = 1 - \frac{2}{\text{dim}}(\| x \|^2 - 1) , \qquad x \in
   //  \overline{\Omega}.
   // @f}
@@ -582,14 +584,14 @@ namespace Step85
   class AnalyticalSolution : public Function<dim>
   {
   public:
-    double value(const Point<dim> & point,
+    double value(const Point<dim>  &point,
                  const unsigned int component = 0) const override;
   };
 
 
 
   template <int dim>
-  double AnalyticalSolution<dim>::value(const Point<dim> & point,
+  double AnalyticalSolution<dim>::value(const Point<dim>  &point,
                                         const unsigned int component) const
   {
     AssertIndexRange(component, this->n_components);
@@ -634,7 +636,7 @@ namespace Step85
       {
         non_matching_fe_values.reinit(cell);
 
-        const std_cxx17::optional<FEValues<dim>> &fe_values =
+        const std::optional<FEValues<dim>> &fe_values =
           non_matching_fe_values.get_inside_fe_values();
 
         if (fe_values)

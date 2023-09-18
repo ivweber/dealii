@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  */
 
 // @sect3{Include files}
@@ -191,7 +190,7 @@ void second_grid()
       // <a href="http://en.cppreference.com/w/cpp/language/range-for">range-
       // based for loops</a>, which wrap up all of the syntax shown above into a
       // much shorter form:
-      for (auto &cell : triangulation.active_cell_iterators())
+      for (const auto &cell : triangulation.active_cell_iterators())
         {
           // @note See @ref Iterators for more information about the iterator
           // classes used in deal.II, and @ref CPP11 for more information about

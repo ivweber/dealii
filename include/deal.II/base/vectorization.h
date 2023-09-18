@@ -69,7 +69,9 @@
 #    undef vector
 #    undef pixel
 #    undef bool
-#  else
+#  elif defined(__ARM_NEON)
+#    include <arm_neon.h>
+#  elif defined(__x86_64__)
 #    include <x86intrin.h>
 #  endif
 
@@ -155,7 +157,7 @@ public:
    * current lane.
    */
   template <typename U = T>
-  std::enable_if_t<!std::is_same<U, const U>::value, typename T::value_type> &
+  std::enable_if_t<!std::is_same_v<U, const U>, typename T::value_type> &
   operator*()
   {
     AssertIndexRange(lane, T::size());
@@ -662,7 +664,7 @@ public:
    */
   DEAL_II_ALWAYS_INLINE
   Number
-  sum()
+  sum() const
   {
     return data;
   }
@@ -780,9 +782,9 @@ inline DEAL_II_ALWAYS_INLINE VectorizedArrayType
 make_vectorized_array(const typename VectorizedArrayType::value_type &u)
 {
   static_assert(
-    std::is_same<VectorizedArrayType,
-                 VectorizedArray<typename VectorizedArrayType::value_type,
-                                 VectorizedArrayType::size()>>::value,
+    std::is_same_v<VectorizedArrayType,
+                   VectorizedArray<typename VectorizedArrayType::value_type,
+                                   VectorizedArrayType::size()>>,
     "VectorizedArrayType is not a VectorizedArray.");
 
   VectorizedArrayType result = u;
@@ -804,7 +806,7 @@ make_vectorized_array(const typename VectorizedArrayType::value_type &u)
  */
 template <typename Number, std::size_t width>
 inline DEAL_II_ALWAYS_INLINE void
-gather(VectorizedArray<Number, width> &   out,
+gather(VectorizedArray<Number, width>    &out,
        const std::array<Number *, width> &ptrs,
        const unsigned int                 offset)
 {
@@ -842,8 +844,8 @@ gather(VectorizedArray<Number, width> &   out,
 template <typename Number, std::size_t width>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int              n_entries,
-                              const Number *                  in,
-                              const unsigned int *            offsets,
+                              const Number                   *in,
+                              const unsigned int             *offsets,
                               VectorizedArray<Number, width> *out)
 {
   for (unsigned int i = 0; i < n_entries; ++i)
@@ -867,7 +869,7 @@ template <typename Number, std::size_t width>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int                 n_entries,
                               const std::array<Number *, width> &in,
-                              VectorizedArray<Number, width> *   out)
+                              VectorizedArray<Number, width>    *out)
 {
   for (unsigned int i = 0; i < n_entries; ++i)
     for (unsigned int v = 0; v < VectorizedArray<Number, width>::size(); ++v)
@@ -919,8 +921,8 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                            add_into,
                                const unsigned int                    n_entries,
                                const VectorizedArray<Number, width> *in,
-                               const unsigned int *                  offsets,
-                               Number *                              out)
+                               const unsigned int                   *offsets,
+                               Number                               *out)
 {
   if (add_into)
     for (unsigned int i = 0; i < n_entries; ++i)
@@ -949,7 +951,7 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                            add_into,
                                const unsigned int                    n_entries,
                                const VectorizedArray<Number, width> *in,
-                               std::array<Number *, width> &         out)
+                               std::array<Number *, width>          &out)
 {
   if (add_into)
     for (unsigned int i = 0; i < n_entries; ++i)
@@ -965,6 +967,565 @@ vectorized_transpose_and_store(const bool                            add_into,
 /** @} */
 
 #ifndef DOXYGEN
+
+#  if defined(DEAL_II_HAVE_ARM_NEON) && defined(__ARM_NEON)
+
+/**
+ * Specialization for double and ARM Neon.
+ */
+template <>
+class VectorizedArray<double, 2>
+  : public VectorizedArrayBase<VectorizedArray<double, 2>, 2>
+{
+public:
+  /**
+   * This gives the type of the array elements.
+   */
+  using value_type = double;
+
+  /**
+   * Default empty constructor, leaving the data in an uninitialized state
+   * similar to float/double.
+   */
+  VectorizedArray() = default;
+
+  /**
+   * Construct an array with the given scalar broadcast to all lanes.
+   */
+  VectorizedArray(const double scalar)
+  {
+    this->operator=(scalar);
+  }
+
+  /**
+   * Construct an array with the given initializer list.
+   */
+  template <typename U>
+  VectorizedArray(const std::initializer_list<U> &list)
+    : VectorizedArrayBase<VectorizedArray<double, 2>, 2>(list)
+  {}
+
+  /**
+   * This function can be used to set all data fields to a given scalar.
+   */
+  VectorizedArray &
+  operator=(const double x) &
+  {
+    data = vdupq_n_f64(x);
+    return *this;
+  }
+
+  /**
+   * Assign a scalar to the current object. This overload is used for
+   * rvalue references; because it does not make sense to assign
+   * something to a temporary, the function is deleted.
+   */
+  VectorizedArray &
+  operator=(const double scalar) && = delete;
+
+  /**
+   * Access operator.
+   */
+  double &
+  operator[](const unsigned int comp)
+  {
+    return *(reinterpret_cast<double *>(&data) + comp);
+  }
+
+  /**
+   * Constant access operator.
+   */
+  const double &
+  operator[](const unsigned int comp) const
+  {
+    return *(reinterpret_cast<const double *>(&data) + comp);
+  }
+
+  /**
+   * Addition.
+   */
+  VectorizedArray &
+  operator+=(const VectorizedArray &vec)
+  {
+    data = vaddq_f64(data, vec.data);
+    return *this;
+  }
+
+  /**
+   * Subtraction.
+   */
+  VectorizedArray &
+  operator-=(const VectorizedArray &vec)
+  {
+    data = vsubq_f64(data, vec.data);
+    return *this;
+  }
+
+  /**
+   * Multiplication.
+   */
+  VectorizedArray &
+  operator*=(const VectorizedArray &vec)
+  {
+    data = vmulq_f64(data, vec.data);
+    return *this;
+  }
+
+  /**
+   * Division.
+   */
+  VectorizedArray &
+  operator/=(const VectorizedArray &vec)
+  {
+    data = vdivq_f64(data, vec.data);
+    return *this;
+  }
+
+  /**
+   * Load @p size() from memory into the calling class, starting at
+   * the given address. The memory need not be aligned by 16 bytes, as opposed
+   * to casting a double address to VectorizedArray<double>*.
+   */
+  void
+  load(const double *ptr)
+  {
+    data = vld1q_f64(ptr);
+  }
+
+  DEAL_II_ALWAYS_INLINE
+  void
+  load(const float *ptr)
+  {
+    DEAL_II_OPENMP_SIMD_PRAGMA
+    for (unsigned int i = 0; i < 2; ++i)
+      data[i] = ptr[i];
+  }
+
+  /**
+   * Write the content of the calling class into memory in form of @p
+   * size() to the given address. The memory need not be aligned by
+   * 16 bytes, as opposed to casting a double address to
+   * VectorizedArray<double>*.
+   */
+  void
+  store(double *ptr) const
+  {
+    vst1q_f64(ptr, data);
+  }
+
+  DEAL_II_ALWAYS_INLINE
+  void
+  store(float *ptr) const
+  {
+    DEAL_II_OPENMP_SIMD_PRAGMA
+    for (unsigned int i = 0; i < 2; ++i)
+      ptr[i] = data[i];
+  }
+
+  /**
+   * @copydoc VectorizedArray<Number>::streaming_store()
+   * @note Memory must be aligned by 16 bytes.
+   */
+  DEAL_II_ALWAYS_INLINE
+  void
+  streaming_store(double *ptr) const
+  {
+    Assert(reinterpret_cast<std::size_t>(ptr) % 16 == 0,
+           ExcMessage("Memory not aligned"));
+    vst1q_f64(ptr, data);
+  }
+
+  /**
+   * Load @p size() from memory into the calling class, starting at
+   * the given address and with given offsets, each entry from the offset
+   * providing one element of the vectorized array.
+   *
+   * This operation corresponds to the following code (but uses a more
+   * efficient implementation in case the hardware allows for that):
+   * @code
+   * for (unsigned int v=0; v<VectorizedArray<Number>::size(); ++v)
+   *   this->operator[](v) = base_ptr[offsets[v]];
+   * @endcode
+   */
+  void
+  gather(const double *base_ptr, const unsigned int *offsets)
+  {
+    for (unsigned int i = 0; i < 2; ++i)
+      *(reinterpret_cast<double *>(&data) + i) = base_ptr[offsets[i]];
+  }
+
+  /**
+   * Write the content of the calling class into memory in form of @p
+   * size() to the given address and the given offsets, filling the
+   * elements of the vectorized array into each offset.
+   *
+   * This operation corresponds to the following code (but uses a more
+   * efficient implementation in case the hardware allows for that):
+   * @code
+   * for (unsigned int v=0; v<VectorizedArray<Number>::size(); ++v)
+   *   base_ptr[offsets[v]] = this->operator[](v);
+   * @endcode
+   */
+  void
+  scatter(const unsigned int *offsets, double *base_ptr) const
+  {
+    for (unsigned int i = 0; i < 2; ++i)
+      base_ptr[offsets[i]] = *(reinterpret_cast<const double *>(&data) + i);
+  }
+
+  /**
+   * Returns sum over entries of the data field, $\sum_{i=1}^{\text{size}()}
+   * this->data[i]$.
+   */
+  double
+  sum() const
+  {
+    return vaddvq_f64(data);
+  }
+
+  /**
+   * Actual data field. To be consistent with the standard layout type and to
+   * enable interaction with external SIMD functionality, this member is
+   * declared public.
+   */
+  mutable float64x2_t data;
+
+private:
+  /**
+   * Return the square root of this field. Not for use in user code. Use
+   * sqrt(x) instead.
+   */
+  VectorizedArray
+  get_sqrt() const
+  {
+    VectorizedArray res;
+    res.data = vsqrtq_f64(data);
+    return res;
+  }
+
+  /**
+   * Return the absolute value of this field. Not for use in user code. Use
+   * abs(x) instead.
+   */
+  VectorizedArray
+  get_abs() const
+  {
+    VectorizedArray res;
+    res.data = vabsq_f64(data);
+    return res;
+  }
+
+  /**
+   * Return the component-wise maximum of this field and another one. Not for
+   * use in user code. Use max(x,y) instead.
+   */
+  VectorizedArray
+  get_max(const VectorizedArray &other) const
+  {
+    VectorizedArray res;
+    res.data = vmaxq_f64(data, other.data);
+    return res;
+  }
+
+  /**
+   * Return the component-wise minimum of this field and another one. Not for
+   * use in user code. Use min(x,y) instead.
+   */
+  VectorizedArray
+  get_min(const VectorizedArray &other) const
+  {
+    VectorizedArray res;
+    res.data = vminq_f64(data, other.data);
+    return res;
+  }
+
+  // Make a few functions friends.
+  template <typename Number2, std::size_t width2>
+  friend VectorizedArray<Number2, width2>
+  std::sqrt(const VectorizedArray<Number2, width2> &);
+  template <typename Number2, std::size_t width2>
+  friend VectorizedArray<Number2, width2>
+  std::abs(const VectorizedArray<Number2, width2> &);
+  template <typename Number2, std::size_t width2>
+  friend VectorizedArray<Number2, width2>
+  std::max(const VectorizedArray<Number2, width2> &,
+           const VectorizedArray<Number2, width2> &);
+  template <typename Number2, std::size_t width2>
+  friend VectorizedArray<Number2, width2>
+  std::min(const VectorizedArray<Number2, width2> &,
+           const VectorizedArray<Number2, width2> &);
+};
+
+/**
+ * Specialization for float and ARM Neon.
+ */
+template <>
+class VectorizedArray<float, 4>
+  : public VectorizedArrayBase<VectorizedArray<float, 4>, 4>
+{
+public:
+  /**
+   * This gives the type of the array elements.
+   */
+  using value_type = float;
+
+  /**
+   * Default empty constructor, leaving the data in an uninitialized state
+   * similar to float/double.
+   */
+  VectorizedArray() = default;
+
+  /**
+   * Construct an array with the given scalar broadcast to all lanes.
+   */
+  VectorizedArray(const float scalar)
+  {
+    this->operator=(scalar);
+  }
+
+  /**
+   * Construct an array with the given initializer list.
+   */
+  template <typename U>
+  VectorizedArray(const std::initializer_list<U> &list)
+    : VectorizedArrayBase<VectorizedArray<float, 4>, 4>(list)
+  {}
+
+  /**
+   * This function can be used to set all data fields to a given scalar.
+   */
+  VectorizedArray &
+  operator=(const float x) &
+  {
+    data = vdupq_n_f32(x);
+    return *this;
+  }
+
+  /**
+   * Assign a scalar to the current object. This overload is used for
+   * rvalue references; because it does not make sense to assign
+   * something to a temporary, the function is deleted.
+   */
+  VectorizedArray &
+  operator=(const float scalar) && = delete;
+
+  /**
+   * Access operator.
+   */
+  value_type &
+  operator[](const unsigned int comp)
+  {
+    return *(reinterpret_cast<float *>(&data) + comp);
+  }
+
+  /**
+   * Constant access operator.
+   */
+  const value_type &
+  operator[](const unsigned int comp) const
+  {
+    return *(reinterpret_cast<const float *>(&data) + comp);
+  }
+
+  /**
+   * Addition.
+   */
+  VectorizedArray &
+  operator+=(const VectorizedArray &vec)
+  {
+    data = vaddq_f32(data, vec.data);
+    return *this;
+  }
+
+  /**
+   * Subtraction.
+   */
+  VectorizedArray &
+  operator-=(const VectorizedArray &vec)
+  {
+    data = vsubq_f32(data, vec.data);
+    return *this;
+  }
+
+  /**
+   * Multiplication.
+   */
+  VectorizedArray &
+  operator*=(const VectorizedArray &vec)
+  {
+    data = vmulq_f32(data, vec.data);
+    return *this;
+  }
+
+  /**
+   * Division.
+   */
+  VectorizedArray &
+  operator/=(const VectorizedArray &vec)
+  {
+    data = vdivq_f32(data, vec.data);
+    return *this;
+  }
+
+  /**
+   * Load @p size() from memory into the calling class, starting at
+   * the given address. The memory need not be aligned by 16 bytes, as opposed
+   * to casting a float address to VectorizedArray<float>*.
+   */
+  void
+  load(const float *ptr)
+  {
+    data = vld1q_f32(ptr);
+  }
+
+  /**
+   * Write the content of the calling class into memory in form of @p
+   * size() to the given address. The memory need not be aligned by
+   * 16 bytes, as opposed to casting a float address to
+   * VectorizedArray<float>*.
+   */
+  void
+  store(float *ptr) const
+  {
+    vst1q_f32(ptr, data);
+  }
+
+  /**
+   * @copydoc VectorizedArray<Number>::streaming_store()
+   * @note Memory must be aligned by 16 bytes.
+   */
+  DEAL_II_ALWAYS_INLINE
+  void
+  streaming_store(float *ptr) const
+  {
+    Assert(reinterpret_cast<std::size_t>(ptr) % 16 == 0,
+           ExcMessage("Memory not aligned"));
+    vst1q_f32(ptr, data);
+  }
+
+  /**
+   * Load @p size() from memory into the calling class, starting at
+   * the given address and with given offsets, each entry from the offset
+   * providing one element of the vectorized array.
+   *
+   * This operation corresponds to the following code (but uses a more
+   * efficient implementation in case the hardware allows for that):
+   * @code
+   * for (unsigned int v=0; v<VectorizedArray<Number>::size(); ++v)
+   *   this->operator[](v) = base_ptr[offsets[v]];
+   * @endcode
+   */
+  void
+  gather(const float *base_ptr, const unsigned int *offsets)
+  {
+    for (unsigned int i = 0; i < 4; ++i)
+      *(reinterpret_cast<float *>(&data) + i) = base_ptr[offsets[i]];
+  }
+
+  /**
+   * Write the content of the calling class into memory in form of @p
+   * size() to the given address and the given offsets, filling the
+   * elements of the vectorized array into each offset.
+   *
+   * This operation corresponds to the following code (but uses a more
+   * efficient implementation in case the hardware allows for that):
+   * @code
+   * for (unsigned int v=0; v<VectorizedArray<Number>::size(); ++v)
+   *   base_ptr[offsets[v]] = this->operator[](v);
+   * @endcode
+   */
+  void
+  scatter(const unsigned int *offsets, float *base_ptr) const
+  {
+    for (unsigned int i = 0; i < 4; ++i)
+      base_ptr[offsets[i]] = *(reinterpret_cast<const float *>(&data) + i);
+  }
+
+  /**
+   * Returns sum over entries of the data field, $\sum_{i=1}^{\text{size}()}
+   * this->data[i]$.
+   */
+  float
+  sum() const
+  {
+    return vaddvq_f32(data);
+  }
+
+  /**
+   * Actual data field. To be consistent with the standard layout type and to
+   * enable interaction with external SIMD functionality, this member is
+   * declared public.
+   */
+  mutable float32x4_t data;
+
+private:
+  /**
+   * Return the square root of this field. Not for use in user code. Use
+   * sqrt(x) instead.
+   */
+  VectorizedArray
+  get_sqrt() const
+  {
+    VectorizedArray res;
+    res.data = vsqrtq_f32(data);
+    return res;
+  }
+
+  /**
+   * Return the absolute value of this field. Not for use in user code. Use
+   * abs(x) instead.
+   */
+  VectorizedArray
+  get_abs() const
+  {
+    VectorizedArray res;
+    res.data = vabsq_f32(data);
+    return res;
+  }
+
+  /**
+   * Return the component-wise maximum of this field and another one. Not for
+   * use in user code. Use max(x,y) instead.
+   */
+  VectorizedArray
+  get_max(const VectorizedArray &other) const
+  {
+    VectorizedArray res;
+    res.data = vmaxq_f32(data, other.data);
+    return res;
+  }
+
+  /**
+   * Return the component-wise minimum of this field and another one. Not for
+   * use in user code. Use min(x,y) instead.
+   */
+  VectorizedArray
+  get_min(const VectorizedArray &other) const
+  {
+    VectorizedArray res;
+    res.data = vminq_f32(data, other.data);
+    return res;
+  }
+
+  // Make a few functions friends.
+  template <typename Number2, std::size_t width2>
+  friend VectorizedArray<Number2, width2>
+  std::sqrt(const VectorizedArray<Number2, width2> &);
+  template <typename Number2, std::size_t width2>
+  friend VectorizedArray<Number2, width2>
+  std::abs(const VectorizedArray<Number2, width2> &);
+  template <typename Number2, std::size_t width2>
+  friend VectorizedArray<Number2, width2>
+  std::max(const VectorizedArray<Number2, width2> &,
+           const VectorizedArray<Number2, width2> &);
+  template <typename Number2, std::size_t width2>
+  friend VectorizedArray<Number2, width2>
+  std::min(const VectorizedArray<Number2, width2> &,
+           const VectorizedArray<Number2, width2> &);
+};
+
+
+#  endif
 
 #  if DEAL_II_VECTORIZATION_WIDTH_IN_BITS >= 128 && defined(__SSE2__)
 
@@ -1205,7 +1766,7 @@ public:
    * this->data[i]$.
    */
   double
-  sum()
+  sum() const
   {
     __m128d t1 = _mm_unpackhi_pd(data, data);
     __m128d t2 = _mm_add_pd(data, t1);
@@ -1302,8 +1863,8 @@ private:
 template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int          n_entries,
-                              const double *              in,
-                              const unsigned int *        offsets,
+                              const double               *in,
+                              const unsigned int         *offsets,
                               VectorizedArray<double, 2> *out)
 {
   const unsigned int n_chunks = n_entries / 2;
@@ -1330,7 +1891,7 @@ template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int             n_entries,
                               const std::array<double *, 2> &in,
-                              VectorizedArray<double, 2> *   out)
+                              VectorizedArray<double, 2>    *out)
 {
   // see the comments in the vectorized_load_and_transpose above
 
@@ -1358,8 +1919,8 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                        add_into,
                                const unsigned int                n_entries,
                                const VectorizedArray<double, 2> *in,
-                               const unsigned int *              offsets,
-                               double *                          out)
+                               const unsigned int               *offsets,
+                               double                           *out)
 {
   const unsigned int n_chunks = n_entries / 2;
   if (add_into)
@@ -1410,7 +1971,7 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                        add_into,
                                const unsigned int                n_entries,
                                const VectorizedArray<double, 2> *in,
-                               std::array<double *, 2> &         out)
+                               std::array<double *, 2>          &out)
 {
   // see the comments in the vectorized_transpose_and_store above
 
@@ -1467,10 +2028,6 @@ public:
   using value_type = float;
 
   /**
-   * This function can be used to set all data fields to a given scalar.
-   */
-
-  /**
    * Default empty constructor, leaving the data in an uninitialized state
    * similar to float/double.
    */
@@ -1492,6 +2049,9 @@ public:
     : VectorizedArrayBase<VectorizedArray<float, 4>, 4>(list)
   {}
 
+  /**
+   * This function can be used to set all data fields to a given scalar.
+   */
   DEAL_II_ALWAYS_INLINE
   VectorizedArray &
   operator=(const float x) &
@@ -1673,7 +2233,7 @@ public:
    * this->data[i]$.
    */
   float
-  sum()
+  sum() const
   {
     __m128 t1 = _mm_movehl_ps(data, data);
     __m128 t2 = _mm_add_ps(data, t1);
@@ -1771,8 +2331,8 @@ private:
 template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int         n_entries,
-                              const float *              in,
-                              const unsigned int *       offsets,
+                              const float               *in,
+                              const unsigned int        *offsets,
                               VectorizedArray<float, 4> *out)
 {
   const unsigned int n_chunks = n_entries / 4;
@@ -1807,7 +2367,7 @@ template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int            n_entries,
                               const std::array<float *, 4> &in,
-                              VectorizedArray<float, 4> *   out)
+                              VectorizedArray<float, 4>    *out)
 {
   // see the comments in the vectorized_load_and_transpose above
 
@@ -1843,8 +2403,8 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                       add_into,
                                const unsigned int               n_entries,
                                const VectorizedArray<float, 4> *in,
-                               const unsigned int *             offsets,
-                               float *                          out)
+                               const unsigned int              *offsets,
+                               float                           *out)
 {
   const unsigned int n_chunks = n_entries / 4;
   for (unsigned int i = 0; i < n_chunks; ++i)
@@ -1906,7 +2466,7 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                       add_into,
                                const unsigned int               n_entries,
                                const VectorizedArray<float, 4> *in,
-                               std::array<float *, 4> &         out)
+                               std::array<float *, 4>          &out)
 {
   // see the comments in the vectorized_transpose_and_store above
 
@@ -2170,7 +2730,7 @@ public:
   void
   gather(const double *base_ptr, const unsigned int *offsets)
   {
-#    ifdef __AVX2__
+#    if defined(__AVX2__) && defined(DEAL_II_USE_VECTORIZATION_GATHER)
     // unfortunately, there does not appear to be a 128 bit integer load, so
     // do it by some reinterpret casts here. this is allowed because the Intel
     // API allows aliasing between different vector types.
@@ -2217,7 +2777,7 @@ public:
    * this->data[i]$.
    */
   double
-  sum()
+  sum() const
   {
     VectorizedArray<double, 2> t1;
     t1.data = _mm_add_pd(this->get_lower(), this->get_upper());
@@ -2333,15 +2893,15 @@ private:
 template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int          n_entries,
-                              const double *              in,
-                              const unsigned int *        offsets,
+                              const double               *in,
+                              const unsigned int         *offsets,
                               VectorizedArray<double, 4> *out)
 {
   const unsigned int n_chunks = n_entries / 4;
-  const double *     in0      = in + offsets[0];
-  const double *     in1      = in + offsets[1];
-  const double *     in2      = in + offsets[2];
-  const double *     in3      = in + offsets[3];
+  const double      *in0      = in + offsets[0];
+  const double      *in1      = in + offsets[1];
+  const double      *in2      = in + offsets[2];
+  const double      *in3      = in + offsets[3];
 
   for (unsigned int i = 0; i < n_chunks; ++i)
     {
@@ -2373,15 +2933,15 @@ template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int             n_entries,
                               const std::array<double *, 4> &in,
-                              VectorizedArray<double, 4> *   out)
+                              VectorizedArray<double, 4>    *out)
 {
   // see the comments in the vectorized_load_and_transpose above
 
   const unsigned int n_chunks = n_entries / 4;
-  const double *     in0      = in[0];
-  const double *     in1      = in[1];
-  const double *     in2      = in[2];
-  const double *     in3      = in[3];
+  const double      *in0      = in[0];
+  const double      *in1      = in[1];
+  const double      *in2      = in[2];
+  const double      *in3      = in[3];
 
   for (unsigned int i = 0; i < n_chunks; ++i)
     {
@@ -2413,14 +2973,14 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                        add_into,
                                const unsigned int                n_entries,
                                const VectorizedArray<double, 4> *in,
-                               const unsigned int *              offsets,
-                               double *                          out)
+                               const unsigned int               *offsets,
+                               double                           *out)
 {
   const unsigned int n_chunks = n_entries / 4;
-  double *           out0     = out + offsets[0];
-  double *           out1     = out + offsets[1];
-  double *           out2     = out + offsets[2];
-  double *           out3     = out + offsets[3];
+  double            *out0     = out + offsets[0];
+  double            *out1     = out + offsets[1];
+  double            *out2     = out + offsets[2];
+  double            *out3     = out + offsets[3];
   for (unsigned int i = 0; i < n_chunks; ++i)
     {
       __m256d u0   = in[4 * i + 0].data;
@@ -2480,15 +3040,15 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                        add_into,
                                const unsigned int                n_entries,
                                const VectorizedArray<double, 4> *in,
-                               std::array<double *, 4> &         out)
+                               std::array<double *, 4>          &out)
 {
   // see the comments in the vectorized_transpose_and_store above
 
   const unsigned int n_chunks = n_entries / 4;
-  double *           out0     = out[0];
-  double *           out1     = out[1];
-  double *           out2     = out[2];
-  double *           out3     = out[3];
+  double            *out0     = out[0];
+  double            *out1     = out[1];
+  double            *out2     = out[2];
+  double            *out3     = out[3];
   for (unsigned int i = 0; i < n_chunks; ++i)
     {
       __m256d u0   = in[4 * i + 0].data;
@@ -2734,7 +3294,7 @@ public:
   void
   gather(const float *base_ptr, const unsigned int *offsets)
   {
-#    ifdef __AVX2__
+#    if defined(__AVX2__) && defined(DEAL_II_USE_VECTORIZATION_GATHER)
     // unfortunately, there does not appear to be a 256 bit integer load, so
     // do it by some reinterpret casts here. this is allowed because the Intel
     // API allows aliasing between different vector types.
@@ -2781,7 +3341,7 @@ public:
    * this->data[i]$.
    */
   float
-  sum()
+  sum() const
   {
     VectorizedArray<float, 4> t1;
     t1.data = _mm_add_ps(this->get_lower(), this->get_upper());
@@ -2897,8 +3457,8 @@ private:
 template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int         n_entries,
-                              const float *              in,
-                              const unsigned int *       offsets,
+                              const float               *in,
+                              const unsigned int        *offsets,
                               VectorizedArray<float, 8> *out)
 {
   const unsigned int n_chunks = n_entries / 4;
@@ -2940,7 +3500,7 @@ template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int            n_entries,
                               const std::array<float *, 8> &in,
-                              VectorizedArray<float, 8> *   out)
+                              VectorizedArray<float, 8>    *out)
 {
   // see the comments in the vectorized_load_and_transpose above
 
@@ -2981,8 +3541,8 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                       add_into,
                                const unsigned int               n_entries,
                                const VectorizedArray<float, 8> *in,
-                               const unsigned int *             offsets,
-                               float *                          out)
+                               const unsigned int              *offsets,
+                               float                           *out)
 {
   const unsigned int n_chunks = n_entries / 4;
   for (unsigned int i = 0; i < n_chunks; ++i)
@@ -3064,7 +3624,7 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                       add_into,
                                const unsigned int               n_entries,
                                const VectorizedArray<float, 8> *in,
-                               std::array<float *, 8> &         out)
+                               std::array<float *, 8>          &out)
 {
   // see the comments in the vectorized_transpose_and_store above
 
@@ -3350,6 +3910,7 @@ public:
   void
   gather(const double *base_ptr, const unsigned int *offsets)
   {
+#    ifdef DEAL_II_USE_VECTORIZATION_GATHER
     // unfortunately, there does not appear to be a 256 bit integer load, so
     // do it by some reinterpret casts here. this is allowed because the Intel
     // API allows aliasing between different vector types.
@@ -3364,6 +3925,10 @@ public:
     __mmask8 mask = 0xFF;
 
     data = _mm512_mask_i32gather_pd(zero, mask, index, base_ptr, 8);
+#    else
+    for (unsigned int i = 0; i < 8; ++i)
+      *(reinterpret_cast<double *>(&data) + i) = base_ptr[offsets[i]];
+#    endif
   }
 
   /**
@@ -3382,6 +3947,7 @@ public:
   void
   scatter(const unsigned int *offsets, double *base_ptr) const
   {
+#    ifdef DEAL_II_USE_VECTORIZATION_GATHER
     for (unsigned int i = 0; i < 8; ++i)
       for (unsigned int j = i + 1; j < 8; ++j)
         Assert(offsets[i] != offsets[j],
@@ -3395,6 +3961,10 @@ public:
       _mm256_loadu_ps(reinterpret_cast<const float *>(offsets));
     const __m256i index = *reinterpret_cast<const __m256i *>(&index_val);
     _mm512_i32scatter_pd(base_ptr, index, data, 8);
+#    else
+    for (unsigned int i = 0; i < 8; ++i)
+      base_ptr[offsets[i]] = *(reinterpret_cast<const double *>(&data) + i);
+#    endif
   }
 
   /**
@@ -3402,7 +3972,7 @@ public:
    * this->data[i]$.
    */
   double
-  sum()
+  sum() const
   {
     VectorizedArray<double, 4> t1;
     t1.data = _mm256_add_pd(this->get_lower(), this->get_upper());
@@ -3522,8 +4092,8 @@ private:
 template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int          n_entries,
-                              const double *              in,
-                              const unsigned int *        offsets,
+                              const double               *in,
+                              const unsigned int         *offsets,
                               VectorizedArray<double, 8> *out)
 {
   // do not do full transpose because the code is long and will most
@@ -3568,7 +4138,7 @@ template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int             n_entries,
                               const std::array<double *, 8> &in,
-                              VectorizedArray<double, 8> *   out)
+                              VectorizedArray<double, 8>    *out)
 {
   const unsigned int n_chunks = n_entries / 4;
   for (unsigned int i = 0; i < n_chunks; ++i)
@@ -3608,8 +4178,8 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                        add_into,
                                const unsigned int                n_entries,
                                const VectorizedArray<double, 8> *in,
-                               const unsigned int *              offsets,
-                               double *                          out)
+                               const unsigned int               *offsets,
+                               double                           *out)
 {
   // as for the load, we split the store operations into 256 bit units to
   // better balance between code size, shuffle instructions, and stores
@@ -3691,7 +4261,7 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                        add_into,
                                const unsigned int                n_entries,
                                const VectorizedArray<double, 8> *in,
-                               std::array<double *, 8> &         out)
+                               std::array<double *, 8>          &out)
 {
   // see the comments in the vectorized_transpose_and_store above
 
@@ -3955,6 +4525,7 @@ public:
   void
   gather(const float *base_ptr, const unsigned int *offsets)
   {
+#    ifdef DEAL_II_USE_VECTORIZATION_GATHER
     // unfortunately, there does not appear to be a 512 bit integer load, so
     // do it by some reinterpret casts here. this is allowed because the Intel
     // API allows aliasing between different vector types.
@@ -3969,6 +4540,10 @@ public:
     __mmask16 mask = 0xFFFF;
 
     data = _mm512_mask_i32gather_ps(zero, mask, index, base_ptr, 4);
+#    else
+    for (unsigned int i = 0; i < 16; ++i)
+      *(reinterpret_cast<float *>(&data) + i) = base_ptr[offsets[i]];
+#    endif
   }
 
   /**
@@ -3987,6 +4562,7 @@ public:
   void
   scatter(const unsigned int *offsets, float *base_ptr) const
   {
+#    ifdef DEAL_II_USE_VECTORIZATION_GATHER
     for (unsigned int i = 0; i < 16; ++i)
       for (unsigned int j = i + 1; j < 16; ++j)
         Assert(offsets[i] != offsets[j],
@@ -4000,6 +4576,10 @@ public:
       _mm512_loadu_ps(reinterpret_cast<const float *>(offsets));
     const __m512i index = *reinterpret_cast<const __m512i *>(&index_val);
     _mm512_i32scatter_ps(base_ptr, index, data, 4);
+#    else
+    for (unsigned int i = 0; i < 16; ++i)
+      base_ptr[offsets[i]] = *(reinterpret_cast<const float *>(&data) + i);
+#    endif
   }
 
   /**
@@ -4007,7 +4587,7 @@ public:
    * this->data[i]$.
    */
   float
-  sum()
+  sum() const
   {
     VectorizedArray<float, 8> t1;
     t1.data = _mm256_add_ps(this->get_lower(), this->get_upper());
@@ -4127,8 +4707,8 @@ private:
 template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int          n_entries,
-                              const float *               in,
-                              const unsigned int *        offsets,
+                              const float                *in,
+                              const unsigned int         *offsets,
                               VectorizedArray<float, 16> *out)
 {
   // Similar to the double case, we perform the work on smaller entities. In
@@ -4190,7 +4770,7 @@ template <>
 inline DEAL_II_ALWAYS_INLINE void
 vectorized_load_and_transpose(const unsigned int             n_entries,
                               const std::array<float *, 16> &in,
-                              VectorizedArray<float, 16> *   out)
+                              VectorizedArray<float, 16>    *out)
 {
   // see the comments in the vectorized_load_and_transpose above
 
@@ -4243,8 +4823,8 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                        add_into,
                                const unsigned int                n_entries,
                                const VectorizedArray<float, 16> *in,
-                               const unsigned int *              offsets,
-                               float *                           out)
+                               const unsigned int               *offsets,
+                               float                            *out)
 {
   const unsigned int n_chunks = n_entries / 4;
   for (unsigned int i = 0; i < n_chunks; ++i)
@@ -4357,7 +4937,7 @@ inline DEAL_II_ALWAYS_INLINE void
 vectorized_transpose_and_store(const bool                        add_into,
                                const unsigned int                n_entries,
                                const VectorizedArray<float, 16> *in,
-                               std::array<float *, 16> &         out)
+                               std::array<float *, 16>          &out)
 {
   // see the comments in the vectorized_transpose_and_store above
 
@@ -5632,6 +6212,89 @@ compare_and_apply_mask(const VectorizedArray<double, 2> &left,
   VectorizedArray<double, 2> result;
   result.data = _mm_or_pd(_mm_and_pd(mask, true_values.data),
                           _mm_andnot_pd(mask, false_values.data));
+
+  return result;
+}
+
+#  endif
+
+#  if defined(DEAL_II_HAVE_ARM_NEON) && defined(__ARM_NEON)
+
+template <SIMDComparison predicate>
+DEAL_II_ALWAYS_INLINE inline VectorizedArray<float, 4>
+compare_and_apply_mask(const VectorizedArray<float, 4> &left,
+                       const VectorizedArray<float, 4> &right,
+                       const VectorizedArray<float, 4> &true_values,
+                       const VectorizedArray<float, 4> &false_values)
+{
+  uint32x4_t mask;
+  switch (predicate)
+    {
+      case SIMDComparison::equal:
+        mask = vceqq_f32(left.data, right.data);
+        break;
+      case SIMDComparison::not_equal:
+        mask = vmvnq_u32(vceqq_f32(left.data, right.data));
+        break;
+      case SIMDComparison::less_than:
+        mask = vcltq_f32(left.data, right.data);
+        break;
+      case SIMDComparison::less_than_or_equal:
+        mask = vcleq_f32(left.data, right.data);
+        break;
+      case SIMDComparison::greater_than:
+        mask = vcgtq_f32(left.data, right.data);
+        break;
+      case SIMDComparison::greater_than_or_equal:
+        mask = vcgeq_f32(left.data, right.data);
+        break;
+    }
+
+  VectorizedArray<float, 4> result;
+  result.data = vreinterpretq_f32_u32(vorrq_u32(
+    vandq_u32(mask, vreinterpretq_u32_f32(true_values.data)),
+    vandq_u32(vmvnq_u32(mask), vreinterpretq_u32_f32(false_values.data))));
+
+  return result;
+}
+
+
+template <SIMDComparison predicate>
+DEAL_II_ALWAYS_INLINE inline VectorizedArray<double, 2>
+compare_and_apply_mask(const VectorizedArray<double, 2> &left,
+                       const VectorizedArray<double, 2> &right,
+                       const VectorizedArray<double, 2> &true_values,
+                       const VectorizedArray<double, 2> &false_values)
+{
+  uint64x2_t mask;
+  switch (predicate)
+    {
+      case SIMDComparison::equal:
+        mask = vceqq_f64(left.data, right.data);
+        break;
+      case SIMDComparison::not_equal:
+        mask = vreinterpretq_u64_u32(
+          vmvnq_u32(vreinterpretq_u32_u64(vceqq_f64(left.data, right.data))));
+        break;
+      case SIMDComparison::less_than:
+        mask = vcltq_f64(left.data, right.data);
+        break;
+      case SIMDComparison::less_than_or_equal:
+        mask = vcleq_f64(left.data, right.data);
+        break;
+      case SIMDComparison::greater_than:
+        mask = vcgtq_f64(left.data, right.data);
+        break;
+      case SIMDComparison::greater_than_or_equal:
+        mask = vcgeq_f64(left.data, right.data);
+        break;
+    }
+
+  VectorizedArray<double, 2> result;
+  result.data = vreinterpretq_f64_u64(vorrq_u64(
+    vandq_u64(mask, vreinterpretq_u64_f64(true_values.data)),
+    vandq_u64(vreinterpretq_u64_u32(vmvnq_u32(vreinterpretq_u32_u64(mask))),
+              vreinterpretq_u64_f64(false_values.data))));
 
   return result;
 }

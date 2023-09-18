@@ -36,6 +36,8 @@
 
 #include "../tests.h"
 
+#include "../test_grids.h"
+
 
 
 void
@@ -50,21 +52,21 @@ make_tria(Triangulation<3> &tria, int step)
           // other. if step==0, refine back one,
           // otherwise the one in front
           const Point<3> vertices[12]        = {Point<3>(0, 0, 0),
-                                         Point<3>(1, 0, 0),
-                                         Point<3>(1, 0, 1),
-                                         Point<3>(0, 0, 1),
+                                                Point<3>(1, 0, 0),
+                                                Point<3>(1, 0, 1),
+                                                Point<3>(0, 0, 1),
 
-                                         Point<3>(0, 1, 0),
-                                         Point<3>(1, 1, 0),
-                                         Point<3>(1, 1, 1),
-                                         Point<3>(0, 1, 1),
+                                                Point<3>(0, 1, 0),
+                                                Point<3>(1, 1, 0),
+                                                Point<3>(1, 1, 1),
+                                                Point<3>(0, 1, 1),
 
-                                         Point<3>(0, 2, 0),
-                                         Point<3>(1, 2, 0),
-                                         Point<3>(1, 2, 1),
-                                         Point<3>(0, 2, 1)};
+                                                Point<3>(0, 2, 0),
+                                                Point<3>(1, 2, 0),
+                                                Point<3>(1, 2, 1),
+                                                Point<3>(0, 2, 1)};
           const int      cell_vertices[2][8] = {{0, 1, 2, 3, 4, 5, 6, 7},
-                                           {4, 5, 6, 7, 8, 9, 10, 11}};
+                                                {4, 5, 6, 7, 8, 9, 10, 11}};
           std::vector<CellData<3>> cells(2, CellData<3>());
           for (unsigned int cell = 0; cell < 2; ++cell)
             for (unsigned int j = 0; j < 8; ++j)
@@ -72,10 +74,11 @@ make_tria(Triangulation<3> &tria, int step)
           cells[0].material_id = 0;
           cells[1].material_id = 0;
 
-          tria.create_triangulation_compatibility(
-            std::vector<Point<3>>(&vertices[0], &vertices[12]),
-            cells,
-            SubCellData()); // no boundary information
+          TestGrids::reorder_old_to_new_style(cells);
+          tria.create_triangulation(std::vector<Point<3>>(&vertices[0],
+                                                          &vertices[12]),
+                                    cells,
+                                    SubCellData()); // no boundary information
 
           if (step == 0)
             tria.last_active()->set_refine_flag();
@@ -93,21 +96,21 @@ make_tria(Triangulation<3> &tria, int step)
           // other. if step==2, refine right one,
           // otherwise the left one
           const Point<3> vertices[12]        = {Point<3>(0, 0, 0),
-                                         Point<3>(1, 0, 0),
-                                         Point<3>(1, 0, 1),
-                                         Point<3>(0, 0, 1),
+                                                Point<3>(1, 0, 0),
+                                                Point<3>(1, 0, 1),
+                                                Point<3>(0, 0, 1),
 
-                                         Point<3>(0, 1, 0),
-                                         Point<3>(1, 1, 0),
-                                         Point<3>(1, 1, 1),
-                                         Point<3>(0, 1, 1),
+                                                Point<3>(0, 1, 0),
+                                                Point<3>(1, 1, 0),
+                                                Point<3>(1, 1, 1),
+                                                Point<3>(0, 1, 1),
 
-                                         Point<3>(2, 0, 0),
-                                         Point<3>(2, 0, 1),
-                                         Point<3>(2, 1, 0),
-                                         Point<3>(2, 1, 1)};
+                                                Point<3>(2, 0, 0),
+                                                Point<3>(2, 0, 1),
+                                                Point<3>(2, 1, 0),
+                                                Point<3>(2, 1, 1)};
           const int      cell_vertices[2][8] = {{0, 1, 2, 3, 4, 5, 6, 7},
-                                           {1, 8, 9, 2, 5, 10, 11, 6}};
+                                                {1, 8, 9, 2, 5, 10, 11, 6}};
           std::vector<CellData<3>> cells(2, CellData<3>());
           for (unsigned int cell = 0; cell < 2; ++cell)
             for (unsigned int j = 0; j < 8; ++j)
@@ -115,10 +118,11 @@ make_tria(Triangulation<3> &tria, int step)
           cells[0].material_id = 0;
           cells[1].material_id = 0;
 
-          tria.create_triangulation_compatibility(
-            std::vector<Point<3>>(&vertices[0], &vertices[12]),
-            cells,
-            SubCellData()); // no boundary information
+          TestGrids::reorder_old_to_new_style(cells);
+          tria.create_triangulation(std::vector<Point<3>>(&vertices[0],
+                                                          &vertices[12]),
+                                    cells,
+                                    SubCellData()); // no boundary information
 
           if (step == 2)
             tria.last_active()->set_refine_flag();
@@ -136,21 +140,21 @@ make_tria(Triangulation<3> &tria, int step)
           // other. if step==4, refine top one,
           // otherwise the bottom one
           const Point<3> vertices[12]        = {Point<3>(0, 0, 0),
-                                         Point<3>(1, 0, 0),
-                                         Point<3>(1, 0, 1),
-                                         Point<3>(0, 0, 1),
+                                                Point<3>(1, 0, 0),
+                                                Point<3>(1, 0, 1),
+                                                Point<3>(0, 0, 1),
 
-                                         Point<3>(0, 1, 0),
-                                         Point<3>(1, 1, 0),
-                                         Point<3>(1, 1, 1),
-                                         Point<3>(0, 1, 1),
+                                                Point<3>(0, 1, 0),
+                                                Point<3>(1, 1, 0),
+                                                Point<3>(1, 1, 1),
+                                                Point<3>(0, 1, 1),
 
-                                         Point<3>(1, 0, 2),
-                                         Point<3>(0, 0, 2),
-                                         Point<3>(1, 1, 2),
-                                         Point<3>(0, 1, 2)};
+                                                Point<3>(1, 0, 2),
+                                                Point<3>(0, 0, 2),
+                                                Point<3>(1, 1, 2),
+                                                Point<3>(0, 1, 2)};
           const int      cell_vertices[2][8] = {{0, 1, 2, 3, 4, 5, 6, 7},
-                                           {3, 2, 8, 9, 7, 6, 10, 11}};
+                                                {3, 2, 8, 9, 7, 6, 10, 11}};
           std::vector<CellData<3>> cells(2, CellData<3>());
           for (unsigned int cell = 0; cell < 2; ++cell)
             for (unsigned int j = 0; j < 8; ++j)
@@ -158,10 +162,11 @@ make_tria(Triangulation<3> &tria, int step)
           cells[0].material_id = 0;
           cells[1].material_id = 0;
 
-          tria.create_triangulation_compatibility(
-            std::vector<Point<3>>(&vertices[0], &vertices[12]),
-            cells,
-            SubCellData()); // no boundary information
+          TestGrids::reorder_old_to_new_style(cells);
+          tria.create_triangulation(std::vector<Point<3>>(&vertices[0],
+                                                          &vertices[12]),
+                                    cells,
+                                    SubCellData()); // no boundary information
 
           if (step == 4)
             tria.last_active()->set_refine_flag();
@@ -215,10 +220,11 @@ make_tria(Triangulation<3> &tria, int step)
           cells[2].material_id = 0;
           cells[3].material_id = 0;
 
-          tria.create_triangulation_compatibility(
-            std::vector<Point<3>>(&vertices[0], &vertices[18]),
-            cells,
-            SubCellData()); // no boundary information
+          TestGrids::reorder_old_to_new_style(cells);
+          tria.create_triangulation(std::vector<Point<3>>(&vertices[0],
+                                                          &vertices[18]),
+                                    cells,
+                                    SubCellData()); // no boundary information
 
           switch (step)
             {

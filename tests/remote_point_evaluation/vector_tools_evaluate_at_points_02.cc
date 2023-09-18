@@ -66,9 +66,8 @@ template <int dim, int spacedim>
 std::shared_ptr<const Utilities::MPI::Partitioner>
 create_partitioner(const DoFHandler<dim, spacedim> &dof_handler)
 {
-  IndexSet locally_relevant_dofs;
-
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   return std::make_shared<const Utilities::MPI::Partitioner>(
     dof_handler.locally_owned_dofs(),
@@ -79,8 +78,8 @@ create_partitioner(const DoFHandler<dim, spacedim> &dof_handler)
 
 template <int dim>
 void
-print(const Mapping<dim> &                              mapping,
-      const DoFHandler<dim> &                           dof_handler,
+print(const Mapping<dim>                               &mapping,
+      const DoFHandler<dim>                            &dof_handler,
       const LinearAlgebra::distributed::Vector<double> &result,
       const unsigned int                                counter)
 {
@@ -108,7 +107,7 @@ print(const Mapping<dim> &                              mapping,
   data_out.write_vtu_with_pvtu_record(
     "./", "example-2", counter, MPI_COMM_WORLD, 1, 1);
 
-  result.zero_out_ghosts();
+  result.zero_out_ghost_values();
 }
 
 template <int dim>
@@ -117,9 +116,9 @@ class PoissonProblem
 public:
   PoissonProblem(const Triangulation<dim> &tria,
                  const unsigned int        id,
-                 const Mapping<dim> &      mapping,
+                 const Mapping<dim>       &mapping,
                  const FiniteElement<dim> &fe,
-                 const Quadrature<dim> &   quad)
+                 const Quadrature<dim>    &quad)
     : id(id)
     , mapping(mapping)
     , fe(fe)
@@ -134,9 +133,9 @@ public:
   }
 
   void
-  solve(const DoFHandler<dim> &                           dof_handler_other,
+  solve(const DoFHandler<dim>                            &dof_handler_other,
         const LinearAlgebra::distributed::Vector<double> &solution_other,
-        const Mapping<dim> &                              mapping_other)
+        const Mapping<dim>                               &mapping_other)
   {
     AffineConstraints<double> constraints;
     {
@@ -186,7 +185,7 @@ public:
                                      solution_other,
                                      evaluation_points,
                                      evaluation_cache);
-      solution_other.zero_out_ghosts();
+      solution_other.zero_out_ghost_values();
       for (unsigned int i = 0; i < evaluation_points.size(); ++i)
         {
           if (global_ids[i] == numbers::invalid_size_type)
@@ -280,9 +279,9 @@ public:
 
 public:
   const unsigned int                                 id;
-  const Mapping<dim> &                               mapping;
-  const FiniteElement<dim> &                         fe;
-  const Quadrature<dim> &                            quad;
+  const Mapping<dim>                                &mapping;
+  const FiniteElement<dim>                          &fe;
+  const Quadrature<dim>                             &quad;
   DoFHandler<dim>                                    dof_handler;
   std::shared_ptr<const Utilities::MPI::Partitioner> partitioner;
   LinearAlgebra::distributed::Vector<double>         solution;

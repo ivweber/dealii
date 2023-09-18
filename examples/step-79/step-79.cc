@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Justin O'Connor, Colorado State University, 2021.
  */
@@ -711,7 +710,7 @@ namespace SAND
               {
                 if (!(check_cell->face(n)->at_boundary()))
                   {
-                    const auto & neighbor = check_cell->neighbor(n);
+                    const auto  &neighbor = check_cell->neighbor(n);
                     const double distance =
                       cell->center().distance(neighbor->center());
                     if ((distance < filter_r) &&

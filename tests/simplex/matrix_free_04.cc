@@ -127,7 +127,7 @@ public:
             for (unsigned int q = 0; q < phi.n_q_points; ++q)
               phi.submit_value(1.0, q);
 
-            phi.integrate_scatter(true, false, dst);
+            phi.integrate_scatter(EvaluationFlags::values, dst);
           }
       },
       vec,
@@ -275,11 +275,10 @@ test(const unsigned version, const unsigned int degree)
 
   const auto solve_and_postprocess =
     [&](const auto &poisson_operator,
-        auto &      x,
-        auto &      b) -> std::pair<unsigned int, double> {
+        auto       &x,
+        auto       &b) -> std::pair<unsigned int, double> {
     ReductionControl reduction_control(2000, 1e-7, 1e-2);
-    SolverCG<typename std::remove_reference<decltype(x)>::type> solver(
-      reduction_control);
+    SolverCG<std::remove_reference_t<decltype(x)>> solver(reduction_control);
 
     solver.solve(poisson_operator, x, b, PreconditionIdentity());
 

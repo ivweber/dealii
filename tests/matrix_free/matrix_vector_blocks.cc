@@ -54,7 +54,7 @@ public:
   {}
 
   void
-  vmult(LinearAlgebra::distributed::BlockVector<Number> &      dst,
+  vmult(LinearAlgebra::distributed::BlockVector<Number>       &dst,
         const LinearAlgebra::distributed::BlockVector<Number> &src) const
   {
     data.cell_loop(&MatrixFreeBlock::local_apply, this, dst, src, true);
@@ -62,8 +62,8 @@ public:
 
 private:
   void
-  local_apply(const MatrixFree<dim, Number> &                        data,
-              LinearAlgebra::distributed::BlockVector<Number> &      dst,
+  local_apply(const MatrixFree<dim, Number>                         &data,
+              LinearAlgebra::distributed::BlockVector<Number>       &dst,
               const LinearAlgebra::distributed::BlockVector<Number> &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
@@ -133,9 +133,8 @@ test()
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints(relevant_set);
   DoFTools::make_hanging_node_constraints(dof, constraints);
@@ -187,7 +186,8 @@ test()
       // matrix-vector product for reference
       for (unsigned int block = 0; block < n_blocks; ++block)
         {
-          for (unsigned int i = 0; i < in.block(block).local_size(); ++i)
+          for (unsigned int i = 0; i < in.block(block).locally_owned_size();
+               ++i)
             {
               const unsigned int glob_index = owned_set.nth_index_in_set(i);
               if (constraints.is_constrained(glob_index))

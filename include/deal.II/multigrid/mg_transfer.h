@@ -55,8 +55,8 @@ namespace internal
 
     template <typename SparsityPatternType, int dim, int spacedim>
     static void
-    reinit(Matrix &                   matrix,
-           Sparsity &                 sparsity,
+    reinit(Matrix                    &matrix,
+           Sparsity                  &sparsity,
            int                        level,
            const SparsityPatternType &sp,
            const DoFHandler<dim, spacedim> &)
@@ -81,7 +81,7 @@ namespace internal
     reinit(Matrix &matrix,
            Sparsity &,
            int                              level,
-           const SparsityPatternType &      sp,
+           const SparsityPatternType       &sp,
            const DoFHandler<dim, spacedim> &dh)
     {
       const MPI_Comm communicator = dh.get_communicator();
@@ -107,7 +107,7 @@ namespace internal
     reinit(Matrix &matrix,
            Sparsity &,
            int                              level,
-           const SparsityPatternType &      sp,
+           const SparsityPatternType       &sp,
            const DoFHandler<dim, spacedim> &dh)
     {
       const MPI_Comm communicator = dh.get_communicator();
@@ -135,7 +135,7 @@ namespace internal
     reinit(Matrix &matrix,
            Sparsity &,
            int                              level,
-           const SparsityPatternType &      sp,
+           const SparsityPatternType       &sp,
            const DoFHandler<dim, spacedim> &dh)
     {
       const MPI_Comm communicator = dh.get_communicator();
@@ -162,7 +162,7 @@ namespace internal
     reinit(Matrix &matrix,
            Sparsity &,
            int                              level,
-           const SparsityPatternType &      sp,
+           const SparsityPatternType       &sp,
            const DoFHandler<dim, spacedim> &dh)
     {
       const MPI_Comm communicator = dh.get_communicator();
@@ -218,7 +218,7 @@ namespace internal
     reinit(Matrix &matrix,
            Sparsity &,
            int                              level,
-           const SparsityPatternType &      sp,
+           const SparsityPatternType       &sp,
            const DoFHandler<dim, spacedim> &dh)
     {
       const MPI_Comm communicator = dh.get_communicator();
@@ -265,8 +265,8 @@ public:
   template <int dim, class InVector, int spacedim>
   void
   copy_to_mg(const DoFHandler<dim, spacedim> &dof_handler,
-             MGLevelObject<VectorType> &      dst,
-             const InVector &                 src) const;
+             MGLevelObject<VectorType>       &dst,
+             const InVector                  &src) const;
 
   /**
    * Transfer from multi-level vector to normal vector.
@@ -278,7 +278,7 @@ public:
   template <int dim, class OutVector, int spacedim>
   void
   copy_from_mg(const DoFHandler<dim, spacedim> &dof_handler,
-               OutVector &                      dst,
+               OutVector                       &dst,
                const MGLevelObject<VectorType> &src) const;
 
   /**
@@ -289,7 +289,7 @@ public:
   template <int dim, class OutVector, int spacedim>
   void
   copy_from_mg_add(const DoFHandler<dim, spacedim> &dof_handler,
-                   OutVector &                      dst,
+                   OutVector                       &dst,
                    const MGLevelObject<VectorType> &src) const;
 
   /**
@@ -386,8 +386,7 @@ protected:
   /**
    * The mg_constrained_dofs of the level systems.
    */
-  SmartPointer<const MGConstrainedDoFs, MGLevelGlobalTransfer<VectorType>>
-    mg_constrained_dofs;
+  SmartPointer<const MGConstrainedDoFs> mg_constrained_dofs;
 
 private:
   /**
@@ -441,7 +440,7 @@ public:
   template <int dim, typename Number2, int spacedim>
   void
   copy_from_mg(
-    const DoFHandler<dim, spacedim> &            dof_handler,
+    const DoFHandler<dim, spacedim>             &dof_handler,
     LinearAlgebra::distributed::Vector<Number2> &dst,
     const MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &src) const;
 
@@ -453,7 +452,7 @@ public:
   template <int dim, typename Number2, int spacedim>
   void
   copy_from_mg_add(
-    const DoFHandler<dim, spacedim> &            dof_handler,
+    const DoFHandler<dim, spacedim>             &dof_handler,
     LinearAlgebra::distributed::Vector<Number2> &dst,
     const MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &src) const;
 
@@ -496,7 +495,7 @@ protected:
   void
   copy_to_mg(const DoFHandler<dim, spacedim> &dof_handler,
              MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &dst,
-             const LinearAlgebra::distributed::Vector<Number2> &        src,
+             const LinearAlgebra::distributed::Vector<Number2>         &src,
              const bool solution_transfer) const;
 
   /**
@@ -537,11 +536,6 @@ protected:
   std::vector<Table<2, unsigned int>> copy_indices_global_mine;
 
   /**
-   * Same as above, but used to transfer solution vectors.
-   */
-  std::vector<Table<2, unsigned int>> solution_copy_indices_global_mine;
-
-  /**
    * Additional degrees of freedom for the copy_from_mg() function. These are
    * the ones where the level degree of freedom is locally owned and the
    * global degree of freedom is not.
@@ -580,10 +574,7 @@ protected:
   /**
    * The mg_constrained_dofs of the level systems.
    */
-  SmartPointer<
-    const MGConstrainedDoFs,
-    MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>>
-    mg_constrained_dofs;
+  SmartPointer<const MGConstrainedDoFs> mg_constrained_dofs;
 
   /**
    * In the function copy_to_mg, we need to access ghosted entries of the
@@ -604,12 +595,6 @@ protected:
    */
   mutable MGLevelObject<LinearAlgebra::distributed::Vector<Number>>
     ghosted_level_vector;
-
-  /**
-   * Same as above but used when working with solution vectors.
-   */
-  mutable MGLevelObject<LinearAlgebra::distributed::Vector<Number>>
-    solution_ghosted_level_vector;
 
   /**
    * Function to initialize internal level vectors.
@@ -693,8 +678,8 @@ public:
    */
   virtual void
   prolongate(const unsigned int to_level,
-             VectorType &       dst,
-             const VectorType & src) const override;
+             VectorType        &dst,
+             const VectorType  &src) const override;
 
   /**
    * Restrict a vector from level <tt>from_level</tt> to level
@@ -713,8 +698,8 @@ public:
    */
   virtual void
   restrict_and_add(const unsigned int from_level,
-                   VectorType &       dst,
-                   const VectorType & src) const override;
+                   VectorType        &dst,
+                   const VectorType  &src) const override;
 
   /**
    * Finite element does not provide prolongation matrices.

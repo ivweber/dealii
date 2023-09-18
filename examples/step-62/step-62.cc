@@ -12,7 +12,6 @@
  * the top level of the deal.II distribution.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Daniel Garcia-Sanchez, CNRS, 2019
  */
@@ -86,7 +85,7 @@ namespace step62
   public:
     RightHandSide(HDF5::Group &data);
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component) const override;
 
   private:
@@ -154,7 +153,7 @@ namespace step62
   public:
     Rho(HDF5::Group &data);
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
   private:
@@ -378,7 +377,7 @@ namespace step62
 
   // This function defines the spatial shape of the force vector pulse which
   // takes the form of a Gaussian function
-  // @f{align*}
+  // @f{align*}{
   // F_x &=
   // \left\{
   // \begin{array}{ll}
@@ -394,7 +393,7 @@ namespace step62
   // that the pulse has been cropped to $x_\textrm{min}<x<x_\textrm{max}$ and
   // $y_\textrm{min} <y<y_\textrm{max}$.
   template <int dim>
-  double RightHandSide<dim>::value(const Point<dim> & p,
+  double RightHandSide<dim>::value(const Point<dim>  &p,
                                    const unsigned int component) const
   {
     if (component == force_component)
@@ -450,7 +449,7 @@ namespace step62
   // The PML coefficient for the `x` component takes the form
   // $s'_x = a_x x^{\textrm{degree}}$
   template <int dim>
-  std::complex<double> PML<dim>::value(const Point<dim> & p,
+  std::complex<double> PML<dim>::value(const Point<dim>  &p,
                                        const unsigned int component) const
   {
     double calculated_pml_x_coeff = 0;
@@ -710,7 +709,7 @@ namespace step62
                       Triangulation<dim>::smoothing_on_refinement |
                       Triangulation<dim>::smoothing_on_coarsening))
     , quadrature_formula(2)
-    , fe(FE_Q<dim>(1), dim)
+    , fe(FE_Q<dim>(1) ^ dim)
     , dof_handler(triangulation)
     , frequency(parameters.nb_frequency_points)
     , probe_positions(parameters.nb_probe_points, dim)
@@ -1189,7 +1188,7 @@ namespace step62
                              << std::setfill('0') << frequency_idx;
         std::string filename = (parameters.simulation_name + "_" +
                                 frequency_idx_stream.str() + ".vtu");
-        data_out.write_vtu_in_parallel(filename.c_str(), mpi_communicator);
+        data_out.write_vtu_in_parallel(filename, mpi_communicator);
       }
   }
 

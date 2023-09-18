@@ -50,7 +50,7 @@ FE_BDM<dim>::FE_BDM(const unsigned int deg)
                              FiniteElementData<dim>::Hdiv),
       get_ria_vector(deg),
       std::vector<ComponentMask>(PolynomialsBDM<dim>::n_polynomials(deg),
-                                 std::vector<bool>(dim, true)))
+                                 ComponentMask(std::vector<bool>(dim, true))))
 {
   Assert(dim >= 2, ExcImpossibleInDim(dim));
   Assert(
@@ -158,7 +158,7 @@ template <int dim>
 void
 FE_BDM<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->generalized_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),
@@ -178,7 +178,7 @@ FE_BDM<dim>::convert_generalized_support_point_values_to_dof_values(
     {
       // Old version with no moments in 2d. See comment below in
       // initialize_support_points()
-      if (test_values_face.size() == 0)
+      if (test_values_face.empty())
         {
           for (unsigned int i = 0; i < this->n_dofs_per_face(f); ++i)
             nodal_values[dbase + i] =
@@ -310,7 +310,7 @@ namespace internal
       template <int dim>
       void
       initialize_test_values(std::vector<std::vector<double>> &test_values,
-                             const Quadrature<dim> &           quadrature,
+                             const Quadrature<dim>            &quadrature,
                              const unsigned int                deg)
       {
         PolynomialsP<dim>           poly(deg);

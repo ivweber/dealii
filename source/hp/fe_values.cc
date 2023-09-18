@@ -62,12 +62,12 @@ namespace hp
 
   // -------------------------- FEValuesBase -------------------------
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   FEValuesBase<dim, q_dim, FEValuesType>::FEValuesBase(
     const MappingCollection<dim, FEValuesType::space_dimension>
-      &                                                     mapping_collection,
+                                                           &mapping_collection,
     const FECollection<dim, FEValuesType::space_dimension> &fe_collection,
-    const QCollection<q_dim> &                              q_collection,
+    const QCollection<q_dim>                               &q_collection,
     const UpdateFlags                                       update_flags)
     : fe_collection(&fe_collection)
     , mapping_collection(&mapping_collection)
@@ -82,12 +82,12 @@ namespace hp
     , update_flags(update_flags)
   {}
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   FEValuesBase<dim, q_dim, FEValuesType>::FEValuesBase(
     const MappingCollection<dim, FEValuesType::space_dimension>
-      &                                                     mapping_collection,
+                                                           &mapping_collection,
     const FECollection<dim, FEValuesType::space_dimension> &fe_collection,
-    const std::vector<QCollection<q_dim>> &                 q_collections,
+    const std::vector<QCollection<q_dim>>                  &q_collections,
     const UpdateFlags                                       update_flags)
     : fe_collection(&fe_collection)
     , mapping_collection(&mapping_collection)
@@ -103,10 +103,10 @@ namespace hp
   {}
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   FEValuesBase<dim, q_dim, FEValuesType>::FEValuesBase(
     const FECollection<dim, FEValuesType::space_dimension> &fe_collection,
-    const QCollection<q_dim> &                              q_collection,
+    const QCollection<q_dim>                               &q_collection,
     const UpdateFlags                                       update_flags)
     : FEValuesBase(
         dealii::hp::StaticMappingQ1<dim, FEValuesType::space_dimension>::
@@ -117,10 +117,10 @@ namespace hp
   {}
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   FEValuesBase<dim, q_dim, FEValuesType>::FEValuesBase(
     const FECollection<dim, FEValuesType::space_dimension> &fe_collection,
-    const std::vector<QCollection<q_dim>> &                 q_collection,
+    const std::vector<QCollection<q_dim>>                  &q_collection,
     const UpdateFlags                                       update_flags)
     : FEValuesBase(
         dealii::hp::StaticMappingQ1<dim, FEValuesType::space_dimension>::
@@ -132,7 +132,7 @@ namespace hp
 
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   FEValuesBase<dim, q_dim, FEValuesType>::FEValuesBase(
     const FEValuesBase<dim, q_dim, FEValuesType> &other)
     : Subscriptor(other)
@@ -171,7 +171,7 @@ namespace hp
 
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   FEValuesType &
   FEValuesBase<dim, q_dim, FEValuesType>::select_fe_values(
     const unsigned int fe_index,
@@ -201,7 +201,7 @@ namespace hp
 
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   void
   FEValuesBase<dim, q_dim, FEValuesType>::precalculate_fe_values(
     const std::vector<unsigned int> &fe_indices,
@@ -238,7 +238,7 @@ namespace hp
 
 
 
-  template <int dim, int q_dim, class FEValuesType>
+  template <int dim, int q_dim, typename FEValuesType>
   void
   FEValuesBase<dim, q_dim, FEValuesType>::precalculate_fe_values()
   {
@@ -267,8 +267,8 @@ namespace hp
   template <int dim, int spacedim>
   FEValues<dim, spacedim>::FEValues(
     const MappingCollection<dim, spacedim> &mapping,
-    const FECollection<dim, spacedim> &     fe_collection,
-    const QCollection<dim> &                q_collection,
+    const FECollection<dim, spacedim>      &fe_collection,
+    const QCollection<dim>                 &q_collection,
     const UpdateFlags                       update_flags)
     : hp::FEValuesBase<dim, dim, dealii::FEValues<dim, spacedim>>(mapping,
                                                                   fe_collection,
@@ -280,7 +280,7 @@ namespace hp
   template <int dim, int spacedim>
   FEValues<dim, spacedim>::FEValues(
     const FECollection<dim, spacedim> &fe_collection,
-    const QCollection<dim> &           q_collection,
+    const QCollection<dim>            &q_collection,
     const UpdateFlags                  update_flags)
     : hp::FEValuesBase<dim, dim, dealii::FEValues<dim, spacedim>>(fe_collection,
                                                                   q_collection,
@@ -370,8 +370,8 @@ namespace hp
   template <int dim, int spacedim>
   FEFaceValues<dim, spacedim>::FEFaceValues(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const hp::FECollection<dim, spacedim> &     fe_collection,
-    const hp::QCollection<dim - 1> &            q_collection,
+    const hp::FECollection<dim, spacedim>      &fe_collection,
+    const hp::QCollection<dim - 1>             &q_collection,
     const UpdateFlags                           update_flags)
     : hp::FEValuesBase<dim, dim - 1, dealii::FEFaceValues<dim, spacedim>>(
         mapping,
@@ -382,8 +382,8 @@ namespace hp
 
   template <int dim, int spacedim>
   FEFaceValues<dim, spacedim>::FEFaceValues(
-    const hp::MappingCollection<dim, spacedim> & mapping,
-    const hp::FECollection<dim, spacedim> &      fe_collection,
+    const hp::MappingCollection<dim, spacedim>  &mapping,
+    const hp::FECollection<dim, spacedim>       &fe_collection,
     const std::vector<hp::QCollection<dim - 1>> &q_collection,
     const UpdateFlags                            update_flags)
     : hp::FEValuesBase<dim, dim - 1, dealii::FEFaceValues<dim, spacedim>>(
@@ -397,7 +397,7 @@ namespace hp
   template <int dim, int spacedim>
   FEFaceValues<dim, spacedim>::FEFaceValues(
     const hp::FECollection<dim, spacedim> &fe_collection,
-    const hp::QCollection<dim - 1> &       q_collection,
+    const hp::QCollection<dim - 1>        &q_collection,
     const UpdateFlags                      update_flags)
     : hp::FEValuesBase<dim, dim - 1, dealii::FEFaceValues<dim, spacedim>>(
         fe_collection,
@@ -408,7 +408,7 @@ namespace hp
 
   template <int dim, int spacedim>
   FEFaceValues<dim, spacedim>::FEFaceValues(
-    const hp::FECollection<dim, spacedim> &      fe_collection,
+    const hp::FECollection<dim, spacedim>       &fe_collection,
     const std::vector<hp::QCollection<dim - 1>> &q_collection,
     const UpdateFlags                            update_flags)
     : hp::FEValuesBase<dim, dim - 1, dealii::FEFaceValues<dim, spacedim>>(
@@ -468,7 +468,7 @@ namespace hp
   template <bool lda>
   void
   FEFaceValues<dim, spacedim>::reinit(
-    const TriaIterator<DoFCellAccessor<dim, spacedim, lda>> &   cell,
+    const TriaIterator<DoFCellAccessor<dim, spacedim, lda>>    &cell,
     const typename Triangulation<dim, spacedim>::face_iterator &face,
     const unsigned int                                          q_index,
     const unsigned int                                          mapping_index,
@@ -535,8 +535,8 @@ namespace hp
   template <int dim, int spacedim>
   FESubfaceValues<dim, spacedim>::FESubfaceValues(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const hp::FECollection<dim, spacedim> &     fe_collection,
-    const hp::QCollection<dim - 1> &            q_collection,
+    const hp::FECollection<dim, spacedim>      &fe_collection,
+    const hp::QCollection<dim - 1>             &q_collection,
     const UpdateFlags                           update_flags)
     : hp::FEValuesBase<dim, dim - 1, dealii::FESubfaceValues<dim, spacedim>>(
         mapping,
@@ -549,7 +549,7 @@ namespace hp
   template <int dim, int spacedim>
   FESubfaceValues<dim, spacedim>::FESubfaceValues(
     const hp::FECollection<dim, spacedim> &fe_collection,
-    const hp::QCollection<dim - 1> &       q_collection,
+    const hp::QCollection<dim - 1>        &q_collection,
     const UpdateFlags                      update_flags)
     : hp::FEValuesBase<dim, dim - 1, dealii::FESubfaceValues<dim, spacedim>>(
         fe_collection,

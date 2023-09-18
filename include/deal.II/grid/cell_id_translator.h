@@ -82,7 +82,7 @@ namespace internal
      */
     template <typename Accessor>
     types::global_cell_index
-    translate(const TriaIterator<Accessor> & cell,
+    translate(const TriaIterator<Accessor>  &cell,
               const types::global_cell_index i) const;
 
     /**
@@ -131,7 +131,6 @@ namespace internal
     // modest numbers of cells. Check for this by first calculating
     // the maximal index we will get in 64-bit arithmetic and testing
     // that it is representable in 32-bit arithmetic:
-#ifdef DEBUG
     std::uint64_t max_cell_index = 0;
 
     for (unsigned int i = 0; i < n_global_levels; ++i)
@@ -142,7 +141,7 @@ namespace internal
 
     max_cell_index -= 1;
 
-    Assert(
+    AssertThrow(
       max_cell_index <= std::numeric_limits<types::global_cell_index>::max(),
       ExcMessage(
         "You have exceeded the maximal number of possible indices this function "
@@ -155,7 +154,6 @@ namespace internal
         " indices. You may want to consider to build deal.II with 64bit "
         "indices (-D DEAL_II_WITH_64BIT_INDICES=\"ON\") to increase the limit "
         "of indices."));
-#endif
 
     // Now do the whole computation again, but for real:
     tree_sizes.reserve(n_global_levels + 1);
@@ -207,7 +205,7 @@ namespace internal
   template <int dim>
   template <typename Accessor>
   types::global_cell_index
-  CellIDTranslator<dim>::translate(const TriaIterator<Accessor> & cell,
+  CellIDTranslator<dim>::translate(const TriaIterator<Accessor>  &cell,
                                    const types::global_cell_index i) const
   {
     static_assert(dim == Accessor::dimension &&
@@ -269,8 +267,8 @@ namespace internal
     unsigned int child_level  = 0;
     unsigned int binary_entry = 2;
 
-    // path to the get to the cell
-    std::vector<unsigned int> cell_indices;
+    // compute new coarse-grid id: c_{i+1} = c_{i}*2^dim + q on path to cell
+    types::global_cell_index level_coarse_cell_id = coarse_cell_id;
     while (child_level < n_child_indices)
       {
         Assert(binary_entry < binary_representation.size(), ExcInternalError());
@@ -280,19 +278,15 @@ namespace internal
             unsigned int cell_index =
               (((binary_representation[binary_entry] >> (j * dim))) &
                (GeometryInfo<dim>::max_children_per_cell - 1));
-            cell_indices.push_back(cell_index);
+            level_coarse_cell_id =
+              level_coarse_cell_id * GeometryInfo<dim>::max_children_per_cell +
+              cell_index;
             ++child_level;
             if (child_level == n_child_indices)
               break;
           }
         ++binary_entry;
       }
-
-    // compute new coarse-grid id: c_{i+1} = c_{i}*2^dim + q;
-    types::global_cell_index level_coarse_cell_id = coarse_cell_id;
-    for (auto i : cell_indices)
-      level_coarse_cell_id =
-        level_coarse_cell_id * GeometryInfo<dim>::max_children_per_cell + i;
 
     return level_coarse_cell_id;
   }

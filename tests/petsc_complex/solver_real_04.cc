@@ -33,10 +33,10 @@
 
 template <class SOLVER, class MATRIX, class VECTOR, class PRECONDITION>
 void
-check_solve(SOLVER &            solver,
-            const MATRIX &      A,
-            VECTOR &            u,
-            VECTOR &            f,
+check_solve(SOLVER             &solver,
+            const MATRIX       &A,
+            VECTOR             &u,
+            VECTOR             &f,
             const PRECONDITION &P)
 {
   deallog << "Solver type: " << typeid(solver).name() << std::endl;
@@ -47,7 +47,7 @@ check_solve(SOLVER &            solver,
     {
       solver.solve(A, u, f, P);
     }
-  catch (std::exception &e)
+  catch (const std::exception &e)
     {
       deallog << e.what() << std::endl;
       abort();

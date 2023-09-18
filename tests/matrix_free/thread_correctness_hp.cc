@@ -41,31 +41,12 @@ public:
     : data(data_in){};
 
   void
-  local_apply(const MatrixFree<dim, Number> &              data,
-              Vector<Number> &                             dst,
-              const Vector<Number> &                       src,
+  local_apply(const MatrixFree<dim, Number>               &data,
+              Vector<Number>                              &dst,
+              const Vector<Number>                        &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
-    // Ask MatrixFree for cell_range for different
-    // orders
-    std::pair<unsigned int, unsigned int> subrange_deg;
-#define CALL_METHOD(degree)                                         \
-  subrange_deg = data.create_cell_subrange_hp(cell_range, degree);  \
-  if (subrange_deg.second > subrange_deg.first)                     \
-  helmholtz_operator<dim, degree, Vector<Number>, degree + 1>(data, \
-                                                              dst,  \
-                                                              src,  \
-                                                              subrange_deg)
-
-    CALL_METHOD(1);
-    CALL_METHOD(2);
-    CALL_METHOD(3);
-    CALL_METHOD(4);
-    CALL_METHOD(5);
-    CALL_METHOD(6);
-    CALL_METHOD(7);
-
-#undef CALL_METHOD
+    helmholtz_operator_no_template<dim>(data, dst, src, cell_range);
   }
 
   void

@@ -63,9 +63,9 @@ test()
           // This commented out code block identifies that the filtered iterator
           // is of a different type to that returned by cell->neighbor()
           //
-          // using C1 = typename std::decay<decltype(cell)>::type;
-          // using C2 = typename std::decay<decltype(cell_neighbor)>::type;
-          // static_assert(std::is_same<C1, C2>::value,
+          // using C1 = std::decay_t<decltype(cell)>;
+          // using C2 = std::decay_t<decltype(cell_neighbor)>;
+          // static_assert(std::is_same_v<C1, C2>,
           //               "Cell iterator types are not identical.");
 
           fe_interface_values.reinit(cell,

@@ -1,6 +1,13 @@
 name: github-OSX
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+    types:
+    - opened
+    - reopened
+    - synchronize
+    - ready_for_review
 
 concurrency:
   group: ${ {github.event_name }}-${{ github.workflow }}-${{ github.ref }}
@@ -16,8 +23,16 @@ jobs:
     name: OSX serial
     runs-on: [macos-latest]
 
+    #
+    # The following condition only runs the workflow on 'push' or if the
+    # 'pull_request' is not a draft. This is only useful for hackathons or
+    # other situations when the CI is massively overburdened with pull
+    # requests.
+    #
+    # if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: info
       run: |
         g++ -v
@@ -30,7 +45,7 @@ jobs:
     - name: build
       run: |
         make VERBOSE=1 -j2
-        make -j2 test # quicktests
+        make -j3 test # quicktests
     - name: archive error 1
       uses: actions/upload-artifact@v3
       if: always()
@@ -52,8 +67,16 @@ jobs:
     name: OSX parallel 64bit
     runs-on: [macos-latest]
 
+    #
+    # The following condition only runs the workflow on 'push' or if the
+    # 'pull_request' is not a draft. This is only useful for hackathons or
+    # other situations when the CI is massively overburdened with pull
+    # requests.
+    #
+    # if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: setup
       run: |
         brew install openmpi
@@ -73,7 +96,7 @@ jobs:
     - name: build
       run: |
         make VERBOSE=1 -j2
-        make -j2 test #quicktests
+        make -j3 test #quicktests
     - name: archive error 1
       uses: actions/upload-artifact@v3
       if: always()

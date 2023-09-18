@@ -50,9 +50,9 @@
 template <int dim>
 double
 compute_aspect_ratio_hyper_rectangle(
-  Point<dim> const &               left,
-  Point<dim> const &               right,
-  std::vector<unsigned int> const &refinements,
+  const Point<dim>                &left,
+  const Point<dim>                &right,
+  const std::vector<unsigned int> &refinements,
   unsigned int                     degree     = 1,
   unsigned int                     n_q_points = 2,
   bool                             deform     = false,
@@ -72,8 +72,8 @@ compute_aspect_ratio_hyper_rectangle(
       tria.begin_active()->vertex(0) += shift;
     }
 
-  MappingQ<dim> const mapping(degree);
-  QGauss<dim> const   gauss(n_q_points);
+  const MappingQ<dim> mapping(degree);
+  const QGauss<dim>   gauss(n_q_points);
 
   Vector<double> ratios =
     GridTools::compute_aspect_ratio_of_cells(mapping, tria, gauss);
@@ -203,7 +203,7 @@ main(int argc, char **argv)
         deallog << "aspect ratio max    = " << ar << std::endl << std::endl;
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

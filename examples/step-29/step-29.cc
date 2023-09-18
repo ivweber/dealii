@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Moritz Allmaras, Texas A&M University, 2007
  */
@@ -110,7 +109,7 @@ namespace Step29
 
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const override
+                      std::vector<Vector<double>>   &value_list) const override
     {
       AssertDimension(value_list.size(), points.size());
 
@@ -323,7 +322,7 @@ namespace Step29
   template <int dim>
   void ComputeIntensity<dim>::evaluate_vector_field(
     const DataPostprocessorInputs::Vector<dim> &inputs,
-    std::vector<Vector<double>> &               computed_quantities) const
+    std::vector<Vector<double>>                &computed_quantities) const
   {
     AssertDimension(computed_quantities.size(), inputs.solution_values.size());
 
@@ -387,13 +386,16 @@ namespace Step29
 
   // The constructor takes the ParameterHandler object and stores it in a
   // reference. It also initializes the DoF-Handler and the finite element
-  // system, which consists of two copies of the scalar Q1 field, one for $v$
-  // and one for $w$:
+  // system, which consists of two copies of the scalar $Q_1$ field, one for
+  // $v$ and one for $w$. In other words, we want the finite element space
+  // $Q_1\times Q_1 = Q_1^2$, which is easily constructed and passed as the
+  // constructor argument to the FESystem class (i.e., the type of the `fe`
+  // member being initialized here):
   template <int dim>
   UltrasoundProblem<dim>::UltrasoundProblem(ParameterHandler &param)
     : prm(param)
     , dof_handler(triangulation)
-    , fe(FE_Q<dim>(1), 2)
+    , fe(FE_Q<dim>(1) ^ 2)
   {}
 
   // @sect4{<code>UltrasoundProblem::make_grid</code>}
@@ -590,7 +592,7 @@ namespace Step29
                 // compute from the given two shape functions.  Fortunately,
                 // the FESystem object can provide us with this information,
                 // namely it has a function
-                // FESystem::system_to_component_index, that for each local
+                // FESystem::system_to_component_index(), that for each local
                 // DoF index returns a pair of integers of which the first
                 // indicates to which component of the system the DoF
                 // belongs. The second integer of the pair indicates which

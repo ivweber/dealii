@@ -159,18 +159,6 @@ PersistentTriangulation<dim, spacedim>::create_triangulation(
 
 template <int dim, int spacedim>
 void
-PersistentTriangulation<dim, spacedim>::create_triangulation_compatibility(
-  const std::vector<Point<spacedim>> &,
-  const std::vector<CellData<dim>> &,
-  const SubCellData &)
-{
-  Assert(false, ExcImpossibleInDim(dim));
-}
-
-
-
-template <int dim, int spacedim>
-void
 PersistentTriangulation<dim, spacedim>::write_flags(std::ostream &out) const
 {
   const unsigned int n_flag_levels = refine_flags.size();
@@ -202,8 +190,7 @@ template <int dim, int spacedim>
 void
 PersistentTriangulation<dim, spacedim>::read_flags(std::istream &in)
 {
-  Assert(refine_flags.size() == 0 && coarsen_flags.size() == 0,
-         ExcFlagsNotCleared());
+  Assert(refine_flags.empty() && coarsen_flags.empty(), ExcFlagsNotCleared());
   AssertThrow(in.fail() == false, ExcIO());
 
   unsigned int magic_number;

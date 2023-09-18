@@ -62,9 +62,8 @@ template <int dim, int spacedim>
 std::shared_ptr<const Utilities::MPI::Partitioner>
 create_partitioner(const DoFHandler<dim, spacedim> &dof_handler)
 {
-  IndexSet locally_relevant_dofs;
-
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   return std::make_shared<const Utilities::MPI::Partitioner>(
     dof_handler.locally_owned_dofs(),
@@ -74,8 +73,8 @@ create_partitioner(const DoFHandler<dim, spacedim> &dof_handler)
 
 template <int dim>
 void
-print(const Mapping<dim> &                              mapping,
-      const DoFHandler<dim> &                           dof_handler,
+print(const Mapping<dim>                               &mapping,
+      const DoFHandler<dim>                            &dof_handler,
       const LinearAlgebra::distributed::Vector<double> &result,
       const unsigned int                                counter)
 {
@@ -101,7 +100,7 @@ print(const Mapping<dim> &                              mapping,
   data_out.write_vtu_with_pvtu_record(
     "./", "example-3", counter, MPI_COMM_WORLD, 1, 1);
 
-  result.zero_out_ghosts();
+  result.zero_out_ghost_values();
 }
 
 void
@@ -192,7 +191,7 @@ test()
   Utilities::MPI::RemotePointEvaluation<dim> evaluation_cache;
   const auto evaluation_point_results = VectorTools::point_values<1>(
     mapping_1, dof_handler_1, vector_1, evaluation_points, evaluation_cache);
-  vector_1.zero_out_ghosts();
+  vector_1.zero_out_ghost_values();
 
   LinearAlgebra::distributed::Vector<double> vector_2(
     create_partitioner(dof_handler_2));

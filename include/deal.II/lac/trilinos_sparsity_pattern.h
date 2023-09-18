@@ -447,7 +447,7 @@ namespace TrilinosWrappers
      * knowing the indices of nonzero entries, which the sparsity pattern is
      * designed to describe.
      */
-    SparsityPattern(const IndexSet &              parallel_partitioning,
+    SparsityPattern(const IndexSet               &parallel_partitioning,
                     const MPI_Comm                communicator,
                     const std::vector<size_type> &n_entries_per_row);
 
@@ -481,8 +481,8 @@ namespace TrilinosWrappers
      * the same processor. The vector <tt>n_entries_per_row</tt> specifies the
      * number of entries in each row of the newly generated matrix.
      */
-    SparsityPattern(const IndexSet &              row_parallel_partitioning,
-                    const IndexSet &              col_parallel_partitioning,
+    SparsityPattern(const IndexSet               &row_parallel_partitioning,
+                    const IndexSet               &col_parallel_partitioning,
                     const MPI_Comm                communicator,
                     const std::vector<size_type> &n_entries_per_row);
 
@@ -549,7 +549,7 @@ namespace TrilinosWrappers
      * describe.
      */
     void
-    reinit(const IndexSet &              parallel_partitioning,
+    reinit(const IndexSet               &parallel_partitioning,
            const MPI_Comm                communicator,
            const std::vector<size_type> &n_entries_per_row);
 
@@ -612,8 +612,8 @@ namespace TrilinosWrappers
      * specifying the number of entries in each row of the sparsity pattern.
      */
     void
-    reinit(const IndexSet &              row_parallel_partitioning,
-           const IndexSet &              col_parallel_partitioning,
+    reinit(const IndexSet               &row_parallel_partitioning,
+           const IndexSet               &col_parallel_partitioning,
            const MPI_Comm                communicator,
            const std::vector<size_type> &n_entries_per_row);
 
@@ -628,8 +628,8 @@ namespace TrilinosWrappers
      */
     template <typename SparsityPatternType>
     void
-    reinit(const IndexSet &           row_parallel_partitioning,
-           const IndexSet &           col_parallel_partitioning,
+    reinit(const IndexSet            &row_parallel_partitioning,
+           const IndexSet            &col_parallel_partitioning,
            const SparsityPatternType &nontrilinos_sparsity_pattern,
            const MPI_Comm             communicator  = MPI_COMM_WORLD,
            const bool                 exchange_data = false);
@@ -644,7 +644,7 @@ namespace TrilinosWrappers
      */
     template <typename SparsityPatternType>
     void
-    reinit(const IndexSet &           parallel_partitioning,
+    reinit(const IndexSet            &parallel_partitioning,
            const SparsityPatternType &nontrilinos_sparsity_pattern,
            const MPI_Comm             communicator  = MPI_COMM_WORLD,
            const bool                 exchange_data = false);
@@ -774,7 +774,7 @@ namespace TrilinosWrappers
                 const bool      indices_are_sorted = false);
 
     virtual void
-    add_row_entries(const size_type &                 row,
+    add_row_entries(const size_type                  &row,
                     const ArrayView<const size_type> &columns,
                     const bool indices_are_sorted = false) override;
 
@@ -1261,7 +1261,7 @@ namespace TrilinosWrappers
 
     TrilinosWrappers::types::int_type *col_index_ptr =
       reinterpret_cast<TrilinosWrappers::types::int_type *>(
-        const_cast<typename std::decay<decltype(*begin)>::type *>(&*begin));
+        const_cast<std::decay_t<decltype(*begin)> *>(&*begin));
     // Check at least for the first index that the conversion actually works
     AssertDimension(*col_index_ptr, *begin);
     TrilinosWrappers::types::int_type trilinos_row_index = row;

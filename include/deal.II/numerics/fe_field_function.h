@@ -20,7 +20,6 @@
 
 #include <deal.II/base/function.h>
 #include <deal.II/base/point.h>
-#include <deal.II/base/std_cxx17/optional.h>
 #include <deal.II/base/tensor.h>
 #include <deal.II/base/thread_local_storage.h>
 
@@ -32,6 +31,8 @@
 #include <deal.II/grid/grid_tools_cache.h>
 
 #include <deal.II/lac/vector.h>
+
+#include <optional>
 
 
 DEAL_II_NAMESPACE_OPEN
@@ -177,8 +178,8 @@ namespace Functions
      */
     FEFieldFunction(
       const DoFHandler<dim, spacedim> &dh,
-      const VectorType &               data_vector,
-      const Mapping<dim> &             mapping = StaticMappingQ1<dim>::mapping);
+      const VectorType                &data_vector,
+      const Mapping<dim>              &mapping = StaticMappingQ1<dim>::mapping);
 
     /**
      * Set the current cell. If you know in advance where your points lie, you
@@ -206,7 +207,7 @@ namespace Functions
      */
     virtual void
     vector_value(
-      const Point<dim> &                       p,
+      const Point<dim>                        &p,
       Vector<typename VectorType::value_type> &values) const override;
 
     /**
@@ -245,7 +246,7 @@ namespace Functions
      * information.
      */
     virtual void
-    value_list(const std::vector<Point<dim>> &               points,
+    value_list(const std::vector<Point<dim>>                &points,
                std::vector<typename VectorType::value_type> &values,
                const unsigned int component = 0) const override;
 
@@ -306,7 +307,7 @@ namespace Functions
      * information.
      */
     virtual Tensor<1, dim, typename VectorType::value_type>
-    gradient(const Point<dim> & p,
+    gradient(const Point<dim>  &p,
              const unsigned int component = 0) const override;
 
     /**
@@ -343,7 +344,7 @@ namespace Functions
      */
     virtual void
     gradient_list(
-      const std::vector<Point<dim>> &                               p,
+      const std::vector<Point<dim>>                                &p,
       std::vector<Tensor<1, dim, typename VectorType::value_type>> &gradients,
       const unsigned int component = 0) const override;
 
@@ -360,7 +361,7 @@ namespace Functions
      * information.
      */
     virtual typename VectorType::value_type
-    laplacian(const Point<dim> & p,
+    laplacian(const Point<dim>  &p,
               const unsigned int component = 0) const override;
 
     /**
@@ -377,7 +378,7 @@ namespace Functions
      */
     virtual void
     vector_laplacian(
-      const Point<dim> &                       p,
+      const Point<dim>                        &p,
       Vector<typename VectorType::value_type> &values) const override;
 
     /**
@@ -392,7 +393,7 @@ namespace Functions
      * information.
      */
     virtual void
-    laplacian_list(const std::vector<Point<dim>> &               points,
+    laplacian_list(const std::vector<Point<dim>>                &points,
                    std::vector<typename VectorType::value_type> &values,
                    const unsigned int component = 0) const override;
 
@@ -438,8 +439,8 @@ namespace Functions
     compute_point_locations(
       const std::vector<Point<dim>> &points,
       std::vector<typename DoFHandler<dim, spacedim>::active_cell_iterator>
-        &                                     cells,
-      std::vector<std::vector<Point<dim>>> &  qpoints,
+                                             &cells,
+      std::vector<std::vector<Point<dim>>>   &qpoints,
       std::vector<std::vector<unsigned int>> &maps) const;
 
   private:
@@ -479,9 +480,9 @@ namespace Functions
     /**
      * Given a cell, return the reference coordinates of the given point
      * within this cell if it indeed lies within the cell. Otherwise return an
-     * uninitialized std_cxx17::optional object.
+     * uninitialized std::optional object.
      */
-    std_cxx17::optional<Point<dim>>
+    std::optional<Point<dim>>
     get_reference_coordinates(
       const typename DoFHandler<dim, spacedim>::active_cell_iterator &cell,
       const Point<dim> &point) const;

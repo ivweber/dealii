@@ -230,9 +230,9 @@ template <int dim>
 void
 output(const std::string         name,
        const Triangulation<dim> &triangulation,
-       const DoFHandler<dim> &   dof_handler,
-       const Vector<double> &    values,
-       const Vector<float> &     error)
+       const DoFHandler<dim>    &dof_handler,
+       const Vector<double>     &values,
+       const Vector<float>      &error)
 {
   dealii::Vector<double> fe_degrees(triangulation.n_active_cells());
   {
@@ -250,7 +250,7 @@ output(const std::string         name,
   data_out.add_data_vector(error, std::string("error"));
   data_out.build_patches();
 
-  std::ofstream output(name.c_str());
+  std::ofstream output(name);
   data_out.write_vtu(output);
 }
 

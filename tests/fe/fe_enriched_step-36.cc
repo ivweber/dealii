@@ -85,8 +85,8 @@ class EnrichmentFunction : public Function<dim>
 {
 public:
   EnrichmentFunction(const Point<dim> &origin,
-                     const double &    Z,
-                     const double &    radius)
+                     const double     &Z,
+                     const double     &radius)
     : Function<dim>(1)
     , origin(origin)
     , Z(Z)
@@ -287,8 +287,8 @@ namespace Step36
     std::vector<IndexSet> locally_owned_dofs_per_processor =
       DoFTools::locally_owned_dofs_per_subdomain(dof_handler);
     locally_owned_dofs = locally_owned_dofs_per_processor[this_mpi_process];
-    locally_relevant_dofs.clear();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     constraints.clear();
     constraints.reinit(locally_relevant_dofs);
@@ -488,9 +488,8 @@ namespace Step36
   EigenvalueProblem<dim>::estimate_error()
   {
     {
-      std::vector<const PETScWrappers::MPI::Vector *> sol(
-        number_of_eigenvalues);
-      std::vector<Vector<float> *> error(number_of_eigenvalues);
+      std::vector<const ReadVector<PetscScalar> *> sol(number_of_eigenvalues);
+      std::vector<Vector<float> *>                 error(number_of_eigenvalues);
 
       for (unsigned int i = 0; i < number_of_eigenvalues; ++i)
         {
@@ -502,12 +501,15 @@ namespace Step36
       face_quadrature_formula.push_back(QGauss<dim - 1>(3));
       face_quadrature_formula.push_back(QGauss<dim - 1>(3));
 
+      ArrayView<const ReadVector<PetscScalar> *> sol_view =
+        make_array_view(sol);
+      ArrayView<Vector<float> *> error_view = make_array_view(error);
       KellyErrorEstimator<dim>::estimate(
         dof_handler,
         face_quadrature_formula,
         std::map<types::boundary_id, const Function<dim> *>(),
-        sol,
-        error);
+        sol_view,
+        error_view);
     }
 
     // sum up for a global:
@@ -552,7 +554,7 @@ namespace Step36
         std::string filename = "solution-";
         filename += ('0' + cycle);
         filename += ".vtk";
-        std::ofstream output(filename.c_str());
+        std::ofstream output(filename);
 
         DataOut<dim> data_out;
         data_out.attach_dof_handler(dof_handler);
@@ -568,7 +570,7 @@ namespace Step36
         std::string filename = "mesh-";
         filename += ('0' + cycle);
         filename += ".vtk";
-        std::ofstream output(filename.c_str());
+        std::ofstream output(filename);
 
         DataOut<dim> data_out;
         data_out.attach_dof_handler(dof_handler);
@@ -584,7 +586,7 @@ namespace Step36
       {
         const std::string scalar_fname = "scalar-data.txt";
 
-        std::ofstream output(scalar_fname.c_str(),
+        std::ofstream output(scalar_fname,
                              std::ios::out |
                                (cycle == 0 ? std::ios::trunc : std::ios::app));
 
@@ -608,7 +610,7 @@ namespace Step36
   void
   EigenvalueProblem<dim>::run()
   {
-    for (unsigned int cycle = 0; cycle < 4; ++cycle)
+    for (unsigned int cycle = 0; cycle < 2; ++cycle)
       {
         pcout << "Cycle " << cycle << std::endl;
         const std::pair<unsigned int, unsigned int> n_cells = setup_system();
@@ -652,7 +654,7 @@ main(int argc, char **argv)
         step36.run();
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

@@ -51,7 +51,7 @@ namespace NonMatching
       static UpdateFlags
       required_update_flags(
         const SmartPointer<const Mapping<dim, spacedim>> mapping,
-        const UpdateFlags &                              update_flags)
+        const UpdateFlags                               &update_flags)
       {
         return mapping->requires_update_flags(update_flags);
       }
@@ -59,10 +59,10 @@ namespace NonMatching
       static void
       compute_mapping_data_for_quadrature(
         const SmartPointer<const Mapping<dim, spacedim>> mapping,
-        const UpdateFlags &                              update_flags_mapping,
+        const UpdateFlags                               &update_flags_mapping,
         const typename Triangulation<dim, spacedim>::cell_iterator &cell,
         CellSimilarity::Similarity &cell_similarity,
-        const Quadrature<dim> &     quadrature,
+        const Quadrature<dim>      &quadrature,
         std::shared_ptr<typename Mapping<dim, spacedim>::InternalDataBase>
                      internal_mapping_data,
         MappingData &mapping_data)
@@ -99,9 +99,9 @@ namespace NonMatching
       static void
       compute_mapping_data_for_immersed_surface_quadrature(
         const SmartPointer<const Mapping<dim, spacedim>> mapping,
-        const UpdateFlags &                              update_flags_mapping,
+        const UpdateFlags                               &update_flags_mapping,
         const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-        const ImmersedSurfaceQuadrature<dim> &                      quadrature,
+        const ImmersedSurfaceQuadrature<dim>                       &quadrature,
         std::shared_ptr<typename Mapping<dim, spacedim>::InternalDataBase>
                      internal_mapping_data,
         MappingData &mapping_data)
@@ -135,10 +135,10 @@ namespace NonMatching
       static void
       compute_mapping_data_for_face_quadrature(
         const SmartPointer<const Mapping<dim, spacedim>> mapping,
-        const UpdateFlags &                              update_flags_mapping,
+        const UpdateFlags                               &update_flags_mapping,
         const typename Triangulation<dim, spacedim>::cell_iterator &cell,
         const unsigned int                                          face_no,
-        const Quadrature<dim - 1> &                                 quadrature,
+        const Quadrature<dim - 1>                                  &quadrature,
         std::shared_ptr<typename Mapping<dim, spacedim>::InternalDataBase>
                      internal_mapping_data,
         MappingData &mapping_data)
@@ -216,8 +216,10 @@ namespace NonMatching
       /**
        * Constructor which sets the default arguments.
        */
-      AdditionalData(const bool use_global_weights = false)
+      AdditionalData(const bool use_global_weights = false,
+                     const bool store_cells        = false)
         : use_global_weights(use_global_weights)
+        , store_cells(store_cells)
       {}
 
       /**
@@ -226,6 +228,15 @@ namespace NonMatching
        * QSimplex::compute_affine_transformation().
        */
       bool use_global_weights;
+
+      /**
+       * During the reinit_cells() function call, cells are passed as
+       * argument. In the default case, the cell is not stored,
+       * since all relevant mapping related information is precomputed.
+       * However, this flag enables that the cells are stored so that
+       * they can be accessed later on.
+       */
+      bool store_cells;
     };
 
     /**
@@ -240,7 +251,7 @@ namespace NonMatching
      * @param additional_data Additional data for the class to specify the
      * behavior during reinitialization.
      */
-    MappingInfo(const Mapping<dim> & mapping,
+    MappingInfo(const Mapping<dim>  &mapping,
                 const UpdateFlags    update_flags,
                 const AdditionalData additional_data = AdditionalData());
 
@@ -282,7 +293,7 @@ namespace NonMatching
     template <typename ContainerType>
     void
     reinit_cells(
-      const ContainerType &                       cell_iterator_range,
+      const ContainerType                        &cell_iterator_range,
       const std::vector<std::vector<Point<dim>>> &unit_points_vector,
       const unsigned int n_unfiltered_cells = numbers::invalid_unsigned_int);
 
@@ -295,7 +306,7 @@ namespace NonMatching
     template <typename ContainerType>
     void
     reinit_cells(
-      const ContainerType &               cell_iterator_range,
+      const ContainerType                &cell_iterator_range,
       const std::vector<Quadrature<dim>> &quadrature_vector,
       const unsigned int n_unfiltered_cells = numbers::invalid_unsigned_int);
 
@@ -306,7 +317,7 @@ namespace NonMatching
     template <typename Iterator>
     void
     reinit_surface(
-      const IteratorRange<Iterator> &                    cell_iterator_range,
+      const IteratorRange<Iterator>                     &cell_iterator_range,
       const std::vector<ImmersedSurfaceQuadrature<dim>> &quadrature_vector,
       const unsigned int n_unfiltered_cells = numbers::invalid_unsigned_int);
 
@@ -317,7 +328,7 @@ namespace NonMatching
     template <typename Iterator>
     void
     reinit_faces(
-      const IteratorRange<Iterator> &                      cell_iterator_range,
+      const IteratorRange<Iterator>                       &cell_iterator_range,
       const std::vector<std::vector<Quadrature<dim - 1>>> &quadrature_vector,
       const unsigned int n_unfiltered_cells = numbers::invalid_unsigned_int);
 
@@ -422,6 +433,14 @@ namespace NonMatching
     get_n_q_points_unvectorized(const unsigned int cell_index,
                                 const unsigned int face_number) const;
 
+    /**
+     * Return cell iterator.
+     *
+     * @note This call is only possible if AdditionalData::store_cells is enabled.
+     */
+    typename Triangulation<dim, spacedim>::cell_iterator
+    get_cell_iterator(const unsigned int cell_index) const;
+
   private:
     using MappingData =
       dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
@@ -483,7 +502,7 @@ namespace NonMatching
     store_mapping_data(const unsigned int         unit_points_index_offset,
                        const unsigned int         n_q_points,
                        const unsigned int         n_q_points_unvectorized,
-                       const MappingData &        mapping_data,
+                       const MappingData         &mapping_data,
                        const std::vector<double> &weights);
 
     /**
@@ -633,6 +652,19 @@ namespace NonMatching
      * dependent objects know that they need to reinitialize as well.
      */
     boost::signals2::signal<void()> is_reinitialized;
+
+    /**
+     * Reference to the triangulation passed via the cells to the
+     * reinit functions. This field is only set if
+     * AdditionalData::store_cells is enabled.
+     */
+    SmartPointer<const Triangulation<dim, spacedim>> triangulation;
+
+    /**
+     * Level and indices of cells passed to the reinit functions. This
+     * vector is only filled if AdditionalData::store_cells is enabled.
+     */
+    std::vector<std::pair<int, int>> cell_level_and_indices;
   };
 
   // ----------------------- template functions ----------------------
@@ -640,7 +672,7 @@ namespace NonMatching
 
   template <int dim, int spacedim, typename Number>
   MappingInfo<dim, spacedim, Number>::MappingInfo(
-    const Mapping<dim> & mapping,
+    const Mapping<dim>  &mapping,
     const UpdateFlags    update_flags,
     const AdditionalData additional_data)
     : mapping(&mapping)
@@ -694,7 +726,7 @@ namespace NonMatching
   void
   MappingInfo<dim, spacedim, Number>::reinit(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-    const std::vector<Point<dim>> &                             unit_points_in)
+    const std::vector<Point<dim>>                              &unit_points_in)
   {
     reinit(cell, Quadrature<dim>(unit_points_in));
   }
@@ -705,7 +737,7 @@ namespace NonMatching
   void
   MappingInfo<dim, spacedim, Number>::reinit(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-    const ArrayView<const Point<dim>> &                         unit_points_in)
+    const ArrayView<const Point<dim>>                          &unit_points_in)
   {
     reinit(cell,
            std::vector<Point<dim>>(unit_points_in.begin(),
@@ -718,7 +750,7 @@ namespace NonMatching
   void
   MappingInfo<dim, spacedim, Number>::reinit(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-    const Quadrature<dim> &                                     quadrature)
+    const Quadrature<dim>                                      &quadrature)
   {
     n_q_points_unvectorized.resize(1);
     n_q_points_unvectorized[0] = quadrature.size();
@@ -768,7 +800,7 @@ namespace NonMatching
   template <typename ContainerType>
   void
   MappingInfo<dim, spacedim, Number>::reinit_cells(
-    const ContainerType &                       cell_iterator_range,
+    const ContainerType                        &cell_iterator_range,
     const std::vector<std::vector<Point<dim>>> &unit_points_vector,
     const unsigned int                          n_unfiltered_cells)
   {
@@ -791,7 +823,7 @@ namespace NonMatching
   template <typename ContainerType>
   void
   MappingInfo<dim, spacedim, Number>::reinit_cells(
-    const ContainerType &               cell_iterator_range,
+    const ContainerType                &cell_iterator_range,
     const std::vector<Quadrature<dim>> &quadrature_vector,
     const unsigned int                  n_unfiltered_cells)
   {
@@ -806,6 +838,9 @@ namespace NonMatching
                                   cell_iterator_range.end()));
 
     n_q_points_unvectorized.reserve(n_cells);
+
+    if (additional_data.store_cells)
+      cell_level_and_indices.resize(n_cells);
 
     // fill unit points index offset vector
     unit_points_index.reserve(n_cells + 1);
@@ -844,6 +879,12 @@ namespace NonMatching
     unsigned int cell_index = 0;
     for (const auto &cell : cell_iterator_range)
       {
+        if (additional_data.store_cells)
+          {
+            this->triangulation                = &cell->get_triangulation();
+            cell_level_and_indices[cell_index] = {cell->level(), cell->index()};
+          }
+
         // store unit points
         const unsigned int n_q_points = compute_n_q_points<VectorizedArrayType>(
           n_q_points_unvectorized[cell_index]);
@@ -888,7 +929,7 @@ namespace NonMatching
   template <typename Iterator>
   void
   MappingInfo<dim, spacedim, Number>::reinit_surface(
-    const IteratorRange<Iterator> &                    cell_iterator_range,
+    const IteratorRange<Iterator>                     &cell_iterator_range,
     const std::vector<ImmersedSurfaceQuadrature<dim>> &quadrature_vector,
     const unsigned int                                 n_unfiltered_cells)
   {
@@ -898,6 +939,8 @@ namespace NonMatching
       additional_data.use_global_weights == false,
       ExcMessage(
         "There is no known use-case for AdditionalData::use_global_weights=true and reinit_surface()"));
+
+    Assert(additional_data.store_cells == false, ExcNotImplemented());
 
     do_cell_index_compression =
       n_unfiltered_cells != numbers::invalid_unsigned_int;
@@ -993,11 +1036,13 @@ namespace NonMatching
   template <typename Iterator>
   void
   MappingInfo<dim, spacedim, Number>::reinit_faces(
-    const IteratorRange<Iterator> &                      cell_iterator_range,
+    const IteratorRange<Iterator>                       &cell_iterator_range,
     const std::vector<std::vector<Quadrature<dim - 1>>> &quadrature_vector,
     const unsigned int                                   n_unfiltered_cells)
   {
     clear();
+
+    Assert(additional_data.store_cells == false, ExcNotImplemented());
 
     do_cell_index_compression =
       n_unfiltered_cells != numbers::invalid_unsigned_int;
@@ -1165,6 +1210,22 @@ namespace NonMatching
 
 
   template <int dim, int spacedim, typename Number>
+  typename Triangulation<dim, spacedim>::cell_iterator
+  MappingInfo<dim, spacedim, Number>::get_cell_iterator(
+    const unsigned int cell_index) const
+  {
+    Assert(
+      additional_data.store_cells,
+      ExcMessage(
+        "Cells have been not stored. You can enable this by Additional::store_cells."));
+    return {triangulation.get(),
+            cell_level_and_indices[cell_index].first,
+            cell_level_and_indices[cell_index].second};
+  }
+
+
+
+  template <int dim, int spacedim, typename Number>
   template <typename NumberType>
   unsigned int
   MappingInfo<dim, spacedim, Number>::compute_n_q_points(
@@ -1286,7 +1347,7 @@ namespace NonMatching
     const unsigned int              n_q_points,
     const unsigned int              n_q_points_unvectorized,
     const MappingInfo::MappingData &mapping_data,
-    const std::vector<double> &     weights)
+    const std::vector<double>      &weights)
   {
     const unsigned int n_lanes =
       dealii::internal::VectorizedArrayTrait<Number>::width();

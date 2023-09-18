@@ -33,7 +33,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -52,7 +51,7 @@ namespace VectorTools
     std::enable_if_t<dealii::is_serial_vector<VectorType>::value == true>
     subtract_mean_value(VectorType &v, const std::vector<bool> &p_select)
     {
-      if (p_select.size() == 0)
+      if (p_select.empty())
         {
           // In case of an empty boolean mask operate on the whole vector:
           v.add(-v.mean_value());
@@ -93,7 +92,7 @@ namespace VectorTools
     subtract_mean_value(VectorType &v, const std::vector<bool> &p_select)
     {
       (void)p_select;
-      Assert(p_select.size() == 0, ExcNotImplemented());
+      Assert(p_select.empty(), ExcNotImplemented());
       // In case of an empty boolean mask operate on the whole vector:
       v.add(-v.mean_value());
     }
@@ -130,10 +129,10 @@ namespace VectorTools
 
 
 
-  template <class VectorType, int dim, int spacedim>
+  template <typename VectorType, int dim, int spacedim>
   DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
-  void add_constant(VectorType &                          solution,
-                    const DoFHandler<dim, spacedim> &     dof_handler,
+  void add_constant(VectorType                           &solution,
+                    const DoFHandler<dim, spacedim>      &dof_handler,
                     const unsigned int                    component,
                     const typename VectorType::value_type constant_adjustment)
   {
@@ -290,17 +289,15 @@ namespace VectorTools
 
 
 
-  template <int dim, typename VectorType, int spacedim>
-  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
-  typename VectorType::value_type compute_mean_value(
+  template <int dim, typename Number, int spacedim>
+  Number
+  compute_mean_value(
     const hp::MappingCollection<dim, spacedim> &mapping_collection,
-    const DoFHandler<dim, spacedim> &           dof,
-    const hp::QCollection<dim> &                q_collection,
-    const VectorType &                          v,
+    const DoFHandler<dim, spacedim>            &dof,
+    const hp::QCollection<dim>                 &q_collection,
+    const ReadVector<Number>                   &v,
     const unsigned int                          component)
   {
-    using Number = typename VectorType::value_type;
-
     const hp::FECollection<dim, spacedim> &fe_collection =
       dof.get_fe_collection();
     const unsigned int n_components = fe_collection.n_components();
@@ -371,14 +368,13 @@ namespace VectorTools
   }
 
 
-  template <int dim, typename VectorType, int spacedim>
-  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
-  typename VectorType::value_type
-    compute_mean_value(const Mapping<dim, spacedim> &   mapping,
-                       const DoFHandler<dim, spacedim> &dof,
-                       const Quadrature<dim> &          quadrature,
-                       const VectorType &               v,
-                       const unsigned int               component)
+  template <int dim, typename Number, int spacedim>
+  Number
+  compute_mean_value(const Mapping<dim, spacedim>    &mapping,
+                     const DoFHandler<dim, spacedim> &dof,
+                     const Quadrature<dim>           &quadrature,
+                     const ReadVector<Number>        &v,
+                     const unsigned int               component)
   {
     return compute_mean_value(hp::MappingCollection<dim, spacedim>(mapping),
                               dof,
@@ -388,13 +384,12 @@ namespace VectorTools
   }
 
 
-  template <int dim, typename VectorType, int spacedim>
-  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
-  typename VectorType::value_type
-    compute_mean_value(const DoFHandler<dim, spacedim> &dof,
-                       const Quadrature<dim> &          quadrature,
-                       const VectorType &               v,
-                       const unsigned int               component)
+  template <int dim, typename Number, int spacedim>
+  Number
+  compute_mean_value(const DoFHandler<dim, spacedim> &dof,
+                     const Quadrature<dim>           &quadrature,
+                     const ReadVector<Number>        &v,
+                     const unsigned int               component)
   {
     return compute_mean_value(get_default_linear_mapping(
                                 dof.get_triangulation()),

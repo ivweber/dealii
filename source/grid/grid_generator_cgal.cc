@@ -34,10 +34,10 @@ namespace GridGenerator
   template <int dim>
   void
   implicit_function(Triangulation<dim, 3> &tria,
-                    const Function<3> &    dealii_implicit_function,
+                    const Function<3>     &dealii_implicit_function,
                     const CGALWrappers::AdditionalData<dim> &data,
-                    const Point<3> &                         interior_point,
-                    const double &                           outer_ball_radius)
+                    const Point<3>                          &interior_point,
+                    const double                            &outer_ball_radius)
   {
 #  ifdef DEAL_II_WITH_CGAL
     Assert(dealii_implicit_function.n_components == 1,
@@ -93,13 +93,13 @@ namespace GridGenerator
     else if constexpr (dim == 2)
       {
         // default triangulation for Surface_mesher
-        using Tr       = CGAL::Surface_mesh_default_triangulation_3;
-        using C2t3     = CGAL::Complex_2_in_triangulation_3<Tr>;
-        using GT       = Tr::Geom_traits;
-        using Sphere_3 = GT::Sphere_3;
-        using Point_3  = GT::Point_3;
-        using FT       = GT::FT;
-        typedef FT (*Function)(Point_3);
+        using Tr           = CGAL::Surface_mesh_default_triangulation_3;
+        using C2t3         = CGAL::Complex_2_in_triangulation_3<Tr>;
+        using GT           = Tr::Geom_traits;
+        using Sphere_3     = GT::Sphere_3;
+        using Point_3      = GT::Point_3;
+        using FT           = GT::FT;
+        using Function     = FT (*)(Point_3);
         using Surface_3    = CGAL::Implicit_surface_3<GT, Function>;
         using Surface_mesh = CGAL::Surface_mesh<Point_3>;
 
@@ -150,7 +150,7 @@ namespace GridGenerator
 
   void
   surface_mesh_to_volumetric_mesh(const Triangulation<2, 3> &surface_tria,
-                                  Triangulation<3> &         vol_tria,
+                                  Triangulation<3>          &vol_tria,
                                   const CGALWrappers::AdditionalData<3> &data)
   {
 #  ifdef DEAL_II_WITH_CGAL

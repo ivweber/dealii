@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Timo Heister, Texas A&M University, 2013
  */
@@ -59,7 +58,7 @@ using namespace dealii;
 // visualized in Paraview or VisIt.
 template <int dim>
 void print_mesh_info(const Triangulation<dim> &triangulation,
-                     const std::string &       filename)
+                     const std::string        &filename)
 {
   std::cout << "Mesh info:" << std::endl
             << " dimension: " << dim << std::endl

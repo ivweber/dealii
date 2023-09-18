@@ -62,8 +62,8 @@ test()
   DoFTools::make_hanging_node_constraints(dof2, c2);
   c2.close();
 
-  IndexSet locally_relevant_dofs2;
-  DoFTools::extract_locally_relevant_dofs(dof2, locally_relevant_dofs2);
+  const IndexSet locally_relevant_dofs2 =
+    DoFTools::extract_locally_relevant_dofs(dof2);
 
   LinearAlgebra::distributed::Vector<double> v2(dof2.locally_owned_dofs(),
                                                 locally_relevant_dofs2,
@@ -72,12 +72,12 @@ test()
 
   // set first vector to 1
   VectorTools::interpolate(dof2, Functions::ConstantFunction<dim>(1.), v2);
-  for (unsigned int i = 0; i < v2.local_size(); ++i)
+  for (unsigned int i = 0; i < v2.locally_owned_size(); ++i)
     Assert(v2.local_element(i) == 1., ExcInternalError());
 
   v2.update_ghost_values();
   FETools::back_interpolate(dof2, c2, v2, dof1, c1, v2_interpolated);
-  for (unsigned int i = 0; i < v2_interpolated.local_size(); ++i)
+  for (unsigned int i = 0; i < v2_interpolated.locally_owned_size(); ++i)
     Assert(v2_interpolated.local_element(i) == 1., ExcInternalError());
 }
 

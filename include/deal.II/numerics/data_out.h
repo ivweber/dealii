@@ -47,7 +47,7 @@ namespace internal
         const dealii::hp::MappingCollection<dim, spacedim> &mapping,
         const std::vector<
           std::shared_ptr<dealii::hp::FECollection<dim, spacedim>>>
-          &                                           finite_elements,
+                                                     &finite_elements,
         const UpdateFlags                             update_flags,
         const std::vector<std::vector<unsigned int>> &cell_to_patch_index_map);
 
@@ -366,7 +366,7 @@ public:
   void
   set_cell_selection(
     const std::function<cell_iterator(const Triangulation<dim, spacedim> &)>
-      &                                                        first_cell,
+                                                              &first_cell,
     const std::function<cell_iterator(const Triangulation<dim, spacedim> &,
                                       const cell_iterator &)> &next_cell);
 
@@ -413,7 +413,7 @@ public:
    * Return the two function objects that are in use for determining the first
    * and the next cell as set by set_cell_selection().
    */
-  const std::pair<FirstCellFunctionType, NextCellFunctionType>
+  std::pair<FirstCellFunctionType, NextCellFunctionType>
   get_cell_selection() const;
 
 private:

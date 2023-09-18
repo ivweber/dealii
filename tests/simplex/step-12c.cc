@@ -78,7 +78,7 @@ class RHS : public Function<dim>
 public:
   virtual void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<double> &          values,
+             std::vector<double>           &values,
              const unsigned int             component = 0) const;
 };
 
@@ -89,7 +89,7 @@ class BoundaryValues : public Function<dim>
 public:
   virtual void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<double> &          values,
+             std::vector<double>           &values,
              const unsigned int             component = 0) const;
 };
 
@@ -102,14 +102,14 @@ public:
   {}
   void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<Point<dim>> &      values) const;
+             std::vector<Point<dim>>       &values) const;
 };
 
 
 template <int dim>
 void
 RHS<dim>::value_list(const std::vector<Point<dim>> &points,
-                     std::vector<double> &          values,
+                     std::vector<double>           &values,
                      const unsigned int) const
 {
   // Assert(values.size() == points.size(),
@@ -123,7 +123,7 @@ RHS<dim>::value_list(const std::vector<Point<dim>> &points,
 template <int dim>
 void
 Beta<dim>::value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Point<dim>> &      values) const
+                      std::vector<Point<dim>>       &values) const
 {
   // Assert(values.size() == points.size(),
   //       ExcDimensionMismatch(values.size(), points.size()));
@@ -131,7 +131,7 @@ Beta<dim>::value_list(const std::vector<Point<dim>> &points,
   for (unsigned int i = 0; i < std::min(points.size(), values.size()); ++i)
     {
       const Point<dim> &p    = points[i];
-      Point<dim> &      beta = values[i];
+      Point<dim>       &beta = values[i];
 
       beta(0) = -p(1);
       beta(1) = p(0);
@@ -145,7 +145,7 @@ Beta<dim>::value_list(const std::vector<Point<dim>> &points,
 template <int dim>
 void
 BoundaryValues<dim>::value_list(const std::vector<Point<dim>> &points,
-                                std::vector<double> &          values,
+                                std::vector<double>           &values,
                                 const unsigned int) const
 {
   // Assert(values.size() == points.size(),
@@ -169,25 +169,25 @@ public:
 
   void
   assemble_cell_term(const hp::FEValues<dim> &fe_v,
-                     FullMatrix<double> &     ui_vi_matrix,
-                     Vector<double> &         cell_vector) const;
+                     FullMatrix<double>      &ui_vi_matrix,
+                     Vector<double>          &cell_vector) const;
 
   void
   assemble_boundary_term(const hp::FEFaceValues<dim> &fe_v,
-                         FullMatrix<double> &         ui_vi_matrix,
-                         Vector<double> &             cell_vector) const;
+                         FullMatrix<double>          &ui_vi_matrix,
+                         Vector<double>              &cell_vector) const;
 
   template <class X, class Y>
   void
-  assemble_face_term1(const X &           fe_v,
-                      const Y &           fe_v_neighbor,
+  assemble_face_term1(const X            &fe_v,
+                      const Y            &fe_v_neighbor,
                       FullMatrix<double> &ui_vi_matrix,
                       FullMatrix<double> &ue_vi_matrix) const;
 
   template <class X, class Y>
   void
-  assemble_face_term2(const X &           fe_v,
-                      const Y &           fe_v_neighbor,
+  assemble_face_term2(const X            &fe_v,
+                      const Y            &fe_v_neighbor,
                       FullMatrix<double> &ui_vi_matrix,
                       FullMatrix<double> &ue_vi_matrix,
                       FullMatrix<double> &ui_ve_matrix,
@@ -249,8 +249,8 @@ template <int dim>
 void
 DGTransportEquation<dim>::assemble_boundary_term(
   const hp::FEFaceValues<dim> &fe_v,
-  FullMatrix<double> &         ui_vi_matrix,
-  Vector<double> &             cell_vector) const
+  FullMatrix<double>          &ui_vi_matrix,
+  Vector<double>              &cell_vector) const
 {
   const std::vector<double> &JxW =
     fe_v.get_present_fe_values().get_JxW_values();
@@ -294,8 +294,8 @@ template <int dim>
 template <class X, class Y>
 void
 DGTransportEquation<dim>::assemble_face_term1(
-  const X &           fe_v,
-  const Y &           fe_v_neighbor,
+  const X            &fe_v,
+  const Y            &fe_v_neighbor,
   FullMatrix<double> &ui_vi_matrix,
   FullMatrix<double> &ue_vi_matrix) const
 {
@@ -341,8 +341,8 @@ template <int dim>
 template <class X, class Y>
 void
 DGTransportEquation<dim>::assemble_face_term2(
-  const X &           fe_v,
-  const Y &           fe_v_neighbor,
+  const X            &fe_v,
+  const Y            &fe_v_neighbor,
   FullMatrix<double> &ui_vi_matrix,
   FullMatrix<double> &ue_vi_matrix,
   FullMatrix<double> &ui_ve_matrix,
@@ -746,7 +746,7 @@ public:
             for (unsigned int q = 0; q < phi.n_q_points; ++q)
               phi.submit_value(0.0, q);
 
-            phi.integrate_scatter(true, false, dst);
+            phi.integrate_scatter(EvaluationFlags::values, dst);
           }
       },
       [&](const auto &data, auto &dst, const auto &src, const auto face_range) {
@@ -771,7 +771,7 @@ public:
                                  q);
               }
 
-            phi.integrate_scatter(true, false, dst);
+            phi.integrate_scatter(EvaluationFlags::values, dst);
           }
       },
       vec,
@@ -789,12 +789,12 @@ public:
              ++cell)
           {
             phi.reinit(cell);
-            phi.gather_evaluate(src, true, false);
+            phi.gather_evaluate(src, EvaluationFlags::values);
             for (unsigned int q = 0; q < phi.n_q_points; ++q)
               phi.submit_gradient(-this->beta(phi.quadrature_point(q)) *
                                     phi.get_value(q),
                                   q);
-            phi.integrate_scatter(false, true, dst);
+            phi.integrate_scatter(EvaluationFlags::gradients, dst);
           }
       },
       [&](const auto &data, auto &dst, const auto &src, const auto face_range) {
@@ -804,9 +804,9 @@ public:
              ++cell)
           {
             phi_m.reinit(cell);
-            phi_m.gather_evaluate(src, true, false);
+            phi_m.gather_evaluate(src, EvaluationFlags::values);
             phi_p.reinit(cell);
-            phi_p.gather_evaluate(src, true, false);
+            phi_p.gather_evaluate(src, EvaluationFlags::values);
             for (unsigned int q = 0; q < phi_m.n_q_points; ++q)
               {
                 const auto beta_n = this->beta(phi_m.quadrature_point(q)) *
@@ -831,7 +831,7 @@ public:
              ++cell)
           {
             phi.reinit(cell);
-            phi.gather_evaluate(src, true, false);
+            phi.gather_evaluate(src, EvaluationFlags::values);
             for (unsigned int q = 0; q < phi.n_q_points; ++q)
               {
                 const auto beta_n =
@@ -1119,7 +1119,7 @@ main()
           dgmethod.run();
         }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

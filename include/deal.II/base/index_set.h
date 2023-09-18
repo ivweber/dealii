@@ -197,8 +197,15 @@ public:
    *
    * @note The operations of this function are substantially more efficient
    *   if the indices pointed to by the range of iterators are already sorted.
-   *   As a consequence, it is often worth sorting the range of indices
-   *   before calling this function.
+   *   As a consequence, it is often highly beneficial to sort the range of
+   *   indices pointed to by the iterator range given by the arguments
+   *   before calling this function. Note also that the function deals
+   *   efficiently with sorted indices that contain duplicates (e.g., if
+   *   the iterator range points to the list `(1,1,1,2,2,4,6,8,8,8)`).
+   *   In other words, it is very useful to call `std::sort()` on the
+   *   range of indices you are about to add, but it is not necessary
+   *   to call the usual combination of `std::unique` and `std::erase`
+   *   to reduce the list of indices to only a set of unique elements.
    */
   template <typename ForwardIterator>
   void
@@ -310,17 +317,35 @@ public:
   compress() const;
 
   /**
-   * Comparison for equality of index sets. This operation is only allowed if
-   * the size of the two sets is the same (though of course they do not have
-   * to have the same number of indices).
+   * Comparison for equality of index sets.
+   *
+   * This operation is only allowed if the size of the two sets is the
+   * same (though of course they do not have to have the same number
+   * of indices), or if one of the two objects being compared is empty.
+   * The comparison between two objects of different sizes would of course,
+   * intuitively, result in a `false` outcome, but it is often a sign of
+   * a programming mistake to compare index sets of different sizes
+   * against each other, and the comparison is consequently not allowed.
+   * On the other hand, the comparison against an empty object makes
+   * sense to ensure, for example, that an IndexSet object has been
+   * initialized.
    */
   bool
   operator==(const IndexSet &is) const;
 
   /**
-   * Comparison for inequality of index sets. This operation is only allowed
-   * if the size of the two sets is the same (though of course they do not
-   * have to have the same number of indices).
+   * Comparison for inequality of index sets.
+   *
+   * This operation is only allowed if the size of the two sets is the
+   * same (though of course they do not have to have the same number
+   * of indices), or if one of the two objects being compared is empty.
+   * The comparison between two objects of different sizes would of course,
+   * intuitively, result in a `false` outcome, but it is often a sign of
+   * a programming mistake to compare index sets of different sizes
+   * against each other, and the comparison is consequently not allowed.
+   * On the other hand, the comparison against an empty object makes
+   * sense to ensure, for example, that an IndexSet object has been
+   * initialized.
    */
   bool
   operator!=(const IndexSet &is) const;
@@ -417,7 +442,7 @@ public:
    * This function is equivalent to calling get_index_vector() and
    * assigning the result to the @p indices argument.
    */
-  DEAL_II_DEPRECATED_EARLY
+  DEAL_II_DEPRECATED
   void
   fill_index_vector(std::vector<size_type> &indices) const;
 
@@ -438,10 +463,20 @@ public:
   fill_binary_vector(VectorType &vector) const;
 
   /**
+   * Determine whether the current object represents a set of indices
+   * that is a subset of the set represented by the argument. This
+   * function returns `true` if the two sets are the same, that is, it
+   * considers the "subset" comparison typically used in set theory,
+   * rather than the "strict subset" comparison.
+   */
+  bool
+  is_subset_of(const IndexSet &other) const;
+
+  /**
    * Output a text representation of this IndexSet to the given stream. Used
    * for testing.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   print(StreamType &out) const;
 
@@ -1062,7 +1097,7 @@ private:
   void
   add_ranges_internal(
     boost::container::small_vector<std::pair<size_type, size_type>, 200>
-      &        tmp_ranges,
+              &tmp_ranges,
     const bool ranges_are_sorted);
 };
 
@@ -1100,7 +1135,7 @@ complete_index_set(const IndexSet::size_type N)
 /* IntervalAccessor */
 
 inline IndexSet::IntervalAccessor::IntervalAccessor(
-  const IndexSet *          idxset,
+  const IndexSet           *idxset,
   const IndexSet::size_type range_idx)
   : index_set(idxset)
   , range_idx(range_idx)
@@ -1233,7 +1268,7 @@ IndexSet::IntervalAccessor::advance()
 /* IntervalIterator */
 
 inline IndexSet::IntervalIterator::IntervalIterator(
-  const IndexSet *          idxset,
+  const IndexSet           *idxset,
   const IndexSet::size_type range_idx)
   : accessor(idxset, range_idx)
 {}
@@ -1341,7 +1376,7 @@ IndexSet::IntervalIterator::operator-(
 /* ElementIterator */
 
 inline IndexSet::ElementIterator::ElementIterator(
-  const IndexSet *          idxset,
+  const IndexSet           *idxset,
   const IndexSet::size_type range_idx,
   const IndexSet::size_type index)
   : index_set(idxset)
@@ -1679,16 +1714,7 @@ IndexSet::compress() const
 inline void
 IndexSet::add_index(const size_type index)
 {
-  AssertIndexRange(index, index_space_size);
-
-  const Range new_range(index, index + 1);
-  if (ranges.size() == 0 || index > ranges.back().end)
-    ranges.push_back(new_range);
-  else if (index == ranges.back().end)
-    ranges.back().end++;
-  else
-    add_range_lower_bound(new_range);
-  is_compressed = false;
+  add_range(index, index + 1);
 }
 
 
@@ -1705,16 +1731,14 @@ IndexSet::add_range(const size_type begin, const size_type end)
 
   if (begin != end)
     {
-      const Range new_range(begin, end);
-
       // the new index might be larger than the last index present in the
       // ranges. Then we can skip the binary search
-      if (ranges.size() == 0 || begin > ranges.back().end)
-        ranges.push_back(new_range);
+      if (ranges.empty() || begin > ranges.back().end)
+        ranges.emplace_back(begin, end);
       else if (begin == ranges.back().end)
         ranges.back().end = end;
       else
-        add_range_lower_bound(new_range);
+        add_range_lower_bound(Range(begin, end));
 
       is_compressed = false;
     }
@@ -1746,12 +1770,26 @@ IndexSet::add_indices(const ForwardIterator &begin, const ForwardIterator &end)
       // at once.
       const size_type begin_index = *p;
       size_type       end_index   = begin_index + 1;
-      ForwardIterator q           = p;
+
+      // Start looking at the position after 'p', and keep iterating while
+      // 'q' points to a duplicate of 'p':
+      ForwardIterator q = p;
       ++q;
+      while ((q != end) && (*q == *p))
+        ++q;
+
+      // Now we know that 'q' is either past the end, or points to a value
+      // other than 'p'. If it points to 'end_index', we are still good with
+      // a contiguous range; then increment the end index of that range, and
+      // move to the next iterator that is not a duplicate of what
+      // we were just looking at:
       while ((q != end) && (static_cast<size_type>(*q) == end_index))
         {
-          ++end_index;
           ++q;
+          while ((q != end) && (static_cast<size_type>(*q) == end_index))
+            ++q;
+
+          ++end_index;
         }
 
       // Add this range:
@@ -1763,7 +1801,7 @@ IndexSet::add_indices(const ForwardIterator &begin, const ForwardIterator &end)
       // least one pair of ranges that are not sorted, and consequently the
       // whole collection of ranges is not sorted.
       p = q;
-      if (p != end && static_cast<size_type>(*p) < end_index)
+      if ((p != end) && (static_cast<size_type>(*p) < end_index))
         ranges_are_sorted = false;
     }
 
@@ -1821,8 +1859,8 @@ IndexSet::n_elements() const
   size_type v = 0;
   if (!ranges.empty())
     {
-      Range &r = ranges.back();
-      v        = r.nth_index_in_set + r.end - r.begin;
+      const Range &r = ranges.back();
+      v              = r.nth_index_in_set + r.end - r.begin;
     }
 
 #ifdef DEBUG
@@ -1908,12 +1946,20 @@ IndexSet::index_within_set(const size_type n) const
 inline bool
 IndexSet::operator==(const IndexSet &is) const
 {
+  // If one of the two index sets has size zero, the other one has to
+  // have size zero as well:
+  if (size() == 0)
+    return (is.size() == 0);
+  if (is.size() == 0)
+    return (size() == 0);
+
+  // Otherwise, they must have the same size (see the documentation):
   Assert(size() == is.size(), ExcDimensionMismatch(size(), is.size()));
 
   compress();
   is.compress();
 
-  return ranges == is.ranges;
+  return (ranges == is.ranges);
 }
 
 
@@ -1921,12 +1967,20 @@ IndexSet::operator==(const IndexSet &is) const
 inline bool
 IndexSet::operator!=(const IndexSet &is) const
 {
+  // If one of the two index sets has size zero, the other one has to
+  // have a non-zero size for inequality:
+  if (size() == 0)
+    return (is.size() != 0);
+  if (is.size() == 0)
+    return (size() != 0);
+
+  // Otherwise, they must have the same size (see the documentation):
   Assert(size() == is.size(), ExcDimensionMismatch(size(), is.size()));
 
   compress();
   is.compress();
 
-  return ranges != is.ranges;
+  return (ranges != is.ranges);
 }
 
 
@@ -1950,7 +2004,7 @@ IndexSet::fill_binary_vector(Vector &vector) const
 
 
 
-template <class StreamType>
+template <typename StreamType>
 inline void
 IndexSet::print(StreamType &out) const
 {

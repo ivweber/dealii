@@ -60,9 +60,8 @@ test()
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints(relevant_set);
   DoFTools::make_hanging_node_constraints(dof, constraints);
@@ -104,7 +103,7 @@ test()
   out.reinit(in);
   ref.reinit(in);
 
-  for (unsigned int i = 0; i < in.local_size(); ++i)
+  for (unsigned int i = 0; i < in.locally_owned_size(); ++i)
     {
       const unsigned int glob_index = owned_set.nth_index_in_set(i);
       if (constraints.is_constrained(glob_index))
@@ -169,7 +168,7 @@ test()
   sparse_matrix.compress(VectorOperation::add);
 
   // Check the diagonal:
-  for (unsigned int i = 0; i < ref.local_size(); ++i)
+  for (unsigned int i = 0; i < ref.locally_owned_size(); ++i)
     {
       const auto glob_index = owned_set.nth_index_in_set(i);
       if (constraints.is_constrained(glob_index))
@@ -190,7 +189,7 @@ test()
   mf.compute_lumped_diagonal();
   out = mf.get_matrix_lumped_diagonal_inverse()->get_vector();
   sparse_matrix.vmult(ref, in);
-  for (unsigned int i = 0; i < ref.local_size(); ++i)
+  for (unsigned int i = 0; i < ref.locally_owned_size(); ++i)
     {
       const auto glob_index = owned_set.nth_index_in_set(i);
       if (constraints.is_constrained(glob_index))

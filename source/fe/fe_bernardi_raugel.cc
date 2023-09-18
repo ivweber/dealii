@@ -51,7 +51,7 @@ FE_BernardiRaugel<dim>::FE_BernardiRaugel(const unsigned int p)
       std::vector<bool>(PolynomialsBernardiRaugel<dim>::n_polynomials(p), true),
       std::vector<ComponentMask>(PolynomialsBernardiRaugel<dim>::n_polynomials(
                                    p),
-                                 std::vector<bool>(dim, true)))
+                                 ComponentMask(std::vector<bool>(dim, true))))
 {
   Assert(dim == 2 || dim == 3, ExcImpossibleInDim(dim));
   Assert(p == 1, ExcMessage("Only BR1 elements are available"));
@@ -111,7 +111,7 @@ template <int dim>
 void
 FE_BernardiRaugel<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->generalized_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),

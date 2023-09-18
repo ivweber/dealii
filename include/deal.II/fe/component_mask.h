@@ -90,6 +90,14 @@ public:
   ComponentMask() = default;
 
   /**
+   * Deprecated constructor allowing implicit conversion.
+   */
+  template <typename = void>
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Implicit conversions from std::vector<bool> to ComponentMask are deprecated!")
+  ComponentMask(const std::vector<bool> &block_mask);
+
+  /**
    * Initialize an object of this type with a set of selected components
    * specified by the argument.
    *
@@ -98,7 +106,7 @@ public:
    * length of the given vector is zero, then this interpreted as the case
    * where <i>every</i> component is selected.
    */
-  ComponentMask(const std::vector<bool> &component_mask);
+  explicit ComponentMask(const std::vector<bool> &component_mask);
 
   /**
    * Initialize the component mask with a number of elements that are either
@@ -259,6 +267,12 @@ operator<<(std::ostream &out, const ComponentMask &mask);
 #ifndef DOXYGEN
 // -------------------- inline functions ---------------------
 
+template <typename>
+inline ComponentMask::ComponentMask(const std::vector<bool> &component_mask)
+  : component_mask(component_mask)
+{}
+
+
 inline ComponentMask::ComponentMask(const std::vector<bool> &component_mask)
   : component_mask(component_mask)
 {}
@@ -290,7 +304,7 @@ ComponentMask::operator[](const unsigned int component_index) const
 {
   // if the mask represents the all-component mask
   // then always return true
-  if (component_mask.size() == 0)
+  if (component_mask.empty())
     return true;
   else
     {
@@ -305,7 +319,7 @@ ComponentMask::operator[](const unsigned int component_index) const
 inline bool
 ComponentMask::represents_n_components(const unsigned int n) const
 {
-  return ((component_mask.size() == 0) || (component_mask.size() == n));
+  return ((component_mask.empty()) || (component_mask.size() == n));
 }
 
 
@@ -316,7 +330,7 @@ ComponentMask::n_selected_components(const unsigned int n) const
     AssertDimension(n, size());
 
   const unsigned int real_n = (n != numbers::invalid_unsigned_int ? n : size());
-  if (component_mask.size() == 0)
+  if (component_mask.empty())
     return real_n;
   else
     {
@@ -334,7 +348,7 @@ ComponentMask::first_selected_component(const unsigned int n) const
   if ((n != numbers::invalid_unsigned_int) && (size() > 0))
     AssertDimension(n, size());
 
-  if (component_mask.size() == 0)
+  if (component_mask.empty())
     return 0;
   else
     {
@@ -352,7 +366,7 @@ ComponentMask::first_selected_component(const unsigned int n) const
 inline bool
 ComponentMask::represents_the_all_selected_mask() const
 {
-  return (component_mask.size() == 0);
+  return (component_mask.empty());
 }
 
 
@@ -362,9 +376,9 @@ ComponentMask::operator|(const ComponentMask &mask) const
 {
   // if one of the two masks denotes the all-component mask,
   // then return the other one
-  if (component_mask.size() == 0)
+  if (component_mask.empty())
     return mask;
-  else if (mask.component_mask.size() == 0)
+  else if (mask.component_mask.empty())
     return *this;
   else
     {
@@ -375,7 +389,7 @@ ComponentMask::operator|(const ComponentMask &mask) const
       for (unsigned int i = 0; i < component_mask.size(); ++i)
         new_mask[i] = (component_mask[i] || mask.component_mask[i]);
 
-      return new_mask;
+      return ComponentMask(new_mask);
     }
 }
 
@@ -385,9 +399,9 @@ ComponentMask::operator&(const ComponentMask &mask) const
 {
   // if one of the two masks denotes the all-component mask,
   // then return the other one
-  if (component_mask.size() == 0)
+  if (component_mask.empty())
     return mask;
-  else if (mask.component_mask.size() == 0)
+  else if (mask.component_mask.empty())
     return *this;
   else
     {
@@ -398,7 +412,7 @@ ComponentMask::operator&(const ComponentMask &mask) const
       for (unsigned int i = 0; i < component_mask.size(); ++i)
         new_mask[i] = (component_mask[i] && mask.component_mask[i]);
 
-      return new_mask;
+      return ComponentMask(new_mask);
     }
 }
 

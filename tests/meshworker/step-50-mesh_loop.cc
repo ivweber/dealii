@@ -127,8 +127,8 @@ namespace Step50
     template <class IteratorType>
     void
     assemble_cell(const IteratorType &cell,
-                  ScratchData<dim> &  scratch_data,
-                  CopyData &          copy_data);
+                  ScratchData<dim>   &scratch_data,
+                  CopyData           &copy_data);
 
     void
     assemble_system_and_multigrid();
@@ -173,7 +173,7 @@ namespace Step50
 
     virtual void
     value_list(const std::vector<Point<dim>> &points,
-               std::vector<double> &          values,
+               std::vector<double>           &values,
                const unsigned int             component = 0) const;
   };
 
@@ -194,7 +194,7 @@ namespace Step50
   template <int dim>
   void
   Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                               std::vector<double> &          values,
+                               std::vector<double>           &values,
                                const unsigned int             component) const
   {
     (void)component;
@@ -231,8 +231,8 @@ namespace Step50
     mg_dof_handler.distribute_dofs(fe);
     mg_dof_handler.distribute_mg_dofs();
 
-    DoFTools::extract_locally_relevant_dofs(mg_dof_handler,
-                                            locally_relevant_set);
+    locally_relevant_set =
+      DoFTools::extract_locally_relevant_dofs(mg_dof_handler);
 
     solution.reinit(mg_dof_handler.locally_owned_dofs(), MPI_COMM_WORLD);
     system_rhs.reinit(mg_dof_handler.locally_owned_dofs(), MPI_COMM_WORLD);
@@ -309,8 +309,8 @@ namespace Step50
   template <class IteratorType>
   void
   LaplaceProblem<dim>::assemble_cell(const IteratorType &cell,
-                                     ScratchData<dim> &  scratch_data,
-                                     CopyData &          copy_data)
+                                     ScratchData<dim>   &scratch_data,
+                                     CopyData           &copy_data)
   {
     const unsigned int level = cell->level();
     copy_data.level          = level;
@@ -362,10 +362,8 @@ namespace Step50
     for (unsigned int level = 0; level < triangulation.n_global_levels();
          ++level)
       {
-        IndexSet dofset;
-        DoFTools::extract_locally_relevant_level_dofs(mg_dof_handler,
-                                                      level,
-                                                      dofset);
+        const IndexSet dofset =
+          DoFTools::extract_locally_relevant_level_dofs(mg_dof_handler, level);
         boundary_constraints[level].reinit(dofset);
         boundary_constraints[level].add_lines(
           mg_constrained_dofs.get_refinement_edge_indices(level));
@@ -376,14 +374,14 @@ namespace Step50
 
     auto cell_worker_active =
       [&](const decltype(mg_dof_handler.begin_active()) &cell,
-          ScratchData<dim> &                             scratch_data,
-          CopyData &                                     copy_data) {
+          ScratchData<dim>                              &scratch_data,
+          CopyData                                      &copy_data) {
         this->assemble_cell(cell, scratch_data, copy_data);
       };
 
     auto cell_worker_mg = [&](const decltype(mg_dof_handler.begin_mg()) &cell,
                               ScratchData<dim> &scratch_data,
-                              CopyData &        copy_data) {
+                              CopyData         &copy_data) {
       this->assemble_cell(cell, scratch_data, copy_data);
     };
 
@@ -556,7 +554,7 @@ main(int argc, char *argv[])
       LaplaceProblem<2> laplace_problem(1 /*degree*/);
       laplace_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

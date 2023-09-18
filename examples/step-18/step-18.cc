@@ -12,10 +12,9 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Wolfgang Bangerth, University of Texas at Austin, 2000, 2004, 2005,
- * Timo Heister, 2013
+ * Authors: Wolfgang Bangerth, University of Texas at Austin, 2000, 2004, 2005,
+ *          Timo Heister, 2013
  */
 
 
@@ -541,11 +540,11 @@ namespace Step18
     BodyForce();
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  values) const override;
+                              Vector<double>   &values) const override;
 
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const override;
+                      std::vector<Vector<double>>   &value_list) const override;
   };
 
 
@@ -573,7 +572,7 @@ namespace Step18
   template <int dim>
   void BodyForce<dim>::vector_value_list(
     const std::vector<Point<dim>> &points,
-    std::vector<Vector<double>> &  value_list) const
+    std::vector<Vector<double>>   &value_list) const
   {
     const unsigned int n_points = points.size();
 
@@ -620,11 +619,11 @@ namespace Step18
                               const double present_timestep);
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  values) const override;
+                              Vector<double>   &values) const override;
 
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const override;
+                      std::vector<Vector<double>>   &value_list) const override;
 
   private:
     const double velocity;
@@ -660,7 +659,7 @@ namespace Step18
   template <int dim>
   void IncrementalBoundaryValues<dim>::vector_value_list(
     const std::vector<Point<dim>> &points,
-    std::vector<Vector<double>> &  value_list) const
+    std::vector<Vector<double>>   &value_list) const
   {
     const unsigned int n_points = points.size();
 
@@ -694,7 +693,7 @@ namespace Step18
   template <int dim>
   TopLevel<dim>::TopLevel()
     : triangulation(MPI_COMM_WORLD)
-    , fe(FE_Q<dim>(1), dim)
+    , fe(FE_Q<dim>(1) ^ dim)
     , dof_handler(triangulation)
     , quadrature_formula(fe.degree + 1)
     , present_time(0.0)

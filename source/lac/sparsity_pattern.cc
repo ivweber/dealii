@@ -251,7 +251,7 @@ SparsityPattern::reinit(const size_type                      m,
     }
 
   max_row_length =
-    (row_lengths.size() == 0 ?
+    (row_lengths.empty() ?
        0 :
        std::min(static_cast<size_type>(
                   *std::max_element(row_lengths.begin(), row_lengths.end())),
@@ -587,10 +587,10 @@ SparsityPattern::copy_from(const FullMatrix<number> &matrix)
           // anyway because it's the diagonal entry of a square
           // matrix
           if (matrix_is_square && (col == row))
-          {
-            column_indices[current_index] = row;
-            ++current_index;
-          }
+            {
+              column_indices[current_index] = row;
+              ++current_index;
+            }
 
       // check that we really added the correct number of indices
       Assert(current_index == entries_per_row[row], ExcInternalError());
@@ -829,7 +829,7 @@ SparsityPattern::add_entries(const size_type row,
 
 
 void
-SparsityPattern::add_row_entries(const size_type &                 row,
+SparsityPattern::add_row_entries(const size_type                  &row,
                                  const ArrayView<const size_type> &columns,
                                  const bool indices_are_sorted)
 {

@@ -13,8 +13,8 @@
  *
  * ---------------------------------------------------------------------
  *
- * Authors: Luca Heltai, Giovanni Alzetta,
- * International School for Advanced Studies, Trieste, 2018
+ * Authors: Luca Heltai, Giovanni Alzetta, International School for
+ *            Advanced Studies, Trieste, 2018
  */
 
 // @sect3{Include files}
@@ -647,7 +647,7 @@ namespace Step60
 
     embedded_configuration_fe = std::make_unique<FESystem<dim, spacedim>>(
       FE_Q<dim, spacedim>(
-        parameters.embedded_configuration_finite_element_degree),
+        parameters.embedded_configuration_finite_element_degree) ^
       spacedim);
 
     embedded_configuration_dh =

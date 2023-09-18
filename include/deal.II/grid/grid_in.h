@@ -234,7 +234,7 @@ struct CellData;
  *
  * </ul>
  *
- * <h3>Structure of input grid data. The GridReordering class</h3>
+ * <h3>Structure of input grid data.</h3>
  *
  * It is your duty to use a correct numbering of vertices in the cell list,
  * i.e. for lines in 1d, you have to first give the vertex with the lower
@@ -278,11 +278,11 @@ struct CellData;
  * have orientations that need to be taken care of.
  *
  * For this reason, the <tt>read_*</tt> functions of this class that read in
- * grids in various input formats call the GridReordering class to bring the
- * order of vertices that define the cells into an ordering that satisfies the
- * requirements of the Triangulation class. Be sure to read the documentation
- * of that class if you experience unexpected problems when reading grids
- * through this class.
+ * grids in various input formats call the GridTools::consistently_order_cells()
+ * function to bring the order of vertices that define the cells into an
+ * ordering that satisfies the requirements of the Triangulation class. Be sure
+ * to read the documentation of that class if you experience unexpected problems
+ * when reading grids through this class.
  *
  *
  * <h3>Dealing with distorted mesh cells</h3>
@@ -897,7 +897,7 @@ protected:
    * requirements of the ordering of cells and their faces, i.e. that all
    * faces need to have unique directions and specified orientations with
    * respect to neighboring cells (see the documentations to this class and
-   * the GridReordering class).
+   * the GridTools::consistently_order_cells() function).
    *
    * The output of this function consists of vectors for each line bounding
    * the cells indicating the direction it has with respect to the orientation
@@ -906,9 +906,9 @@ protected:
    * further ado by the user.
    */
   static void
-  debug_output_grid(const std::vector<CellData<dim>> &  cells,
+  debug_output_grid(const std::vector<CellData<dim>>   &cells,
                     const std::vector<Point<spacedim>> &vertices,
-                    std::ostream &                      out);
+                    std::ostream                       &out);
 
 private:
   /**
@@ -936,14 +936,14 @@ private:
    * function execution..
    */
   static void
-  parse_tecplot_header(std::string &              header,
+  parse_tecplot_header(std::string               &header,
                        std::vector<unsigned int> &tecplot2deal,
-                       unsigned int &             n_vars,
-                       unsigned int &             n_vertices,
-                       unsigned int &             n_cells,
+                       unsigned int              &n_vars,
+                       unsigned int              &n_vertices,
+                       unsigned int              &n_cells,
                        std::vector<unsigned int> &IJK,
-                       bool &                     structured,
-                       bool &                     blocked);
+                       bool                      &structured,
+                       bool                      &blocked);
 
   /**
    * Input format used by read() if no format is given.
@@ -958,20 +958,20 @@ private:
 template <>
 void
 GridIn<2>::debug_output_grid(const std::vector<CellData<2>> &cells,
-                             const std::vector<Point<2>> &   vertices,
-                             std::ostream &                  out);
+                             const std::vector<Point<2>>    &vertices,
+                             std::ostream                   &out);
 
 
 template <>
 void
 GridIn<2, 3>::debug_output_grid(const std::vector<CellData<2>> &cells,
-                                const std::vector<Point<3>> &   vertices,
-                                std::ostream &                  out);
+                                const std::vector<Point<3>>    &vertices,
+                                std::ostream                   &out);
 template <>
 void
 GridIn<3>::debug_output_grid(const std::vector<CellData<3>> &cells,
-                             const std::vector<Point<3>> &   vertices,
-                             std::ostream &                  out);
+                             const std::vector<Point<3>>    &vertices,
+                             std::ostream                   &out);
 #endif // DOXYGEN
 
 DEAL_II_NAMESPACE_CLOSE

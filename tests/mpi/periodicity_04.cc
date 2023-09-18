@@ -121,21 +121,21 @@ generate_grid(parallel::distributed::Triangulation<3> &triangulation,
               int                                      orientation)
 {
   Point<3>              vertices_1[] = {Point<3>(-1., -1., -3.),
-                           Point<3>(+1., -1., -3.),
-                           Point<3>(-1., +1., -3.),
-                           Point<3>(+1., +1., -3.),
-                           Point<3>(-1., -1., -1.),
-                           Point<3>(+1., -1., -1.),
-                           Point<3>(-1., +1., -1.),
-                           Point<3>(+1., +1., -1.),
-                           Point<3>(-1., -1., +1.),
-                           Point<3>(+1., -1., +1.),
-                           Point<3>(-1., +1., +1.),
-                           Point<3>(+1., +1., +1.),
-                           Point<3>(-1., -1., +3.),
-                           Point<3>(+1., -1., +3.),
-                           Point<3>(-1., +1., +3.),
-                           Point<3>(+1., +1., +3.)};
+                                        Point<3>(+1., -1., -3.),
+                                        Point<3>(-1., +1., -3.),
+                                        Point<3>(+1., +1., -3.),
+                                        Point<3>(-1., -1., -1.),
+                                        Point<3>(+1., -1., -1.),
+                                        Point<3>(-1., +1., -1.),
+                                        Point<3>(+1., +1., -1.),
+                                        Point<3>(-1., -1., +1.),
+                                        Point<3>(+1., -1., +1.),
+                                        Point<3>(-1., +1., +1.),
+                                        Point<3>(+1., +1., +1.),
+                                        Point<3>(-1., -1., +3.),
+                                        Point<3>(+1., -1., +3.),
+                                        Point<3>(-1., +1., +3.),
+                                        Point<3>(+1., +1., +3.)};
   std::vector<Point<3>> vertices(&vertices_1[0], &vertices_1[16]);
 
   std::vector<CellData<3>> cells(2, CellData<3>());
@@ -185,9 +185,9 @@ check(const unsigned int orientation, bool reverse)
 
   AffineConstraints<double> constraints;
 
-  IndexSet locally_owned_dofs = dof_handler.locally_owned_dofs();
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet &locally_owned_dofs = dof_handler.locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   constraints.reinit(locally_relevant_dofs);
   {
@@ -209,8 +209,8 @@ check(const unsigned int orientation, bool reverse)
   const std::vector<IndexSet> locally_owned_dofs_vector =
     Utilities::MPI::all_gather(MPI_COMM_WORLD,
                                dof_handler.locally_owned_dofs());
-  IndexSet locally_active_dofs;
-  DoFTools::extract_locally_active_dofs(dof_handler, locally_active_dofs);
+  const IndexSet locally_active_dofs =
+    DoFTools::extract_locally_active_dofs(dof_handler);
   AssertThrow(constraints.is_consistent_in_parallel(locally_owned_dofs_vector,
                                                     locally_active_dofs,
                                                     MPI_COMM_WORLD,
@@ -342,7 +342,7 @@ main(int argc, char *argv[])
           }
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

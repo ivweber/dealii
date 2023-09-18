@@ -39,26 +39,25 @@
 
 template <typename NumberType, int dim, typename ExtractorType>
 void
-test_view(const Vector<double> &         solution,
-          const FEValues<dim> &          fe_values,
-          const unsigned int &           n_q_points,
-          const ExtractorType &          extractor,
+test_view(const Vector<double>          &solution,
+          const FEValues<dim>           &fe_values,
+          const unsigned int            &n_q_points,
+          const ExtractorType           &extractor,
           const std::vector<NumberType> &local_dof_values);
 
 // Scalar view
 template <typename NumberType, int dim>
 void
-test_view(const Vector<double> &            solution,
-          const FEValues<dim> &             fe_values,
-          const unsigned int &              n_q_points,
+test_view(const Vector<double>             &solution,
+          const FEValues<dim>              &fe_values,
+          const unsigned int               &n_q_points,
           const FEValuesExtractors::Scalar &extractor,
-          const std::vector<NumberType> &   local_dof_values)
+          const std::vector<NumberType>    &local_dof_values)
 {
-  using View = typename std::remove_reference<
-    typename std::remove_const<decltype(fe_values[extractor])>::type>::type;
-  const View &     fe_values_view = fe_values[extractor];
-  const NumberType tolerance =
-    std::is_same<NumberType, float>::value ? 1e-5 : 1e-13;
+  using View = std::remove_reference_t<
+    std::remove_const_t<decltype(fe_values[extractor])>>;
+  const View      &fe_values_view = fe_values[extractor];
+  const NumberType tolerance = std::is_same_v<NumberType, float> ? 1e-5 : 1e-13;
 
   // Typedefs
   using value_type =
@@ -143,17 +142,16 @@ test_view(const Vector<double> &            solution,
 // Vector view
 template <typename NumberType, int dim>
 void
-test_view(const Vector<double> &            solution,
-          const FEValues<dim> &             fe_values,
-          const unsigned int &              n_q_points,
+test_view(const Vector<double>             &solution,
+          const FEValues<dim>              &fe_values,
+          const unsigned int               &n_q_points,
           const FEValuesExtractors::Vector &extractor,
-          const std::vector<NumberType> &   local_dof_values)
+          const std::vector<NumberType>    &local_dof_values)
 {
-  using View = typename std::remove_reference<
-    typename std::remove_const<decltype(fe_values[extractor])>::type>::type;
-  const View &     fe_values_view = fe_values[extractor];
-  const NumberType tolerance =
-    std::is_same<NumberType, float>::value ? 1e-5 : 1e-13;
+  using View = std::remove_reference_t<
+    std::remove_const_t<decltype(fe_values[extractor])>>;
+  const View      &fe_values_view = fe_values[extractor];
+  const NumberType tolerance = std::is_same_v<NumberType, float> ? 1e-5 : 1e-13;
 
   // Typedefs
   using value_type =
@@ -286,17 +284,16 @@ test_view(const Vector<double> &            solution,
 // SymmetricTensor view
 template <typename NumberType, int dim>
 void
-test_view(const Vector<double> &                        solution,
-          const FEValues<dim> &                         fe_values,
-          const unsigned int &                          n_q_points,
+test_view(const Vector<double>                         &solution,
+          const FEValues<dim>                          &fe_values,
+          const unsigned int                           &n_q_points,
           const FEValuesExtractors::SymmetricTensor<2> &extractor,
-          const std::vector<NumberType> &               local_dof_values)
+          const std::vector<NumberType>                &local_dof_values)
 {
-  using View = typename std::remove_reference<
-    typename std::remove_const<decltype(fe_values[extractor])>::type>::type;
-  const View &     fe_values_view = fe_values[extractor];
-  const NumberType tolerance =
-    std::is_same<NumberType, float>::value ? 1e-5 : 1e-13;
+  using View = std::remove_reference_t<
+    std::remove_const_t<decltype(fe_values[extractor])>>;
+  const View      &fe_values_view = fe_values[extractor];
+  const NumberType tolerance = std::is_same_v<NumberType, float> ? 1e-5 : 1e-13;
 
   // Typedefs
   using value_type =
@@ -336,14 +333,14 @@ test_view(const Vector<double> &                        solution,
 // Tensor view
 template <typename NumberType, int dim>
 void
-test_view(const Vector<double> &               solution,
-          const FEValues<dim> &                fe_values,
-          const unsigned int &                 n_q_points,
+test_view(const Vector<double>                &solution,
+          const FEValues<dim>                 &fe_values,
+          const unsigned int                  &n_q_points,
           const FEValuesExtractors::Tensor<2> &extractor,
-          const std::vector<NumberType> &      local_dof_values)
+          const std::vector<NumberType>       &local_dof_values)
 {
-  using View = typename std::remove_reference<
-    typename std::remove_const<decltype(fe_values[extractor])>::type>::type;
+  using View = std::remove_reference_t<
+    std::remove_const_t<decltype(fe_values[extractor])>>;
   const View &fe_values_view = fe_values[extractor];
 
   // Typedefs
@@ -353,8 +350,7 @@ test_view(const Vector<double> &               solution,
     typename ProductType<typename View::gradient_type, NumberType>::type;
   using divergence_type =
     typename ProductType<typename View::divergence_type, NumberType>::type;
-  const NumberType tolerance =
-    std::is_same<NumberType, float>::value ? 1e-5 : 1e-13;
+  const NumberType tolerance = std::is_same_v<NumberType, float> ? 1e-5 : 1e-13;
 
   // Values
   std::vector<typename View::template solution_value_type<NumberType>>

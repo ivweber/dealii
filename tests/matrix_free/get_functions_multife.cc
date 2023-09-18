@@ -66,7 +66,7 @@ public:
   void
   operator()(const MatrixFree<dim, Number> &data,
              VectorType &,
-             const VectorType &                           src,
+             const VectorType                            &src,
              const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, fe_degree, fe_degree + 1, 1, Number> fe_eval0(data, 0, 0);
@@ -160,7 +160,7 @@ public:
     // for floats for the relative error size
     for (unsigned int i = 0; i < 2; ++i)
       {
-        if (std::is_same<Number, double>::value == true)
+        if (std::is_same_v<Number, double> == true)
           {
             deallog << "Error function values FE " << i << ": "
                     << errors[i * 3 + 0] / total[i * 3 + 0] << std::endl;
@@ -180,7 +180,7 @@ public:
             deallog << "Error function Laplacians FE " << i << ": " << output2
                     << std::endl;
           }
-        else if (std::is_same<Number, float>::value == true)
+        else if (std::is_same_v<Number, float> == true)
           {
             deallog << "Error function values FE " << i << ": "
                     << errors[i * 3 + 0] / total[i * 3 + 0] << std::endl;

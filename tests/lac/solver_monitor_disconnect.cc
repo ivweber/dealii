@@ -62,10 +62,10 @@ template <typename SolverType,
           typename VectorType,
           class PRECONDITION>
 void
-check_solve(SolverType &        solver,
-            const MatrixType &  A,
-            VectorType &        u,
-            VectorType &        f,
+check_solve(SolverType         &solver,
+            const MatrixType   &A,
+            VectorType         &u,
+            VectorType         &f,
             const PRECONDITION &P)
 {
   u = 0.;
@@ -133,7 +133,7 @@ main()
         {
           check_solve(cg, A, u, f, prec_ssor);
         }
-      catch (std::exception &e)
+      catch (const std::exception &e)
         {
           std::cerr << "Exception: " << e.what() << std::endl;
         }

@@ -26,8 +26,8 @@ namespace
   get_unique_component_names(const std::vector<std::string> &component_names)
   {
     auto elements = component_names;
-    auto last     = std::unique(elements.begin(), elements.end());
-    elements.resize(last - elements.begin());
+    elements.erase(std::unique(elements.begin(), elements.end()),
+                   elements.end());
     return elements;
   }
 
@@ -61,7 +61,7 @@ namespace
 
 
 ParsedConvergenceTable::ParsedConvergenceTable(
-  const std::vector<std::string> &                    solution_names,
+  const std::vector<std::string>                     &solution_names,
   const std::vector<std::set<VectorTools::NormType>> &list_of_error_norms)
   : ParsedConvergenceTable(solution_names,
                            list_of_error_norms,
@@ -77,13 +77,13 @@ ParsedConvergenceTable::ParsedConvergenceTable(
 
 
 ParsedConvergenceTable::ParsedConvergenceTable(
-  const std::vector<std::string> &                    component_names,
+  const std::vector<std::string>                     &component_names,
   const std::vector<std::set<VectorTools::NormType>> &list_of_error_norms,
   const double                                        exponent,
-  const std::set<std::string> &                       extra_columns,
-  const std::string &                                 rate_key,
-  const std::string &                                 rate_mode,
-  const std::string &                                 error_file_name,
+  const std::set<std::string>                        &extra_columns,
+  const std::string                                  &rate_key,
+  const std::string                                  &rate_mode,
+  const std::string                                  &error_file_name,
   const unsigned int                                  precision,
   const bool                                          compute_error)
   : component_names(component_names)
@@ -261,7 +261,7 @@ ParsedConvergenceTable::output_table()
 
 void
 ParsedConvergenceTable::add_extra_column(
-  const std::string &            column_name,
+  const std::string             &column_name,
   const std::function<double()> &custom_function,
   const bool                     compute_rate)
 {

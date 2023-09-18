@@ -39,10 +39,10 @@ namespace Utilities
     {
       template <typename T>
       void
-      all_reduce(const MPI_Op &            mpi_op,
+      all_reduce(const MPI_Op             &mpi_op,
                  const ArrayView<const T> &values,
                  const MPI_Comm            mpi_communicator,
-                 const ArrayView<T> &      output)
+                 const ArrayView<T>       &output)
       {
         AssertDimension(values.size(), output.size());
 #ifdef DEAL_II_WITH_MPI
@@ -100,10 +100,10 @@ namespace Utilities
 
       template <typename T>
       void
-      all_reduce(const MPI_Op &                          mpi_op,
+      all_reduce(const MPI_Op                           &mpi_op,
                  const ArrayView<const std::complex<T>> &values,
                  const MPI_Comm                          mpi_communicator,
-                 const ArrayView<std::complex<T>> &      output)
+                 const ArrayView<std::complex<T>>       &output)
       {
         AssertDimension(values.size(), output.size());
 #ifdef DEAL_II_WITH_MPI
@@ -157,8 +157,7 @@ namespace Utilities
     void
     sum(const T &values, const MPI_Comm mpi_communicator, U &sums)
     {
-      static_assert(std::is_same<typename std::decay<T>::type,
-                                 typename std::decay<U>::type>::value,
+      static_assert(std::is_same_v<std::decay_t<T>, std::decay_t<U>>,
                     "Input and output arguments must have the same type!");
       const auto array_view_values = make_array_view(values);
       using const_type =
@@ -174,7 +173,7 @@ namespace Utilities
     void
     sum(const ArrayView<const T> &values,
         const MPI_Comm            mpi_communicator,
-        const ArrayView<T> &      sums)
+        const ArrayView<T>       &sums)
     {
       internal::all_reduce(MPI_SUM, values, mpi_communicator, sums);
     }
@@ -233,7 +232,7 @@ namespace Utilities
     void
     sum(const SparseMatrix<Number> &local,
         const MPI_Comm              mpi_communicator,
-        SparseMatrix<Number> &      global)
+        SparseMatrix<Number>       &global)
     {
       Assert(
         local.get_sparsity_pattern() == global.get_sparsity_pattern(),
@@ -272,8 +271,7 @@ namespace Utilities
     void
     max(const T &values, const MPI_Comm mpi_communicator, U &maxima)
     {
-      static_assert(std::is_same<typename std::decay<T>::type,
-                                 typename std::decay<U>::type>::value,
+      static_assert(std::is_same_v<std::decay_t<T>, std::decay_t<U>>,
                     "Input and output arguments must have the same type!");
       const auto array_view_values = make_array_view(values);
       using const_type =
@@ -289,7 +287,7 @@ namespace Utilities
     void
     max(const ArrayView<const T> &values,
         const MPI_Comm            mpi_communicator,
-        const ArrayView<T> &      maxima)
+        const ArrayView<T>       &maxima)
     {
       internal::all_reduce(MPI_MAX, values, mpi_communicator, maxima);
     }
@@ -314,8 +312,7 @@ namespace Utilities
     void
     min(const T &values, const MPI_Comm mpi_communicator, U &minima)
     {
-      static_assert(std::is_same<typename std::decay<T>::type,
-                                 typename std::decay<U>::type>::value,
+      static_assert(std::is_same_v<std::decay_t<T>, std::decay_t<U>>,
                     "Input and output arguments must have the same type!");
       const auto array_view_values = make_array_view(values);
       using const_type =
@@ -331,7 +328,7 @@ namespace Utilities
     void
     min(const ArrayView<const T> &values,
         const MPI_Comm            mpi_communicator,
-        const ArrayView<T> &      minima)
+        const ArrayView<T>       &minima)
     {
       internal::all_reduce(MPI_MIN, values, mpi_communicator, minima);
     }
@@ -342,7 +339,7 @@ namespace Utilities
     T
     logical_or(const T &t, const MPI_Comm mpi_communicator)
     {
-      static_assert(std::is_integral<T>::value,
+      static_assert(std::is_integral_v<T>,
                     "The MPI_LOR operation only allows integral data types.");
 
       T return_value{};
@@ -359,11 +356,10 @@ namespace Utilities
     void
     logical_or(const T &values, const MPI_Comm mpi_communicator, U &results)
     {
-      static_assert(std::is_same<typename std::decay<T>::type,
-                                 typename std::decay<U>::type>::value,
+      static_assert(std::is_same_v<std::decay_t<T>, std::decay_t<U>>,
                     "Input and output arguments must have the same type!");
 
-      static_assert(std::is_integral<typename T::value_type>::value,
+      static_assert(std::is_integral_v<typename T::value_type>,
                     "The MPI_LOR operation only allows integral data types.");
 
       // Specializations of std containers for the data type bool do not
@@ -388,9 +384,9 @@ namespace Utilities
     void
     logical_or(const ArrayView<const T> &values,
                const MPI_Comm            mpi_communicator,
-               const ArrayView<T> &      results)
+               const ArrayView<T>       &results)
     {
-      static_assert(std::is_integral<T>::value,
+      static_assert(std::is_integral_v<T>,
                     "The MPI_LOR operation only allows integral data types.");
 
       internal::all_reduce(MPI_LOR, values, mpi_communicator, results);
@@ -400,13 +396,13 @@ namespace Utilities
 
     template <typename T>
     T
-    reduce(const T &                                     vec,
+    reduce(const T                                      &vec,
            const MPI_Comm                                comm,
            const std::function<T(const T &, const T &)> &combiner,
            const unsigned int                            root_process)
     {
 #ifdef DEAL_II_WITH_MPI
-      if (job_supports_mpi() && n_mpi_processes(comm) > 1)
+      if (n_mpi_processes(comm) > 1)
         {
           // 1) perform custom reduction
           T result = vec;
@@ -484,11 +480,11 @@ namespace Utilities
 
     template <typename T>
     T
-    all_reduce(const T &                                     vec,
+    all_reduce(const T                                      &vec,
                const MPI_Comm                                comm,
                const std::function<T(const T &, const T &)> &combiner)
     {
-      if (job_supports_mpi() && n_mpi_processes(comm) > 1)
+      if (n_mpi_processes(comm) > 1)
         {
           // 1) perform reduction
           const auto result = Utilities::MPI::reduce<T>(vec, comm, combiner);

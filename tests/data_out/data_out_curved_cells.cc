@@ -31,7 +31,6 @@
 #include <deal.II/fe/mapping_q_eulerian.h>
 
 #include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.h>
@@ -59,9 +58,9 @@
 
 
 void
-laplace_solve(const SparseMatrix<double> &     S,
+laplace_solve(const SparseMatrix<double>      &S,
               const AffineConstraints<double> &constraints,
-              Vector<double> &                 u)
+              Vector<double>                  &u)
 {
   const unsigned int n_dofs = S.n();
   const auto         op     = linear_operator(S);
@@ -125,14 +124,12 @@ curved_grid(std::ostream &out)
 
         cells[index].vertices[0] = p_iplus;
         cells[index].vertices[1] = p;
-        cells[index].vertices[2] = p_jplus;
-        cells[index].vertices[3] = p_iplus_jplus;
+        cells[index].vertices[2] = p_iplus_jplus;
+        cells[index].vertices[3] = p_jplus;
       }
   // create triangulation
   Triangulation<2> triangulation;
-  triangulation.create_triangulation_compatibility(vertices,
-                                                   cells,
-                                                   SubCellData());
+  triangulation.create_triangulation(vertices, cells, SubCellData());
   // now provide everything that is
   // needed for solving a Laplace
   // equation.
@@ -200,10 +197,14 @@ curved_grid(std::ostream &out)
   for (unsigned int i = 0; i < 2; ++i)
     us[i].reinit(dof_handler.n_dofs());
   // solve linear systems in parallel
-  Threads::ThreadGroup<> threads;
+  std::vector<std::thread> threads;
   for (unsigned int i = 0; i < 2; ++i)
-    threads += Threads::new_thread(&laplace_solve, S, m[i], us[i]);
-  threads.join_all();
+    threads.emplace_back(&laplace_solve,
+                         std::ref(S),
+                         std::ref(m[i]),
+                         std::ref(us[i]));
+  threads[0].join();
+  threads[1].join();
   // create a new DoFHandler for the combined
   // system
   FESystem<2>   cfe(FE_Q<2>(2), 2);

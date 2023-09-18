@@ -247,7 +247,7 @@ namespace PETScWrappers
    *
    * @ingroup PETScWrappers
    */
-  class VectorBase : public Subscriptor
+  class VectorBase : public ReadVector<PetscScalar>, public Subscriptor
   {
   public:
     /**
@@ -355,21 +355,7 @@ namespace PETScWrappers
      * Return the global dimension of the vector.
      */
     size_type
-    size() const;
-
-    /**
-     * Return the local dimension of the vector, i.e. the number of elements
-     * stored on the present MPI process. For sequential vectors, this number
-     * is the same as size(), but for parallel vectors it may be smaller.
-     *
-     * To figure out which elements exactly are stored locally, use
-     * local_range() or locally_owned_elements().
-     *
-     * @deprecated use locally_owned_size() instead.
-     */
-    DEAL_II_DEPRECATED
-    size_type
-    local_size() const;
+    size() const override;
 
     /**
      * Return the local dimension of the vector, i.e. the number of elements
@@ -472,7 +458,7 @@ namespace PETScWrappers
      * the corresponding values in the second.
      */
     void
-    set(const std::vector<size_type> &  indices,
+    set(const std::vector<size_type>   &indices,
         const std::vector<PetscScalar> &values);
 
     /**
@@ -492,7 +478,15 @@ namespace PETScWrappers
      */
     void
     extract_subvector_to(const std::vector<size_type> &indices,
-                         std::vector<PetscScalar> &    values) const;
+                         std::vector<PetscScalar>     &values) const;
+
+    /**
+     * Extract a range of elements all at once.
+     */
+    virtual void
+    extract_subvector_to(
+      const ArrayView<const types::global_dof_index> &indices,
+      ArrayView<PetscScalar>                         &elements) const override;
 
     /**
      * Instead of getting individual elements of a vector via operator(),
@@ -532,7 +526,7 @@ namespace PETScWrappers
      * stored in @p values to the vector components specified by @p indices.
      */
     void
-    add(const std::vector<size_type> &  indices,
+    add(const std::vector<size_type>   &indices,
         const std::vector<PetscScalar> &values);
 
     /**
@@ -540,7 +534,7 @@ namespace PETScWrappers
      * function takes a deal.II vector of values.
      */
     void
-    add(const std::vector<size_type> &       indices,
+    add(const std::vector<size_type>        &indices,
         const ::dealii::Vector<PetscScalar> &values);
 
     /**
@@ -550,7 +544,7 @@ namespace PETScWrappers
      */
     void
     add(const size_type    n_elements,
-        const size_type *  indices,
+        const size_type   *indices,
         const PetscScalar *values);
 
     /**
@@ -628,46 +622,12 @@ namespace PETScWrappers
     add_and_dot(const PetscScalar a, const VectorBase &V, const VectorBase &W);
 
     /**
-     * Return the value of the vector element with the largest negative value.
-     *
-     * @deprecated This function has been deprecated to improve compatibility
-     * with other classes inheriting from VectorSpaceVector. If you need to
-     * use this functionality then use the PETSc function VecMin instead.
-     */
-    DEAL_II_DEPRECATED
-    real_type
-    min() const;
-
-    /**
-     * Return the value of the vector element with the largest positive value.
-     *
-     * @deprecated This function has been deprecated to improve compatibility
-     * with other classes inheriting from VectorSpaceVector. If you need to
-     * use this functionality then use the PETSc function VecMax instead.
-     */
-    DEAL_II_DEPRECATED
-    real_type
-    max() const;
-
-    /**
      * Return whether the vector contains only elements with value zero. This
      * is a collective operation. This function is expensive, because
      * potentially all elements have to be checked.
      */
     bool
     all_zero() const;
-
-    /**
-     * Return @p true if the vector has no negative entries, i.e. all entries
-     * are zero or positive. This function is used, for example, to check
-     * whether refinement indicators are really all positive (or zero).
-     *
-     * @deprecated This function has been deprecated to improve compatibility
-     * with other classes inheriting from VectorSpaceVector.
-     */
-    DEAL_II_DEPRECATED
-    bool
-    is_non_negative() const;
 
     /**
      * Multiply the entire vector by a fixed factor.
@@ -759,7 +719,7 @@ namespace PETScWrappers
      * separate line each.
      */
     void
-    print(std::ostream &     out,
+    print(std::ostream      &out,
           const unsigned int precision  = 3,
           const bool         scientific = true,
           const bool         across     = true) const;
@@ -846,7 +806,7 @@ namespace PETScWrappers
      */
     void
     do_set_add_operation(const size_type    n_elements,
-                         const size_type *  indices,
+                         const size_type   *indices,
                          const PetscScalar *values,
                          const bool         add_values);
 
@@ -1185,12 +1145,22 @@ namespace PETScWrappers
 
   inline void
   VectorBase::extract_subvector_to(const std::vector<size_type> &indices,
-                                   std::vector<PetscScalar> &    values) const
+                                   std::vector<PetscScalar>     &values) const
   {
     Assert(indices.size() <= values.size(),
            ExcDimensionMismatch(indices.size(), values.size()));
     extract_subvector_to(indices.begin(), indices.end(), values.begin());
   }
+
+  inline void
+  VectorBase::extract_subvector_to(
+    const ArrayView<const types::global_dof_index> &indices,
+    ArrayView<PetscScalar>                         &elements) const
+  {
+    AssertDimension(indices.size(), elements.size());
+    extract_subvector_to(indices.begin(), indices.end(), elements.begin());
+  }
+
 
   template <typename ForwardIterator, typename OutputIterator>
   inline void

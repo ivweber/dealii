@@ -605,7 +605,7 @@ public:
    *
    * @deprecated Use set_active_fe_indices() with the types::fe_index datatype.
    */
-  DEAL_II_DEPRECATED_EARLY
+  DEAL_II_DEPRECATED
   void
   set_active_fe_indices(const std::vector<unsigned int> &active_fe_indices);
 
@@ -641,7 +641,7 @@ public:
    *
    * @deprecated Use get_active_fe_indices() that returns the result vector.
    */
-  DEAL_II_DEPRECATED_EARLY
+  DEAL_II_DEPRECATED
   void
   get_active_fe_indices(std::vector<unsigned int> &active_fe_indices) const;
 
@@ -891,9 +891,7 @@ public:
    * @name Cell iterator functions
    */
 
-  /*
-   * @{
-   */
+  /** @{ */
 
   /**
    * Iterator to the first used cell on level @p level.
@@ -962,11 +960,13 @@ public:
    */
   level_cell_iterator
   end_mg() const;
+  /** @} */
 
   /**
    * @name Cell iterator functions returning ranges of iterators
    */
 
+  /** @{ */
   /**
    * Return an iterator range that contains all cells (active or not) that
    * make up this DoFHandler. Such a range is useful to initialize range-based
@@ -1091,9 +1091,7 @@ public:
   IteratorRange<level_cell_iterator>
   mg_cell_iterators_on_level(const unsigned int level) const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
 
   /*---------------------------------------*/

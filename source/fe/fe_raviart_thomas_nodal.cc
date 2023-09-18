@@ -76,7 +76,7 @@ FE_RaviartThomasNodal<dim>::FE_RaviartThomasNodal(const unsigned int degree)
       std::vector<bool>(1, false),
       std::vector<ComponentMask>(
         PolynomialsRaviartThomas<dim>::n_polynomials(degree + 1, degree),
-        std::vector<bool>(dim, true)))
+        ComponentMask(std::vector<bool>(dim, true))))
 {
   Assert(dim >= 2, ExcImpossibleInDim(dim));
 
@@ -170,42 +170,44 @@ FE_RaviartThomasNodal<
     {
       unsigned int i = local % n, j = local / n;
 
-      // face_orientation=false, face_flip=false, face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      0) =
+      // face_orientation=false, face_rotation=false, face_flip=false
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, false, false)) =
         j + i * n - local;
-      // face_orientation=false, face_flip=false, face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      1) =
+      // face_orientation=false, face_rotation=true,  face_flip=false
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, true, false)) =
         i + (n - 1 - j) * n - local;
-      // face_orientation=false, face_flip=true,  face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      2) =
+      // face_orientation=false, face_rotation=false, face_flip=true
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, false, true)) =
         (n - 1 - j) + (n - 1 - i) * n - local;
-      // face_orientation=false, face_flip=true,  face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      3) =
+      // face_orientation=false, face_rotation=true,  face_flip=true
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, true, true)) =
         (n - 1 - i) + j * n - local;
-      // face_orientation=true,  face_flip=false, face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      4) = 0;
-      // face_orientation=true,  face_flip=false, face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      5) =
+      // face_orientation=true,  face_rotation=false, face_flip=false
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, false, false)) = 0;
+      // face_orientation=true,  face_rotation=true,  face_flip=false
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, true, false)) =
         j + (n - 1 - i) * n - local;
-      // face_orientation=true,  face_flip=true,  face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      6) =
+      // face_orientation=true,  face_rotation=false, face_flip=true
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, false, true)) =
         (n - 1 - i) + (n - 1 - j) * n - local;
-      // face_orientation=true,  face_flip=true,  face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      7) =
+      // face_orientation=true,  face_rotation=true,  face_flip=true
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, true, true)) =
         (n - 1 - j) + i * n - local;
 
       // for face_orientation == false, we need to switch the sign
-      for (unsigned int i = 0; i < 4; ++i)
-        this->adjust_quad_dof_sign_for_face_orientation_table[face_no](local,
-                                                                       i) = 1;
+      for (const bool rotation : {false, true})
+        for (const bool flip : {false, true})
+          this->adjust_quad_dof_sign_for_face_orientation_table[face_no](
+            local, internal::combined_face_orientation(false, rotation, flip)) =
+            1;
     }
 }
 
@@ -240,7 +242,7 @@ void
 FE_RaviartThomasNodal<dim>::
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const
+    std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->generalized_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),
@@ -487,7 +489,7 @@ template <int dim>
 void
 FE_RaviartThomasNodal<dim>::get_face_interpolation_matrix(
   const FiniteElement<dim> &x_source_fe,
-  FullMatrix<double> &      interpolation_matrix,
+  FullMatrix<double>       &interpolation_matrix,
   const unsigned int        face_no) const
 {
   // this is only implemented, if the
@@ -578,7 +580,7 @@ void
 FE_RaviartThomasNodal<dim>::get_subface_interpolation_matrix(
   const FiniteElement<dim> &x_source_fe,
   const unsigned int        subface,
-  FullMatrix<double> &      interpolation_matrix,
+  FullMatrix<double>       &interpolation_matrix,
   const unsigned int        face_no) const
 {
   // this is only implemented, if the source FE is also a RaviartThomasNodal

@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, University of Texas at Austin, 2000, 2004
  *         Wolfgang Bangerth, Texas A&M University, 2016
@@ -182,7 +181,7 @@ namespace Step17
   {
   public:
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  values) const override
+                              Vector<double>   &values) const override
     {
       AssertDimension(values.size(), dim);
       Assert(dim >= 2, ExcInternalError());
@@ -205,7 +204,7 @@ namespace Step17
 
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const override
+                      std::vector<Vector<double>>   &value_list) const override
     {
       const unsigned int n_points = points.size();
 
@@ -225,7 +224,7 @@ namespace Step17
   // The first step in the actual implementation is the constructor of
   // the main class. Apart from initializing the same member variables
   // that we already had in step-8, we here initialize the MPI
-  // communicator variable we shall use with the global MPI
+  // communicator variable we want to use with the global MPI
   // communicator linking all processes together (in more complex
   // applications, one could here use a communicator object that only
   // links a subset of all processes), and call the Utilities::MPI
@@ -242,7 +241,7 @@ namespace Step17
     , n_mpi_processes(Utilities::MPI::n_mpi_processes(mpi_communicator))
     , this_mpi_process(Utilities::MPI::this_mpi_process(mpi_communicator))
     , pcout(std::cout, (this_mpi_process == 0))
-    , fe(FE_Q<dim>(1), dim)
+    , fe(FE_Q<dim>(1) ^ dim)
     , dof_handler(triangulation)
   {}
 
@@ -361,7 +360,7 @@ namespace Step17
     // matrix-vector multiplications:
     const std::vector<IndexSet> locally_owned_dofs_per_proc =
       DoFTools::locally_owned_dofs_per_subdomain(dof_handler);
-    const IndexSet locally_owned_dofs =
+    const IndexSet &locally_owned_dofs =
       locally_owned_dofs_per_proc[this_mpi_process];
 
     system_matrix.reinit(locally_owned_dofs,

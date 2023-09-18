@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Wolfgang Bangerth, Rene Gassmoeller, Peter Munch, 2020.
  */
@@ -35,6 +34,7 @@
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_refinement.h>
+#include <deal.II/grid/grid_tools.h>
 
 #include <deal.II/fe/mapping_q.h>
 #include <deal.II/matrix_free/fe_point_evaluation.h>
@@ -136,7 +136,7 @@ namespace Step19
     void create_particles();
     void move_particles();
     void track_lost_particle(
-      const typename Particles::ParticleIterator<dim> &        particle,
+      const typename Particles::ParticleIterator<dim>         &particle,
       const typename Triangulation<dim>::active_cell_iterator &cell);
 
 
@@ -209,7 +209,7 @@ namespace Step19
     , time(0, 1e-4)
   {
     particle_handler.signals.particle_lost.connect(
-      [this](const typename Particles::ParticleIterator<dim> &        particle,
+      [this](const typename Particles::ParticleIterator<dim>         &particle,
              const typename Triangulation<dim>::active_cell_iterator &cell) {
         this->track_lost_particle(particle, cell);
       });
@@ -291,7 +291,10 @@ namespace Step19
     //
     // This information is then handed to the
     // Triangulation::create_triangulation() function, and the mesh is twice
-    // globally refined.
+    // globally refined. As discussed in the corresponding place in step-14,
+    // the inputs to Triangulation::create_triangulation() need to be
+    // consistently oriented, which a function in namespace GridTools
+    // does for us.
     std::vector<CellData<dim>> cells((nx - 1) * (ny - 1), CellData<dim>());
     for (unsigned int i = 0; i < cells.size(); ++i)
       {
@@ -299,6 +302,7 @@ namespace Step19
         cells[i].material_id = 0;
       }
 
+    GridTools::consistently_order_cells(cells);
     triangulation.create_triangulation(
       vertices,
       cells,
@@ -748,7 +752,7 @@ namespace Step19
   // the hole and increment a counter.
   template <int dim>
   void CathodeRaySimulator<dim>::track_lost_particle(
-    const typename Particles::ParticleIterator<dim> &        particle,
+    const typename Particles::ParticleIterator<dim>         &particle,
     const typename Triangulation<dim>::active_cell_iterator &cell)
   {
     ++n_recently_lost_particles;
@@ -969,14 +973,13 @@ namespace Step19
 
   // The last member function of the principal class of this program is then the
   // driver. At the top, it refines the mesh a number of times by solving the
-  // problem (with not particles yet created) on a sequence of finer and finer
+  // problem (with no particles yet created) on a sequence of finer and finer
   // meshes.
   template <int dim>
   void CathodeRaySimulator<dim>::run()
   {
     make_grid();
 
-    // do a few refinement cycles up front
     const unsigned int n_pre_refinement_cycles = 3;
     for (unsigned int refinement_cycle = 0;
          refinement_cycle < n_pre_refinement_cycles;

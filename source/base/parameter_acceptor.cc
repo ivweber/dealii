@@ -81,10 +81,10 @@ ParameterAcceptor::get_section_name() const
 
 void
 ParameterAcceptor::initialize(
-  const std::string &                 filename,
-  const std::string &                 output_filename,
+  const std::string                  &filename,
+  const std::string                  &output_filename,
   const ParameterHandler::OutputStyle output_style_for_output_filename,
-  ParameterHandler &                  prm,
+  ParameterHandler                   &prm,
   const ParameterHandler::OutputStyle output_style_for_filename)
 {
   declare_all_parameters(prm);
@@ -199,7 +199,7 @@ ParameterAcceptor::get_section_path() const
            acceptor_it != class_list.rend();
            ++acceptor_it)
         {
-          const auto acceptor = *acceptor_it;
+          auto *const acceptor = *acceptor_it;
           if (acceptor->get_acceptor_id() >= get_acceptor_id())
             continue;
           bool has_trailing  = acceptor->get_section_name().back() == sep;

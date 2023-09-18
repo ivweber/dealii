@@ -103,7 +103,7 @@ public:
 
   virtual void
   vector_value_list(const std::vector<Point<dim>> &points,
-                    std::vector<Vector<double>> &  value_list) const;
+                    std::vector<Vector<double>>   &value_list) const;
 };
 
 
@@ -116,7 +116,7 @@ RightHandSide<dim>::RightHandSide()
 template <int dim>
 inline void
 RightHandSide<dim>::vector_value(const Point<dim> &p,
-                                 Vector<double> &  values) const
+                                 Vector<double>   &values) const
 {
   Assert(values.size() == dim, ExcDimensionMismatch(values.size(), dim));
   Assert(dim >= 2, ExcNotImplemented());
@@ -143,7 +143,7 @@ template <int dim>
 void
 RightHandSide<dim>::vector_value_list(
   const std::vector<Point<dim>> &points,
-  std::vector<Vector<double>> &  value_list) const
+  std::vector<Vector<double>>   &value_list) const
 {
   Assert(value_list.size() == points.size(),
          ExcDimensionMismatch(value_list.size(), points.size()));
@@ -435,7 +435,7 @@ main()
       ElasticProblem<2> elastic_problem_2d;
       elastic_problem_2d.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl
