@@ -18,10 +18,50 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/dofs/dof_handler.h>
+
+#include <deal.II/fe/fe.h>
+#include <deal.II/fe/fe_values.h>
+
+#include <deal.II/numerics/matrix_creator.h>
+
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/diagonal_matrix.h>
 
 DEAL_II_NAMESPACE_OPEN
 
+/**
+ * @addtogroup Preconditioners
+ * @{
+ */
 
+/**
+ * Preconditioner class representing a rescaling of the basis vectors.
+ * The rescaling is chosen so that the diagonal entries of the mass matrix
+ * are all 1.
+ */
+template <typename Number, int dim, int spacedim = dim>
+class PreconditionMassDiagonal<dim, spacedim> : public Subscriptor
+{
+public:
+    /**
+     * Default constructor that returns a preconditioner that assumes the
+     * mass matrix already has 1s along the diagonal.
+     */
+    PreconditionMassDiagonal();
+
+    /**
+     * Constructs a preconditioner using the provided DoFHandler to evaluate
+     * the values of the mass matrix along the main diagonal.
+     */
+    PreconditionMassDiagonal(const DoFHandler<dim, spacedim>&   dof_handler);
+
+    /**
+     * Constructs a preconditioner for the provided mass matrix. Throws an
+     * exception if there is a zero or negative value somewhere on the diagonal.
+     */
+    PreconditionMassDiagonal(const SparseMatrix<Number>& mass_matrix);
+};
 
 DEAL_II_NAMESPACE_CLOSE
 

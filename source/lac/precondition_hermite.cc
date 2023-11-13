@@ -12,3 +12,15 @@
 // the top level directory of deal.II.
 //
 // ---------------------------------------------------------------------
+
+#include <deal.II/base/config.h>
+
+#include <deal.II/lac/precondition_hermite.h>
+
+DEAL_II_NAMESPACE_OPEN
+
+
+
+#include "precondition_hermite.inst"
+
+DEAL_II_NAMESPACE_CLOSE

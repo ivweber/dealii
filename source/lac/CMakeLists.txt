@@ -29,6 +29,7 @@ set(_unity_include_src
   matrix_out.cc
   precondition_block.cc
   precondition_block_ez.cc
+  precondition_hermite.cc
   relaxation_block.cc
   read_write_vector.cc
   solver.cc
@@ -76,6 +77,7 @@ set(_inst
   la_parallel_vector.inst.in
   la_parallel_block_vector.inst.in
   precondition_block.inst.in
+  precondition_hermite.inst.in
   petsc_communication_pattern.inst.in
   relaxation_block.inst.in
   read_write_vector.inst.in
