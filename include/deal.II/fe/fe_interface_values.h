@@ -290,6 +290,21 @@ namespace FEInterfaceViews
     average_of_hessians(const unsigned int interface_dof_index,
                         const unsigned int q_point) const;
 
+    /**
+     * Return the average the third derivative $\jump{\nabla^3 u} = 
+     * \frac{1}{2} \nabla^3 u_{\text{cell0}} + \frac{1}{2} \nabla^3 
+     * u_{\text{cell1}}$ on the interface for the
+     * shape function @p interface_dof_index at the quadrature point @p q_point of
+     * the component selected by this view.
+     *
+     * @note The name of the function is supposed to be read as "the average
+     *   (singular) of the third derivatives (plural: one or two possible values
+     *   for the third derivative) of the shape function (singular)".
+     */
+    third_derivative_type
+    average_of_third_derivatives(const unsigned int interface_dof_index,
+                                 const unsigned int q_point) const;
+
     /** @} */
 
     /**
@@ -866,6 +881,19 @@ namespace FEInterfaceViews
     average_hessian(const unsigned int interface_dof_index,
                     const unsigned int q_point) const;
 
+    /**
+     * Return the average of the third derivative $\jump{\nabla^3 u} = \frac{1}{2} \nabla^3
+     * u_{\text{cell0}} + \frac{1}{2} \nabla^3 u_{\text{cell1}}$ on the interface for the
+     * shape function @p interface_dof_index at the quadrature point @p q_point of
+     * the component selected by this view.
+     *
+     * @note The name of the function is supposed to be read as "the average
+     *   (singular) of the third derivatives (plural: one or two possible values
+     *   for the third derivative) of the shape function (singular)".
+     */
+    third_derivative_type
+    average_of_third_derivatives(const unsigned int interface_dof_index,
+                                 const unsigned int q_point) const;
     /** @} */
 
     /**
@@ -1902,6 +1930,24 @@ public:
                             const unsigned int q_point,
                             const unsigned int component = 0) const;
 
+  /**
+   * Return the average the third derivative $\jump{\nabla^3 u} = 
+   * \frac{1}{2} \nabla^3 u_{\text{cell0}} + \frac{1}{2} \nabla^3 u_{\text{cell1}}$
+   * on the interface for the
+   * shape function @p interface_dof_index at the quadrature point @p q_point of
+   * component @p component.
+   *
+   * If this is a boundary face (at_boundary() returns true), then
+   * $\jump{\nabla^3 u} = \nabla^3 u_{\text{cell0}}$.
+   *
+   * @note The name of the function is supposed to be read as "the average
+   *   (singular) of the third derivatives (plural: one or two possible values
+   *   for the derivative) of the shape function (singular)".
+   */
+  Tensor<3, spacedim>
+  average_of_shape_3rd_derivatives(const unsigned int interface_dof_index,
+                                   const unsigned int q_point,
+                                   const unsigned int component = 0) const;
   /**
    * @}
    */
@@ -2940,6 +2986,36 @@ FEInterfaceValues<dim, spacedim>::average_of_shape_hessians(
 
 
 template <int dim, int spacedim>
+Tensor<3, spacedim>
+FEInterfaceValues<dim, spacedim>::average_of_shape_3rd_derivatives(
+  const unsigned int interface_dof_index,
+  const unsigned int q_point,
+  const unsigned int component) const
+{
+  const auto dof_pair = dofmap[interface_dof_index];
+
+  if (at_boundary())
+    return get_fe_face_values(0).shape_3rd_derivative_component(dof_pair[0],
+                                                                q_point,
+                                                                component);
+
+  Tensor<3, spacedim> value;
+
+  if (dof_pair[0] != numbers::invalid_unsigned_int)
+    value += 0.5 * get_fe_face_values(0).shape_3rd_derivative_component(dof_pair[0],
+                                                                        q_point,
+                                                                        component);
+  if (dof_pair[1] != numbers::invalid_unsigned_int)
+    value += 0.5 * get_fe_face_values(1).shape_3rd_derivative_component(dof_pair[1],
+                                                                        q_point,
+                                                                        component);
+
+  return value;
+}
+
+
+
+template <int dim, int spacedim>
 Tensor<1, spacedim>
 FEInterfaceValues<dim, spacedim>::jump_in_shape_gradients(
   const unsigned int interface_dof_index,
@@ -3401,6 +3477,34 @@ namespace FEInterfaceViews
 
     if (dof_pair[1] != numbers::invalid_unsigned_int)
       value -= (*(this->fe_interface->fe_face_values_neighbor))[extractor]
+                 .third_derivative(dof_pair[1], q_point);
+
+    return value;
+  }
+
+
+
+  template <int dim, int spacedim>
+  typename Scalar<dim, spacedim>::third_derivative_type
+  Scalar<dim, spacedim>::average_of_third_derivatives(
+    const unsigned int interface_dof_index,
+    const unsigned int q_point) const
+  {
+    const auto dof_pair = this->fe_interface->dofmap[interface_dof_index];
+
+    if (this->fe_interface->at_boundary())
+      return (*(this->fe_interface->fe_face_values))[extractor]
+        .third_derivative(dof_pair[0], q_point);
+
+    third_derivative_type value;
+
+    if (dof_pair[0] != numbers::invalid_unsigned_int)
+      value +=
+        0.5 * (*(this->fe_interface->fe_face_values))[extractor].third_derivative(
+          dof_pair[0], q_point);
+
+    if (dof_pair[1] != numbers::invalid_unsigned_int)
+      value += 0.5 * (*(this->fe_interface->fe_face_values_neighbor))[extractor]
                  .third_derivative(dof_pair[1], q_point);
 
     return value;
@@ -4000,6 +4104,34 @@ namespace FEInterfaceViews
                                       const unsigned int q_point) const
   {
     return jump_in_hessians(interface_dof_index, q_point);
+  }
+
+
+
+  template <int dim, int spacedim>
+  typename Vector<dim, spacedim>::third_derivative_type
+  Vector<dim, spacedim>::average_of_third_derivatives(
+    const unsigned int interface_dof_index,
+    const unsigned int q_point) const
+  {
+    const auto dof_pair = this->fe_interface->dofmap[interface_dof_index];
+
+    if (this->fe_interface->at_boundary())
+      return (*(this->fe_interface->fe_face_values))[extractor]
+        .third_derivative(dof_pair[0], q_point);
+
+    third_derivative_type value;
+
+    if (dof_pair[0] != numbers::invalid_unsigned_int)
+      value += 0.5 *
+        (*(this->fe_interface->fe_face_values))[extractor].third_derivative(
+          dof_pair[0], q_point);
+
+    if (dof_pair[1] != numbers::invalid_unsigned_int)
+      value += 0.5 * (*(this->fe_interface->fe_face_values_neighbor))[extractor]
+                 .third_derivative(dof_pair[1], q_point);
+
+    return value;
   }
 
 
