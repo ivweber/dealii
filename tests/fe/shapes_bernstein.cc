@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,7 @@
 #include "../tests.h"
 
 #include "shapes.h"
-//#include "../../include/fe_bernstein.h"
+// #include "../../include/fe_bernstein.h"
 
 #define PRECISION 8
 

@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2011 - 2021 by the deal.II authors
+ * Copyright (C) 2011 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Joerg Frohne, Texas A&M University and
  *                        University of Siegen, 2011, 2012
@@ -68,7 +67,7 @@ namespace Step41
   // (unconstrained) form of the linear system
   // (<code>complete_system_matrix</code> and
   // <code>complete_system_rhs</code>) as well as the active set itself and
-  // the diagonal of the mass matrix $B$ used in scaling Lagrange multipliers
+  // the diagonal of the @ref GlossMassMatrix "mass matrix" $B$ used in scaling Lagrange multipliers
   // in the active set formulation. The rest is as in step-4:
   template <int dim>
   class ObstacleProblem
@@ -152,7 +151,7 @@ namespace Step41
   class Obstacle : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override
     {
       (void)component;
@@ -188,7 +187,7 @@ namespace Step41
   // @sect4{ObstacleProblem::make_grid}
 
   // We solve our obstacle problem on the square $[-1,1]\times [-1,1]$ in
-  // 2D. This function therefore just sets up one of the simplest possible
+  // 2d. This function therefore just sets up one of the simplest possible
   // meshes.
   template <int dim>
   void ObstacleProblem<dim>::make_grid()

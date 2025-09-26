@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,8 +34,8 @@ namespace RepartitioningPolicyTools
     void
     add_indices_recursively_for_first_child_policy(
       const TriaIterator<CellAccessor<dim, spacedim>> &cell,
-      const internal::CellIDTranslator<dim> &          cell_id_translator,
-      IndexSet &                                       is_fine)
+      const internal::CellIDTranslator<dim>           &cell_id_translator,
+      IndexSet                                        &is_fine)
     {
       is_fine.add_index(cell_id_translator.translate(cell));
 
@@ -85,13 +85,14 @@ namespace RepartitioningPolicyTools
 
     unsigned int offset = 0;
 
-    const int ierr = MPI_Exscan(&process_has_active_locally_owned_cells,
-                                &offset,
-                                1,
-                                Utilities::MPI::mpi_type_id_for_type<decltype(
-                                  process_has_active_locally_owned_cells)>,
-                                MPI_SUM,
-                                comm);
+    const int ierr =
+      MPI_Exscan(&process_has_active_locally_owned_cells,
+                 &offset,
+                 1,
+                 Utilities::MPI::mpi_type_id_for_type<
+                   decltype(process_has_active_locally_owned_cells)>,
+                 MPI_SUM,
+                 comm);
     AssertThrowMPI(ierr);
 
     LinearAlgebra::distributed::Vector<double> partition(
@@ -156,10 +157,11 @@ namespace RepartitioningPolicyTools
                 false);
 
       Utilities::MPI::ConsensusAlgorithms::Selector<
-        std::pair<types::global_cell_index, types::global_cell_index>,
-        unsigned int>
-        consensus_algorithm(process, communicator);
-      consensus_algorithm.run();
+        std::vector<
+          std::pair<types::global_cell_index, types::global_cell_index>>,
+        std::vector<unsigned int>>
+        consensus_algorithm;
+      consensus_algorithm.run(process, communicator);
     }
 
     const auto tria =
@@ -261,8 +263,7 @@ namespace RepartitioningPolicyTools
   CellWeightPolicy<dim, spacedim>::CellWeightPolicy(
     const std::function<
       unsigned int(const typename Triangulation<dim, spacedim>::cell_iterator &,
-                   const typename Triangulation<dim, spacedim>::CellStatus)>
-      &weighting_function)
+                   const CellStatus)> &weighting_function)
     : weighting_function(weighting_function)
   {}
 
@@ -287,7 +288,7 @@ namespace RepartitioningPolicyTools
     const auto partitioner =
       tria->global_active_cell_index_partitioner().lock();
 
-    std::vector<unsigned int> weights(partitioner->local_size());
+    std::vector<unsigned int> weights(partitioner->locally_owned_size());
 
     const auto mpi_communicator = tria_in.get_communicator();
     const auto n_subdomains = Utilities::MPI::n_mpi_processes(mpi_communicator);
@@ -296,16 +297,15 @@ namespace RepartitioningPolicyTools
     for (const auto &cell :
          tria->active_cell_iterators() | IteratorFilters::LocallyOwnedCell())
       weights[partitioner->global_to_local(cell->global_active_cell_index())] =
-        weighting_function(
-          cell, Triangulation<dim, spacedim>::CellStatus::CELL_PERSIST);
+        weighting_function(cell, CellStatus::cell_will_persist);
 
     // determine weight of all the cells locally owned by this process
-    uint64_t process_local_weight = 0;
+    std::uint64_t process_local_weight = 0;
     for (const auto &weight : weights)
       process_local_weight += weight;
 
     // determine partial sum of weights of this process
-    uint64_t process_local_weight_offset = 0;
+    std::uint64_t process_local_weight_offset = 0;
 
     int ierr = MPI_Exscan(
       &process_local_weight,
@@ -317,7 +317,8 @@ namespace RepartitioningPolicyTools
     AssertThrowMPI(ierr);
 
     // total weight of all processes
-    uint64_t total_weight = process_local_weight_offset + process_local_weight;
+    std::uint64_t total_weight =
+      process_local_weight_offset + process_local_weight;
 
     ierr =
       MPI_Bcast(&total_weight,
@@ -327,10 +328,10 @@ namespace RepartitioningPolicyTools
                 mpi_communicator);
     AssertThrowMPI(ierr);
 
-    // setup partition
+    // set up partition
     LinearAlgebra::distributed::Vector<double> partition(partitioner);
 
-    for (uint64_t i = 0, weight = process_local_weight_offset;
+    for (std::uint64_t i = 0, weight = process_local_weight_offset;
          i < partition.locally_owned_size();
          weight += weights[i], ++i)
       partition.local_element(i) =

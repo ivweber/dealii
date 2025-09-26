@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -47,7 +47,7 @@ public:
   {}
 
   inline virtual void
-  vector_value(Point<dim> const &p, Vector<double> &values) const override
+  vector_value(const Point<dim> &p, Vector<double> &values) const override
   {
     for (unsigned int i = 0; i < dim; ++i)
       {

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2018 by the deal.II authors
+// Copyright (C) 2014 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,7 +42,8 @@ main()
       counter++;
       if ((counter == 4) || (counter == 5) || (counter == 6) ||
           (counter == 18) || (counter == 19))
-        {}
+        {
+        }
       else
         out << line << std::endl;
     }

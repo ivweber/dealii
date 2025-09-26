@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2018 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -90,7 +90,7 @@ test(const bool renumber = false)
 
       const std::string filename = "grid" + Utilities::int_to_string(dim) +
                                    Utilities::int_to_string(renumber) + ".gp";
-      std::ofstream f(filename.c_str());
+      std::ofstream f(filename);
 
       f << "set terminal png size 420,440 enhanced font \"Helvetica,16\""
         << std::endl

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,10 +36,10 @@
 
 template <typename MatrixType, typename VectorType, class PRECONDITION>
 void
-check_solve(SolverControl &     solver_control,
-            const MatrixType &  A,
-            VectorType &        u,
-            VectorType &        f,
+check_solve(SolverControl      &solver_control,
+            const MatrixType   &A,
+            VectorType         &u,
+            VectorType         &f,
             const PRECONDITION &P,
             const bool          expected_result)
 {
@@ -54,7 +54,7 @@ check_solve(SolverControl &     solver_control,
       deallog << "Success. " << std::endl;
       success = true;
     }
-  catch (std::exception &e)
+  catch (const std::exception &e)
     {
       deallog << "Failure. " << std::endl;
     }
@@ -108,6 +108,16 @@ main(int argc, char **argv)
       solver_control.enable_history_data();
 
       check_solve(solver_control, A, u, f, preconditioner, false);
+    }
+    deallog.pop();
+    deallog.push("Reuse");
+    {
+      // Expects success
+      SolverControl solver_control(200, 1.e-1);
+      solver_control.enable_history_data();
+
+      check_solve(solver_control, A, u, f, preconditioner, true);
+      check_solve(solver_control, A, u, f, preconditioner, true);
     }
     deallog.pop();
   }

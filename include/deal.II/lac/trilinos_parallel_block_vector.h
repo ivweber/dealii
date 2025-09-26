@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2020 by the deal.II authors
+// Copyright (C) 2008 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,8 +46,9 @@ namespace TrilinosWrappers
 } // namespace TrilinosWrappers
 #  endif
 
-/*! @addtogroup TrilinosWrappers
- *@{
+/**
+ * @addtogroup TrilinosWrappers
+ * @{
  */
 
 namespace TrilinosWrappers
@@ -108,7 +109,7 @@ namespace TrilinosWrappers
        * the MPI processes.
        */
       explicit BlockVector(const std::vector<IndexSet> &parallel_partitioning,
-                           const MPI_Comm &communicator = MPI_COMM_WORLD);
+                           const MPI_Comm communicator = MPI_COMM_WORLD);
 
       /**
        * Creates a BlockVector with ghost elements. See the respective
@@ -117,7 +118,7 @@ namespace TrilinosWrappers
        */
       BlockVector(const std::vector<IndexSet> &parallel_partitioning,
                   const std::vector<IndexSet> &ghost_values,
-                  const MPI_Comm &             communicator,
+                  const MPI_Comm               communicator,
                   const bool                   vector_writable = false);
 
       /**
@@ -188,7 +189,7 @@ namespace TrilinosWrappers
        */
       void
       reinit(const std::vector<IndexSet> &parallel_partitioning,
-             const MPI_Comm &             communicator         = MPI_COMM_WORLD,
+             const MPI_Comm               communicator         = MPI_COMM_WORLD,
              const bool                   omit_zeroing_entries = false);
 
       /**
@@ -211,9 +212,25 @@ namespace TrilinosWrappers
       void
       reinit(const std::vector<IndexSet> &partitioning,
              const std::vector<IndexSet> &ghost_values,
-             const MPI_Comm &             communicator    = MPI_COMM_WORLD,
+             const MPI_Comm               communicator    = MPI_COMM_WORLD,
              const bool                   vector_writable = false);
 
+      /**
+       * Initialize each block given to each parallel partitioning described in
+       * @p partitioners.
+       *
+       * You can decide whether your vector will contain ghost elements with
+       * @p make_ghosted.
+       *
+       * The parameter @p vector_writable only has effect on ghosted vectors
+       * and is ignored for non-ghosted vectors.
+       */
+      void
+      reinit(
+        const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+                  &partitioners,
+        const bool make_ghosted    = true,
+        const bool vector_writable = false);
 
       /**
        * Change the dimension to that of the vector <tt>V</tt>. The same
@@ -260,7 +277,7 @@ namespace TrilinosWrappers
        */
       void
       import_nonlocal_data_for_fe(const TrilinosWrappers::BlockSparseMatrix &m,
-                                  const BlockVector &                        v);
+                                  const BlockVector                         &v);
 
       /**
        * Return if this Vector contains ghost elements.
@@ -295,7 +312,7 @@ namespace TrilinosWrappers
        * Print to a stream.
        */
       void
-      print(std::ostream &     out,
+      print(std::ostream      &out,
             const unsigned int precision  = 3,
             const bool         scientific = true,
             const bool         across     = true) const;
@@ -316,7 +333,7 @@ namespace TrilinosWrappers
     /*-------------------------- Inline functions ---------------------------*/
     inline BlockVector::BlockVector(
       const std::vector<IndexSet> &parallel_partitioning,
-      const MPI_Comm &             communicator)
+      const MPI_Comm               communicator)
     {
       reinit(parallel_partitioning, communicator, false);
     }
@@ -326,7 +343,7 @@ namespace TrilinosWrappers
     inline BlockVector::BlockVector(
       const std::vector<IndexSet> &parallel_partitioning,
       const std::vector<IndexSet> &ghost_values,
-      const MPI_Comm &             communicator,
+      const MPI_Comm               communicator,
       const bool                   vector_writable)
     {
       reinit(parallel_partitioning,
@@ -347,11 +364,13 @@ namespace TrilinosWrappers
     inline BlockVector::BlockVector(const BlockVector &v)
       : dealii::BlockVectorBase<MPI::Vector>()
     {
-      this->components.resize(v.n_blocks());
       this->block_indices = v.block_indices;
 
-      for (size_type i = 0; i < this->n_blocks(); ++i)
+      this->components.resize(this->n_blocks());
+      for (unsigned int i = 0; i < this->n_blocks(); ++i)
         this->components[i] = v.components[i];
+
+      this->collect_sizes();
     }
 
 
@@ -369,18 +388,19 @@ namespace TrilinosWrappers
     BlockVector &
     BlockVector::operator=(const ::dealii::BlockVector<Number> &v)
     {
-      if (n_blocks() != v.n_blocks())
-        {
-          std::vector<size_type> block_sizes(v.n_blocks(), 0);
-          block_indices.reinit(block_sizes);
-          if (components.size() != n_blocks())
-            components.resize(n_blocks());
-        }
+      // we only allow assignment to vectors with the same number of blocks
+      // or to an empty BlockVector
+      Assert(this->n_blocks() == 0 || this->n_blocks() == v.n_blocks(),
+             ExcDimensionMismatch(this->n_blocks(), v.n_blocks()));
 
-      for (size_type i = 0; i < this->n_blocks(); ++i)
+      if (this->n_blocks() != v.n_blocks())
+        this->block_indices = v.get_block_indices();
+
+      this->components.resize(this->n_blocks());
+      for (unsigned int i = 0; i < this->n_blocks(); ++i)
         this->components[i] = v.block(i);
 
-      collect_sizes();
+      this->collect_sizes();
 
       return *this;
     }
@@ -427,7 +447,7 @@ namespace TrilinosWrappers
 
 } /* namespace TrilinosWrappers */
 
-/*@}*/
+/** @} */
 
 
 namespace internal
@@ -447,7 +467,7 @@ namespace internal
     public:
       template <typename Matrix>
       static void
-      reinit_range_vector(const Matrix &                      matrix,
+      reinit_range_vector(const Matrix                       &matrix,
                           TrilinosWrappers::MPI::BlockVector &v,
                           bool omit_zeroing_entries)
       {
@@ -458,7 +478,7 @@ namespace internal
 
       template <typename Matrix>
       static void
-      reinit_domain_vector(const Matrix &                      matrix,
+      reinit_domain_vector(const Matrix                       &matrix,
                            TrilinosWrappers::MPI::BlockVector &v,
                            bool omit_zeroing_entries)
       {

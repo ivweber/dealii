@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -41,7 +41,6 @@
 
 #include "../tests.h"
 
-using namespace std;
 
 
 template <int dim>
@@ -92,7 +91,7 @@ check(const FiniteElement<dim> &fe, const unsigned int selected_block)
   std::ostringstream out_filename;
   out_filename << "gitter.eps";
 
-  //   std::ofstream grid_output (out_filename.str().c_str());
+  //   std::ofstream grid_output (out_filename.str());
   //   GridOut grid_out;
   //   grid_out.write_eps (tr, grid_output);
 

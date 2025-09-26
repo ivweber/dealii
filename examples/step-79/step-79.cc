@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2021 by the deal.II authors
+ * Copyright (C) 2021 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Justin O'Connor, Colorado State University, 2021.
  */
@@ -711,7 +710,7 @@ namespace SAND
               {
                 if (!(check_cell->face(n)->at_boundary()))
                   {
-                    const auto & neighbor = check_cell->neighbor(n);
+                    const auto  &neighbor = check_cell->neighbor(n);
                     const double distance =
                       cell->center().distance(neighbor->center());
                     if ((distance < filter_r) &&
@@ -1772,7 +1771,7 @@ namespace SAND
       SolutionBlocks::density_lower_slack_multiplier,
       SolutionBlocks::density_upper_slack_multiplier};
     double constraint_norm = 0;
-    for (unsigned int multiplier_i : equality_constraint_multipliers)
+    for (const unsigned int multiplier_i : equality_constraint_multipliers)
       constraint_norm += system_rhs.block(multiplier_i).linfty_norm();
 
 

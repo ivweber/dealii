@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -49,7 +49,7 @@ test(const char *filename)
     {
       gi.read_ucd(in);
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << "  caught exception:" << std::endl << exc.what() << std::endl;
       return;

@@ -122,7 +122,7 @@ namespace Step50
 
     virtual void
     value_list(const std::vector<Point<dim>> &points,
-               std::vector<double> &          values,
+               std::vector<double>           &values,
                const unsigned int             component = 0) const;
   };
 
@@ -143,7 +143,7 @@ namespace Step50
   template <int dim>
   void
   Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                               std::vector<double> &          values,
+                               std::vector<double>           &values,
                                const unsigned int             component) const
   {
     const unsigned int n_points = points.size();
@@ -489,8 +489,8 @@ namespace Step50
     Vector<float> estimated_error_per_cell(triangulation.n_active_cells());
 
     TrilinosWrappers::MPI::Vector temp_solution;
-    IndexSet                      idx;
-    DoFTools::extract_locally_relevant_dofs(mg_dof_handler, idx);
+    const IndexSet                idx =
+      DoFTools::extract_locally_relevant_dofs(mg_dof_handler);
     temp_solution.reinit(idx, MPI_COMM_WORLD);
     temp_solution = solution;
 
@@ -571,7 +571,7 @@ main(int argc, char *argv[])
       LaplaceProblem<2> laplace_problem(1);
       laplace_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

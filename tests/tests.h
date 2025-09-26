@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -421,7 +421,7 @@ filter_out_small_numbers(const Number number, const double tolerance)
  * If we run 64 tests at the same time on a 64-core system, and each of
  * them runs 64 threads, then we get astronomical loads. Limit concurrency
  * to a fixed (small) number of threads, independent of the core count. The
- * limit defaults to 3 and can be overriden by the environment variable
+ * limit defaults to 3 and can be overridden by the environment variable
  * TEST_N_THREADS.
  */
 inline unsigned int
@@ -461,9 +461,11 @@ namespace
   void
   check_petsc_allocations()
   {
-#  if DEAL_II_PETSC_VERSION_GTE(3, 2, 0)
-    PetscStageLog stageLog;
-    PetscLogGetStageLog(&stageLog);
+    PetscStageLog  stageLog;
+    PetscErrorCode ierr;
+
+    ierr = PetscLogGetStageLog(&stageLog);
+    AssertThrow(ierr == 0, ExcPETScError(ierr));
 
     // I don't quite understand petsc and it looks like
     // stageLog->stageInfo->classLog->classInfo[i].id is always -1, so we look
@@ -492,7 +494,6 @@ namespace
 
     if (errors)
       throw dealii::ExcMessage("PETSc memory leak");
-#  endif
   }
 } // namespace
 #endif
@@ -618,7 +619,7 @@ struct MPILogInitAll
 };
 
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
 // By default, all the ranks will try to access the device 0.
 // If we are running with MPI support it is better to address different graphic
 // cards for different processes even if only one node is used. The choice below

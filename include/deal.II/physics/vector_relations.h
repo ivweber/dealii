@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,6 +21,7 @@
 #include <deal.II/base/tensor.h>
 
 #include <cmath>
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 

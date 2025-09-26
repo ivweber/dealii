@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,6 +16,7 @@
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/utilities.h>
 
 #include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_values.h>
@@ -141,6 +142,238 @@ namespace internal
     }
   } // namespace QGaussLobatto
 } // namespace internal
+
+
+namespace internal
+{
+  namespace QGaussRadau
+  {
+
+    // Implements lookup table after affine transformation to [0,1].
+    //
+    // Analytical values for [-1,1] and n < 4 listed on
+    // https://mathworld.wolfram.com/RadauQuadrature.html
+    // Values for n > 3 calculated with the Julia Package
+    // FastGaussQuadrature.jl
+    // https://github.com/JuliaApproximation/FastGaussQuadrature.jl
+    //
+    std::vector<double>
+    get_left_quadrature_points(const unsigned int n)
+    {
+      std::vector<double> q_points(n);
+      switch (n)
+        {
+          case 1:
+            q_points[0] = 0.;
+            break;
+          case 2:
+            q_points[0] = 0.;
+            q_points[1] = 2. / 3.;
+            break;
+          case 3:
+            q_points[0] = 0.;
+            q_points[1] = (6. - std::sqrt(6)) * 0.1;
+            q_points[2] = (6. + std::sqrt(6)) * 0.1;
+            break;
+
+          case 4:
+            q_points[0] = 0.000000000000000000;
+            q_points[1] = 0.212340538239152943;
+            q_points[2] = 0.590533135559265343;
+            q_points[3] = 0.911412040487296071;
+            break;
+          case 5:
+            q_points[0] = 0.000000000000000000;
+            q_points[1] = 0.139759864343780571;
+            q_points[2] = 0.416409567631083166;
+            q_points[3] = 0.723156986361876197;
+            q_points[4] = 0.942895803885482331;
+            break;
+          case 6:
+            q_points[0] = 0.000000000000000000;
+            q_points[1] = 0.098535085798826416;
+            q_points[2] = 0.304535726646363913;
+            q_points[3] = 0.562025189752613841;
+            q_points[4] = 0.801986582126391845;
+            q_points[5] = 0.960190142948531222;
+            break;
+          case 7:
+            q_points[0] = 0.000000000000000000;
+            q_points[1] = 0.073054328680258851;
+            q_points[2] = 0.230766137969945495;
+            q_points[3] = 0.441328481228449865;
+            q_points[4] = 0.663015309718845702;
+            q_points[5] = 0.851921400331515644;
+            q_points[6] = 0.970683572840215114;
+            break;
+          case 8:
+            q_points[0] = 0.000000000000000000;
+            q_points[1] = 0.056262560536922135;
+            q_points[2] = 0.180240691736892389;
+            q_points[3] = 0.352624717113169672;
+            q_points[4] = 0.547153626330555420;
+            q_points[5] = 0.734210177215410598;
+            q_points[6] = 0.885320946839095790;
+            q_points[7] = 0.977520613561287499;
+            break;
+          default:
+            Assert(false, ExcNotImplemented());
+            break;
+        }
+      return q_points;
+    }
+
+    std::vector<double>
+    get_quadrature_points(const unsigned int                       n,
+                          const ::dealii::QGaussRadau<1>::EndPoint end_point)
+    {
+      std::vector<double> left_points = get_left_quadrature_points(n);
+      switch (end_point)
+        {
+          case ::dealii::QGaussRadau<1>::EndPoint::left:
+            return left_points;
+          case ::dealii::QGaussRadau<1>::EndPoint::right:
+            {
+              std::vector<double> points(n);
+              for (unsigned int i = 0; i < n; ++i)
+                {
+                  points[n - i - 1] = 1. - left_points[i];
+                }
+              return points;
+            }
+          default:
+            Assert(
+              false,
+              ExcMessage(
+                "This constructor can only be called with either "
+                "QGaussRadau::left or QGaussRadau::right as second argument."));
+            return {};
+        }
+    }
+
+    // Implements lookup table after affine transformation to [0,1].
+    //
+    // Analytical values for [-1,1] and n < 4 listed on
+    // https://mathworld.wolfram.com/RadauQuadrature.html
+    // Values for n > 3 calculated with the Julia Package
+    // FastGaussQuadrature.jl
+    // https://github.com/JuliaApproximation/FastGaussQuadrature.jl
+    //
+    std::vector<double>
+    get_left_quadrature_weights(const unsigned int n)
+    {
+      std::vector<double> weights(n);
+      switch (n)
+        {
+          case 1:
+            weights[0] = 1.;
+            break;
+          case 2:
+            weights[0] = 0.25;
+            weights[1] = 0.75;
+            break;
+          case 3:
+            weights[0] = 1. / 9.;
+            weights[1] = (16. + std::sqrt(6)) / 36.;
+            weights[2] = (16. - std::sqrt(6)) / 36.;
+            break;
+          case 4:
+            weights[0] = 0.062500000000000000;
+            weights[1] = 0.328844319980059696;
+            weights[2] = 0.388193468843171852;
+            weights[3] = 0.220462211176768369;
+            break;
+          case 5:
+            weights[0] = 0.040000000000000001;
+            weights[1] = 0.223103901083570894;
+            weights[2] = 0.311826522975741427;
+            weights[3] = 0.281356015149462124;
+            weights[4] = 0.143713560791225797;
+            break;
+          case 6:
+            weights[0] = 0.027777777777777776;
+            weights[1] = 0.159820376610255471;
+            weights[2] = 0.242693594234484888;
+            weights[3] = 0.260463391594787597;
+            weights[4] = 0.208450667155953895;
+            weights[5] = 0.100794192626740456;
+            break;
+          case 7:
+            weights[0] = 0.020408163265306121;
+            weights[1] = 0.119613744612656100;
+            weights[2] = 0.190474936822115581;
+            weights[3] = 0.223554914507283209;
+            weights[4] = 0.212351889502977870;
+            weights[5] = 0.159102115733650767;
+            weights[6] = 0.074494235556010341;
+            break;
+          case 8:
+            weights[0] = 0.015625000000000000;
+            weights[1] = 0.092679077401489660;
+            weights[2] = 0.152065310323392683;
+            weights[3] = 0.188258772694559262;
+            weights[4] = 0.195786083726246729;
+            weights[5] = 0.173507397817250691;
+            weights[6] = 0.124823950664932445;
+            weights[7] = 0.057254407372128648;
+            break;
+
+          default:
+            Assert(false, dealii::StandardExceptions::ExcNotImplemented());
+            break;
+        }
+      return weights;
+    }
+
+    std::vector<double>
+    get_quadrature_weights(const unsigned int                       n,
+                           const ::dealii::QGaussRadau<1>::EndPoint end_point)
+    {
+      std::vector<double> left_weights = get_left_quadrature_weights(n);
+      switch (end_point)
+        {
+          case ::dealii::QGaussRadau<1>::EndPoint::left:
+            return left_weights;
+          case ::dealii::QGaussRadau<1>::EndPoint::right:
+            {
+              std::vector<double> weights(n);
+              for (unsigned int i = 0; i < n; ++i)
+                {
+                  weights[n - i - 1] = left_weights[i];
+                }
+              return weights;
+            }
+          default:
+            Assert(false,
+                   ExcMessage(
+                     "This constructor can only be called with either "
+                     "QGaussRadau::EndPoint::left or "
+                     "QGaussRadau::EndPoint::right as second argument."));
+            return {};
+        }
+    }
+  } // namespace QGaussRadau
+} // namespace internal
+
+#ifndef DOXYGEN
+template <>
+QGaussRadau<1>::QGaussRadau(const unsigned int n, const EndPoint end_point)
+  : Quadrature<1>(n)
+  , end_point(end_point)
+{
+  Assert(n > 0, ExcMessage("Need at least one point for quadrature rules."));
+  std::vector<double> p =
+    internal::QGaussRadau::get_quadrature_points(n, end_point);
+  std::vector<double> w =
+    internal::QGaussRadau::get_quadrature_weights(n, end_point);
+
+  for (unsigned int i = 0; i < this->size(); ++i)
+    {
+      this->quadrature_points[i] = dealii::Point<1>(p[i]);
+      this->weights[i]           = w[i];
+    }
+}
+#endif
 
 
 #ifndef DOXYGEN
@@ -533,7 +766,7 @@ QGaussLog<1>::get_quadrature_weights(const unsigned int n)
 
 template <>
 QGaussLogR<1>::QGaussLogR(const unsigned int n,
-                          const Point<1> &   origin,
+                          const Point<1>    &origin,
                           const double       alpha,
                           const bool         factor_out_singularity)
   : Quadrature<1>(
@@ -615,13 +848,11 @@ template <>
 unsigned int
 QGaussOneOverR<2>::quad_size(const Point<2> &singularity, const unsigned int n)
 {
-  const double eps = 1e-8;
-  const bool   on_edge =
-    std::any_of(singularity.begin_raw(),
-                singularity.end_raw(),
-                [eps](double coord) {
-                  return std::abs(coord) < eps || std::abs(coord - 1.) < eps;
-                });
+  const double eps     = 1e-8;
+  bool         on_edge = false;
+  for (unsigned int d = 0; d < 2; ++d)
+    on_edge = on_edge || (std::abs(singularity[d]) < eps ||
+                          std::abs(singularity[d] - 1.0) < eps);
   const bool on_vertex =
     on_edge &&
     std::abs((singularity - Point<2>(.5, .5)).norm_square() - .5) < eps;
@@ -635,7 +866,7 @@ QGaussOneOverR<2>::quad_size(const Point<2> &singularity, const unsigned int n)
 
 template <>
 QGaussOneOverR<2>::QGaussOneOverR(const unsigned int n,
-                                  const Point<2> &   singularity,
+                                  const Point<2>    &singularity,
                                   const bool         factor_out_singularity)
   : Quadrature<2>(quad_size(singularity, n))
 {
@@ -721,7 +952,7 @@ QGaussOneOverR<2>::QGaussOneOverR(const unsigned int n,
   // And we get rid of R to take into account the singularity,
   // unless specified differently in the constructor.
   std::vector<Point<2>> &ps  = this->quadrature_points;
-  std::vector<double> &  ws  = this->weights;
+  std::vector<double>   &ws  = this->weights;
   double                 pi4 = numbers::PI / 4;
 
   for (unsigned int q = 0; q < gauss.size(); ++q)
@@ -822,6 +1053,15 @@ QGauss<dim>::QGauss(const unsigned int n)
 
 
 template <int dim>
+QGaussRadau<dim>::QGaussRadau(const unsigned int n, EndPoint end_point)
+  : Quadrature<dim>(
+      QGaussRadau<1>(n, static_cast<QGaussRadau<1>::EndPoint>(end_point)))
+  , end_point(end_point)
+{}
+
+
+
+template <int dim>
 QGaussLobatto<dim>::QGaussLobatto(const unsigned int n)
   : Quadrature<dim>(QGaussLobatto<dim - 1>(n), QGaussLobatto<1>(n))
 {}
@@ -862,7 +1102,7 @@ QWeddle<dim>::QWeddle()
 
 template <int dim>
 QTelles<dim>::QTelles(const Quadrature<1> &base_quad,
-                      const Point<dim> &   singularity)
+                      const Point<dim>    &singularity)
   : // We need the explicit implementation if dim == 1. If dim > 1 we use the
     // former implementation and apply a tensorial product to obtain the higher
     // dimensions.
@@ -948,7 +1188,7 @@ QTelles<1>::QTelles(const Quadrature<1> &base_quad, const Point<1> &singularity)
   for (unsigned int q = 0; q < quadrature_points.size(); ++q)
     {
       double gamma = quadrature_points[q][0] * 2 - 1;
-      double eta   = (std::pow(gamma - gamma_bar, 3.0) +
+      double eta   = (Utilities::fixed_power<3>(gamma - gamma_bar) +
                     gamma_bar * (gamma_bar * gamma_bar + 3)) /
                    (1 + 3 * gamma_bar * gamma_bar);
 
@@ -1227,31 +1467,65 @@ QSimplex<dim>::QSimplex(const Quadrature<dim> &quad)
 
 
 template <int dim>
-Quadrature<dim>
+template <int spacedim>
+Quadrature<spacedim>
 QSimplex<dim>::compute_affine_transformation(
-  const std::array<Point<dim>, dim + 1> &vertices) const
+  const std::array<Point<spacedim>, dim + 1> &vertices) const
 {
-  Tensor<2, dim> B;
+  Assert(dim <= spacedim,
+         ExcMessage("Invalid combination of dim and spacedim ."));
+  DerivativeForm<1, spacedim, dim> Bt;
   for (unsigned int d = 0; d < dim; ++d)
-    B[d] = vertices[d + 1] - vertices[0];
+    Bt[d] = vertices[d + 1] - vertices[0];
 
-  B              = transpose(B);
-  const double J = std::abs(determinant(B));
+  const auto   B = Bt.transpose();
+  const double J = std::abs(B.determinant());
 
   // if the determinant is zero, we return an empty quadrature
   if (J < 1e-12)
-    return Quadrature<dim>();
+    return Quadrature<spacedim>();
 
-  std::vector<Point<dim>> qp(this->size());
-  std::vector<double>     w(this->size());
+  std::vector<Point<spacedim>> qp(this->size());
+  std::vector<double>          w(this->size());
 
   for (unsigned int i = 0; i < this->size(); ++i)
     {
-      qp[i] = Point<dim>(vertices[0] + B * this->point(i));
-      w[i]  = J * this->weight(i);
+      qp[i] =
+        Point<spacedim>(vertices[0] + apply_transformation(B, this->point(i)));
+      w[i] = J * this->weight(i);
     }
 
-  return Quadrature<dim>(qp, w);
+  return Quadrature<spacedim>(qp, w);
+}
+
+
+
+template <int dim>
+template <int spacedim>
+Quadrature<spacedim>
+QSimplex<dim>::mapped_quadrature(
+  const std::vector<std::array<Point<spacedim>, dim + 1>> &simplices) const
+{
+  Assert(!(dim == 1 && spacedim == 1),
+         ExcMessage("This function is not supposed to work in 1D-1d case."));
+  Assert(dim <= spacedim,
+         ExcMessage("Invalid combination of dim and spacedim ."));
+
+  std::vector<Point<spacedim>> qp;
+  std::vector<double>          ws;
+  for (const auto &simplex : simplices)
+    {
+      const auto rule = this->compute_affine_transformation(simplex);
+      std::transform(rule.get_points().begin(),
+                     rule.get_points().end(),
+                     std::back_inserter(qp),
+                     [&](const Point<spacedim> &p) { return p; });
+      std::transform(rule.get_weights().begin(),
+                     rule.get_weights().end(),
+                     std::back_inserter(ws),
+                     [&](const double w) { return w; });
+    }
+  return Quadrature<spacedim>(qp, ws);
 }
 
 
@@ -1534,7 +1808,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
   : QSimplex<dim>(Quadrature<dim>())
 {
   Assert(1 <= dim && dim <= 3, ExcNotImplemented());
-  // Just use Gauss in 1D: this is a high-order open rule so this is a
+  // Just use Gauss in 1d: this is a high-order open rule so this is a
   // reasonable equivalent for generic programming.
   if (dim == 1)
     {
@@ -1565,7 +1839,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
     b_point_permutations.push_back(all_permutations(b_point));
   };
 
-  // Apply a Barycentric permutation where two points (in 3D) are different.
+  // Apply a Barycentric permutation where two points (in 3d) are different.
   // Equivalent to s22 in quadpy.
   auto process_point_2 = [&](const double a, const double w) {
     Assert(dim == 3, ExcInternalError());
@@ -1601,13 +1875,13 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 2:
               if (use_odd_order)
                 {
-                  // WV-1, 2D
+                  // WV-1, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(1.0000000000000000e+00);
                 }
               else
                 {
-                  // WV-2, 2D
+                  // WV-2, 2d
                   process_point_1(1.6666666666666669e-01,
                                   3.3333333333333331e-01);
                 }
@@ -1615,13 +1889,13 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 3:
               if (use_odd_order)
                 {
-                  // WV-1, 3D
+                  // WV-1, 3d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(1.0000000000000000e+00);
                 }
               else
                 {
-                  // WV-2, 3D
+                  // WV-2, 3d
                   process_point_1(1.3819660112501050e-01,
                                   2.5000000000000000e-01);
                 }
@@ -1634,14 +1908,14 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
         switch (dim)
           {
             case 2:
-              // WV-4 in both cases (no WV-3 in 2D)
+              // WV-4 in both cases (no WV-3 in 2d)
               process_point_1(9.1576213509770743e-02, 1.0995174365532187e-01);
               process_point_1(4.4594849091596489e-01, 2.2338158967801147e-01);
               break;
             case 3:
               if (use_odd_order)
                 {
-                  // WV-3, 3D
+                  // WV-3, 3d
                   process_point_1(3.2816330251638171e-01,
                                   1.3621784253708741e-01);
                   process_point_1(1.0804724989842859e-01,
@@ -1649,7 +1923,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-5 (no WV-4 in 3D)
+                  // WV-5 (no WV-4 in 3d)
                   Quadrature<dim>::operator=(QWitherdenVincentSimplex<dim>(3));
                 }
               break;
@@ -1663,7 +1937,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 2:
               if (use_odd_order)
                 {
-                  // WV-5, 2D
+                  // WV-5, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(2.2500000000000001e-01);
                   process_point_1(1.0128650732345634e-01,
@@ -1673,7 +1947,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-6, 2D
+                  // WV-6, 2d
                   process_point_1(6.3089014491502227e-02,
                                   5.0844906370206819e-02);
                   process_point_1(2.4928674517091043e-01,
@@ -1686,7 +1960,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 3:
               if (use_odd_order)
                 {
-                  // WV-5, 3D
+                  // WV-5, 3d
                   process_point_1(3.1088591926330061e-01,
                                   1.1268792571801590e-01);
                   process_point_1(9.2735250310891248e-02,
@@ -1696,7 +1970,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-6, 3D
+                  // WV-6, 3d
                   process_point_1(4.0673958534611372e-02,
                                   1.0077211055320640e-02);
                   process_point_1(3.2233789014227548e-01,
@@ -1718,7 +1992,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 2:
               if (use_odd_order)
                 {
-                  // WV-7, 2D
+                  // WV-7, 2d
                   process_point_1(3.3730648554587850e-02,
                                   1.6545050110792131e-02);
                   process_point_1(4.7430969250471822e-01,
@@ -1731,7 +2005,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-8, 2D
+                  // WV-8, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(1.4431560767778717e-01);
                   process_point_1(5.0547228317030957e-02,
@@ -1748,7 +2022,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 3:
               if (use_odd_order)
                 {
-                  // WV-7, 3D
+                  // WV-7, 3d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(9.5485289464130846e-02);
                   process_point_1(3.1570114977820279e-01,
@@ -1764,7 +2038,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-8, 3D
+                  // WV-8, 3d
                   process_point_1(1.0795272496221089e-01,
                                   2.6426650908408830e-02);
                   process_point_1(1.8510948778258660e-01,
@@ -1793,7 +2067,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 2:
               if (use_odd_order)
                 {
-                  // WV-9, 2D
+                  // WV-9, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(9.7135796282798836e-02);
                   process_point_1(4.4729513394452691e-02,
@@ -1810,7 +2084,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-10, 2D
+                  // WV-10, 2d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(8.1743329146285973e-02);
                   process_point_1(3.2055373216943517e-02,
@@ -1831,7 +2105,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
             case 3:
               if (use_odd_order)
                 {
-                  // WV-9, 3D
+                  // WV-9, 3d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(5.8010548912480253e-02);
                   process_point_1(6.1981697552226933e-10,
@@ -1856,7 +2130,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
                 }
               else
                 {
-                  // WV-10, 3D
+                  // WV-10, 3d
                   b_point_permutations.push_back({centroid});
                   b_weights.push_back(4.7399773556020743e-02);
                   process_point_1(3.1225006869518868e-01,
@@ -1888,11 +2162,11 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           }
         break;
       case 6:
-        // There is no WV-11 rule in 3D yet
+        // There is no WV-11 rule in 3d yet
         Assert(dim == 2, ExcNotImplemented());
         if (use_odd_order)
           {
-            // WV-11, 2D
+            // WV-11, 2d
             b_point_permutations.push_back({centroid});
             b_weights.push_back(8.5761179732224219e-02);
             process_point_1(2.8485417614371900e-02, 1.0431870512894697e-02);
@@ -1909,7 +2183,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           }
         else
           {
-            // WV-12, 2D
+            // WV-12, 2d
             process_point_1(2.4646363436335583e-02, 7.9316425099736389e-03);
             process_point_1(4.8820375094554153e-01, 2.4266838081452032e-02);
             process_point_1(1.0925782765935427e-01, 2.8486052068877544e-02);
@@ -1927,11 +2201,11 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           }
         break;
       case 7:
-        // There is no WV-13 rule in 3D yet
+        // There is no WV-13 rule in 3d yet
         Assert(dim == 2, ExcNotImplemented());
         if (use_odd_order)
           {
-            // WV-13, 2D
+            // WV-13, 2d
             b_point_permutations.push_back({centroid});
             b_weights.push_back(6.7960036586831640e-02);
             process_point_1(2.1509681108843159e-02, 6.0523371035391717e-03);
@@ -1953,7 +2227,7 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           }
         else
           {
-            // WV-14, 2D
+            // WV-14, 2d
             process_point_1(1.9390961248701044e-02, 4.9234036024000819e-03);
             process_point_1(6.1799883090872587e-02, 1.4433699669776668e-02);
             process_point_1(4.8896391036217862e-01, 2.1883581369428889e-02);
@@ -1988,9 +2262,8 @@ QWitherdenVincentSimplex<dim>::QWitherdenVincentSimplex(
           const double volume = (dim == 2 ? 1.0 / 2.0 : 1.0 / 6.0);
           this->weights.emplace_back(volume * b_weights[permutation_n]);
           Point<dim> c_point;
-          std::copy(b_point.begin(),
-                    b_point.begin() + dim,
-                    c_point.begin_raw());
+          for (int d = 0; d < dim; ++d)
+            c_point[d] = b_point[d];
           this->quadrature_points.emplace_back(c_point);
         }
     }
@@ -2145,6 +2418,7 @@ QGaussPyramid<dim>::QGaussPyramid(const unsigned int n_points_1D)
 // explicit specialization
 // note that 1d formulae are specialized by implementation above
 template class QGauss<2>;
+template class QGaussRadau<2>;
 template class QGaussLobatto<2>;
 template class QMidpoint<2>;
 template class QTrapezoid<2>;
@@ -2153,6 +2427,7 @@ template class QMilne<2>;
 template class QWeddle<2>;
 
 template class QGauss<3>;
+template class QGaussRadau<3>;
 template class QGaussLobatto<3>;
 template class QMidpoint<3>;
 template class QTrapezoid<3>;
@@ -2196,9 +2471,11 @@ template class QGaussSimplex<0>;
 template class QGaussSimplex<1>;
 template class QGaussSimplex<2>;
 template class QGaussSimplex<3>;
+template class QGaussWedge<0>;
 template class QGaussWedge<1>;
 template class QGaussWedge<2>;
 template class QGaussWedge<3>;
+template class QGaussPyramid<0>;
 template class QGaussPyramid<1>;
 template class QGaussPyramid<2>;
 template class QGaussPyramid<3>;
@@ -2206,5 +2483,51 @@ template class QGaussPyramid<3>;
 template class QWitherdenVincentSimplex<1>;
 template class QWitherdenVincentSimplex<2>;
 template class QWitherdenVincentSimplex<3>;
+
+#ifndef DOXYGEN
+template Quadrature<1>
+QSimplex<1>::compute_affine_transformation(
+  const std::array<Point<1>, 1 + 1> &vertices) const;
+
+template Quadrature<2>
+QSimplex<1>::compute_affine_transformation(
+  const std::array<Point<2>, 1 + 1> &vertices) const;
+
+template Quadrature<2>
+QSimplex<2>::compute_affine_transformation(
+  const std::array<Point<2>, 2 + 1> &vertices) const;
+
+template Quadrature<3>
+QSimplex<1>::compute_affine_transformation(
+  const std::array<Point<3>, 1 + 1> &vertices) const;
+
+template Quadrature<3>
+QSimplex<2>::compute_affine_transformation(
+  const std::array<Point<3>, 2 + 1> &vertices) const;
+
+template Quadrature<3>
+QSimplex<3>::compute_affine_transformation(
+  const std::array<Point<3>, 3 + 1> &vertices) const;
+
+template Quadrature<2>
+QSimplex<1>::mapped_quadrature(
+  const std::vector<std::array<Point<2>, 1 + 1>> &simplices) const;
+
+template Quadrature<3>
+QSimplex<1>::mapped_quadrature(
+  const std::vector<std::array<Point<3>, 1 + 1>> &simplices) const;
+
+template Quadrature<2>
+QSimplex<2>::mapped_quadrature(
+  const std::vector<std::array<Point<2>, 2 + 1>> &simplices) const;
+
+template Quadrature<3>
+QSimplex<2>::mapped_quadrature(
+  const std::vector<std::array<Point<3>, 2 + 1>> &simplices) const;
+
+template Quadrature<3>
+QSimplex<3>::mapped_quadrature(
+  const std::vector<std::array<Point<3>, 3 + 1>> &simplices) const;
+#endif
 
 DEAL_II_NAMESPACE_CLOSE

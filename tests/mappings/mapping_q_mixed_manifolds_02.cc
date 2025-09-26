@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -202,7 +202,7 @@ ManifoldWrapper<2>::operator()(const Tensor<1, 2> & /*direction*/,
 template <>
 Manifold<3> *
 ManifoldWrapper<3>::operator()(const Tensor<1, 3> &direction,
-                               const Point<3> &    center) const
+                               const Point<3>     &center) const
 {
   return new CylindricalManifold<3>(direction, center);
 }

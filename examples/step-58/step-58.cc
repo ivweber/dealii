@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2021 by the deal.II authors
+ * Copyright (C) 2018 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -13,8 +13,8 @@
  *
  * ---------------------------------------------------------------------
  *
- * Author: Wolfgang Bangerth, Colorado State University
- *         Yong-Yong Cai, Beijing Computational Science Research Center
+ * Authors: Wolfgang Bangerth, Colorado State University
+ *          Yong-Yong Cai, Beijing Computational Science Research Center
  */
 
 // @sect3{Include files}
@@ -127,7 +127,7 @@ namespace Step58
 
   template <int dim>
   std::complex<double>
-  InitialValues<dim>::value(const Point<dim> & p,
+  InitialValues<dim>::value(const Point<dim>  &p,
                             const unsigned int component) const
   {
     static_assert(dim == 2, "This initial condition only works in 2d.");
@@ -163,14 +163,14 @@ namespace Step58
   {
   public:
     Potential() = default;
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
 
 
   template <int dim>
-  double Potential<dim>::value(const Point<dim> & p,
+  double Potential<dim>::value(const Point<dim>  &p,
                                const unsigned int component) const
   {
     (void)component;
@@ -475,19 +475,19 @@ namespace Step58
     template <int dim>
     void ComplexAmplitude<dim>::evaluate_vector_field(
       const DataPostprocessorInputs::Vector<dim> &inputs,
-      std::vector<Vector<double>> &               computed_quantities) const
+      std::vector<Vector<double>>                &computed_quantities) const
     {
       AssertDimension(computed_quantities.size(),
                       inputs.solution_values.size());
 
-      for (unsigned int q = 0; q < computed_quantities.size(); ++q)
+      for (unsigned int p = 0; p < computed_quantities.size(); ++p)
         {
-          AssertDimension(computed_quantities[q].size(), 1);
-          AssertDimension(inputs.solution_values[q].size(), 2);
+          AssertDimension(computed_quantities[p].size(), 1);
+          AssertDimension(inputs.solution_values[p].size(), 2);
 
-          const std::complex<double> psi(inputs.solution_values[q](0),
-                                         inputs.solution_values[q](1));
-          computed_quantities[q](0) = std::norm(psi);
+          const std::complex<double> psi(inputs.solution_values[p](0),
+                                         inputs.solution_values[p](1));
+          computed_quantities[p](0) = std::norm(psi);
         }
     }
 
@@ -531,22 +531,22 @@ namespace Step58
     template <int dim>
     void ComplexPhase<dim>::evaluate_vector_field(
       const DataPostprocessorInputs::Vector<dim> &inputs,
-      std::vector<Vector<double>> &               computed_quantities) const
+      std::vector<Vector<double>>                &computed_quantities) const
     {
       AssertDimension(computed_quantities.size(),
                       inputs.solution_values.size());
 
       double max_phase = -numbers::PI;
-      for (unsigned int q = 0; q < computed_quantities.size(); ++q)
+      for (unsigned int p = 0; p < computed_quantities.size(); ++p)
         {
-          AssertDimension(computed_quantities[q].size(), 1);
-          AssertDimension(inputs.solution_values[q].size(), 2);
+          AssertDimension(computed_quantities[p].size(), 1);
+          AssertDimension(inputs.solution_values[p].size(), 2);
 
           max_phase =
             std::max(max_phase,
                      std::arg(
-                       std::complex<double>(inputs.solution_values[q](0),
-                                            inputs.solution_values[q](1))));
+                       std::complex<double>(inputs.solution_values[p](0),
+                                            inputs.solution_values[p](1))));
         }
 
       for (auto &output : computed_quantities)

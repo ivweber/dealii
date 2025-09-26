@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,10 +16,6 @@
 
 
 // a un-hp-ified version of hp/step-10
-
-
-#include "../tests.h"
-std::ofstream logfile("output");
 
 
 #include <deal.II/base/convergence_table.h>
@@ -39,6 +35,8 @@ std::ofstream logfile("output");
 #include <deal.II/grid/tria_iterator.h>
 
 #include <deal.II/hp/fe_values.h>
+
+#include "../tests.h"
 
 
 const long double pi = 3.141592653589793238462643;
@@ -223,10 +221,10 @@ compute_pi_by_perimeter()
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(6);
-  logfile << std::setprecision(6);
+  deallog.get_file_stream() << std::setprecision(6);
 
-  deallog.attach(logfile);
 
   gnuplot_output<2>();
 

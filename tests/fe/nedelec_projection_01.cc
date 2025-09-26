@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -25,7 +25,7 @@
 
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_system.h>
-#include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
@@ -48,7 +48,7 @@ public:
 
   void
   vector_value_list(const std::vector<Point<dim>> &points,
-                    std::vector<Vector<double>> &  values) const override
+                    std::vector<Vector<double>>   &values) const override
   {
     for (unsigned int i = 0; i < points.size(); ++i)
       {
@@ -92,7 +92,7 @@ test()
 
     VectorTools::project_boundary_values_curl_conforming_l2(
       dof_handler,
-      0, // starting compenent
+      0, // starting component
       BoundaryValues<dim>(),
       1, // face ID1
       constraints,
@@ -126,14 +126,14 @@ test()
 
     VectorTools::project_boundary_values_curl_conforming_l2(
       dof_handler,
-      0, // starting compenent
+      0, // starting component
       BoundaryValues<dim>(),
       1, // face ID1
       constraints,
       StaticMappingQ1<dim>::mapping);
     VectorTools::project_boundary_values_curl_conforming_l2(
       dof_handler,
-      dim, // starting compenent
+      dim, // starting component
       BoundaryValues<dim>(),
       1, // face ID1
       constraints,

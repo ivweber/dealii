@@ -52,8 +52,8 @@ public:
   void
   face(MeshWorker::DoFInfo<dim> &dinfo1,
        MeshWorker::DoFInfo<dim> &dinfo2,
-       CellInfo &                info1,
-       CellInfo &                info2) const;
+       CellInfo                 &info1,
+       CellInfo                 &info2) const;
 
   bool cells;
   bool faces;
@@ -126,7 +126,7 @@ test_simple(DoFHandler<dim> &mgdofs)
   SparseMatrix<double> matrix;
   Vector<double>       v;
 
-  const DoFHandler<dim> &   dofs = mgdofs;
+  const DoFHandler<dim>    &dofs = mgdofs;
   const FiniteElement<dim> &fe   = dofs.get_fe();
   pattern.reinit(dofs.n_dofs(),
                  dofs.n_dofs(),
@@ -228,7 +228,7 @@ int
 main()
 {
   const std::string logname = "output";
-  std::ofstream     logfile(logname.c_str());
+  std::ofstream     logfile(logname);
   deallog.attach(logfile);
 
   std::vector<std::shared_ptr<FiniteElement<2>>> fe2;

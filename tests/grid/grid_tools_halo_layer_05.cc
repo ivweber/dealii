@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2021 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -69,7 +69,7 @@ write_vtk(const DoFHandler<dim> &dof_handler, const std::string filename)
                            data_component_interpretation);
   data_out.build_patches();
 
-  std::ofstream output(filename.c_str());
+  std::ofstream output(filename);
   data_out.write_vtk(output);
 }
 

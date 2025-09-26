@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2018 by the deal.II authors
+// Copyright (C) 2001 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -66,7 +66,7 @@ test1()
 void
 test2()
 {
-  std::ostream &   logfile = deallog.get_file_stream();
+  std::ostream    &logfile = deallog.get_file_stream();
   Triangulation<2> tria;
   GridGenerator::hyper_cube(tria);
 

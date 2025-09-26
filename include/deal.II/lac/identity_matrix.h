@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2020 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,8 +23,9 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*! @addtogroup Matrix1
- *@{
+/**
+ * @addtogroup Matrix1
+ * @{
  */
 
 
@@ -238,7 +239,7 @@ IdentityMatrix::Tvmult_add(OutVectorType &out, const InVectorType &in) const
 
 #endif
 
-/**@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

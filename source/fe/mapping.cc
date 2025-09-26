@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2021 by the deal.II authors
+// Copyright (C) 2001 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,7 +20,6 @@
 
 #include <deal.II/grid/tria.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #ifdef DEAL_II_BOOST_HAS_BROKEN_HEADER_DEPRECATIONS
 #  define BOOST_ALLOW_DEPRECATED_HEADERS
 #endif
@@ -28,7 +27,8 @@ DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #ifdef DEAL_II_BOOST_HAS_BROKEN_HEADER_DEPRECATIONS
 #  undef BOOST_ALLOW_DEPRECATED_HEADERS
 #endif
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
+
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -51,17 +51,43 @@ Mapping<dim, spacedim>::get_vertices(
 
 
 template <int dim, int spacedim>
+boost::container::small_vector<Point<spacedim>,
+                               GeometryInfo<dim>::vertices_per_face>
+Mapping<dim, spacedim>::get_vertices(
+  const typename Triangulation<dim, spacedim>::cell_iterator &cell,
+  const unsigned int                                          face_no) const
+{
+  boost::container::small_vector<Point<spacedim>,
+                                 GeometryInfo<dim>::vertices_per_face>
+    face_vertices;
+
+  const auto &cell_vertices    = get_vertices(cell);
+  const auto &reference_cell   = cell->reference_cell();
+  const auto  face_orientation = cell->combined_face_orientation(face_no);
+
+  for (const unsigned int v :
+       reference_cell.face_reference_cell(face_no).vertex_indices())
+    {
+      face_vertices.push_back(
+        cell_vertices[reference_cell.face_to_cell_vertices(
+          face_no, v, face_orientation)]);
+    }
+
+  return face_vertices;
+}
+
+
+
+template <int dim, int spacedim>
 Point<spacedim>
 Mapping<dim, spacedim>::get_center(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-  const bool map_center_of_reference_cell) const
+  const bool map_barycenter_of_reference_cell) const
 {
-  if (map_center_of_reference_cell)
+  if (map_barycenter_of_reference_cell)
     {
-      Point<dim> reference_center;
-      for (unsigned int d = 0; d < dim; ++d)
-        reference_center[d] = .5;
-      return transform_unit_to_real_cell(cell, reference_center);
+      return transform_unit_to_real_cell(
+        cell, cell->reference_cell().template barycenter<dim>());
     }
   else
     {
@@ -69,7 +95,7 @@ Mapping<dim, spacedim>::get_center(
       Point<spacedim> center;
       for (const auto &v : vertices)
         center += v;
-      return center / GeometryInfo<dim>::vertices_per_cell;
+      return center / cell->n_vertices();
     }
 }
 
@@ -94,8 +120,7 @@ Mapping<dim, spacedim>::fill_fe_immersed_surface_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &,
   const NonMatching::ImmersedSurfaceQuadrature<dim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim> &)
-  const
+  internal::FEValuesImplementation::MappingRelatedData<dim, spacedim> &) const
 {
   AssertThrow(false, ExcNotImplemented());
 }
@@ -106,8 +131,8 @@ template <int dim, int spacedim>
 void
 Mapping<dim, spacedim>::transform_points_real_to_unit_cell(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-  const ArrayView<const Point<spacedim>> &                    real_points,
-  const ArrayView<Point<dim>> &                               unit_points) const
+  const ArrayView<const Point<spacedim>>                     &real_points,
+  const ArrayView<Point<dim>>                                &unit_points) const
 {
   AssertDimension(real_points.size(), unit_points.size());
   for (unsigned int i = 0; i < real_points.size(); ++i)
@@ -131,7 +156,7 @@ Point<dim - 1>
 Mapping<dim, spacedim>::project_real_point_to_unit_point_on_face(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const Point<spacedim> &                                     p) const
+  const Point<spacedim>                                      &p) const
 {
   // The function doesn't make physical sense for dim=1
   Assert(dim > 1, ExcNotImplemented());
@@ -173,9 +198,9 @@ void
 Mapping<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const hp::QCollection<dim - 1> &                            quadrature,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-  dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+  const hp::QCollection<dim - 1>                             &quadrature,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+  internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &output_data) const
 {
   // base class version, implement overridden function in derived classes
@@ -190,9 +215,9 @@ void
 Mapping<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const Quadrature<dim - 1> &                                 quadrature,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-  dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+  const Quadrature<dim - 1>                                  &quadrature,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+  internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &output_data) const
 {
   Assert(false,

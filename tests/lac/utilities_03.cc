@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -60,7 +60,7 @@ x * Cheb2(3,L(ev)) / Cheb2(3,L(aL));
 
  */
 
-//#define EXTRA_OUTPUT
+// #define EXTRA_OUTPUT
 
 
 #include <deal.II/lac/diagonal_matrix.h>

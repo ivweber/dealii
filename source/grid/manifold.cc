@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,6 +15,7 @@
 
 #include <deal.II/base/table.h>
 #include <deal.II/base/tensor.h>
+#include <deal.II/base/vectorization.h>
 
 #include <deal.II/fe/fe_q.h>
 
@@ -24,11 +25,10 @@
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <boost/container/small_vector.hpp>
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 
 #include <cmath>
+#include <limits>
 #include <memory>
 
 DEAL_II_NAMESPACE_OPEN
@@ -63,7 +63,7 @@ template <int dim, int spacedim>
 Point<spacedim>
 Manifold<dim, spacedim>::get_new_point(
   const ArrayView<const Point<spacedim>> &surrounding_points,
-  const ArrayView<const double> &         weights) const
+  const ArrayView<const double>          &weights) const
 {
   const double       tol      = 1e-10;
   const unsigned int n_points = surrounding_points.size();
@@ -123,7 +123,7 @@ template <int dim, int spacedim>
 void
 Manifold<dim, spacedim>::get_new_points(
   const ArrayView<const Point<spacedim>> &surrounding_points,
-  const Table<2, double> &                weights,
+  const Table<2, double>                 &weights,
   ArrayView<Point<spacedim>>              new_points) const
 {
   AssertDimension(surrounding_points.size(), weights.size(1));
@@ -142,7 +142,7 @@ Manifold<dim, spacedim>::get_new_points(
 template <>
 Tensor<1, 2>
 Manifold<2, 2>::normal_vector(const Triangulation<2, 2>::face_iterator &face,
-                              const Point<2> &                          p) const
+                              const Point<2>                           &p) const
 {
   const int spacedim = 2;
 
@@ -163,7 +163,7 @@ Manifold<2, 2>::normal_vector(const Triangulation<2, 2>::face_iterator &face,
 template <>
 Tensor<1, 3>
 Manifold<3, 3>::normal_vector(const Triangulation<3, 3>::face_iterator &face,
-                              const Point<3> &                          p) const
+                              const Point<3>                           &p) const
 {
   const int spacedim = 3;
 
@@ -205,9 +205,45 @@ Manifold<3, 3>::normal_vector(const Triangulation<3, 3>::face_iterator &face,
          ExcMessage("The search for possible directions did not succeed."));
 
   // Compute tangents and normal for selected vertices
-  Tensor<1, spacedim> t1     = get_tangent_vector(p, vertices[first_index]);
-  Tensor<1, spacedim> t2     = get_tangent_vector(p, vertices[second_index]);
-  Tensor<1, spacedim> normal = cross_product_3d(t1, t2);
+  Tensor<1, spacedim> t1;
+  Tensor<1, spacedim> t2;
+  Tensor<1, spacedim> normal;
+
+  bool              done = false;
+  std::vector<bool> tested_vertices(vertices.size(), false);
+  tested_vertices[first_index]  = true;
+  tested_vertices[second_index] = true;
+
+  do
+    {
+      // Compute tangents and normal for selected vertices
+      t1     = get_tangent_vector(p, vertices[first_index]);
+      t2     = get_tangent_vector(p, vertices[second_index]);
+      normal = cross_product_3d(t1, t2);
+
+      // if normal is zero, try some other combination of vertices
+      if (normal.norm_square() < 1e4 * std::numeric_limits<double>::epsilon() *
+                                   t1.norm_square() * t2.norm_square())
+        {
+          // See if we have tested all vertices already
+          auto first_false =
+            std::find(tested_vertices.begin(), tested_vertices.end(), false);
+          if (first_false == tested_vertices.end())
+            {
+              done = true;
+            }
+          else
+            {
+              *first_false = true;
+              second_index = first_false - tested_vertices.begin();
+            }
+        }
+      else
+        {
+          done = true;
+        }
+    }
+  while (!done);
 
   Assert(
     normal.norm_square() > 1e4 * std::numeric_limits<double>::epsilon() *
@@ -249,7 +285,7 @@ template <>
 void
 Manifold<2, 2>::get_normals_at_vertices(
   const Triangulation<2, 2>::face_iterator &face,
-  FaceVertexNormals &                       n) const
+  FaceVertexNormals                        &n) const
 {
   n[0] = cross_product_2d(get_tangent_vector(face->vertex(0), face->vertex(1)));
   n[1] =
@@ -271,7 +307,7 @@ template <>
 void
 Manifold<3, 3>::get_normals_at_vertices(
   const Triangulation<3, 3>::face_iterator &face,
-  FaceVertexNormals &                       n) const
+  FaceVertexNormals                        &n) const
 {
   n[0] = cross_product_3d(get_tangent_vector(face->vertex(0), face->vertex(1)),
                           get_tangent_vector(face->vertex(0), face->vertex(2)));
@@ -301,7 +337,7 @@ template <int dim, int spacedim>
 void
 Manifold<dim, spacedim>::get_normals_at_vertices(
   const typename Triangulation<dim, spacedim>::face_iterator &face,
-  FaceVertexNormals &                                         n) const
+  FaceVertexNormals                                          &n) const
 {
   for (unsigned int v = 0; v < face->reference_cell().n_vertices(); ++v)
     {
@@ -538,11 +574,11 @@ template <int dim, int spacedim>
 Point<spacedim>
 FlatManifold<dim, spacedim>::get_new_point(
   const ArrayView<const Point<spacedim>> &surrounding_points,
-  const ArrayView<const double> &         weights) const
+  const ArrayView<const double>          &weights) const
 {
   Assert(std::abs(std::accumulate(weights.begin(), weights.end(), 0.0) - 1.0) <
            1e-10,
-         ExcMessage("The weights for the individual points should sum to 1!"));
+         ExcMessage("The weights for the new point should sum to 1!"));
 
   Point<spacedim> p;
 
@@ -599,80 +635,76 @@ template <int dim, int spacedim>
 void
 FlatManifold<dim, spacedim>::get_new_points(
   const ArrayView<const Point<spacedim>> &surrounding_points,
-  const Table<2, double> &                weights,
+  const Table<2, double>                 &weights,
   ArrayView<Point<spacedim>>              new_points) const
 {
   AssertDimension(surrounding_points.size(), weights.size(1));
   if (weights.size(0) == 0)
     return;
+  AssertDimension(new_points.size(), weights.size(0));
 
   const std::size_t n_points = surrounding_points.size();
 
-  Tensor<1, spacedim> minP = periodicity;
-  for (unsigned int d = 0; d < spacedim; ++d)
-    if (periodicity[d] > 0)
-      for (unsigned int i = 0; i < n_points; ++i)
+  // if there is no periodicity, use an optimized implementation with
+  // VectorizedArray, otherwise go to the get_new_point function for adjusting
+  // the domain
+  if (periodicity == Tensor<1, spacedim>())
+    {
+      for (unsigned int row = 0; row < weights.size(0); ++row)
+        Assert(std::abs(std::accumulate(&weights(row, 0),
+                                        &weights(row, 0) + n_points,
+                                        0.0) -
+                        1.0) < 1e-10,
+               ExcMessage("The weights for each of the points should sum to "
+                          "1!"));
+
+      constexpr std::size_t n_lanes =
+        std::min<std::size_t>(VectorizedArray<double>::size(), 4);
+      using VectorizedArrayType        = VectorizedArray<double, n_lanes>;
+      const std::size_t n_regular_cols = (n_points / n_lanes) * n_lanes;
+      for (unsigned int row = 0; row < weights.size(0); row += n_lanes)
         {
-          minP[d] = std::min(minP[d], surrounding_points[i][d]);
-          Assert((surrounding_points[i][d] <
-                  periodicity[d] + tolerance * periodicity[d]) ||
-                   (surrounding_points[i][d] >= -tolerance * periodicity[d]),
-                 ExcPeriodicBox(d, surrounding_points[i], periodicity[i]));
+          std::array<unsigned int, n_lanes> offsets;
+          // ensure to not access out of bounds, possibly duplicating some
+          // entries
+          for (std::size_t i = 0; i < n_lanes; ++i)
+            offsets[i] =
+              std::min<unsigned int>((row + i) * n_points,
+                                     (weights.size(0) - 1) * n_points);
+          Point<spacedim, VectorizedArrayType> point;
+          for (std::size_t col = 0; col < n_regular_cols; col += n_lanes)
+            {
+              std::array<VectorizedArrayType, n_lanes> vectorized_weights;
+              vectorized_load_and_transpose(n_lanes,
+                                            &weights(0, 0) + col,
+                                            offsets.data(),
+                                            vectorized_weights.data());
+              for (std::size_t i = 0; i < n_lanes; ++i)
+                point += vectorized_weights[i] * surrounding_points[col + i];
+            }
+          for (std::size_t col = n_regular_cols; col < n_points; ++col)
+            {
+              VectorizedArrayType vectorized_weights;
+              vectorized_weights.gather(&weights(0, 0) + col, offsets.data());
+              point += vectorized_weights * surrounding_points[col];
+            }
+          for (unsigned int r = row;
+               r < std::min<unsigned int>(weights.size(0), row + n_lanes);
+               ++r)
+            {
+              // unpack and project to manifold
+              for (unsigned int d = 0; d < spacedim; ++d)
+                new_points[r][d] = point[d][r - row];
+              new_points[r] =
+                project_to_manifold(surrounding_points, new_points[r]);
+            }
         }
-
-  // check whether periodicity shifts some of the points. Only do this if
-  // necessary to avoid memory allocation
-  const Point<spacedim> *surrounding_points_start = surrounding_points.data();
-
-  boost::container::small_vector<Point<spacedim>, 200> modified_points;
-  bool adjust_periodicity = false;
-  for (unsigned int d = 0; d < spacedim; ++d)
-    if (periodicity[d] > 0)
-      for (unsigned int i = 0; i < n_points; ++i)
-        if ((surrounding_points[i][d] - minP[d]) > periodicity[d] / 2.0)
-          {
-            adjust_periodicity = true;
-            break;
-          }
-  if (adjust_periodicity == true)
-    {
-      modified_points.resize(surrounding_points.size());
-      std::copy(surrounding_points.begin(),
-                surrounding_points.end(),
-                modified_points.begin());
-      for (unsigned int d = 0; d < spacedim; ++d)
-        if (periodicity[d] > 0)
-          for (unsigned int i = 0; i < n_points; ++i)
-            if ((surrounding_points[i][d] - minP[d]) > periodicity[d] / 2.0)
-              modified_points[i][d] -= periodicity[d];
-      surrounding_points_start = modified_points.data();
     }
-
-  // Now perform the interpolation
-  for (unsigned int row = 0; row < weights.size(0); ++row)
-    {
-      Assert(
-        std::abs(
-          std::accumulate(&weights(row, 0), &weights(row, 0) + n_points, 0.0) -
-          1.0) < 1e-10,
-        ExcMessage("The weights for the individual points should sum to 1!"));
-      Point<spacedim> new_point;
-      for (unsigned int p = 0; p < n_points; ++p)
-        new_point += surrounding_points_start[p] * weights(row, p);
-
-      // if necessary, also adjust the weighted point by the periodicity
-      for (unsigned int d = 0; d < spacedim; ++d)
-        if (periodicity[d] > 0)
-          if (new_point[d] < 0)
-            new_point[d] += periodicity[d];
-
-      // TODO should this use surrounding_points_start or surrounding_points?
-      // The older version used surrounding_points
+  else
+    for (unsigned int row = 0; row < weights.size(0); ++row)
       new_points[row] =
-        project_to_manifold(make_array_view(surrounding_points.begin(),
-                                            surrounding_points.end()),
-                            new_point);
-    }
+        get_new_point(surrounding_points,
+                      ArrayView<const double>(&weights(row, 0), n_points));
 }
 
 
@@ -759,7 +791,7 @@ template <>
 void
 FlatManifold<2>::get_normals_at_vertices(
   const Triangulation<2>::face_iterator &face,
-  Manifold<2, 2>::FaceVertexNormals &    face_vertex_normals) const
+  Manifold<2, 2>::FaceVertexNormals     &face_vertex_normals) const
 {
   const Tensor<1, 2> tangent = face->vertex(1) - face->vertex(0);
   // We're in 2d. Faces are edges:
@@ -785,7 +817,7 @@ template <>
 void
 FlatManifold<3>::get_normals_at_vertices(
   const Triangulation<3>::face_iterator &face,
-  Manifold<3, 3>::FaceVertexNormals &    face_vertex_normals) const
+  Manifold<3, 3>::FaceVertexNormals     &face_vertex_normals) const
 {
   const unsigned int vertices_per_face = GeometryInfo<3>::vertices_per_face;
 
@@ -846,7 +878,7 @@ template <>
 Tensor<1, 2>
 FlatManifold<2, 2>::normal_vector(
   const Triangulation<2, 2>::face_iterator &face,
-  const Point<2> &                          p) const
+  const Point<2>                           &p) const
 {
   // In 2d, a face is just a straight line and
   // we can use the 'standard' implementation.
@@ -859,7 +891,7 @@ template <int dim, int spacedim>
 Tensor<1, spacedim>
 FlatManifold<dim, spacedim>::normal_vector(
   const typename Triangulation<dim, spacedim>::face_iterator &face,
-  const Point<spacedim> &                                     p) const
+  const Point<spacedim>                                      &p) const
 {
   // I don't think the implementation below will work when dim!=spacedim;
   // in fact, I believe that we don't even have enough information here,
@@ -890,14 +922,17 @@ FlatManifold<dim, spacedim>::normal_vector(
   //   F(xi) = sum_v vertex[v] phi_v(xi)
   // We get the shape functions phi_v from an object of type FE_Q<dim-1>(1)
 
-  // we start with the point xi=1/2, xi=(1/2,1/2), ...
+  // We start at the center of the cell. If the face is a line or
+  // square, then the center is at 0.5 or (0.5,0.5). If the face is
+  // a triangle, then we start at the point (1/3,1/3).
   const unsigned int facedim = dim - 1;
 
   Point<facedim> xi;
 
   const auto face_reference_cell = face->reference_cell();
 
-  if (face_reference_cell == ReferenceCells::get_hypercube<facedim>())
+  if ((dim <= 2) ||
+      (face_reference_cell == ReferenceCells::get_hypercube<facedim>()))
     {
       for (unsigned int i = 0; i < facedim; ++i)
         xi[i] = 1. / 2;
@@ -942,12 +977,13 @@ FlatManifold<dim, spacedim>::normal_vector(
       xi += delta_xi;
       ++iteration;
 
-      Assert(iteration < 10,
-             ExcMessage("The Newton iteration to find the reference point "
-                        "did not converge in 10 iterations. Do you have a "
-                        "deformed cell? (See the glossary for a definition "
-                        "of what a deformed cell is. You may want to output "
-                        "the vertices of your cell."));
+      AssertThrow(iteration < 10,
+                  ExcMessage(
+                    "The Newton iteration to find the reference point "
+                    "did not converge in 10 iterations. Do you have a "
+                    "deformed cell? (See the glossary for a definition "
+                    "of what a deformed cell is. You may want to output "
+                    "the vertices of your cell."));
 
       // It turns out that the check in reference coordinates with an absolute
       // tolerance can cause a convergence failure of the Newton method as
@@ -998,7 +1034,7 @@ template <int dim, int spacedim, int chartdim>
 Point<spacedim>
 ChartManifold<dim, spacedim, chartdim>::get_new_point(
   const ArrayView<const Point<spacedim>> &surrounding_points,
-  const ArrayView<const double> &         weights) const
+  const ArrayView<const double>          &weights) const
 {
   const std::size_t n_points = surrounding_points.size();
 
@@ -1019,7 +1055,7 @@ template <int dim, int spacedim, int chartdim>
 void
 ChartManifold<dim, spacedim, chartdim>::get_new_points(
   const ArrayView<const Point<spacedim>> &surrounding_points,
-  const Table<2, double> &                weights,
+  const Table<2, double>                 &weights,
   ArrayView<Point<spacedim>>              new_points) const
 {
   Assert(weights.size(0) > 0, ExcEmptyObject());

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,16 +23,13 @@
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/lac/block_vector.h>
-#include <deal.II/lac/block_vector_base.h>
-#include <deal.II/lac/trilinos_parallel_block_vector.h>
-#include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/lac/vector.h>
 
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <functional>
+#include <limits>
 #include <numeric>
 
 DEAL_II_NAMESPACE_OPEN
@@ -50,7 +47,7 @@ namespace
   void
   refine_and_coarsen_fixed_fraction_via_l1_norm(
     Triangulation<dim, spacedim> &tria,
-    const Vector<Number> &        criteria,
+    const Vector<Number>         &criteria,
     const double                  top_fraction,
     const double                  bottom_fraction,
     const unsigned int            max_n_cells)
@@ -166,7 +163,7 @@ namespace
 template <int dim, typename Number, int spacedim>
 void
 GridRefinement::refine(Triangulation<dim, spacedim> &tria,
-                       const Vector<Number> &        criteria,
+                       const Vector<Number>         &criteria,
                        const double                  threshold,
                        const unsigned int            max_to_mark)
 {
@@ -216,7 +213,7 @@ GridRefinement::refine(Triangulation<dim, spacedim> &tria,
 template <int dim, typename Number, int spacedim>
 void
 GridRefinement::coarsen(Triangulation<dim, spacedim> &tria,
-                        const Vector<Number> &        criteria,
+                        const Vector<Number>         &criteria,
                         const double                  threshold)
 {
   Assert(criteria.size() == tria.n_active_cells(),
@@ -321,7 +318,7 @@ template <int dim, typename Number, int spacedim>
 void
 GridRefinement::refine_and_coarsen_fixed_number(
   Triangulation<dim, spacedim> &tria,
-  const Vector<Number> &        criteria,
+  const Vector<Number>         &criteria,
   const double                  top_fraction,
   const double                  bottom_fraction,
   const unsigned int            max_n_cells)
@@ -389,7 +386,7 @@ template <int dim, typename Number, int spacedim>
 void
 GridRefinement::refine_and_coarsen_fixed_fraction(
   Triangulation<dim, spacedim> &tria,
-  const Vector<Number> &        criteria,
+  const Vector<Number>         &criteria,
   const double                  top_fraction,
   const double                  bottom_fraction,
   const unsigned int            max_n_cells,

@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2010 - 2020 by the deal.II authors
+ * Copyright (C) 2010 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Guido Kanschat, Texas A&M University, 2009
  */
@@ -37,6 +36,7 @@
 #include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/dofs/dof_tools.h>
+#include <deal.II/fe/mapping_q1.h>
 
 // The include files for using the MeshWorker framework
 #include <deal.II/meshworker/dof_info.h>
@@ -95,13 +95,13 @@ namespace Step39
   class MatrixIntegrator : public MeshWorker::LocalIntegrator<dim>
   {
   public:
-    void cell(MeshWorker::DoFInfo<dim> &                 dinfo,
+    void cell(MeshWorker::DoFInfo<dim>                  &dinfo,
               typename MeshWorker::IntegrationInfo<dim> &info) const override;
     void
-         boundary(MeshWorker::DoFInfo<dim> &                 dinfo,
+         boundary(MeshWorker::DoFInfo<dim>                  &dinfo,
                   typename MeshWorker::IntegrationInfo<dim> &info) const override;
-    void face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-              MeshWorker::DoFInfo<dim> &                 dinfo2,
+    void face(MeshWorker::DoFInfo<dim>                  &dinfo1,
+              MeshWorker::DoFInfo<dim>                  &dinfo2,
               typename MeshWorker::IntegrationInfo<dim> &info1,
               typename MeshWorker::IntegrationInfo<dim> &info2) const override;
   };
@@ -118,7 +118,7 @@ namespace Step39
   // LocalIntegrators::Laplace::compute_penalty() and we use this below.
   template <int dim>
   void MatrixIntegrator<dim>::cell(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
+    MeshWorker::DoFInfo<dim>                  &dinfo,
     typename MeshWorker::IntegrationInfo<dim> &info) const
   {
     LocalIntegrators::Laplace::cell_matrix(dinfo.matrix(0, false).matrix,
@@ -128,7 +128,7 @@ namespace Step39
 
   template <int dim>
   void MatrixIntegrator<dim>::boundary(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
+    MeshWorker::DoFInfo<dim>                  &dinfo,
     typename MeshWorker::IntegrationInfo<dim> &info) const
   {
     const unsigned int degree = info.fe_values(0).get_fe().tensor_degree();
@@ -141,8 +141,8 @@ namespace Step39
   // Interior faces use the interior penalty method
   template <int dim>
   void MatrixIntegrator<dim>::face(
-    MeshWorker::DoFInfo<dim> &                 dinfo1,
-    MeshWorker::DoFInfo<dim> &                 dinfo2,
+    MeshWorker::DoFInfo<dim>                  &dinfo1,
+    MeshWorker::DoFInfo<dim>                  &dinfo2,
     typename MeshWorker::IntegrationInfo<dim> &info1,
     typename MeshWorker::IntegrationInfo<dim> &info2) const
   {
@@ -165,13 +165,13 @@ namespace Step39
   class RHSIntegrator : public MeshWorker::LocalIntegrator<dim>
   {
   public:
-    void cell(MeshWorker::DoFInfo<dim> &                 dinfo,
+    void cell(MeshWorker::DoFInfo<dim>                  &dinfo,
               typename MeshWorker::IntegrationInfo<dim> &info) const override;
     void
-         boundary(MeshWorker::DoFInfo<dim> &                 dinfo,
+         boundary(MeshWorker::DoFInfo<dim>                  &dinfo,
                   typename MeshWorker::IntegrationInfo<dim> &info) const override;
-    void face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-              MeshWorker::DoFInfo<dim> &                 dinfo2,
+    void face(MeshWorker::DoFInfo<dim>                  &dinfo1,
+              MeshWorker::DoFInfo<dim>                  &dinfo2,
               typename MeshWorker::IntegrationInfo<dim> &info1,
               typename MeshWorker::IntegrationInfo<dim> &info2) const override;
   };
@@ -186,11 +186,11 @@ namespace Step39
 
   template <int dim>
   void RHSIntegrator<dim>::boundary(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
+    MeshWorker::DoFInfo<dim>                  &dinfo,
     typename MeshWorker::IntegrationInfo<dim> &info) const
   {
     const FEValuesBase<dim> &fe           = info.fe_values();
-    Vector<double> &         local_vector = dinfo.vector(0).block(0);
+    Vector<double>          &local_vector = dinfo.vector(0).block(0);
 
     std::vector<double> boundary_values(fe.n_quadrature_points);
     exact_solution.value_list(fe.get_quadrature_points(), boundary_values);
@@ -224,13 +224,13 @@ namespace Step39
   class Estimator : public MeshWorker::LocalIntegrator<dim>
   {
   public:
-    void cell(MeshWorker::DoFInfo<dim> &                 dinfo,
+    void cell(MeshWorker::DoFInfo<dim>                  &dinfo,
               typename MeshWorker::IntegrationInfo<dim> &info) const override;
     void
-         boundary(MeshWorker::DoFInfo<dim> &                 dinfo,
+         boundary(MeshWorker::DoFInfo<dim>                  &dinfo,
                   typename MeshWorker::IntegrationInfo<dim> &info) const override;
-    void face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-              MeshWorker::DoFInfo<dim> &                 dinfo2,
+    void face(MeshWorker::DoFInfo<dim>                  &dinfo1,
+              MeshWorker::DoFInfo<dim>                  &dinfo2,
               typename MeshWorker::IntegrationInfo<dim> &info1,
               typename MeshWorker::IntegrationInfo<dim> &info2) const override;
   };
@@ -240,7 +240,7 @@ namespace Step39
   // the right hand side is zero.
   template <int dim>
   void
-  Estimator<dim>::cell(MeshWorker::DoFInfo<dim> &                 dinfo,
+  Estimator<dim>::cell(MeshWorker::DoFInfo<dim>                  &dinfo,
                        typename MeshWorker::IntegrationInfo<dim> &info) const
   {
     const FEValuesBase<dim> &fe = info.fe_values();
@@ -259,7 +259,7 @@ namespace Step39
   // the correct boundary condition.
   template <int dim>
   void Estimator<dim>::boundary(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
+    MeshWorker::DoFInfo<dim>                  &dinfo,
     typename MeshWorker::IntegrationInfo<dim> &info) const
   {
     const FEValuesBase<dim> &fe = info.fe_values();
@@ -286,14 +286,14 @@ namespace Step39
   // solution and its normal derivative, weighted appropriately.
   template <int dim>
   void
-  Estimator<dim>::face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-                       MeshWorker::DoFInfo<dim> &                 dinfo2,
+  Estimator<dim>::face(MeshWorker::DoFInfo<dim>                  &dinfo1,
+                       MeshWorker::DoFInfo<dim>                  &dinfo2,
                        typename MeshWorker::IntegrationInfo<dim> &info1,
                        typename MeshWorker::IntegrationInfo<dim> &info2) const
   {
-    const FEValuesBase<dim> &          fe   = info1.fe_values();
-    const std::vector<double> &        uh1  = info1.values[0][0];
-    const std::vector<double> &        uh2  = info2.values[0][0];
+    const FEValuesBase<dim>           &fe   = info1.fe_values();
+    const std::vector<double>         &uh1  = info1.values[0][0];
+    const std::vector<double>         &uh2  = info2.values[0][0];
     const std::vector<Tensor<1, dim>> &Duh1 = info1.gradients[0][0];
     const std::vector<Tensor<1, dim>> &Duh2 = info2.gradients[0][0];
 
@@ -334,13 +334,13 @@ namespace Step39
   class ErrorIntegrator : public MeshWorker::LocalIntegrator<dim>
   {
   public:
-    void cell(MeshWorker::DoFInfo<dim> &                 dinfo,
+    void cell(MeshWorker::DoFInfo<dim>                  &dinfo,
               typename MeshWorker::IntegrationInfo<dim> &info) const override;
     void
-         boundary(MeshWorker::DoFInfo<dim> &                 dinfo,
+         boundary(MeshWorker::DoFInfo<dim>                  &dinfo,
                   typename MeshWorker::IntegrationInfo<dim> &info) const override;
-    void face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-              MeshWorker::DoFInfo<dim> &                 dinfo2,
+    void face(MeshWorker::DoFInfo<dim>                  &dinfo1,
+              MeshWorker::DoFInfo<dim>                  &dinfo2,
               typename MeshWorker::IntegrationInfo<dim> &info1,
               typename MeshWorker::IntegrationInfo<dim> &info2) const override;
   };
@@ -359,10 +359,10 @@ namespace Step39
   // on cells.
   template <int dim>
   void ErrorIntegrator<dim>::cell(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
+    MeshWorker::DoFInfo<dim>                  &dinfo,
     typename MeshWorker::IntegrationInfo<dim> &info) const
   {
-    const FEValuesBase<dim> &   fe = info.fe_values();
+    const FEValuesBase<dim>    &fe = info.fe_values();
     std::vector<Tensor<1, dim>> exact_gradients(fe.n_quadrature_points);
     std::vector<double>         exact_values(fe.n_quadrature_points);
 
@@ -370,7 +370,7 @@ namespace Step39
     exact_solution.value_list(fe.get_quadrature_points(), exact_values);
 
     const std::vector<Tensor<1, dim>> &Duh = info.gradients[0][0];
-    const std::vector<double> &        uh  = info.values[0][0];
+    const std::vector<double>         &uh  = info.values[0][0];
 
     for (unsigned k = 0; k < fe.n_quadrature_points; ++k)
       {
@@ -391,7 +391,7 @@ namespace Step39
 
   template <int dim>
   void ErrorIntegrator<dim>::boundary(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
+    MeshWorker::DoFInfo<dim>                  &dinfo,
     typename MeshWorker::IntegrationInfo<dim> &info) const
   {
     const FEValuesBase<dim> &fe = info.fe_values();
@@ -416,12 +416,12 @@ namespace Step39
 
   template <int dim>
   void ErrorIntegrator<dim>::face(
-    MeshWorker::DoFInfo<dim> &                 dinfo1,
-    MeshWorker::DoFInfo<dim> &                 dinfo2,
+    MeshWorker::DoFInfo<dim>                  &dinfo1,
+    MeshWorker::DoFInfo<dim>                  &dinfo2,
     typename MeshWorker::IntegrationInfo<dim> &info1,
     typename MeshWorker::IntegrationInfo<dim> &info2) const
   {
-    const FEValuesBase<dim> &  fe  = info1.fe_values();
+    const FEValuesBase<dim>   &fe  = info1.fe_values();
     const std::vector<double> &uh1 = info1.values[0][0];
     const std::vector<double> &uh2 = info2.values[0][0];
 

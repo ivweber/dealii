@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -63,7 +63,7 @@ inline TriaRawIterator<Accessor>::TriaRawIterator(
   const TriaAccessorBase<Accessor::structure_dimension,
                          Accessor::dimension,
                          Accessor::space_dimension> &tria_accessor,
-  const typename Accessor::AccessorData *            local_data)
+  const typename Accessor::AccessorData             *local_data)
   : accessor(nullptr, -2, -2, local_data)
 {
   accessor.copy_from(tria_accessor);
@@ -83,11 +83,9 @@ TriaRawIterator<Accessor>::operator=(const TriaRawIterator<Accessor> &i)
 
 template <typename Accessor>
 template <typename OtherAccessor>
-inline
-  typename std::enable_if<std::is_convertible<OtherAccessor, Accessor>::value,
-                          bool>::type
-  TriaRawIterator<Accessor>::operator==(
-    const TriaRawIterator<OtherAccessor> &other) const
+inline std::enable_if_t<std::is_convertible_v<OtherAccessor, Accessor>, bool>
+TriaRawIterator<Accessor>::operator==(
+  const TriaRawIterator<OtherAccessor> &other) const
 {
   return accessor == other.accessor;
 }
@@ -107,7 +105,7 @@ inline TriaRawIterator<Accessor>
 TriaRawIterator<Accessor>::operator++(int)
 {
   TriaRawIterator<Accessor> tmp(*this);
-                            operator++();
+  operator++();
 
   return tmp;
 }
@@ -118,7 +116,7 @@ inline TriaRawIterator<Accessor>
 TriaRawIterator<Accessor>::operator--(int)
 {
   TriaRawIterator<Accessor> tmp(*this);
-                            operator--();
+  operator--();
 
   return tmp;
 }
@@ -182,7 +180,7 @@ inline TriaIterator<Accessor>::TriaIterator(
   const TriaAccessorBase<Accessor::structure_dimension,
                          Accessor::dimension,
                          Accessor::space_dimension> &tria_accessor,
-  const typename Accessor::AccessorData *            local_data)
+  const typename Accessor::AccessorData             *local_data)
   : TriaRawIterator<Accessor>(tria_accessor, local_data)
 {
 #ifdef DEBUG
@@ -273,7 +271,7 @@ inline TriaIterator<Accessor>
 TriaIterator<Accessor>::operator++(int)
 {
   TriaIterator<Accessor> tmp(*this);
-                         operator++();
+  operator++();
 
   return tmp;
 }
@@ -296,7 +294,7 @@ inline TriaIterator<Accessor>
 TriaIterator<Accessor>::operator--(int)
 {
   TriaIterator<Accessor> tmp(*this);
-                         operator--();
+  operator--();
 
   return tmp;
 }
@@ -383,7 +381,7 @@ inline TriaActiveIterator<Accessor>::TriaActiveIterator(
   const TriaAccessorBase<Accessor::structure_dimension,
                          Accessor::dimension,
                          Accessor::space_dimension> &tria_accessor,
-  const typename Accessor::AccessorData *            local_data)
+  const typename Accessor::AccessorData             *local_data)
   : TriaIterator<Accessor>(tria_accessor, local_data)
 {
 #ifdef DEBUG
@@ -519,7 +517,7 @@ inline TriaActiveIterator<Accessor>
 TriaActiveIterator<Accessor>::operator++(int)
 {
   TriaActiveIterator<Accessor> tmp(*this);
-                               operator++();
+  operator++();
 
   return tmp;
 }
@@ -542,7 +540,7 @@ inline TriaActiveIterator<Accessor>
 TriaActiveIterator<Accessor>::operator--(int)
 {
   TriaActiveIterator<Accessor> tmp(*this);
-                               operator--();
+  operator--();
 
   return tmp;
 }

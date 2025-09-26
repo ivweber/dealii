@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2019 - 2021 by the deal.II authors
+ * Copyright (C) 2019 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Natasha Sharma, University of Texas at El Paso,
  *          Guido Kanschat, University of Heidelberg
@@ -104,7 +103,7 @@ namespace Step47
       }
 
       virtual void
-      hessian_list(const std::vector<Point<dim>> &       points,
+      hessian_list(const std::vector<Point<dim>>        &points,
                    std::vector<SymmetricTensor<2, dim>> &hessians,
                    const unsigned int /*component*/ = 0) const override
       {
@@ -274,7 +273,7 @@ namespace Step47
   template <int dim>
   struct ScratchData
   {
-    ScratchData(const Mapping<dim> &      mapping,
+    ScratchData(const Mapping<dim>       &mapping,
                 const FiniteElement<dim> &fe,
                 const unsigned int        quadrature_degree,
                 const UpdateFlags         update_flags,
@@ -396,9 +395,9 @@ namespace Step47
     // we could have left the call to `fe_values.shape_hessian(j,qpoint)`
     // in the instruction that computes the scalar product between
     // the two terms.
-    auto cell_worker = [&](const Iterator &  cell,
+    auto cell_worker = [&](const Iterator   &cell,
                            ScratchData<dim> &scratch_data,
-                           CopyData &        copy_data) {
+                           CopyData         &copy_data) {
       copy_data.cell_matrix = 0;
       copy_data.cell_rhs    = 0;
 
@@ -407,7 +406,7 @@ namespace Step47
 
       cell->get_dof_indices(copy_data.local_dof_indices);
 
-      const ExactSolution::RightHandSide<dim> right_hand_side;
+      ExactSolution::RightHandSide<dim> right_hand_side;
 
       const unsigned int dofs_per_cell =
         scratch_data.fe_values.get_fe().n_dofs_per_cell();
@@ -462,14 +461,14 @@ namespace Step47
     // `copy_data.face_data()` is really all that the later `copier` function
     // gets to see when it copies the contributions of each cell to the global
     // matrix and right hand side objects.
-    auto face_worker = [&](const Iterator &    cell,
+    auto face_worker = [&](const Iterator     &cell,
                            const unsigned int &f,
                            const unsigned int &sf,
-                           const Iterator &    ncell,
+                           const Iterator     &ncell,
                            const unsigned int &nf,
                            const unsigned int &nsf,
-                           ScratchData<dim> &  scratch_data,
-                           CopyData &          copy_data) {
+                           ScratchData<dim>   &scratch_data,
+                           CopyData           &copy_data) {
       FEInterfaceValues<dim> &fe_interface_values =
         scratch_data.fe_interface_values;
       fe_interface_values.reinit(cell, f, sf, ncell, nf, nsf);
@@ -586,10 +585,10 @@ namespace Step47
     //
     // As before, the first part of the function simply sets up some
     // helper objects:
-    auto boundary_worker = [&](const Iterator &    cell,
+    auto boundary_worker = [&](const Iterator     &cell,
                                const unsigned int &face_no,
-                               ScratchData<dim> &  scratch_data,
-                               CopyData &          copy_data) {
+                               ScratchData<dim>   &scratch_data,
+                               CopyData           &copy_data) {
       FEInterfaceValues<dim> &fe_interface_values =
         scratch_data.fe_interface_values;
       fe_interface_values.reinit(cell, face_no);
@@ -610,8 +609,8 @@ namespace Step47
         fe_interface_values.get_normal_vectors();
 
 
-      const ExactSolution::Solution<dim> exact_solution;
-      std::vector<Tensor<1, dim>>        exact_gradients(q_points.size());
+      ExactSolution::Solution<dim> exact_solution;
+      std::vector<Tensor<1, dim>>  exact_gradients(q_points.size());
       exact_solution.gradient_list(q_points, exact_gradients);
 
 
@@ -702,7 +701,7 @@ namespace Step47
                                              system_matrix,
                                              system_rhs);
 
-      for (auto &cdf : copy_data.face_data)
+      for (const auto &cdf : copy_data.face_data)
         {
           constraints.distribute_local_to_global(cdf.cell_matrix,
                                                  cdf.joint_dof_indices,

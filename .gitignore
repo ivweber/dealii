@@ -1,4 +1,5 @@
 /*build*
+/examples/step*/*build*
 /code-gallery
 
 # eclipse
@@ -11,6 +12,10 @@ qtcreator/
 
 # qt creator
 CMakeLists.txt.user
+
+# clangd
+/.cache
+/.clangd
 
 # misc
 /compile_commands.json

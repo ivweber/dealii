@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,8 +24,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Discontinuous finite elements based on Legendre polynomials.
@@ -44,7 +46,7 @@ DEAL_II_NAMESPACE_OPEN
  * necessarily on the real cell). As a consequence, the first basis function
  * of this element is always the function that is constant and equal to one,
  * regardless of the polynomial degree of the element. In addition, as a
- * result of the orthogonality of the basis functions, the mass matrix is
+ * result of the orthogonality of the basis functions, the @ref GlossMassMatrix "mass matrix" is
  * diagonal if the grid cells are parallelograms. Note that this is in
  * contrast to the FE_DGPMonomial class that actually uses the monomial basis
  * listed above as basis functions, without transformation from reference to
@@ -406,7 +408,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                                FullMatrix<double> &                matrix,
+                                FullMatrix<double>                 &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -424,7 +426,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim, spacedim> &source,
     const unsigned int                  subface,
-    FullMatrix<double> &                matrix,
+    FullMatrix<double>                 &matrix,
     const unsigned int                  face_no = 0) const override;
 
   /**
@@ -468,7 +470,7 @@ private:
   get_dpo_vector(const unsigned int degree);
 };
 
-/* @} */
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

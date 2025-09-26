@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2020 by the deal.II authors
+## Copyright (C) 2012 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -24,17 +24,17 @@
 # This file sets up
 #
 #   DEAL_II_WORDS_BIGENDIAN
-#   DEAL_II_HAVE_SSE2                    *)
-#   DEAL_II_HAVE_AVX                     *)
-#   DEAL_II_HAVE_AVX512                  *)
-#   DEAL_II_HAVE_ALTIVEC                 *)
-#   DEAL_II_HAVE_OPENMP_SIMD             *)
+#   DEAL_II_HAVE_SSE2                    (*)
+#   DEAL_II_HAVE_AVX                     (*)
+#   DEAL_II_HAVE_AVX512                  (*)
+#   DEAL_II_HAVE_ALTIVEC                 (*)
+#   DEAL_II_HAVE_ARM_NEON                (*)
+#   DEAL_II_HAVE_OPENMP_SIMD             (*)
 #   DEAL_II_VECTORIZATION_WIDTH_IN_BITS
 #   DEAL_II_OPENMP_SIMD_PRAGMA
 #
-# *)
-# It is is possible to manually set the above values to their corresponding
-# values, when platform introspection is disabled with
+# (*) It is possible to manually set the above values to their
+# corresponding values, when platform introspection is disabled with
 # DEAL_II_ALLOW_PLATFORM_INTROSPECTION=OFF,
 #
 
@@ -42,18 +42,18 @@
 #
 # Determine the Endianness of the platform:
 #
-IF(CMAKE_C_COMPILER_WORKS)
-  INCLUDE(TestBigEndian)
+if(CMAKE_C_COMPILER_WORKS)
+  include(TestBigEndian)
 
-  CLEAR_CMAKE_REQUIRED()
+  clear_cmake_required()
   TEST_BIG_ENDIAN(DEAL_II_WORDS_BIGENDIAN)
-  RESET_CMAKE_REQUIRED()
-ELSE()
-  MESSAGE(STATUS
+  reset_cmake_required()
+else()
+  message(STATUS
     "No suitable C compiler was found! Assuming little endian platform."
     )
-  SET(DEAL_II_WORDS_BIGENDIAN "0")
-ENDIF()
+  set(DEAL_II_WORDS_BIGENDIAN "0")
+endif()
 
 
 #
@@ -67,13 +67,13 @@ ENDIF()
 # - Matthias Maier, rewritten 2012
 #
 
-IF(DEAL_II_ALLOW_PLATFORM_INTROSPECTION)
+if(DEAL_II_ALLOW_PLATFORM_INTROSPECTION)
   #
   # Take care that the following tests are rerun if the
   # CMAKE_REQUIRED_FLAGS changes..
   #
-  UNSET_IF_CHANGED(CHECK_CPU_FEATURES_FLAGS_SAVED "${CMAKE_REQUIRED_FLAGS}"
-    DEAL_II_HAVE_SSE2 DEAL_II_HAVE_AVX DEAL_II_HAVE_AVX512 DEAL_II_HAVE_ALTIVEC
+  unset_if_changed(CHECK_CPU_FEATURES_FLAGS_SAVED "${CMAKE_REQUIRED_FLAGS}"
+    DEAL_II_HAVE_SSE2 DEAL_II_HAVE_AVX DEAL_II_HAVE_AVX512 DEAL_II_HAVE_ALTIVEC DEAL_II_HAVE_ARM_NEON
     )
 
   CHECK_CXX_SOURCE_RUNS(
@@ -246,6 +246,40 @@ IF(DEAL_II_ALLOW_PLATFORM_INTROSPECTION)
     "
     DEAL_II_HAVE_ALTIVEC)
 
+    CHECK_CXX_SOURCE_RUNS(
+      "
+      #ifndef __ARM_NEON
+      #error Preprocessor flag not found
+      #endif
+      #include <arm_neon.h>
+      #include <stdlib.h>
+      int main()
+      {
+      float64x2_t a, b;
+      const unsigned int vector_bytes = sizeof(float64x2_t);
+      const int n_vectors = vector_bytes/sizeof(double);
+      float64x2_t * data =
+        reinterpret_cast<float64x2_t*>(aligned_alloc (vector_bytes, 2*vector_bytes));
+      double * ptr = reinterpret_cast<double*>(&a);
+      ptr[0] = static_cast<volatile double>(1.0);
+      for (int i=1; i<n_vectors; ++i)
+        ptr[i] = 0.0;
+      b = vdupq_n_f64 (static_cast<volatile double>(2.25));
+      data[0] = vaddq_f64 (a, b);
+      data[1] = vmulq_f64 (b, data[0]);
+      ptr = reinterpret_cast<double*>(&data[1]);
+      int return_value = 0;
+      if (ptr[0] != 7.3125)
+        return_value = 1;
+      for (int i=1; i<n_vectors; ++i)
+        if (ptr[i] != 5.0625)
+          return_value = 1;
+      free(data);
+      return return_value;
+      }
+      "
+      DEAL_II_HAVE_ARM_NEON)
+
   #
   # OpenMP 4.0 can be used for vectorization. Only the vectorization
   # instructions are allowed, the threading must be done through TBB.
@@ -254,21 +288,21 @@ IF(DEAL_II_ALLOW_PLATFORM_INTROSPECTION)
   #
   # Choosing the right compiler flag is a bit of a mess:
   #
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-    IF("${CMAKE_CXX_COMPILER_VERSION}" VERSION_GREATER "15" )
-      SET(_keyword "qopenmp")
-    ELSEIF("${CMAKE_CXX_COMPILER_VERSION}" VERSION_GREATER "14" )
-      SET(_keyword "openmp")
-    ENDIF()
-  ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    SET(_keyword "openmp")
-  ELSE()
-    SET(_keyword "fopenmp")
-  ENDIF()
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
+    if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_GREATER "15" )
+      set(_keyword "qopenmp")
+    elseif("${CMAKE_CXX_COMPILER_VERSION}" VERSION_GREATER "14" )
+      set(_keyword "openmp")
+    endif()
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(_keyword "openmp")
+  else()
+    set(_keyword "fopenmp")
+  endif()
 
   CHECK_CXX_COMPILER_FLAG("-${_keyword}-simd" DEAL_II_HAVE_OPENMP_SIMD)
 
-ENDIF() # IF DEAL_II_ALLOW_PLATFORM_INTROSPECTION
+endif() # IF DEAL_II_ALLOW_PLATFORM_INTROSPECTION
 
 
 #
@@ -276,19 +310,23 @@ ENDIF() # IF DEAL_II_ALLOW_PLATFORM_INTROSPECTION
 # (that was autodetected or manually specified).
 #
 
-IF(DEAL_II_HAVE_AVX512)
-  SET(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 512)
-ELSEIF(DEAL_II_HAVE_AVX)
-  SET(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 256)
-ELSEIF(DEAL_II_HAVE_SSE2)
-  SET(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 128)
-ELSE()
-  SET(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 0)
-ENDIF()
+if(DEAL_II_HAVE_AVX512)
+  set(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 512)
+elseif(DEAL_II_HAVE_AVX)
+  set(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 256)
+elseif(DEAL_II_HAVE_SSE2)
+  set(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 128)
+else()
+  set(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 0)
+endif()
 
-IF(DEAL_II_HAVE_ALTIVEC)
-  SET(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 128)
-ENDIF()
+if(DEAL_II_HAVE_ALTIVEC)
+  set(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 128)
+endif()
+
+if(DEAL_II_HAVE_ARM_NEON)
+  set(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 128)
+endif()
 
 #
 # We need to disable SIMD vectorization for CUDA device code.
@@ -296,21 +334,21 @@ ENDIF()
 # "[...] contains a vector, which is not supported in device code"
 #
 
-IF(DEAL_II_WITH_CUDA)
-  SET(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 0)
-ENDIF()
+if(DEAL_II_WITH_CUDA)
+  set(DEAL_II_VECTORIZATION_WIDTH_IN_BITS 0)
+endif()
 
 #
 # If we have OpenMP SIMD support (i.e. DEAL_II_HAVE_OPENMP_SIMD is true)
 # populate DEAL_II_OPENMP_SIMD_PRAGMA.
 #
 
-SET(DEAL_II_OPENMP_SIMD_PRAGMA " ")
-IF(DEAL_II_HAVE_OPENMP_SIMD)
-  ADD_FLAGS(DEAL_II_CXX_FLAGS "-${_keyword}-simd")
+set(DEAL_II_OPENMP_SIMD_PRAGMA " ")
+if(DEAL_II_HAVE_OPENMP_SIMD)
+  add_flags(DEAL_II_CXX_FLAGS "-${_keyword}-simd")
   # Intel is special:
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-    ADD_FLAGS(DEAL_II_LINKER_FLAGS "-${_keyword}")
-  ENDIF()
-  SET(DEAL_II_OPENMP_SIMD_PRAGMA "_Pragma(\"omp simd\")")
-ENDIF()
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
+    add_flags(DEAL_II_LINKER_FLAGS "-${_keyword}")
+  endif()
+  set(DEAL_II_OPENMP_SIMD_PRAGMA "_Pragma(\"omp simd\")")
+endif()

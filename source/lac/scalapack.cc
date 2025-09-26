@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,6 +28,7 @@
 #    include <hdf5.h>
 #  endif
 
+#  include <limits>
 #  include <memory>
 
 DEAL_II_NAMESPACE_OPEN
@@ -119,7 +120,7 @@ ScaLAPACKMatrix<NumberType>::ScaLAPACKMatrix(
 
 template <typename NumberType>
 ScaLAPACKMatrix<NumberType>::ScaLAPACKMatrix(
-  const std::string &                                       filename,
+  const std::string                                        &filename,
   const std::shared_ptr<const Utilities::MPI::ProcessGrid> &process_grid,
   const size_type                                           row_block_size,
   const size_type                                           column_block_size)
@@ -665,8 +666,8 @@ template <typename NumberType>
 void
 ScaLAPACKMatrix<NumberType>::copy_to(FullMatrix<NumberType> &matrix) const
 {
-  // FIXME: use PDGEMR2D for copying?
-  // PDGEMR2D copies a submatrix of A on a submatrix of B.
+  // FIXME: use PDGEMR2d for copying?
+  // PDGEMR2d copies a submatrix of A on a submatrix of B.
   // A and B can have different distributions
   // see http://icl.cs.utk.edu/lapack-forum/viewtopic.php?t=50
   Assert(n_rows == int(matrix.m()), ExcDimensionMismatch(n_rows, matrix.m()));
@@ -721,7 +722,7 @@ ScaLAPACKMatrix<NumberType>::copy_to(FullMatrix<NumberType> &matrix) const
 template <typename NumberType>
 void
 ScaLAPACKMatrix<NumberType>::copy_to(
-  ScaLAPACKMatrix<NumberType> &                B,
+  ScaLAPACKMatrix<NumberType>                 &B,
   const std::pair<unsigned int, unsigned int> &offset_A,
   const std::pair<unsigned int, unsigned int> &offset_B,
   const std::pair<unsigned int, unsigned int> &submatrix_size) const
@@ -752,7 +753,7 @@ ScaLAPACKMatrix<NumberType>::copy_to(
    * The routine pgemr2d requires a BLACS context resembling at least the union
    * of process grids described by the BLACS contexts held by the ProcessGrids
    * of matrix A and B. As A and B share the same MPI communicator, there is no
-   * need to create a union MPI communicator to initialise the BLACS context
+   * need to create a union MPI communicator to initialize the BLACS context
    */
   int union_blacs_context = Csys2blacs_handle(this->grid->mpi_communicator);
   const char *order       = "Col";
@@ -798,7 +799,7 @@ ScaLAPACKMatrix<NumberType>::copy_to(
   std::array<int, 9> desc_A, desc_B;
 
   const NumberType *loc_vals_A = nullptr;
-  NumberType *      loc_vals_B = nullptr;
+  NumberType       *loc_vals_B = nullptr;
 
   // Note: the function pgemr2d has to be called for all processes in the union
   // BLACS context If the calling process is not part of the BLACS context of A,
@@ -924,7 +925,7 @@ ScaLAPACKMatrix<NumberType>::copy_to(ScaLAPACKMatrix<NumberType> &dest) const
                       union_n_process_columns);
 
       const NumberType *loc_vals_source = nullptr;
-      NumberType *      loc_vals_dest   = nullptr;
+      NumberType       *loc_vals_dest   = nullptr;
 
       if (this->grid->mpi_process_is_active && (this->values.size() > 0))
         {
@@ -967,7 +968,7 @@ ScaLAPACKMatrix<NumberType>::copy_to(ScaLAPACKMatrix<NumberType> &dest) const
   else
     // process is active in the process grid
     if (this->grid->mpi_process_is_active)
-    dest.values = this->values;
+      dest.values = this->values;
 
   dest.state    = state;
   dest.property = property;
@@ -1066,7 +1067,7 @@ void
 ScaLAPACKMatrix<NumberType>::mult(const NumberType                   b,
                                   const ScaLAPACKMatrix<NumberType> &B,
                                   const NumberType                   c,
-                                  ScaLAPACKMatrix<NumberType> &      C,
+                                  ScaLAPACKMatrix<NumberType>       &C,
                                   const bool transpose_A,
                                   const bool transpose_B) const
 {
@@ -1180,7 +1181,7 @@ ScaLAPACKMatrix<NumberType>::mult(const NumberType                   b,
 
 template <typename NumberType>
 void
-ScaLAPACKMatrix<NumberType>::mmult(ScaLAPACKMatrix<NumberType> &      C,
+ScaLAPACKMatrix<NumberType>::mmult(ScaLAPACKMatrix<NumberType>       &C,
                                    const ScaLAPACKMatrix<NumberType> &B,
                                    const bool adding) const
 {
@@ -1194,7 +1195,7 @@ ScaLAPACKMatrix<NumberType>::mmult(ScaLAPACKMatrix<NumberType> &      C,
 
 template <typename NumberType>
 void
-ScaLAPACKMatrix<NumberType>::Tmmult(ScaLAPACKMatrix<NumberType> &      C,
+ScaLAPACKMatrix<NumberType>::Tmmult(ScaLAPACKMatrix<NumberType>       &C,
                                     const ScaLAPACKMatrix<NumberType> &B,
                                     const bool adding) const
 {
@@ -1208,7 +1209,7 @@ ScaLAPACKMatrix<NumberType>::Tmmult(ScaLAPACKMatrix<NumberType> &      C,
 
 template <typename NumberType>
 void
-ScaLAPACKMatrix<NumberType>::mTmult(ScaLAPACKMatrix<NumberType> &      C,
+ScaLAPACKMatrix<NumberType>::mTmult(ScaLAPACKMatrix<NumberType>       &C,
                                     const ScaLAPACKMatrix<NumberType> &B,
                                     const bool adding) const
 {
@@ -1222,7 +1223,7 @@ ScaLAPACKMatrix<NumberType>::mTmult(ScaLAPACKMatrix<NumberType> &      C,
 
 template <typename NumberType>
 void
-ScaLAPACKMatrix<NumberType>::TmTmult(ScaLAPACKMatrix<NumberType> &      C,
+ScaLAPACKMatrix<NumberType>::TmTmult(ScaLAPACKMatrix<NumberType>       &C,
                                      const ScaLAPACKMatrix<NumberType> &B,
                                      const bool adding) const
 {
@@ -1472,7 +1473,7 @@ std::vector<NumberType>
 ScaLAPACKMatrix<NumberType>::eigenpairs_symmetric(
   const bool                                   compute_eigenvectors,
   const std::pair<unsigned int, unsigned int> &eigenvalue_idx,
-  const std::pair<NumberType, NumberType> &    eigenvalue_limits)
+  const std::pair<NumberType, NumberType>     &eigenvalue_limits)
 {
   Assert(state == LAPACKSupport::matrix,
          ExcMessage(
@@ -1591,8 +1592,18 @@ ScaLAPACKMatrix<NumberType>::eigenpairs_symmetric(
       int         liwork = -1;
       NumberType *eigenvectors_loc =
         (compute_eigenvectors ? eigenvectors->values.data() : nullptr);
-      work.resize(1);
-      iwork.resize(1);
+      /*
+       * According to the official "documentation" found on the internet
+       * (aka source file ppsyevx.f [1]) the work array has to have a
+       * minimal size of max(3, lwork). Because we query for optimal size
+       * (lwork == -1) we have to guarantee at least three doubles. The
+       * necessary size of iwork is not specified, so let's use three as
+       * well.
+       * [1]
+       * https://netlib.org/scalapack/explore-html/df/d1a/pdsyevx_8f_source.html
+       */
+      work.resize(3);
+      iwork.resize(3);
 
       if (all_eigenpairs)
         {
@@ -1803,7 +1814,7 @@ std::vector<NumberType>
 ScaLAPACKMatrix<NumberType>::eigenpairs_symmetric_MRRR(
   const bool                                   compute_eigenvectors,
   const std::pair<unsigned int, unsigned int> &eigenvalue_idx,
-  const std::pair<NumberType, NumberType> &    eigenvalue_limits)
+  const std::pair<NumberType, NumberType>     &eigenvalue_limits)
 {
   Assert(state == LAPACKSupport::matrix,
          ExcMessage(
@@ -2019,10 +2030,10 @@ ScaLAPACKMatrix<NumberType>::compute_SVD(ScaLAPACKMatrix<NumberType> *U,
   Assert(row_block_size == column_block_size,
          ExcDimensionMismatch(row_block_size, column_block_size));
 
-  const bool left_singluar_vectors  = (U != nullptr) ? true : false;
-  const bool right_singluar_vectors = (VT != nullptr) ? true : false;
+  const bool left_singular_vectors  = (U != nullptr) ? true : false;
+  const bool right_singular_vectors = (VT != nullptr) ? true : false;
 
-  if (left_singluar_vectors)
+  if (left_singular_vectors)
     {
       Assert(n_rows == U->n_rows, ExcDimensionMismatch(n_rows, U->n_rows));
       Assert(U->n_rows == U->n_columns,
@@ -2034,7 +2045,7 @@ ScaLAPACKMatrix<NumberType>::compute_SVD(ScaLAPACKMatrix<NumberType> *U,
       Assert(grid->blacs_context == U->grid->blacs_context,
              ExcDimensionMismatch(grid->blacs_context, U->grid->blacs_context));
     }
-  if (right_singluar_vectors)
+  if (right_singular_vectors)
     {
       Assert(n_columns == VT->n_rows,
              ExcDimensionMismatch(n_columns, VT->n_rows));
@@ -2054,11 +2065,11 @@ ScaLAPACKMatrix<NumberType>::compute_SVD(ScaLAPACKMatrix<NumberType> *U,
 
   if (grid->mpi_process_is_active)
     {
-      char        jobu   = left_singluar_vectors ? 'V' : 'N';
-      char        jobvt  = right_singluar_vectors ? 'V' : 'N';
+      char        jobu   = left_singular_vectors ? 'V' : 'N';
+      char        jobvt  = right_singular_vectors ? 'V' : 'N';
       NumberType *A_loc  = this->values.data();
-      NumberType *U_loc  = left_singluar_vectors ? U->values.data() : nullptr;
-      NumberType *VT_loc = right_singluar_vectors ? VT->values.data() : nullptr;
+      NumberType *U_loc  = left_singular_vectors ? U->values.data() : nullptr;
+      NumberType *VT_loc = right_singular_vectors ? VT->values.data() : nullptr;
       int         info   = 0;
       /*
        * by setting lwork to -1 a workspace query for optimal length of work is
@@ -2605,13 +2616,13 @@ namespace internal
 template <typename NumberType>
 void
 ScaLAPACKMatrix<NumberType>::save(
-  const std::string &                          filename,
+  const std::string                           &filename,
   const std::pair<unsigned int, unsigned int> &chunk_size) const
 {
 #  ifndef DEAL_II_WITH_HDF5
   (void)filename;
   (void)chunk_size;
-  AssertThrow(false, ExcMessage("HDF5 support is disabled."));
+  AssertThrow(false, ExcNeedsHDF5());
 #  else
 
   std::pair<unsigned int, unsigned int> chunks_size_ = chunk_size;
@@ -2647,7 +2658,7 @@ ScaLAPACKMatrix<NumberType>::save(
 template <typename NumberType>
 void
 ScaLAPACKMatrix<NumberType>::save_serial(
-  const std::string &                          filename,
+  const std::string                           &filename,
   const std::pair<unsigned int, unsigned int> &chunk_size) const
 {
 #  ifndef DEAL_II_WITH_HDF5
@@ -2804,7 +2815,7 @@ ScaLAPACKMatrix<NumberType>::save_serial(
 template <typename NumberType>
 void
 ScaLAPACKMatrix<NumberType>::save_parallel(
-  const std::string &                          filename,
+  const std::string                           &filename,
   const std::pair<unsigned int, unsigned int> &chunk_size) const
 {
 #  ifndef DEAL_II_WITH_HDF5
@@ -3043,7 +3054,7 @@ ScaLAPACKMatrix<NumberType>::load(const std::string &filename)
 {
 #  ifndef DEAL_II_WITH_HDF5
   (void)filename;
-  AssertThrow(false, ExcMessage("HDF5 support is disabled."));
+  AssertThrow(false, ExcNeedsHDF5());
 #  else
 #    ifdef H5_HAVE_PARALLEL
   // implementation for configurations equipped with a parallel file system
@@ -3452,7 +3463,7 @@ namespace internal
   {
     template <typename NumberType>
     void
-    scale_columns(ScaLAPACKMatrix<NumberType> &      matrix,
+    scale_columns(ScaLAPACKMatrix<NumberType>       &matrix,
                   const ArrayView<const NumberType> &factors)
     {
       Assert(matrix.n() == factors.size(),
@@ -3469,7 +3480,7 @@ namespace internal
 
     template <typename NumberType>
     void
-    scale_rows(ScaLAPACKMatrix<NumberType> &      matrix,
+    scale_rows(ScaLAPACKMatrix<NumberType>       &matrix,
                const ArrayView<const NumberType> &factors)
     {
       Assert(matrix.m() == factors.size(),

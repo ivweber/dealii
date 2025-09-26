@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2020 by the deal.II authors
+// Copyright (C) 2001 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,7 +24,6 @@
 
 #include <deal.II/lac/block_sparsity_pattern.h>
 #include <deal.II/lac/block_vector.h>
-#include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/vector_memory.h>
 
 #include <deal.II/multigrid/mg_base.h>
@@ -39,6 +38,7 @@ DEAL_II_NAMESPACE_OPEN
 // Forward declaration
 #ifndef DOXYGEN
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
 #endif
 
@@ -46,8 +46,10 @@ class DoFHandler;
  * MGTransferBase is defined in mg_base.h
  */
 
-/*!@addtogroup mg */
-/*@{*/
+/**
+ * @addtogroup mg
+ * @{
+ */
 
 /**
  * Implementation of matrix generation for MGTransferBlock.
@@ -199,7 +201,7 @@ public:
    * blocks is to be weighted differently.
    */
   void
-  initialize(const std::vector<number> &   factors,
+  initialize(const std::vector<number>    &factors,
              VectorMemory<Vector<number>> &memory);
 
   /**
@@ -211,16 +213,16 @@ public:
   template <int dim, int spacedim>
   void
   build(const DoFHandler<dim, spacedim> &dof_handler,
-        const std::vector<bool> &        selected);
+        const std::vector<bool>         &selected);
 
   virtual void
   prolongate(const unsigned int         to_level,
-             BlockVector<number> &      dst,
+             BlockVector<number>       &dst,
              const BlockVector<number> &src) const override;
 
   virtual void
   restrict_and_add(const unsigned int         from_level,
-                   BlockVector<number> &      dst,
+                   BlockVector<number>       &dst,
                    const BlockVector<number> &src) const override;
 
   /**
@@ -236,9 +238,9 @@ public:
    */
   template <int dim, typename number2, int spacedim>
   void
-  copy_to_mg(const DoFHandler<dim, spacedim> &   dof_handler,
+  copy_to_mg(const DoFHandler<dim, spacedim>    &dof_handler,
              MGLevelObject<BlockVector<number>> &dst,
-             const BlockVector<number2> &        src) const;
+             const BlockVector<number2>         &src) const;
 
   /**
    * Transfer from multi-level vector to normal vector.
@@ -248,8 +250,8 @@ public:
    */
   template <int dim, typename number2, int spacedim>
   void
-  copy_from_mg(const DoFHandler<dim, spacedim> &         dof_handler,
-               BlockVector<number2> &                    dst,
+  copy_from_mg(const DoFHandler<dim, spacedim>          &dof_handler,
+               BlockVector<number2>                     &dst,
                const MGLevelObject<BlockVector<number>> &src) const;
 
   /**
@@ -259,8 +261,8 @@ public:
    */
   template <int dim, typename number2, int spacedim>
   void
-  copy_from_mg_add(const DoFHandler<dim, spacedim> &         dof_handler,
-                   BlockVector<number2> &                    dst,
+  copy_from_mg_add(const DoFHandler<dim, spacedim>          &dof_handler,
+                   BlockVector<number2>                     &dst,
                    const MGLevelObject<BlockVector<number>> &src) const;
 
   using MGTransferBlockBase::memory_consumption;
@@ -335,12 +337,12 @@ public:
 
   virtual void
   prolongate(const unsigned int    to_level,
-             Vector<number> &      dst,
+             Vector<number>       &dst,
              const Vector<number> &src) const override;
 
   virtual void
   restrict_and_add(const unsigned int    from_level,
-                   Vector<number> &      dst,
+                   Vector<number>       &dst,
                    const Vector<number> &src) const override;
 
   /**
@@ -352,8 +354,8 @@ public:
   template <int dim, typename number2, int spacedim>
   void
   copy_to_mg(const DoFHandler<dim, spacedim> &dof_handler,
-             MGLevelObject<Vector<number>> &  dst,
-             const Vector<number2> &          src) const;
+             MGLevelObject<Vector<number>>   &dst,
+             const Vector<number2>           &src) const;
 
   /**
    * Transfer from multilevel vector to normal vector.
@@ -363,8 +365,8 @@ public:
    */
   template <int dim, typename number2, int spacedim>
   void
-  copy_from_mg(const DoFHandler<dim, spacedim> &    dof_handler,
-               Vector<number2> &                    dst,
+  copy_from_mg(const DoFHandler<dim, spacedim>     &dof_handler,
+               Vector<number2>                     &dst,
                const MGLevelObject<Vector<number>> &src) const;
 
   /**
@@ -374,8 +376,8 @@ public:
    */
   template <int dim, typename number2, int spacedim>
   void
-  copy_from_mg_add(const DoFHandler<dim, spacedim> &    dof_handler,
-                   Vector<number2> &                    dst,
+  copy_from_mg_add(const DoFHandler<dim, spacedim>     &dof_handler,
+                   Vector<number2>                     &dst,
                    const MGLevelObject<Vector<number>> &src) const;
 
   /**
@@ -388,8 +390,8 @@ public:
   template <int dim, typename number2, int spacedim>
   void
   copy_to_mg(const DoFHandler<dim, spacedim> &dof_handler,
-             MGLevelObject<Vector<number>> &  dst,
-             const BlockVector<number2> &     src) const;
+             MGLevelObject<Vector<number>>   &dst,
+             const BlockVector<number2>      &src) const;
 
   /**
    * Transfer from multilevel vector to normal vector.
@@ -399,8 +401,8 @@ public:
    */
   template <int dim, typename number2, int spacedim>
   void
-  copy_from_mg(const DoFHandler<dim, spacedim> &    dof_handler,
-               BlockVector<number2> &               dst,
+  copy_from_mg(const DoFHandler<dim, spacedim>     &dof_handler,
+               BlockVector<number2>                &dst,
                const MGLevelObject<Vector<number>> &src) const;
 
   /**
@@ -410,8 +412,8 @@ public:
    */
   template <int dim, typename number2, int spacedim>
   void
-  copy_from_mg_add(const DoFHandler<dim, spacedim> &    dof_handler,
-                   BlockVector<number2> &               dst,
+  copy_from_mg_add(const DoFHandler<dim, spacedim>     &dof_handler,
+                   BlockVector<number2>                &dst,
                    const MGLevelObject<Vector<number>> &src) const;
 
   /**
@@ -426,8 +428,8 @@ private:
    */
   template <int dim, class OutVector, int spacedim>
   void
-  do_copy_from_mg(const DoFHandler<dim, spacedim> &    dof_handler,
-                  OutVector &                          dst,
+  do_copy_from_mg(const DoFHandler<dim, spacedim>     &dof_handler,
+                  OutVector                           &dst,
                   const MGLevelObject<Vector<number>> &src,
                   const unsigned int                   offset) const;
 
@@ -436,8 +438,8 @@ private:
    */
   template <int dim, class OutVector, int spacedim>
   void
-  do_copy_from_mg_add(const DoFHandler<dim, spacedim> &    dof_handler,
-                      OutVector &                          dst,
+  do_copy_from_mg_add(const DoFHandler<dim, spacedim>     &dof_handler,
+                      OutVector                           &dst,
                       const MGLevelObject<Vector<number>> &src,
                       const unsigned int                   offset) const;
 
@@ -447,8 +449,8 @@ private:
   template <int dim, class InVector, int spacedim>
   void
   do_copy_to_mg(const DoFHandler<dim, spacedim> &dof_handler,
-                MGLevelObject<Vector<number>> &  dst,
-                const InVector &                 src,
+                MGLevelObject<Vector<number>>   &dst,
+                const InVector                  &src,
                 const unsigned int               offset) const;
   /**
    * Selected block.
@@ -456,7 +458,7 @@ private:
   unsigned int selected_block;
 };
 
-/*@}*/
+/** @} */
 
 //------------------------- inline function definition ------------------------
 template <typename number>

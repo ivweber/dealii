@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,13 +24,16 @@
 
 #include <deal.II/fe/component_mask.h>
 
+#include <deal.II/lac/read_vector.h>
+
 #include <map>
 
 DEAL_II_NAMESPACE_OPEN
 
 // Forward declarations
 #ifndef DOXYGEN
-template <int, int>
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
 template <int, int>
 class Mapping;
@@ -199,7 +202,7 @@ namespace hp
  * accurately describe Neumann values, then this is rarely an issue: if you
  * don't say anything in the map about a particular part of the boundary then
  * the Kelly indicator will simply assume that the solution is correct on that
- * part of the boundary and not touch it. Of course, if you have a have a
+ * part of the boundary and not touch it. Of course, if you have a
  * Neumann or Robin boundary, that isn't quite true, there is going to be a
  * difference between the normal derivative of the numerical solution and the
  * Neumann values these normal derivatives should equal. So if we simply
@@ -219,7 +222,7 @@ namespace hp
  * documentation for the FESubFaceValues class for more information about
  * technical issues regarding this topic.
  *
- * In praxi, since we integrate over each face only once, we do this when we
+ * In practice, since we integrate over each face only once, we do this when we
  * are on the coarser one of the two cells adjacent to a subface (a subface is
  * defined to be the child of a face; seen from the coarse cell, it is a
  * subface, while seen from the refined cell it is one of its faces). The
@@ -238,12 +241,12 @@ namespace hp
  *
  * <h3>Multiple solution vectors</h3>
  *
- * In some cases, for example in time-dependent problems, one would like to
+ * In some cases, one would like to
  * compute the error estimates for several solution vectors on the same grid
- * at once, with the same coefficients, boundary condition object, etc, e.g.
- * for the solutions on several successive time steps. One could then call the
- * functions of this class several times for each solution. However, the
- * largest factor in the computation of the error estimates (in terms of
+ * at once, with the same coefficients, boundary condition object, etc, for
+ * example for the solutions on several successive time steps. One could then
+ * call the functions of this class several times for each solution. However,
+ * the largest factor in the computation of the error estimates (in terms of
  * computing time) is initialization of FEFaceValues and FESubFaceValues
  * objects, and iterating through all faces and subfaces. If the solution
  * vectors live on the same grid, this effort can be reduced significantly by
@@ -335,18 +338,17 @@ public:
    * cell in the mesh as reported by
    * parallel::distributed::Triangulation::n_locally_owned_active_cells().
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
-    const Quadrature<dim - 1> &      quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                       neumann_bc,
-    const InputVector &       solution,
-    Vector<float> &           error,
-    const ComponentMask &     component_mask = ComponentMask(),
+    const Quadrature<dim - 1>       &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                             &neumann_bc,
+    const ReadVector<Number> &solution,
+    Vector<float>            &error,
+    const ComponentMask      &component_mask = {},
     const Function<spacedim> *coefficients   = nullptr,
     const unsigned int        n_threads      = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id   = numbers::invalid_subdomain_id,
@@ -357,17 +359,16 @@ public:
    * Call the @p estimate function, see above, with
    * <tt>mapping=MappingQ@<dim@>(1)</tt>.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
     const DoFHandler<dim, spacedim> &dof,
-    const Quadrature<dim - 1> &      quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                       neumann_bc,
-    const InputVector &       solution,
-    Vector<float> &           error,
-    const ComponentMask &     component_mask = ComponentMask(),
+    const Quadrature<dim - 1>       &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                             &neumann_bc,
+    const ReadVector<Number> &solution,
+    Vector<float>            &error,
+    const ComponentMask      &component_mask = {},
     const Function<spacedim> *coefficients   = nullptr,
     const unsigned int        n_threads      = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id   = numbers::invalid_subdomain_id,
@@ -380,26 +381,25 @@ public:
    * existence of this function, see the general documentation of this class.
    *
    * Since we do not want to force the user of this function to copy around
-   * their solution vectors, the vector of solution vectors takes pointers to
+   * their solution vectors, the ArrayView of solution vectors takes pointers to
    * the solutions, rather than being a vector of vectors. This makes it
    * simpler to have the solution vectors somewhere in memory, rather than to
    * have them collected somewhere special. (Note that it is not possible to
    * construct of vector of references, so we had to use a vector of
    * pointers.)
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
-    const Quadrature<dim - 1> &      quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                                     neumann_bc,
-    const std::vector<const InputVector *> &solutions,
-    std::vector<Vector<float> *> &          errors,
-    const ComponentMask &                   component_mask = ComponentMask(),
-    const Function<spacedim> *              coefficients   = nullptr,
+    const Quadrature<dim - 1>       &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                                                &neumann_bc,
+    const ArrayView<const ReadVector<Number> *> &solutions,
+    ArrayView<Vector<float> *>                  &errors,
+    const ComponentMask                         &component_mask = {},
+    const Function<spacedim>                    *coefficients   = nullptr,
     const unsigned int        n_threads    = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id,
     const types::material_id  material_id  = numbers::invalid_material_id,
@@ -409,18 +409,17 @@ public:
    * Call the @p estimate function, see above, with
    * <tt>mapping=MappingQ@<dim@>(1)</tt>.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
     const DoFHandler<dim, spacedim> &dof,
-    const Quadrature<dim - 1> &      quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                                     neumann_bc,
-    const std::vector<const InputVector *> &solutions,
-    std::vector<Vector<float> *> &          errors,
-    const ComponentMask &                   component_mask = ComponentMask(),
-    const Function<spacedim> *              coefficients   = nullptr,
+    const Quadrature<dim - 1>       &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                                                &neumann_bc,
+    const ArrayView<const ReadVector<Number> *> &solutions,
+    ArrayView<Vector<float> *>                  &errors,
+    const ComponentMask                         &component_mask = {},
+    const Function<spacedim>                    *coefficients   = nullptr,
     const unsigned int        n_threads    = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id,
     const types::material_id  material_id  = numbers::invalid_material_id,
@@ -431,18 +430,17 @@ public:
    * Equivalent to the set of functions above, except that this one takes a
    * quadrature collection for hp-finite element dof handlers.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
-    const hp::QCollection<dim - 1> & quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                       neumann_bc,
-    const InputVector &       solution,
-    Vector<float> &           error,
-    const ComponentMask &     component_mask = ComponentMask(),
+    const hp::QCollection<dim - 1>  &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                             &neumann_bc,
+    const ReadVector<Number> &solution,
+    Vector<float>            &error,
+    const ComponentMask      &component_mask = {},
     const Function<spacedim> *coefficients   = nullptr,
     const unsigned int        n_threads      = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id   = numbers::invalid_subdomain_id,
@@ -454,17 +452,16 @@ public:
    * Equivalent to the set of functions above, except that this one takes a
    * quadrature collection for hp-finite element dof handlers.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
     const DoFHandler<dim, spacedim> &dof,
-    const hp::QCollection<dim - 1> & quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                       neumann_bc,
-    const InputVector &       solution,
-    Vector<float> &           error,
-    const ComponentMask &     component_mask = ComponentMask(),
+    const hp::QCollection<dim - 1>  &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                             &neumann_bc,
+    const ReadVector<Number> &solution,
+    Vector<float>            &error,
+    const ComponentMask      &component_mask = {},
     const Function<spacedim> *coefficients   = nullptr,
     const unsigned int        n_threads      = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id   = numbers::invalid_subdomain_id,
@@ -476,19 +473,18 @@ public:
    * Equivalent to the set of functions above, except that this one takes a
    * quadrature collection for hp-finite element dof handlers.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
-    const hp::QCollection<dim - 1> & quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                                     neumann_bc,
-    const std::vector<const InputVector *> &solutions,
-    std::vector<Vector<float> *> &          errors,
-    const ComponentMask &                   component_mask = ComponentMask(),
-    const Function<spacedim> *              coefficients   = nullptr,
+    const hp::QCollection<dim - 1>  &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                                                &neumann_bc,
+    const ArrayView<const ReadVector<Number> *> &solutions,
+    ArrayView<Vector<float> *>                  &errors,
+    const ComponentMask                         &component_mask = {},
+    const Function<spacedim>                    *coefficients   = nullptr,
     const unsigned int        n_threads    = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id,
     const types::material_id  material_id  = numbers::invalid_material_id,
@@ -499,18 +495,17 @@ public:
    * Equivalent to the set of functions above, except that this one takes a
    * quadrature collection for hp-finite element dof handlers.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
     const DoFHandler<dim, spacedim> &dof,
-    const hp::QCollection<dim - 1> & quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                                     neumann_bc,
-    const std::vector<const InputVector *> &solutions,
-    std::vector<Vector<float> *> &          errors,
-    const ComponentMask &                   component_mask = ComponentMask(),
-    const Function<spacedim> *              coefficients   = nullptr,
+    const hp::QCollection<dim - 1>  &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                                                &neumann_bc,
+    const ArrayView<const ReadVector<Number> *> &solutions,
+    ArrayView<Vector<float> *>                  &errors,
+    const ComponentMask                         &component_mask = {},
+    const Function<spacedim>                    *coefficients   = nullptr,
     const unsigned int        n_threads    = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id,
     const types::material_id  material_id  = numbers::invalid_material_id,
@@ -623,18 +618,17 @@ public:
    * respective parameter for compatibility with the function signature in the
    * general case.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
-    const Mapping<1, spacedim> &   mapping,
+    const Mapping<1, spacedim>    &mapping,
     const DoFHandler<1, spacedim> &dof,
-    const Quadrature<0> &          quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                       neumann_bc,
-    const InputVector &       solution,
-    Vector<float> &           error,
-    const ComponentMask &     component_mask = ComponentMask(),
+    const Quadrature<0>           &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                             &neumann_bc,
+    const ReadVector<Number> &solution,
+    Vector<float>            &error,
+    const ComponentMask      &component_mask = {},
     const Function<spacedim> *coefficient    = nullptr,
     const unsigned int        n_threads      = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id   = numbers::invalid_subdomain_id,
@@ -647,17 +641,16 @@ public:
    * Call the @p estimate function, see above, with
    * <tt>mapping=MappingQ1<1>()</tt>.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
     const DoFHandler<1, spacedim> &dof,
-    const Quadrature<0> &          quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                       neumann_bc,
-    const InputVector &       solution,
-    Vector<float> &           error,
-    const ComponentMask &     component_mask = ComponentMask(),
+    const Quadrature<0>           &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                             &neumann_bc,
+    const ReadVector<Number> &solution,
+    Vector<float>            &error,
+    const ComponentMask      &component_mask = {},
     const Function<spacedim> *coefficients   = nullptr,
     const unsigned int        n_threads      = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id   = numbers::invalid_subdomain_id,
@@ -679,19 +672,18 @@ public:
    * construct of vector of references, so we had to use a vector of
    * pointers.)
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
-    const Mapping<1, spacedim> &   mapping,
+    const Mapping<1, spacedim>    &mapping,
     const DoFHandler<1, spacedim> &dof,
-    const Quadrature<0> &          quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                                     neumann_bc,
-    const std::vector<const InputVector *> &solutions,
-    std::vector<Vector<float> *> &          errors,
-    const ComponentMask &                   component_mask = ComponentMask(),
-    const Function<spacedim> *              coefficients   = nullptr,
+    const Quadrature<0>           &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                                                &neumann_bc,
+    const ArrayView<const ReadVector<Number> *> &solutions,
+    ArrayView<Vector<float> *>                  &errors,
+    const ComponentMask                         &component_mask = {},
+    const Function<spacedim>                    *coefficients   = nullptr,
     const unsigned int        n_threads    = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id,
     const types::material_id  material_id  = numbers::invalid_material_id,
@@ -703,18 +695,17 @@ public:
    * Call the @p estimate function, see above, with
    * <tt>mapping=MappingQ1<1>()</tt>.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
     const DoFHandler<1, spacedim> &dof,
-    const Quadrature<0> &          quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                                     neumann_bc,
-    const std::vector<const InputVector *> &solutions,
-    std::vector<Vector<float> *> &          errors,
-    const ComponentMask &                   component_mask = ComponentMask(),
-    const Function<spacedim> *              coefficients   = nullptr,
+    const Quadrature<0>           &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                                                &neumann_bc,
+    const ArrayView<const ReadVector<Number> *> &solutions,
+    ArrayView<Vector<float> *>                  &errors,
+    const ComponentMask                         &component_mask = {},
+    const Function<spacedim>                    *coefficients   = nullptr,
     const unsigned int        n_threads    = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id,
     const types::material_id  material_id  = numbers::invalid_material_id,
@@ -726,18 +717,17 @@ public:
    * Equivalent to the set of functions above, except that this one takes a
    * quadrature collection for hp-finite element dof handlers.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
-    const Mapping<1, spacedim> &   mapping,
+    const Mapping<1, spacedim>    &mapping,
     const DoFHandler<1, spacedim> &dof,
-    const hp::QCollection<0> &     quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                       neumann_bc,
-    const InputVector &       solution,
-    Vector<float> &           error,
-    const ComponentMask &     component_mask = ComponentMask(),
+    const hp::QCollection<0>      &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                             &neumann_bc,
+    const ReadVector<Number> &solution,
+    Vector<float>            &error,
+    const ComponentMask      &component_mask = {},
     const Function<spacedim> *coefficients   = nullptr,
     const unsigned int        n_threads      = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id   = numbers::invalid_subdomain_id,
@@ -750,17 +740,16 @@ public:
    * Equivalent to the set of functions above, except that this one takes a
    * quadrature collection for hp-finite element dof handlers.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
     const DoFHandler<1, spacedim> &dof,
-    const hp::QCollection<0> &     quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                       neumann_bc,
-    const InputVector &       solution,
-    Vector<float> &           error,
-    const ComponentMask &     component_mask = ComponentMask(),
+    const hp::QCollection<0>      &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                             &neumann_bc,
+    const ReadVector<Number> &solution,
+    Vector<float>            &error,
+    const ComponentMask      &component_mask = {},
     const Function<spacedim> *coefficients   = nullptr,
     const unsigned int        n_threads      = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id   = numbers::invalid_subdomain_id,
@@ -773,19 +762,18 @@ public:
    * Equivalent to the set of functions above, except that this one takes a
    * quadrature collection for hp-finite element dof handlers.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
-    const Mapping<1, spacedim> &   mapping,
+    const Mapping<1, spacedim>    &mapping,
     const DoFHandler<1, spacedim> &dof,
-    const hp::QCollection<0> &     quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                                     neumann_bc,
-    const std::vector<const InputVector *> &solutions,
-    std::vector<Vector<float> *> &          errors,
-    const ComponentMask &                   component_mask = ComponentMask(),
-    const Function<spacedim> *              coefficients   = nullptr,
+    const hp::QCollection<0>      &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                                                &neumann_bc,
+    const ArrayView<const ReadVector<Number> *> &solutions,
+    ArrayView<Vector<float> *>                  &errors,
+    const ComponentMask                         &component_mask = {},
+    const Function<spacedim>                    *coefficients   = nullptr,
     const unsigned int        n_threads    = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id,
     const types::material_id  material_id  = numbers::invalid_material_id,
@@ -797,18 +785,17 @@ public:
    * Equivalent to the set of functions above, except that this one takes a
    * quadrature collection for hp-finite element dof handlers.
    */
-  template <typename InputVector>
+  template <typename Number>
   static void
   estimate(
     const DoFHandler<1, spacedim> &dof,
-    const hp::QCollection<0> &     quadrature,
-    const std::map<types::boundary_id,
-                   const Function<spacedim, typename InputVector::value_type> *>
-      &                                     neumann_bc,
-    const std::vector<const InputVector *> &solutions,
-    std::vector<Vector<float> *> &          errors,
-    const ComponentMask &                   component_mask = ComponentMask(),
-    const Function<spacedim> *              coefficients   = nullptr,
+    const hp::QCollection<0>      &quadrature,
+    const std::map<types::boundary_id, const Function<spacedim, Number> *>
+                                                &neumann_bc,
+    const ArrayView<const ReadVector<Number> *> &solutions,
+    ArrayView<Vector<float> *>                  &errors,
+    const ComponentMask                         &component_mask = {},
+    const Function<spacedim>                    *coefficients   = nullptr,
     const unsigned int        n_threads    = numbers::invalid_unsigned_int,
     const types::subdomain_id subdomain_id = numbers::invalid_subdomain_id,
     const types::material_id  material_id  = numbers::invalid_material_id,

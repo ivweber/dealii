@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef vector_tools_hermite_h
-#define vector_tools_hermite_h
+#ifndef dealii_vector_tools_hermite_h
+#define dealii_vector_tools_hermite_h
 
 #include <deal.II/base/config.h>
 
@@ -40,22 +40,6 @@ namespace VectorTools
    */
 
   /**
-   * @p Enumeration representing the type of boundary condition to be enforced.
-   * Since Hermite finite elements can strongly impose continuity in various
-   * derivatives as well as value at element boundaries, they can also be used
-   * to impose boundary conditions such as Neumann conditions directly to reduce
-   * the size of the computational system.
-   */
-  enum HermiteBoundaryType
-  {
-    hermite_dirichlet,
-    hermite_neumann,
-    hermite_2nd_derivative,
-  };
-
-
-
-  /**
    * Enforces boundary conditions by projecting onto the Hermite finite element
    * space at the boundary.
    *
@@ -72,12 +56,12 @@ namespace VectorTools
   template <int dim, int spacedim = dim, typename Number = double>
   void
   project_hermite_boundary_values(
-    const Mapping<dim, spacedim> &   mapping_h,
+    const Mapping<dim, spacedim>    &mapping_h,
     const DoFHandler<dim, spacedim> &dof_handler,
     const std::map<types::boundary_id, const Function<spacedim, Number> *>
-      &                                        boundary_functions,
-    const Quadrature<dim - 1> &                quadrature,
-    const HermiteBoundaryType                  projection_mode,
+                                              &boundary_functions,
+    const Quadrature<dim - 1>                 &quadrature,
+    const unsigned int                         boundary_norm_deriv_order,
     std::map<types::global_dof_index, Number> &boundary_values,
     std::vector<unsigned int>                  component_mapping = {});
 
@@ -90,11 +74,11 @@ namespace VectorTools
   template <int dim, int spacedim = dim, typename Number = double>
   void
   project_hermite_boundary_values(
-    const Mapping<dim, spacedim> &   mapping_h,
+    const Mapping<dim, spacedim>    &mapping_h,
     const DoFHandler<dim, spacedim> &dof_handler,
     const std::map<types::boundary_id, const Function<spacedim, Number> *>
-      &                                        boundary_functions,
-    const Quadrature<dim - 1> &                quadrature,
+                                              &boundary_functions,
+    const Quadrature<dim - 1>                 &quadrature,
     std::map<types::global_dof_index, Number> &boundary_values,
     std::vector<unsigned int>                  component_mapping = {});
 
@@ -114,12 +98,12 @@ namespace VectorTools
   template <int dim, typename VectorType, int spacedim>
   void
   project_hermite(
-    const Mapping<dim, spacedim> &                             mapping,
-    const DoFHandler<dim, spacedim> &                          dofhandler,
-    const AffineConstraints<typename VectorType::value_type> & constraints,
-    const Quadrature<dim> &                                    quadrature,
+    const Mapping<dim, spacedim>                              &mapping,
+    const DoFHandler<dim, spacedim>                           &dofhandler,
+    const AffineConstraints<typename VectorType::value_type>  &constraints,
+    const Quadrature<dim>                                     &quadrature,
     const Function<spacedim, typename VectorType::value_type> &function,
-    VectorType &                                               vec,
+    VectorType                                                &vec,
     const bool                 enforce_zero_boundary = false,
     const Quadrature<dim - 1> &q_boundary = (dim > 1 ? QGauss<dim - 1>(2) :
                                                        Quadrature<dim - 1>(0)),

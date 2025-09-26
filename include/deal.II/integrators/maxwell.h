@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -160,7 +160,7 @@ namespace LocalIntegrators
      */
     template <int dim>
     void
-    curl_curl_matrix(FullMatrix<double> &     M,
+    curl_curl_matrix(FullMatrix<double>      &M,
                      const FEValuesBase<dim> &fe,
                      const double             factor = 1.)
     {
@@ -207,13 +207,13 @@ namespace LocalIntegrators
      * \int_Z \nabla \times u \cdot v \,dx.
      * @f]
      *
-     * This is the standard curl operator in 3D and the scalar curl in 2D. The
+     * This is the standard curl operator in 3d and the scalar curl in 2d. The
      * vector curl operator can be obtained by exchanging test and trial
      * functions.
      */
     template <int dim>
     void
-    curl_matrix(FullMatrix<double> &     M,
+    curl_matrix(FullMatrix<double>      &M,
                 const FEValuesBase<dim> &fe,
                 const FEValuesBase<dim> &fetest,
                 double                   factor = 1.)
@@ -221,7 +221,7 @@ namespace LocalIntegrators
       const unsigned int n_dofs = fe.dofs_per_cell;
       const unsigned int t_dofs = fetest.dofs_per_cell;
       AssertDimension(fe.get_fe().n_components(), dim);
-      // There should be the right number of components (3 in 3D, otherwise 1)
+      // There should be the right number of components (3 in 3d, otherwise 1)
       // for the curl.
       AssertDimension(fetest.get_fe().n_components(), (dim == 3) ? dim : 1);
       AssertDimension(M.m(), t_dofs);
@@ -262,7 +262,7 @@ namespace LocalIntegrators
      */
     template <int dim>
     void
-    nitsche_curl_matrix(FullMatrix<double> &     M,
+    nitsche_curl_matrix(FullMatrix<double>      &M,
                         const FEValuesBase<dim> &fe,
                         const unsigned int       face_no,
                         double                   penalty,
@@ -325,7 +325,7 @@ namespace LocalIntegrators
      */
     template <int dim>
     void
-    tangential_trace_matrix(FullMatrix<double> &     M,
+    tangential_trace_matrix(FullMatrix<double>      &M,
                             const FEValuesBase<dim> &fe,
                             double                   factor = 1.)
     {
@@ -382,10 +382,10 @@ namespace LocalIntegrators
      */
     template <int dim>
     inline void
-    ip_curl_matrix(FullMatrix<double> &     M11,
-                   FullMatrix<double> &     M12,
-                   FullMatrix<double> &     M21,
-                   FullMatrix<double> &     M22,
+    ip_curl_matrix(FullMatrix<double>      &M11,
+                   FullMatrix<double>      &M12,
+                   FullMatrix<double>      &M21,
+                   FullMatrix<double>      &M22,
                    const FEValuesBase<dim> &fe1,
                    const FEValuesBase<dim> &fe2,
                    const double             pen,

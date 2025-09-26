@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -37,10 +37,10 @@ template <typename SolverType,
           typename VectorType,
           class PRECONDITION>
 void
-check_solve(SolverType &        solver,
-            const MatrixType &  A,
-            VectorType &        u,
-            VectorType &        f,
+check_solve(SolverType         &solver,
+            const MatrixType   &A,
+            VectorType         &u,
+            VectorType         &f,
             const PRECONDITION &P)
 {
   u = 0.;
@@ -60,10 +60,10 @@ template <typename SolverType,
           typename VectorType,
           class PRECONDITION>
 void
-check_Tsolve(SolverType &        solver,
-             const MatrixType &  A,
-             VectorType &        u,
-             VectorType &        f,
+check_Tsolve(SolverType         &solver,
+             const MatrixType   &A,
+             VectorType         &u,
+             VectorType         &f,
              const PRECONDITION &P)
 {
   u = 0.;
@@ -99,6 +99,11 @@ main()
   SolverRichardson<>            rich(control, mem);
   SolverQMRS<>                  qmrs(control, mem);
   SolverFIRE<>                  fire(control, mem);
+
+  SolverGMRES<>::AdditionalData data3(8);
+  data3.orthogonalization_strategy =
+    LinearAlgebra::OrthogonalizationStrategy::classical_gram_schmidt;
+  SolverGMRES<> gmresclassical(control, mem, data3);
 
   for (unsigned int size = 4; size <= 30; size *= 3)
     {
@@ -169,6 +174,7 @@ main()
           check_solve(bicgstab, A, u, f, prec_no);
           check_solve(gmres, A, u, f, prec_no);
           check_solve(gmresright, A, u, f, prec_no);
+          check_solve(gmresclassical, A, u, f, prec_no);
           //    check_solve(minres,A,u,f,prec_no);
           check_solve(qmrs, A, u, f, prec_no);
 
@@ -187,6 +193,7 @@ main()
           check_solve(bicgstab, A, u, f, prec_no);
           check_solve(gmres, A, u, f, prec_no);
           check_solve(gmresright, A, u, f, prec_no);
+          check_solve(gmresclassical, A, u, f, prec_no);
           check_solve(qmrs, A, u, f, prec_no);
           check_solve(fire, A, u, f, prec_no);
           rich.set_omega(1.);
@@ -201,6 +208,7 @@ main()
           check_solve(bicgstab, A, u, f, prec_richardson);
           check_solve(gmres, A, u, f, prec_richardson);
           check_solve(gmresright, A, u, f, prec_richardson);
+          check_solve(gmresclassical, A, u, f, prec_richardson);
           check_solve(qmrs, A, u, f, prec_richardson);
           check_solve(fire, A, u, f, prec_richardson);
           rich.set_omega(1.);
@@ -215,6 +223,7 @@ main()
           check_solve(bicgstab, A, u, f, prec_ssor);
           check_solve(gmres, A, u, f, prec_ssor);
           check_solve(gmresright, A, u, f, prec_ssor);
+          check_solve(gmresclassical, A, u, f, prec_ssor);
           check_solve(qmrs, A, u, f, prec_ssor);
           check_solve(fire, A, u, f, prec_ssor);
 
@@ -228,6 +237,7 @@ main()
           check_solve(bicgstab, A, u, f, prec_sor);
           check_solve(gmres, A, u, f, prec_sor);
           check_solve(gmresright, A, u, f, prec_sor);
+          check_solve(gmresclassical, A, u, f, prec_sor);
           check_solve(fire, A, u, f, prec_sor);
 
           deallog.pop();
@@ -240,11 +250,12 @@ main()
           check_solve(bicgstab, A, u, f, prec_psor);
           check_solve(gmres, A, u, f, prec_psor);
           check_solve(gmresright, A, u, f, prec_psor);
+          check_solve(gmresclassical, A, u, f, prec_psor);
           check_solve(fire, A, u, f, prec_psor);
 
           deallog.pop();
         }
-      catch (std::exception &e)
+      catch (const std::exception &e)
         {
           std::cerr << "Exception: " << e.what() << std::endl;
         }

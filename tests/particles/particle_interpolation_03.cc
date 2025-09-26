@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,6 +27,7 @@
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 
@@ -80,9 +81,9 @@ test()
   DoFHandler<dim, spacedim> space_dh(space_tria);
   space_dh.distribute_dofs(space_fe);
 
-  IndexSet locally_owned_dofs = space_dh.locally_owned_dofs();
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(space_dh, locally_relevant_dofs);
+  const IndexSet &locally_owned_dofs = space_dh.locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(space_dh);
 
   if (my_mpi_id == 0)
     deallog << "dim: " << dim << ", spacedim: " << spacedim << std::endl

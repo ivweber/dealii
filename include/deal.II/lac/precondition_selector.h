@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,8 +35,9 @@ class SparseMatrix;
 #endif
 
 
-/*! @addtogroup Preconditioners
- *@{
+/**
+ * @addtogroup Preconditioners
+ * @{
  */
 
 /**
@@ -109,7 +110,7 @@ public:
    * Constructor. @p omega denotes the damping parameter of the
    * preconditioning.
    */
-  PreconditionSelector(const std::string &                    preconditioning,
+  PreconditionSelector(const std::string                     &preconditioning,
                        const typename VectorType::value_type &omega = 1.);
 
   /**
@@ -176,7 +177,7 @@ public:
    */
   DeclException0(ExcNoMatrixGivenToUse);
 
-  //@}
+  /** @} */
 protected:
   /**
    * Stores the name of the preconditioning.
@@ -197,13 +198,13 @@ private:
   const typename VectorType::value_type omega;
 };
 
-/*@}*/
+/** @} */
 /* --------------------- Inline and template functions ------------------- */
 
 
 template <typename MatrixType, typename VectorType>
 PreconditionSelector<MatrixType, VectorType>::PreconditionSelector(
-  const std::string &                    preconditioning,
+  const std::string                     &preconditioning,
   const typename VectorType::value_type &omega)
   : preconditioning(preconditioning)
   , omega(omega)
@@ -247,7 +248,7 @@ PreconditionSelector<MatrixType, VectorType>::n() const
 
 template <typename MatrixType, typename VectorType>
 void
-PreconditionSelector<MatrixType, VectorType>::vmult(VectorType &      dst,
+PreconditionSelector<MatrixType, VectorType>::vmult(VectorType       &dst,
                                                     const VectorType &src) const
 {
   if (preconditioning == "none")
@@ -279,7 +280,7 @@ PreconditionSelector<MatrixType, VectorType>::vmult(VectorType &      dst,
 template <typename MatrixType, typename VectorType>
 void
 PreconditionSelector<MatrixType, VectorType>::Tvmult(
-  VectorType &      dst,
+  VectorType       &dst,
   const VectorType &src) const
 {
   if (preconditioning == "none")

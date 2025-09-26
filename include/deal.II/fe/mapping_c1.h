@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2020 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,8 +23,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup mapping */
-/*@{*/
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * Mapping class that uses C1 (continuously differentiable) cubic mappings of
@@ -63,7 +65,7 @@ public:
   virtual void
   add_line_support_points(
     const typename Triangulation<dim>::cell_iterator &cell,
-    std::vector<Point<dim>> &                         a) const override;
+    std::vector<Point<dim>>                          &a) const override;
 
   /**
    * For <tt>dim=3</tt>. Append the support points of all shape functions
@@ -77,10 +79,10 @@ public:
   virtual void
   add_quad_support_points(
     const typename Triangulation<dim>::cell_iterator &cell,
-    std::vector<Point<dim>> &                         a) const override;
+    std::vector<Point<dim>>                          &a) const override;
 };
 
-/*@}*/
+/** @} */
 
 /* -------------- declaration of explicit specializations ------------- */
 
@@ -94,7 +96,7 @@ template <>
 void
 MappingC1<2>::add_line_support_points(
   const Triangulation<2>::cell_iterator &cell,
-  std::vector<Point<2>> &                a) const;
+  std::vector<Point<2>>                 &a) const;
 
 template <>
 void

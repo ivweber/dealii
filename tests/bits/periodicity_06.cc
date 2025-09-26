@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -100,8 +100,8 @@ make_constraint_matrix(const DoFHandler<2> &dof_handler, int version)
           dof_handler, 1, 0, 0, periodicity_vectorDof);
     }
 
-  DoFTools::make_periodicity_constraints<DoFHandler<dim>>(periodicity_vectorDof,
-                                                          constraints);
+  DoFTools::make_periodicity_constraints<dim, dim>(periodicity_vectorDof,
+                                                   constraints);
 
   constraints.close();
   std::map<types::global_dof_index, Point<dim>> support_points;
@@ -137,9 +137,9 @@ public:
 template <int dim>
 void
 get_point_value(const DoFHandler<dim> &dof_handler,
-                const Point<dim> &     point,
-                const Vector<double> & solution,
-                Vector<double> &       value)
+                const Point<dim>      &point,
+                const Vector<double>  &solution,
+                Vector<double>        &value)
 {
   VectorTools::point_value(dof_handler, solution, point, value);
 }
@@ -147,7 +147,7 @@ get_point_value(const DoFHandler<dim> &dof_handler,
 
 void
 check_periodicity(const DoFHandler<2> &dof_handler,
-                  Vector<double> &     solution,
+                  Vector<double>      &solution,
                   const unsigned int   cycle)
 {
   unsigned int n_points = 2;

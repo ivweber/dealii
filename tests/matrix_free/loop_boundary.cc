@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -58,14 +58,15 @@ do_test(const unsigned int n_refine, const bool overlap_communication)
   add_data.mapping_update_flags_boundary_faces =
     update_values | update_JxW_values | update_quadrature_points;
   add_data.overlap_communication_computation = overlap_communication;
-  matrix_free.reinit(dof_handler,
+  matrix_free.reinit(MappingQ1<dim>{},
+                     dof_handler,
                      constraints,
                      QGauss<1>(fe.degree + 1),
                      add_data);
 
   LinearAlgebra::distributed::Vector<double> in, ref, test;
   matrix_free.initialize_dof_vector(in);
-  for (unsigned int i = 0; i < in.get_partitioner()->local_size(); ++i)
+  for (unsigned int i = 0; i < in.get_partitioner()->locally_owned_size(); ++i)
     in.local_element(i) = in.get_partitioner()->local_to_global(i);
   matrix_free.initialize_dof_vector(ref);
   matrix_free.initialize_dof_vector(test);
@@ -74,8 +75,8 @@ do_test(const unsigned int n_refine, const bool overlap_communication)
                      LinearAlgebra::distributed::Vector<double> &,
                      const LinearAlgebra::distributed::Vector<double> &,
                      const std::pair<unsigned int, unsigned int> &)>
-    cell_func = [](const MatrixFree<dim> &                           data,
-                   LinearAlgebra::distributed::Vector<double> &      out,
+    cell_func = [](const MatrixFree<dim>                            &data,
+                   LinearAlgebra::distributed::Vector<double>       &out,
                    const LinearAlgebra::distributed::Vector<double> &in,
                    const std::pair<unsigned int, unsigned int> &range) -> void {
     FEEvaluation<dim, fe_degree> eval(data);
@@ -100,10 +101,10 @@ do_test(const unsigned int n_refine, const bool overlap_communication)
                      const LinearAlgebra::distributed::Vector<double> &,
                      const std::pair<unsigned int, unsigned int> &)>
     boundary_func =
-      [](const MatrixFree<dim> &                           data,
-         LinearAlgebra::distributed::Vector<double> &      out,
+      [](const MatrixFree<dim>                            &data,
+         LinearAlgebra::distributed::Vector<double>       &out,
          const LinearAlgebra::distributed::Vector<double> &in,
-         const std::pair<unsigned int, unsigned int> &     range) -> void {
+         const std::pair<unsigned int, unsigned int>      &range) -> void {
     FEFaceEvaluation<dim, fe_degree> eval(data, true);
 
     for (unsigned int face = range.first; face < range.second; ++face)

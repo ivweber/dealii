@@ -1,6 +1,6 @@
 //-----------------------------------------------------------
 //
-//    Copyright (C) 2018 - 2021 by the deal.II authors
+//    Copyright (C) 2018 - 2022 by the deal.II authors
 //
 //    This file is part of the deal.II library.
 //
@@ -74,7 +74,7 @@ test()
 
   // safety measure to not modify L or b within Lambda.
   const FullMatrix<number> &L_const = L;
-  const VectorType &        b_const = b;
+  const VectorType         &b_const = b;
   const auto                func    = [&](const VectorType &x, VectorType &g) {
     L_const.vmult(g, x);
     number res = 0.5 * (g * x) - x * b_const;

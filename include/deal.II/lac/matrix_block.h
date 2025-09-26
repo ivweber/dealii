@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2020 by the deal.II authors
+// Copyright (C) 2007 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -49,7 +49,7 @@ namespace internal
   template <typename number>
   void
   reinit(MatrixBlock<dealii::SparseMatrix<number>> &v,
-         const BlockSparsityPattern &               p);
+         const BlockSparsityPattern                &p);
 } // namespace internal
 
 /**
@@ -65,7 +65,7 @@ namespace internal
  * different blocks in a block system. For example, a preconditioner for the
  * Oseen system can be built as a block system, where the pressure block is of
  * the form <b>M</b><sup>-1</sup><b>FA</b><sup>-1</sup> with <b>M</b> the
- * pressure mass matrix, <b>A</b> the pressure Laplacian and <b>F</b> the
+ * pressure @ref GlossMassMatrix "mass matrix", <b>A</b> the pressure Laplacian and <b>F</b> the
  * advection diffusion operator applied to the pressure space. Since only a
  * single matrix is needed for the other blocks, using BlockSparseMatrix or
  * similar would be a waste of memory.
@@ -183,7 +183,7 @@ public:
   template <typename number>
   void
   add(const std::vector<size_type> &indices,
-      const FullMatrix<number> &    full_matrix,
+      const FullMatrix<number>     &full_matrix,
       const bool                    elide_zero_values = true);
 
   /**
@@ -204,7 +204,7 @@ public:
   void
   add(const std::vector<size_type> &row_indices,
       const std::vector<size_type> &col_indices,
-      const FullMatrix<number> &    full_matrix,
+      const FullMatrix<number>     &full_matrix,
       const bool                    elide_zero_values = true);
 
   /**
@@ -227,7 +227,7 @@ public:
   void
   add(const size_type               row_index,
       const std::vector<size_type> &col_indices,
-      const std::vector<number> &   values,
+      const std::vector<number>    &values,
       const bool                    elide_zero_values = true);
 
   /**
@@ -244,7 +244,7 @@ public:
   add(const size_type  row,
       const size_type  n_cols,
       const size_type *col_indices,
-      const number *   values,
+      const number    *values,
       const bool       elide_zero_values      = true,
       const bool       col_indices_are_sorted = false);
 
@@ -253,7 +253,7 @@ public:
    * MatrixType. No index computations are done, thus, the vectors need to
    * have sizes matching #matrix.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   vmult(VectorType &w, const VectorType &v) const;
 
@@ -262,7 +262,7 @@ public:
    * MatrixType. No index computations are done, thus, the vectors need to
    * have sizes matching #matrix.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   vmult_add(VectorType &w, const VectorType &v) const;
 
@@ -271,7 +271,7 @@ public:
    * MatrixType. No index computations are done, thus, the vectors need to
    * have sizes matching #matrix.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   Tvmult(VectorType &w, const VectorType &v) const;
 
@@ -280,7 +280,7 @@ public:
    * MatrixType. No index computations are done, thus, the vectors need to
    * have sizes matching #matrix.
    */
-  template <class VectorType>
+  template <typename VectorType>
   void
   Tvmult_add(VectorType &w, const VectorType &v) const;
 
@@ -336,7 +336,7 @@ private:
   template <typename number>
   friend void
   internal::reinit(MatrixBlock<dealii::SparseMatrix<number>> &v,
-                   const BlockSparsityPattern &               p);
+                   const BlockSparsityPattern                &p);
 };
 
 
@@ -625,7 +625,7 @@ namespace internal
   template <typename number>
   void
   reinit(MatrixBlock<dealii::SparseMatrix<number>> &v,
-         const BlockSparsityPattern &               p)
+         const BlockSparsityPattern                &p)
   {
     v.row_indices    = p.get_row_indices();
     v.column_indices = p.get_column_indices();
@@ -695,7 +695,7 @@ template <typename number>
 inline void
 MatrixBlock<MatrixType>::add(const std::vector<size_type> &r_indices,
                              const std::vector<size_type> &c_indices,
-                             const FullMatrix<number> &    values,
+                             const FullMatrix<number>     &values,
                              const bool                    elide_zero_values)
 {
   Assert(row_indices.size() != 0, ExcNotInitialized());
@@ -719,7 +719,7 @@ inline void
 MatrixBlock<MatrixType>::add(const size_type  b_row,
                              const size_type  n_cols,
                              const size_type *col_indices,
-                             const number *   values,
+                             const number    *values,
                              const bool,
                              const bool)
 {
@@ -737,7 +737,7 @@ MatrixBlock<MatrixType>::add(const size_type  b_row,
   // leave it at this. While it may
   // not be the most efficient way,
   // it is at least thread safe.
-  //#ifdef DEBUG
+  // #ifdef DEBUG
   Assert(bi.first == row, ExcBlockIndexMismatch(bi.first, row));
 
   for (size_type j = 0; j < n_cols; ++j)
@@ -748,7 +748,7 @@ MatrixBlock<MatrixType>::add(const size_type  b_row,
 
       matrix.add(bi.second, bj.second, values[j]);
     }
-  //#endif
+  // #endif
 }
 
 
@@ -756,7 +756,7 @@ template <typename MatrixType>
 template <typename number>
 inline void
 MatrixBlock<MatrixType>::add(const std::vector<size_type> &indices,
-                             const FullMatrix<number> &    values,
+                             const FullMatrix<number>     &values,
                              const bool                    elide_zero_values)
 {
   Assert(row_indices.size() != 0, ExcNotInitialized());
@@ -780,7 +780,7 @@ template <typename number>
 inline void
 MatrixBlock<MatrixType>::add(const size_type               row,
                              const std::vector<size_type> &col_indices,
-                             const std::vector<number> &   values,
+                             const std::vector<number>    &values,
                              const bool                    elide_zero_values)
 {
   Assert(row_indices.size() != 0, ExcNotInitialized());
@@ -796,7 +796,7 @@ MatrixBlock<MatrixType>::add(const size_type               row,
 
 
 template <typename MatrixType>
-template <class VectorType>
+template <typename VectorType>
 inline void
 MatrixBlock<MatrixType>::vmult(VectorType &w, const VectorType &v) const
 {
@@ -805,7 +805,7 @@ MatrixBlock<MatrixType>::vmult(VectorType &w, const VectorType &v) const
 
 
 template <typename MatrixType>
-template <class VectorType>
+template <typename VectorType>
 inline void
 MatrixBlock<MatrixType>::vmult_add(VectorType &w, const VectorType &v) const
 {
@@ -814,7 +814,7 @@ MatrixBlock<MatrixType>::vmult_add(VectorType &w, const VectorType &v) const
 
 
 template <typename MatrixType>
-template <class VectorType>
+template <typename VectorType>
 inline void
 MatrixBlock<MatrixType>::Tvmult(VectorType &w, const VectorType &v) const
 {
@@ -823,7 +823,7 @@ MatrixBlock<MatrixType>::Tvmult(VectorType &w, const VectorType &v) const
 
 
 template <typename MatrixType>
-template <class VectorType>
+template <typename VectorType>
 inline void
 MatrixBlock<MatrixType>::Tvmult_add(VectorType &w, const VectorType &v) const
 {

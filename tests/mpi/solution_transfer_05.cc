@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -69,9 +69,8 @@ test()
 
   // prepare index sets
   IndexSet dgq_locally_owned_dofs = dgq_dof_handler.locally_owned_dofs();
-  IndexSet dgq_locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dgq_dof_handler,
-                                          dgq_locally_relevant_dofs);
+  IndexSet dgq_locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dgq_dof_handler);
   IndexSet dgq_ghost_dofs = dgq_locally_relevant_dofs;
   dgq_ghost_dofs.subtract_set(dgq_locally_owned_dofs);
 
@@ -108,8 +107,8 @@ test()
 
   // prepare index sets
   dgq_locally_owned_dofs = dgq_dof_handler.locally_owned_dofs();
-  DoFTools::extract_locally_relevant_dofs(dgq_dof_handler,
-                                          dgq_locally_relevant_dofs);
+  dgq_locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dgq_dof_handler);
   dgq_ghost_dofs = dgq_locally_relevant_dofs;
   dgq_ghost_dofs.subtract_set(dgq_locally_owned_dofs);
 

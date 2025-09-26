@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -73,7 +73,7 @@ DEAL_II_NAMESPACE_OPEN
  * MPI support (several processes access the same HDF5 file).
  * File::File(const std::string &, const FileAccessMode)
  * opens/creates an HDF5 file for serial operations.
- * File::File(const std::string &, const FileAccessMode, const MPI_Comm &)
+ * File::File(const std::string &, const FileAccessMode, const MPI_Comm )
  * creates or opens an HDF5 file in parallel using MPI. The HDF5 calls that
  * modify the structure of the file are always collective, whereas writing
  * and reading raw data in a dataset can be done independently or collectively.
@@ -399,7 +399,7 @@ namespace HDF5
 
   protected:
     /**
-     * Name of the HDF5Oject. In the case of File, @p name corresponds to the
+     * Name of the HDF5Object. In the case of File, @p name corresponds to the
      * file name. In the case of Group and DataSet @p name corresponds to the
      * name of the object in the HDF5 file.
      */
@@ -438,9 +438,9 @@ namespace HDF5
      * Create dataset. This is an internal constructor. The function
      * Group::create_dataset() should be used to create a dataset.
      */
-    DataSet(const std::string &           name,
-            const hid_t &                 parent_group_id,
-            const std::vector<hsize_t> &  dimensions,
+    DataSet(const std::string            &name,
+            const hid_t                  &parent_group_id,
+            const std::vector<hsize_t>   &dimensions,
             const std::shared_ptr<hid_t> &t_type,
             const bool                    mpi);
 
@@ -650,7 +650,7 @@ namespace HDF5
      */
     template <typename Container>
     void
-    write_selection(const Container &           data,
+    write_selection(const Container            &data,
                     const std::vector<hsize_t> &coordinates);
 
     // clang-format off
@@ -682,7 +682,7 @@ namespace HDF5
     // clang-format on
     template <typename Container>
     void
-    write_hyperslab(const Container &           data,
+    write_hyperslab(const Container            &data,
                     const std::vector<hsize_t> &offset,
                     const std::vector<hsize_t> &count);
 
@@ -720,7 +720,7 @@ namespace HDF5
      */
     template <typename Container>
     void
-    write_hyperslab(const Container &           data,
+    write_hyperslab(const Container            &data,
                     const std::vector<hsize_t> &data_dimensions,
                     const std::vector<hsize_t> &offset,
                     const std::vector<hsize_t> &stride,
@@ -834,7 +834,8 @@ namespace HDF5
      * This function returns the local causes that broke collective I/O on the
      * last parallel I/O call. See <a
      * href="https://support.hdfgroup.org/HDF5/doc/RM/RM_H5P.html#Property-GetMpioNoCollectiveCause">H5Pget_mpio_no_collective_cause</a>.
-     * The return type is `uint32_t` and corresponds to the value returned by
+     * The return type is `std::uint32_t` and corresponds to the value returned
+     * by
      * [H5Pget_mpio_no_collective_cause](https://support.hdfgroup.org/HDF5/doc/RM/RM_H5P.html#Property-GetMpioNoCollectiveCause).
      *
      * The return value can be
@@ -850,7 +851,7 @@ namespace HDF5
      * H5D_MPIO_NOT_CONTIGUOUS_OR_CHUNKED_DATASET | Collective I/O was not performed because the dataset was neither contiguous nor chunked.
      * H5D_MPIO_FILTERS                           | Collective I/O was not performed because filters needed to be applied.
      */
-    uint32_t
+    std::uint32_t
     get_local_no_collective_cause_as_hdf5_type();
 
     /**
@@ -878,8 +879,8 @@ namespace HDF5
      * This function returns the global causes that broke collective I/O on the
      * last parallel I/O call. See <a
      * href="https://support.hdfgroup.org/HDF5/doc/RM/RM_H5P.html#Property-GetMpioNoCollectiveCause">H5Pget_mpio_no_collective_cause</a>.
-     * The return type is `uint32_t` and corresponds to the value returned by
-     * H5Pget_mpio_no_collective_cause.
+     * The return type is `std::uint32_t` and corresponds to the value returned
+     * by H5Pget_mpio_no_collective_cause.
      *
      * The return value can be
      * Value                                      | Meaning
@@ -894,7 +895,7 @@ namespace HDF5
      * H5D_MPIO_NOT_CONTIGUOUS_OR_CHUNKED_DATASET | Collective I/O was not performed because the dataset was neither contiguous nor chunked.
      * H5D_MPIO_FILTERS                           | Collective I/O was not performed because filters needed to be applied.
      */
-    uint32_t
+    std::uint32_t
     get_global_no_collective_cause_as_hdf5_type();
 
     /**
@@ -960,14 +961,14 @@ namespace HDF5
      * last parallel I/O call. See <a
      * href="https://support.hdfgroup.org/HDF5/doc/RM/RM_H5P.html#Property-GetMpioNoCollectiveCause">H5Pget_mpio_no_collective_cause</a>.
      */
-    uint32_t local_no_collective_cause;
+    std::uint32_t local_no_collective_cause;
 
     /**
      * Global causes that broke collective I/O on the
      * last parallel I/O call. See <a
      * href="https://support.hdfgroup.org/HDF5/doc/RM/RM_H5P.html#Property-GetMpioNoCollectiveCause">H5Pget_mpio_no_collective_cause</a>.
      */
-    uint32_t global_no_collective_cause;
+    std::uint32_t global_no_collective_cause;
   };
 
   /**
@@ -998,8 +999,8 @@ namespace HDF5
      * create_group() of the current class should be used to open or create a
      * group.
      */
-    Group(const std::string &   name,
-          const Group &         parent_group,
+    Group(const std::string    &name,
+          const Group          &parent_group,
           const bool            mpi,
           const GroupAccessMode mode);
 
@@ -1041,7 +1042,7 @@ namespace HDF5
      */
     template <typename number>
     DataSet
-    create_dataset(const std::string &         name,
+    create_dataset(const std::string          &name,
                    const std::vector<hsize_t> &dimensions) const;
 
     /**
@@ -1102,27 +1103,28 @@ namespace HDF5
      * defines the processes that participate in this call; `MPI_COMM_WORLD` is
      * a common value for the MPI communicator.
      */
-    File(const std::string &  name,
+    File(const std::string   &name,
          const FileAccessMode mode,
-         const MPI_Comm &     mpi_communicator);
+         const MPI_Comm       mpi_communicator);
 
   private:
     /**
      * Delegation internal constructor.
-     * File(const std::string &, const MPI_Comm &, const Mode);
+     * File(const std::string &, const MPI_Comm , const Mode);
      * and
      * File(const std::string &, const Mode)
      * should be used to open or create HDF5 files.
      */
-    File(const std::string &  name,
+    File(const std::string   &name,
          const FileAccessMode mode,
          const bool           mpi,
-         const MPI_Comm &     mpi_communicator);
+         const MPI_Comm       mpi_communicator);
   };
 
   namespace internal
   {
-    /** This function returns the HDF5 datatype corresponding to the C++ type.
+    /**
+     * This function returns the HDF5 datatype corresponding to the C++ type.
      * In the case of std::complex types the HDF5 handlers are automatically
      * freed using the destructor of `std::shared_ptr`. `std::shared_ptr` is
      * used instead of `std::unique_ptr` because the destructor of
@@ -1136,7 +1138,8 @@ namespace HDF5
     std::shared_ptr<hid_t>
     get_hdf5_datatype();
 
-    /** Return the dimensions of `data`. For a std::vector this function returns
+    /**
+     * Return the dimensions of `data`. For a std::vector this function returns
      * `std::vector<hsize_t>{vector_size}`.
      *
      * Several HDF5 functions such as H5Screate_simple() require a
@@ -1148,42 +1151,48 @@ namespace HDF5
     std::vector<hsize_t>
     get_container_dimensions(const std::vector<number> &data);
 
-    /** Return the dimensions of `data`. For a Vector this function returns
+    /**
+     * Return the dimensions of `data`. For a Vector this function returns
      * `std::vector<hsize_t>{vector_size}`.
      */
     template <typename number>
     std::vector<hsize_t>
     get_container_dimensions(const Vector<number> &data);
 
-    /** Return the dimensions of `data`. For a FullMatrix the function returns
+    /**
+     * Return the dimensions of `data`. For a FullMatrix the function returns
      * `std::vector<hsize_t>{rows, columns}`.
      */
     template <typename number>
     std::vector<hsize_t>
     get_container_dimensions(const FullMatrix<number> &data);
 
-    /** This function returns the total size of the container. For a std::vector
+    /**
+     * This function returns the total size of the container. For a std::vector
      * the function returns `int(vector_size)`.
      */
     template <typename number>
     unsigned int
     get_container_size(const std::vector<number> &data);
 
-    /** This function returns the total size of the container. For a Vector the
+    /**
+     * This function returns the total size of the container. For a Vector the
      * function returns `int(vector_size)`.
      */
     template <typename number>
     unsigned int
     get_container_size(const Vector<number> &data);
 
-    /** This function returns the total size of the container. For a FullMatrix
+    /**
+     * This function returns the total size of the container. For a FullMatrix
      * the function returns `int(rows*columns)`.
      */
     template <typename number>
     unsigned int
     get_container_size(const FullMatrix<number> &data);
 
-    /** This function initializes and returns a container of type std::vector,
+    /**
+     * This function initializes and returns a container of type std::vector,
      * Vector or FullMatrix. The function does not set the values of the
      * elements of the container. The container can store data of a HDF5 dataset
      * or a HDF5 selection. The dimensions parameter holds the dimensions of the
@@ -1201,30 +1210,31 @@ namespace HDF5
      * of the FullMatrix will be FullMatrix(dim_0,dim_2)
      */
     template <typename Container>
-    typename std::enable_if<
-      std::is_same<Container,
-                   std::vector<typename Container::value_type>>::value,
-      Container>::type
+    std::enable_if_t<
+      std::is_same_v<Container, std::vector<typename Container::value_type>>,
+      Container>
     initialize_container(const std::vector<hsize_t> &dimensions);
 
-    /** Same as above.
+    /**
+     * Same as above.
      */
     template <typename Container>
-    typename std::enable_if<
-      std::is_same<Container, Vector<typename Container::value_type>>::value,
-      Container>::type
+    std::enable_if_t<
+      std::is_same_v<Container, Vector<typename Container::value_type>>,
+      Container>
     initialize_container(const std::vector<hsize_t> &dimensions);
 
-    /** Same as above.
+    /**
+     * Same as above.
      */
     template <typename Container>
-    typename std::enable_if<
-      std::is_same<Container,
-                   FullMatrix<typename Container::value_type>>::value,
-      Container>::type
+    std::enable_if_t<
+      std::is_same_v<Container, FullMatrix<typename Container::value_type>>,
+      Container>
     initialize_container(const std::vector<hsize_t> &dimensions);
 
-    /** This helper function sets the property list of the read and write
+    /**
+     * This helper function sets the property list of the read and write
      * operations of DataSet. A property list has to be created for the MPI
      * driver. For the serial driver the default H5P_DEFAULT can be used. In
      * addition H5Pset_dxpl_mpio is used to set the MPI mode to collective.
@@ -1232,7 +1242,8 @@ namespace HDF5
     inline void
     set_plist(hid_t &plist, const bool mpi);
 
-    /** This helper function releases the property list handler of the read and
+    /**
+     * This helper function releases the property list handler of the read and
      * write operations of DataSet. For the serial version there is no need to
      * release the property list handler because H5P_DEFAULT has been used. If
      * query_io_mode is True then H5Pget_mpio_actual_io_mode and
@@ -1240,17 +1251,18 @@ namespace HDF5
      * been collective.
      */
     inline void
-    release_plist(hid_t &                    plist,
+    release_plist(hid_t                     &plist,
                   H5D_mpio_actual_io_mode_t &io_mode,
-                  uint32_t &                 local_no_collective_cause,
-                  uint32_t &                 global_no_collective_cause,
+                  std::uint32_t             &local_no_collective_cause,
+                  std::uint32_t             &global_no_collective_cause,
                   const bool                 mpi,
                   const bool                 query_io_mode);
 
-    /** Convert a HDF5 no_collective_cause code to a human readable string.
+    /**
+     * Convert a HDF5 no_collective_cause code to a human readable string.
      */
     inline std::string
-    no_collective_cause_to_string(const uint32_t no_collective_cause);
+    no_collective_cause_to_string(const std::uint32_t no_collective_cause);
   } // namespace internal
 
 
@@ -1263,37 +1275,37 @@ namespace HDF5
     std::shared_ptr<hid_t>
     get_hdf5_datatype()
     {
-      static_assert(std::is_same<number, float>::value ||
-                      std::is_same<number, double>::value ||
-                      std::is_same<number, int>::value ||
-                      std::is_same<number, bool>::value ||
-                      std::is_same<number, unsigned int>::value ||
-                      std::is_same<number, std::complex<float>>::value ||
-                      std::is_same<number, std::complex<double>>::value,
+      static_assert(std::is_same_v<number, float> ||
+                      std::is_same_v<number, double> ||
+                      std::is_same_v<number, int> ||
+                      std::is_same_v<number, bool> ||
+                      std::is_same_v<number, unsigned int> ||
+                      std::is_same_v<number, std::complex<float>> ||
+                      std::is_same_v<number, std::complex<double>>,
                     "The data type you are trying to get the HDF5 tag for "
                     "is not supported by this function.");
 
-      if (std::is_same<number, float>::value)
+      if (std::is_same_v<number, float>)
         {
           return std::make_shared<hid_t>(H5T_NATIVE_FLOAT);
         }
-      else if (std::is_same<number, double>::value)
+      else if (std::is_same_v<number, double>)
         {
           return std::make_shared<hid_t>(H5T_NATIVE_DOUBLE);
         }
-      else if (std::is_same<number, int>::value)
+      else if (std::is_same_v<number, int>)
         {
           return std::make_shared<hid_t>(H5T_NATIVE_INT);
         }
-      else if (std::is_same<number, unsigned int>::value)
+      else if (std::is_same_v<number, unsigned int>)
         {
           return std::make_shared<hid_t>(H5T_NATIVE_UINT);
         }
-      else if (std::is_same<number, bool>::value)
+      else if (std::is_same_v<number, bool>)
         {
           return std::make_shared<hid_t>(H5T_NATIVE_HBOOL);
         }
-      else if (std::is_same<number, std::complex<float>>::value)
+      else if (std::is_same_v<number, std::complex<float>>)
         {
           std::shared_ptr<hid_t> t_type =
             std::shared_ptr<hid_t>(new hid_t, [](hid_t *pointer) {
@@ -1316,7 +1328,7 @@ namespace HDF5
           (void)ret;
           return t_type;
         }
-      else if (std::is_same<number, std::complex<double>>::value)
+      else if (std::is_same_v<number, std::complex<double>>)
         {
           std::shared_ptr<hid_t> t_type =
             std::shared_ptr<hid_t>(new hid_t, [](hid_t *pointer) {
@@ -1404,10 +1416,9 @@ namespace HDF5
 
 
     template <typename Container>
-    typename std::enable_if<
-      std::is_same<Container,
-                   std::vector<typename Container::value_type>>::value,
-      Container>::type
+    std::enable_if_t<
+      std::is_same_v<Container, std::vector<typename Container::value_type>>,
+      Container>
     initialize_container(const std::vector<hsize_t> &dimensions)
     {
       return Container(std::accumulate(
@@ -1417,9 +1428,9 @@ namespace HDF5
 
 
     template <typename Container>
-    typename std::enable_if<
-      std::is_same<Container, Vector<typename Container::value_type>>::value,
-      Container>::type
+    std::enable_if_t<
+      std::is_same_v<Container, Vector<typename Container::value_type>>,
+      Container>
     initialize_container(const std::vector<hsize_t> &dimensions)
     {
       return Container(std::accumulate(
@@ -1429,10 +1440,9 @@ namespace HDF5
 
 
     template <typename Container>
-    typename std::enable_if<
-      std::is_same<Container,
-                   FullMatrix<typename Container::value_type>>::value,
-      Container>::type
+    std::enable_if_t<
+      std::is_same_v<Container, FullMatrix<typename Container::value_type>>,
+      Container>
     initialize_container(const std::vector<hsize_t> &dimensions)
     {
       // If the rank is higher than 2, then remove single-dimensional entries
@@ -1485,10 +1495,10 @@ namespace HDF5
 
 
     inline void
-    release_plist(hid_t &                    plist,
+    release_plist(hid_t                     &plist,
                   H5D_mpio_actual_io_mode_t &io_mode,
-                  uint32_t &                 local_no_collective_cause,
-                  uint32_t &                 global_no_collective_cause,
+                  std::uint32_t             &local_no_collective_cause,
+                  std::uint32_t             &global_no_collective_cause,
                   const bool                 mpi,
                   const bool                 query_io_mode)
     {
@@ -1524,7 +1534,7 @@ namespace HDF5
 
 
     inline std::string
-    no_collective_cause_to_string(const uint32_t no_collective_cause)
+    no_collective_cause_to_string(const std::uint32_t no_collective_cause)
     {
       std::string message;
 
@@ -1622,7 +1632,7 @@ namespace HDF5
     // Todo:
     // - Use H5Dvlen_reclaim instead of free
 
-    char * string_out;
+    char  *string_out;
     hid_t  attr;
     hid_t  type;
     herr_t ret;
@@ -2023,7 +2033,7 @@ namespace HDF5
 
   template <typename Container>
   void
-  DataSet::write_selection(const Container &           data,
+  DataSet::write_selection(const Container            &data,
                            const std::vector<hsize_t> &coordinates)
   {
     AssertDimension(coordinates.size(), data.size() * rank);
@@ -2072,7 +2082,7 @@ namespace HDF5
 
   template <typename Container>
   void
-  DataSet::write_hyperslab(const Container &           data,
+  DataSet::write_hyperslab(const Container            &data,
                            const std::vector<hsize_t> &offset,
                            const std::vector<hsize_t> &count)
   {
@@ -2129,7 +2139,7 @@ namespace HDF5
 
   template <typename Container>
   void
-  DataSet::write_hyperslab(const Container &           data,
+  DataSet::write_hyperslab(const Container            &data,
                            const std::vector<hsize_t> &data_dimensions,
                            const std::vector<hsize_t> &offset,
                            const std::vector<hsize_t> &stride,
@@ -2221,7 +2231,7 @@ namespace HDF5
 
   template <typename number>
   DataSet
-  Group::create_dataset(const std::string &         name,
+  Group::create_dataset(const std::string          &name,
                         const std::vector<hsize_t> &dimensions) const
   {
     std::shared_ptr<hid_t> t_type = internal::get_hdf5_datatype<number>();

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -83,8 +83,7 @@ test(VectorTools::NormType norm, double value, double exp = 2.0)
 
   VectorTools::interpolate(dofh, Ref<dim>(), interpolated);
 
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dofh, relevant_set);
+  const IndexSet relevant_set = DoFTools::extract_locally_relevant_dofs(dofh);
   TrilinosWrappers::MPI::Vector solution(relevant_set, MPI_COMM_WORLD);
   solution = interpolated;
 
@@ -161,5 +160,6 @@ main(int argc, char **argv)
 {
   Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
   MPILogInitAll                    log;
+  deallog << std::setprecision(10);
   test<3>();
 }

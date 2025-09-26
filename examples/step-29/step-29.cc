@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2007 - 2021 by the deal.II authors
+ * Copyright (C) 2007 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Moritz Allmaras, Texas A&M University, 2007
  */
@@ -110,7 +109,7 @@ namespace Step29
 
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  value_list) const override
+                      std::vector<Vector<double>>   &value_list) const override
     {
       AssertDimension(value_list.size(), points.size());
 
@@ -323,7 +322,7 @@ namespace Step29
   template <int dim>
   void ComputeIntensity<dim>::evaluate_vector_field(
     const DataPostprocessorInputs::Vector<dim> &inputs,
-    std::vector<Vector<double>> &               computed_quantities) const
+    std::vector<Vector<double>>                &computed_quantities) const
   {
     AssertDimension(computed_quantities.size(), inputs.solution_values.size());
 
@@ -336,15 +335,15 @@ namespace Step29
     // should return the <i>square</i> of the absolute value --
     // thereby not satisfying the properties mathematicians require of
     // something called a "norm".)
-    for (unsigned int i = 0; i < computed_quantities.size(); ++i)
+    for (unsigned int p = 0; p < computed_quantities.size(); ++p)
       {
-        AssertDimension(computed_quantities[i].size(), 1);
-        AssertDimension(inputs.solution_values[i].size(), 2);
+        AssertDimension(computed_quantities[p].size(), 1);
+        AssertDimension(inputs.solution_values[p].size(), 2);
 
-        const std::complex<double> u(inputs.solution_values[i](0),
-                                     inputs.solution_values[i](1));
+        const std::complex<double> u(inputs.solution_values[p](0),
+                                     inputs.solution_values[p](1));
 
-        computed_quantities[i](0) = std::abs(u);
+        computed_quantities[p](0) = std::abs(u);
       }
   }
 
@@ -387,18 +386,21 @@ namespace Step29
 
   // The constructor takes the ParameterHandler object and stores it in a
   // reference. It also initializes the DoF-Handler and the finite element
-  // system, which consists of two copies of the scalar Q1 field, one for $v$
-  // and one for $w$:
+  // system, which consists of two copies of the scalar $Q_1$ field, one for
+  // $v$ and one for $w$. In other words, we want the finite element space
+  // $Q_1\times Q_1 = Q_1^2$, which is easily constructed and passed as the
+  // constructor argument to the FESystem class (i.e., the type of the `fe`
+  // member being initialized here):
   template <int dim>
   UltrasoundProblem<dim>::UltrasoundProblem(ParameterHandler &param)
     : prm(param)
     , dof_handler(triangulation)
-    , fe(FE_Q<dim>(1), 2)
+    , fe(FE_Q<dim>(1) ^ 2)
   {}
 
   // @sect4{<code>UltrasoundProblem::make_grid</code>}
 
-  // Here we setup the grid for our domain.  As mentioned in the exposition,
+  // Here we set up the grid for our domain.  As mentioned in the exposition,
   // the geometry is just a unit square (in 2d) with the part of the boundary
   // that represents the transducer lens replaced by a sector of a circle.
   template <int dim>
@@ -422,9 +424,9 @@ namespace Step29
     // Next, two points are defined for position and focal point of the
     // transducer lens, which is the center of the circle whose segment will
     // form the transducer part of the boundary. Notice that this is the only
-    // point in the program where things are slightly different in 2D and 3D.
-    // Even though this tutorial only deals with the 2D case, the necessary
-    // additions to make this program functional in 3D are so minimal that we
+    // point in the program where things are slightly different in 2d and 3d.
+    // Even though this tutorial only deals with the 2d case, the necessary
+    // additions to make this program functional in 3d are so minimal that we
     // opt for including them:
     const Point<dim> transducer =
       (dim == 2) ? Point<dim>(0.5, 0.0) : Point<dim>(0.5, 0.5, 0.0);
@@ -454,7 +456,7 @@ namespace Step29
             face->set_manifold_id(1);
           }
     // For the circle part of the transducer lens, a SphericalManifold object
-    // is used (which, of course, in 2D just represents a circle), with center
+    // is used (which, of course, in 2d just represents a circle), with center
     // computed as above.
     triangulation.set_manifold(1, SphericalManifold<dim>(focal_point));
 
@@ -590,7 +592,7 @@ namespace Step29
                 // compute from the given two shape functions.  Fortunately,
                 // the FESystem object can provide us with this information,
                 // namely it has a function
-                // FESystem::system_to_component_index, that for each local
+                // FESystem::system_to_component_index(), that for each local
                 // DoF index returns a pair of integers of which the first
                 // indicates to which component of the system the DoF
                 // belongs. The second integer of the pair indicates which
@@ -736,13 +738,15 @@ namespace Step29
   // As already mentioned in the introduction, the system matrix is neither
   // symmetric nor definite, and so it is not quite obvious how to come up
   // with an iterative solver and a preconditioner that do a good job on this
-  // matrix.  We chose instead to go a different way and solve the linear
+  // matrix. (For more on this topic, see also the
+  // <a href="#extensions">Possibilities for extensions</a> section below.)
+  // We chose instead to go a different way and solve the linear
   // system with the sparse LU decomposition provided by UMFPACK. This is
-  // often a good first choice for 2D problems and works reasonably well even
-  // for a large number of DoFs.  The deal.II interface to UMFPACK is given by
-  // the SparseDirectUMFPACK class, which is very easy to use and allows us to
-  // solve our linear system with just 3 lines of code.
-
+  // often a good first choice for 2d problems and works reasonably well even
+  // for moderately large numbers of DoFs.  The deal.II interface to UMFPACK
+  // is implemented in the SparseDirectUMFPACK class, which is very easy to
+  // use and allows us to solve our linear system with just 3 lines of code.
+  //
   // Note again that for compiling this example program, you need to have the
   // deal.II library built with UMFPACK support.
   template <int dim>
@@ -752,18 +756,16 @@ namespace Step29
     Timer timer;
 
     // The code to solve the linear system is short: First, we allocate an
-    // object of the right type. The following <code>initialize</code> call
-    // provides the matrix that we would like to invert to the
-    // SparseDirectUMFPACK object, and at the same time kicks off the
-    // LU-decomposition. Hence, this is also the point where most of the
-    // computational work in this program happens.
+    // object of the right type. The following call to
+    // SparseDirectUMFPACK::solve() takes as argument the matrix to decompose,
+    // and a vector that upon input equals the right hand side of the linear
+    // system to be solved, and upon output contains the solution of the linear
+    // system. To satisfy this input/output requirement, we first assign the
+    // right hand side vector to the `solution` variable.
     SparseDirectUMFPACK A_direct;
-    A_direct.initialize(system_matrix);
 
-    // After the decomposition, we can use <code>A_direct</code> like a matrix
-    // representing the inverse of our system matrix, so to compute the
-    // solution we just have to multiply with the right hand side vector:
-    A_direct.vmult(solution, system_rhs);
+    solution = system_rhs;
+    A_direct.solve(system_matrix, solution);
 
     timer.stop();
     std::cout << "done (" << timer.cpu_time() << "s)" << std::endl;

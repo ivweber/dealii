@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2019 - 2021 by the deal.II authors
+ * Copyright (C) 2019 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Matthias Maier, Texas A&M University;
  *          Ignacio Tomas, Texas A&M University, Sandia National Laboratories
@@ -36,7 +35,7 @@
 // <code>distributed/tria.h</code> and
 // <code>lac/la_parallel_vector.h</code>. Instead of a Trilinos, or PETSc
 // specific matrix class, we will use a non-distributed
-// dealii::SparseMatrix (<code>lac/sparse_matrix.h</code>) to store the local
+// SparseMatrix (<code>lac/sparse_matrix.h</code>) to store the local
 // part of the $\mathbf{c}_{ij}$, $\mathbf{n}_{ij}$ and $d_{ij}$ matrices.
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/base/parallel.h>
@@ -149,7 +148,7 @@ namespace Step69
   {
   public:
     Discretization(const MPI_Comm     mpi_communicator,
-                   TimerOutput &      computing_timer,
+                   TimerOutput       &computing_timer,
                    const std::string &subsection = "Discretization");
 
     void setup();
@@ -178,7 +177,8 @@ namespace Step69
   //
   // The class <code>OfflineData</code> contains pretty much all components
   // of the discretization that do not evolve in time, in particular, the
-  // DoFHandler, SparsityPattern, boundary maps, the lumped mass matrix,
+  // DoFHandler, SparsityPattern, boundary maps, the
+  // @ref GlossLumpedMassMatrix "lumped mass matrix",
   // $\mathbf{c}_{ij}$ and $\mathbf{n}_{ij}$ matrices. Here, the term
   // <i>offline</i> refers to the fact that all the class
   // members of <code>OfflineData</code> have well-defined values
@@ -213,9 +213,9 @@ namespace Step69
                std::tuple<Tensor<1, dim>, types::boundary_id, Point<dim>>>;
 
     OfflineData(const MPI_Comm             mpi_communicator,
-                TimerOutput &              computing_timer,
+                TimerOutput               &computing_timer,
                 const Discretization<dim> &discretization,
-                const std::string &        subsection = "OfflineData");
+                const std::string         &subsection = "OfflineData");
 
     void setup();
     void assemble();
@@ -238,7 +238,7 @@ namespace Step69
 
   private:
     const MPI_Comm mpi_communicator;
-    TimerOutput &  computing_timer;
+    TimerOutput   &computing_timer;
 
     SmartPointer<const Discretization<dim>> discretization;
   };
@@ -287,12 +287,12 @@ namespace Step69
   class ProblemDescription
   {
   public:
-    static constexpr unsigned int problem_dimension = 2 + dim;
+    static constexpr unsigned int n_solution_variables = 2 + dim;
 
-    using state_type = Tensor<1, problem_dimension>;
-    using flux_type  = Tensor<1, problem_dimension, Tensor<1, dim>>;
+    using state_type = Tensor<1, n_solution_variables>;
+    using flux_type  = Tensor<1, n_solution_variables, Tensor<1, dim>>;
 
-    const static std::array<std::string, problem_dimension> component_names;
+    const static std::array<std::string, n_solution_variables> component_names;
 
     static constexpr double gamma = 7. / 5.;
 
@@ -310,8 +310,8 @@ namespace Step69
     static DEAL_II_ALWAYS_INLINE inline flux_type flux(const state_type &U);
 
     static DEAL_II_ALWAYS_INLINE inline double
-    compute_lambda_max(const state_type &    U_i,
-                       const state_type &    U_j,
+    compute_lambda_max(const state_type     &U_i,
+                       const state_type     &U_j,
                        const Tensor<1, dim> &n_ij);
   };
 
@@ -325,7 +325,7 @@ namespace Step69
   //
   // For the purpose of this example step
   // we simply implement a homogeneous uniform flow field for which the
-  // direction and a 1D primitive state (density, velocity, pressure) are
+  // direction and a 1d primitive state (density, velocity, pressure) are
   // read from the parameter file.
   //
   // It would be desirable to initialize the class in a single shot:
@@ -365,11 +365,11 @@ namespace Step69
   // classes at hand we can now implement the explicit time-stepping scheme
   // that was introduced in the discussion above. The main method of the
   // <code>%TimeStepping</code> class is <code>make_one_step(vector_type &U,
-  // double t)</code> that takes a reference to a state vector
+  // const double t)</code> that takes a reference to a state vector
   // <code>U</code> and a time point <code>t</code> (as input arguments)
   // computes the updated solution, stores it in the vector
   // <code>temp</code>, swaps its contents with the vector <code>U</code>,
-  // and returns the chosen step-size $\tau$.
+  // and finally returns the chosen step-size $\tau$.
   //
   // The other important method is <code>prepare()</code> which primarily
   // sets the proper partition and sparsity pattern for the temporary
@@ -379,28 +379,28 @@ namespace Step69
   class TimeStepping : public ParameterAcceptor
   {
   public:
-    static constexpr unsigned int problem_dimension =
-      ProblemDescription<dim>::problem_dimension;
+    static constexpr unsigned int n_solution_variables =
+      ProblemDescription<dim>::n_solution_variables;
 
     using state_type = typename ProblemDescription<dim>::state_type;
     using flux_type  = typename ProblemDescription<dim>::flux_type;
 
-    using vector_type =
-      std::array<LinearAlgebra::distributed::Vector<double>, problem_dimension>;
+    using vector_type = std::array<LinearAlgebra::distributed::Vector<double>,
+                                   n_solution_variables>;
 
     TimeStepping(const MPI_Comm            mpi_communicator,
-                 TimerOutput &             computing_timer,
-                 const OfflineData<dim> &  offline_data,
+                 TimerOutput              &computing_timer,
+                 const OfflineData<dim>   &offline_data,
                  const InitialValues<dim> &initial_values,
-                 const std::string &       subsection = "TimeStepping");
+                 const std::string        &subsection = "TimeStepping");
 
     void prepare();
 
-    double make_one_step(vector_type &U, double t);
+    double make_one_step(vector_type &U, const double t);
 
   private:
     const MPI_Comm mpi_communicator;
-    TimerOutput &  computing_timer;
+    TimerOutput   &computing_timer;
 
     SmartPointer<const OfflineData<dim>>   offline_data;
     SmartPointer<const InitialValues<dim>> initial_values;
@@ -414,7 +414,7 @@ namespace Step69
 
   // @sect4{The <code>SchlierenPostprocessor</code> class}
   //
-  // At its core, the Schlieren class implements the class member
+  // At its core, the SchlierenPostprocessor class implements the class member
   // <code>compute_schlieren()</code>. The main purpose of this class member
   // is to compute an auxiliary finite element field
   // <code>schlieren</code>, that is defined at each node by
@@ -431,19 +431,19 @@ namespace Step69
   class SchlierenPostprocessor : public ParameterAcceptor
   {
   public:
-    static constexpr unsigned int problem_dimension =
-      ProblemDescription<dim>::problem_dimension;
+    static constexpr unsigned int n_solution_variables =
+      ProblemDescription<dim>::n_solution_variables;
 
     using state_type = typename ProblemDescription<dim>::state_type;
 
-    using vector_type =
-      std::array<LinearAlgebra::distributed::Vector<double>, problem_dimension>;
+    using vector_type = std::array<LinearAlgebra::distributed::Vector<double>,
+                                   n_solution_variables>;
 
     SchlierenPostprocessor(
       const MPI_Comm          mpi_communicator,
-      TimerOutput &           computing_timer,
+      TimerOutput            &computing_timer,
       const OfflineData<dim> &offline_data,
-      const std::string &     subsection = "SchlierenPostprocessor");
+      const std::string      &subsection = "SchlierenPostprocessor");
 
     void prepare();
 
@@ -453,7 +453,7 @@ namespace Step69
 
   private:
     const MPI_Comm mpi_communicator;
-    TimerOutput &  computing_timer;
+    TimerOutput   &computing_timer;
 
     SmartPointer<const OfflineData<dim>> offline_data;
 
@@ -535,7 +535,7 @@ namespace Step69
   // ParameterAcceptor::add_parameter().
   template <int dim>
   Discretization<dim>::Discretization(const MPI_Comm     mpi_communicator,
-                                      TimerOutput &      computing_timer,
+                                      TimerOutput       &computing_timer,
                                       const std::string &subsection)
     : ParameterAcceptor(subsection)
     , mpi_communicator(mpi_communicator)
@@ -684,9 +684,9 @@ namespace Step69
   // initialization list.
   template <int dim>
   OfflineData<dim>::OfflineData(const MPI_Comm             mpi_communicator,
-                                TimerOutput &              computing_timer,
+                                TimerOutput               &computing_timer,
                                 const Discretization<dim> &discretization,
-                                const std::string &        subsection)
+                                const std::string         &subsection)
     : ParameterAcceptor(subsection)
     , dof_handler(discretization.triangulation)
     , mpi_communicator(mpi_communicator)
@@ -877,8 +877,8 @@ namespace Step69
 
     template <typename IteratorType>
     DEAL_II_ALWAYS_INLINE inline void
-    set_entry(SparseMatrix<double> &           matrix,
-              const IteratorType &             it,
+    set_entry(SparseMatrix<double>            &matrix,
+              const IteratorType              &it,
               SparseMatrix<double>::value_type value)
     {
       SparseMatrix<double>::iterator matrix_iterator(&matrix,
@@ -942,7 +942,7 @@ namespace Step69
     // <code>gather()</code> (second interface): this second function
     // signature having two input arguments will be used to gather the
     // state at a node <code>i</code> and return it as a
-    // <code>Tensor<1,problem_dimension></code> for our convenience.
+    // <code>Tensor<1,n_solution_variables></code> for our convenience.
 
     template <std::size_t k>
     DEAL_II_ALWAYS_INLINE inline Tensor<1, k>
@@ -958,15 +958,15 @@ namespace Step69
     // <code>scatter()</code>: this function has three input arguments, the
     // first one is meant to be a "global object" (say a locally owned or
     // locally relevant vector), the second argument which could be a
-    // <code>Tensor<1,problem_dimension></code>, and the last argument
+    // <code>Tensor<1,n_solution_variables></code>, and the last argument
     // which represents a index of the global object. This function will be
     // primarily used to write the updated nodal values, stored as
-    // <code>Tensor<1,problem_dimension></code>, into the global objects.
+    // <code>Tensor<1,n_solution_variables></code>, into the global objects.
 
     template <std::size_t k, int k2>
     DEAL_II_ALWAYS_INLINE inline void
     scatter(std::array<LinearAlgebra::distributed::Vector<double>, k> &U,
-            const Tensor<1, k2> &                                      tensor,
+            const Tensor<1, k2>                                       &tensor,
             const unsigned int                                         i)
     {
       static_assert(k == k2,
@@ -995,7 +995,7 @@ namespace Step69
   //  - A copy data: a struct that contains all the local assembly
   //    contributions, in this case <code>CopyData<dim>()</code>.
   //  - A copy data routine: in this case it is
-  //    <code>copy_local_to_global()</code> in charge of actually coping these
+  //    <code>copy_local_to_global()</code> in charge of actually copying these
   //    local contributions into the global objects (matrices and/or vectors)
   //
   // Most of the following lines are spent in the definition of the worker
@@ -1007,7 +1007,7 @@ namespace Step69
   // Finally, assuming that $\mathbf{x}_i$ is a support point at the boundary,
   // the (nodal) normals are defined as:
   //
-  // @f{align*}
+  // @f{align*}{
   // \widehat{\boldsymbol{\nu}}_i \dealcoloneq
   //  \frac{\int_{\partial\Omega} \phi_i \widehat{\boldsymbol{\nu}} \,
   //  \, \mathrm{d}\mathbf{s}}{\big|\int_{\partial\Omega} \phi_i
@@ -1051,8 +1051,8 @@ namespace Step69
 
       const auto local_assemble_system = //
         [&](const typename DoFHandler<dim>::cell_iterator &cell,
-            MeshWorker::ScratchData<dim> &                 scratch,
-            CopyData<dim> &                                copy) {
+            MeshWorker::ScratchData<dim>                  &scratch,
+            CopyData<dim>                                 &copy) {
           copy.is_artificial = cell->is_artificial();
           if (copy.is_artificial)
             return;
@@ -1220,9 +1220,10 @@ namespace Step69
     // - The iterator <code>indices.begin()</code> points to a row index.
     // - The iterator <code>indices.end()</code> points to a numerically higher
     //   row index.
-    // - The function <code>on_subranges(i1,i2)</code> (where <code>i1</code>
-    //   and <code>i2</code> define a sub-range within the range spanned by
-    //   the end and begin iterators defined in the two previous bullets)
+    // - The function <code>on_subranges(index_begin, index_end)</code>
+    //   (where <code>index_begin</code> and <code>index_end</code>
+    //   define a sub-range within the range spanned by
+    //   the begin and end iterators defined in the two previous bullets)
     //   applies an operation to every iterator in such subrange. We may as
     //   well call <code>on_subranges</code> the "worker".
     // - Grainsize: minimum number of iterators (in this case representing
@@ -1269,25 +1270,25 @@ namespace Step69
         0, n_locally_relevant);
 
       const auto on_subranges = //
-        [&](const auto i1, const auto i2) {
+        [&](const auto index_begin, const auto index_end) {
           for (const auto row_index :
-               std_cxx20::ranges::iota_view<unsigned int, unsigned int>(*i1,
-                                                                        *i2))
+               std_cxx20::ranges::iota_view<unsigned int, unsigned int>(
+                 *index_begin, *index_end))
             {
               // First column-loop: we compute and store the entries of the
               // matrix norm_matrix and write normalized entries into the
               // matrix nij_matrix:
-              std::for_each(
-                sparsity_pattern.begin(row_index),
-                sparsity_pattern.end(row_index),
-                [&](const dealii::SparsityPatternIterators::Accessor &jt) {
-                  const auto   c_ij = gather_get_entry(cij_matrix, &jt);
-                  const double norm = c_ij.norm();
+              std::for_each(sparsity_pattern.begin(row_index),
+                            sparsity_pattern.end(row_index),
+                            [&](const SparsityPatternIterators::Accessor &jt) {
+                              const auto c_ij =
+                                gather_get_entry(cij_matrix, &jt);
+                              const double norm = c_ij.norm();
 
-                  set_entry(norm_matrix, &jt, norm);
-                  for (unsigned int j = 0; j < dim; ++j)
-                    set_entry(nij_matrix[j], &jt, c_ij[j] / norm);
-                });
+                              set_entry(norm_matrix, &jt, norm);
+                              for (unsigned int j = 0; j < dim; ++j)
+                                set_entry(nij_matrix[j], &jt, c_ij[j] / norm);
+                            });
             }
         };
 
@@ -1424,14 +1425,14 @@ namespace Step69
   // We start again by defining a couple of helper functions:
   //
   // The first function takes a state <code>U</code> and a unit vector
-  // <code>n_ij</code> and computes the <i>projected</i> 1D state in
+  // <code>n_ij</code> and computes the <i>projected</i> 1d state in
   // direction of the unit vector.
   namespace
   {
     template <int dim>
     DEAL_II_ALWAYS_INLINE inline std::array<double, 4> riemann_data_from_state(
       const typename ProblemDescription<dim>::state_type U,
-      const Tensor<1, dim> &                             n_ij)
+      const Tensor<1, dim>                              &n_ij)
     {
       Tensor<1, 3> projected_U;
       projected_U[0] = U[0];
@@ -1445,7 +1446,7 @@ namespace Step69
       const auto perpendicular_m = m - projected_U[1] * n_ij;
       projected_U[2] = U[1 + dim] - 0.5 * perpendicular_m.norm_square() / U[0];
 
-      // We return the 1D state in <i>primitive</i> variables instead of
+      // We return the 1d state in <i>primitive</i> variables instead of
       // conserved quantities. The return array consists of density $\rho$,
       // velocity $u$, pressure $p$ and local speed of sound $a$:
 
@@ -1472,7 +1473,7 @@ namespace Step69
     // Next, we need two local wavenumbers that are defined in terms of a
     // primitive state $[\rho, u, p, a]$ and a given pressure $p^\ast$
     // @cite GuermondPopov2016  Eqn. (3.7):
-    // @f{align*}
+    // @f{align*}{
     //   \lambda^- = u - a\,\sqrt{1 + \frac{\gamma+1}{2\gamma}
     //   \left(\frac{p^\ast-p}{p}\right)_+}
     // @f}
@@ -1496,7 +1497,7 @@ namespace Step69
     }
 
     // Analougously @cite GuermondPopov2016 Eqn. (3.8):
-    // @f{align*}
+    // @f{align*}{
     //   \lambda^+ = u + a\,\sqrt{1 + \frac{\gamma+1}{2\gamma}
     //   \left(\frac{p^\ast-p}{p}\right)_+}
     // @f}
@@ -1555,7 +1556,7 @@ namespace Step69
     // general, not as sharp as the two-rarefaction estimate. But it will
     // save the day in the context of near vacuum conditions when the
     // two-rarefaction approximation might attain extreme values:
-    // @f{align*}
+    // @f{align*}{
     //   \lambda_{\text{exp}} = \max(u_i,u_j) + 5. \max(a_i, a_j).
     // @f}
     // @note The constant 5.0 multiplying the maximum of the sound speeds
@@ -1583,8 +1584,8 @@ namespace Step69
 
   template <int dim>
   DEAL_II_ALWAYS_INLINE inline double
-  ProblemDescription<dim>::compute_lambda_max(const state_type &    U_i,
-                                              const state_type &    U_j,
+  ProblemDescription<dim>::compute_lambda_max(const state_type     &U_i,
+                                              const state_type     &U_j,
                                               const Tensor<1, dim> &n_ij)
   {
     const auto riemann_data_i = riemann_data_from_state(U_i, n_ij);
@@ -1639,7 +1640,7 @@ namespace Step69
     /* We wire up the slot InitialValues<dim>::parse_parameters_callback to
        the ParameterAcceptor::parse_parameters_call_back signal: */
     ParameterAcceptor::parse_parameters_call_back.connect(
-      std::bind(&InitialValues<dim>::parse_parameters_callback, this));
+      [&]() { this->parse_parameters_callback(); });
 
     initial_direction[0] = 1.;
     add_parameter("initial direction",
@@ -1711,10 +1712,10 @@ namespace Step69
   template <int dim>
   TimeStepping<dim>::TimeStepping(
     const MPI_Comm            mpi_communicator,
-    TimerOutput &             computing_timer,
-    const OfflineData<dim> &  offline_data,
+    TimerOutput              &computing_timer,
+    const OfflineData<dim>   &offline_data,
     const InitialValues<dim> &initial_values,
-    const std::string &       subsection /*= "TimeStepping"*/)
+    const std::string        &subsection /*= "TimeStepping"*/)
     : ParameterAcceptor(subsection)
     , mpi_communicator(mpi_communicator)
     , computing_timer(computing_timer)
@@ -1753,7 +1754,7 @@ namespace Step69
   // <code>offline_data->sparsity_pattern</code>).
 
   template <int dim>
-  double TimeStepping<dim>::make_one_step(vector_type &U, double t)
+  double TimeStepping<dim>::make_one_step(vector_type &U, const double t)
   {
     const auto &n_locally_owned    = offline_data->n_locally_owned;
     const auto &n_locally_relevant = offline_data->n_locally_relevant;
@@ -1808,17 +1809,17 @@ namespace Step69
     // <code>nij_matrix</code> above are used here again.
     //
     // We define again a "worker" function <code>on_subranges</code> that
-    // computes the viscosity $d_{ij}$ for a subrange [i1, i2) of column
-    // indices:
+    // computes the viscosity $d_{ij}$ for a subrange `[*index_begin,
+    // *index_end)` of column indices:
     {
       TimerOutput::Scope scope(computing_timer,
                                "time_stepping - 1 compute d_ij");
 
       const auto on_subranges = //
-        [&](const auto i1, const auto i2) {
+        [&](const auto index_begin, const auto index_end) {
           for (const auto i :
-               std_cxx20::ranges::iota_view<unsigned int, unsigned int>(*i1,
-                                                                        *i2))
+               std_cxx20::ranges::iota_view<unsigned int, unsigned int>(
+                 *index_begin, *index_end))
             {
               const auto U_i = gather(U, i);
 
@@ -1911,12 +1912,12 @@ namespace Step69
       // locally.
 
       const auto on_subranges = //
-        [&](const auto i1, const auto i2) {
+        [&](const auto index_begin, const auto index_end) {
           double tau_max_on_subrange = std::numeric_limits<double>::infinity();
 
           for (const auto i :
-               std_cxx20::ranges::iota_view<unsigned int, unsigned int>(*i1,
-                                                                        *i2))
+               std_cxx20::ranges::iota_view<unsigned int, unsigned int>(
+                 *index_begin, *index_end))
             {
               double d_sum = 0.;
 
@@ -1997,8 +1998,9 @@ namespace Step69
                                "time_stepping - 3 perform update");
 
       const auto on_subranges = //
-        [&](const auto i1, const auto i2) {
-          for (const auto i : boost::make_iterator_range(i1, i2))
+        [&](const auto index_begin, const auto index_end) {
+          for (const auto i :
+               boost::make_iterator_range(index_begin, index_end))
             {
               Assert(i < n_locally_owned, ExcInternalError());
 
@@ -2019,7 +2021,7 @@ namespace Step69
                   const auto c_ij = gather_get_entry(cij_matrix, jt);
                   const auto d_ij = get_entry(dij_matrix, jt);
 
-                  for (unsigned int k = 0; k < problem_dimension; ++k)
+                  for (unsigned int k = 0; k < n_solution_variables; ++k)
                     {
                       U_i_new[k] +=
                         tau_max / m_i *
@@ -2056,7 +2058,7 @@ namespace Step69
       TimerOutput::Scope scope(computing_timer,
                                "time_stepping - 4 fix boundary states");
 
-      for (auto it : boundary_normal_map)
+      for (const auto &it : boundary_normal_map)
         {
           const auto i = it.first;
 
@@ -2122,9 +2124,9 @@ namespace Step69
   template <int dim>
   SchlierenPostprocessor<dim>::SchlierenPostprocessor(
     const MPI_Comm          mpi_communicator,
-    TimerOutput &           computing_timer,
+    TimerOutput            &computing_timer,
     const OfflineData<dim> &offline_data,
-    const std::string &     subsection /*= "SchlierenPostprocessor"*/)
+    const std::string      &subsection /*= "SchlierenPostprocessor"*/)
     : ParameterAcceptor(subsection)
     , mpi_communicator(mpi_communicator)
     , computing_timer(computing_timer)
@@ -2247,11 +2249,12 @@ namespace Step69
     // global maxima and minima of the gradients.
     {
       const auto on_subranges = //
-        [&](const auto i1, const auto i2) {
+        [&](const auto index_begin, const auto index_end) {
           double r_i_max_on_subrange = 0.;
           double r_i_min_on_subrange = std::numeric_limits<double>::infinity();
 
-          for (const auto i : boost::make_iterator_range(i1, i2))
+          for (const auto i :
+               boost::make_iterator_range(index_begin, index_end))
             {
               Assert(i < n_locally_owned, ExcInternalError());
 
@@ -2331,8 +2334,9 @@ namespace Step69
 
     {
       const auto on_subranges = //
-        [&](const auto i1, const auto i2) {
-          for (const auto i : boost::make_iterator_range(i1, i2))
+        [&](const auto index_begin, const auto index_end) {
+          for (const auto i :
+               boost::make_iterator_range(index_begin, index_end))
             {
               Assert(i < n_locally_owned, ExcInternalError());
 
@@ -2418,8 +2422,8 @@ namespace Step69
   namespace
   {
     void print_head(ConditionalOStream &pcout,
-                    const std::string & header,
-                    const std::string & secondary = "")
+                    const std::string  &header,
+                    const std::string  &secondary = "")
     {
       const auto header_size   = header.size();
       const auto padded_header = std::string((34 - header_size) / 2, ' ') +
@@ -2565,15 +2569,17 @@ namespace Step69
 
     print_head(pcout, "enter main loop");
 
-    for (unsigned int cycle = 1; t < t_final; ++cycle)
+    unsigned int timestep_number = 1;
+    while (t < t_final)
       {
         // We first print an informative status message
 
         std::ostringstream head;
         std::ostringstream secondary;
 
-        head << "Cycle  " << Utilities::int_to_string(cycle, 6) << "  (" //
-             << std::fixed << std::setprecision(1) << t / t_final * 100  //
+        head << "Cycle  " << Utilities::int_to_string(timestep_number, 6)
+             << "  ("                                                   //
+             << std::fixed << std::setprecision(1) << t / t_final * 100 //
              << "%)";
         secondary << "at time t = " << std::setprecision(8) << std::fixed << t;
 
@@ -2599,6 +2605,8 @@ namespace Step69
             output(U, base_name, t, output_cycle);
             ++output_cycle;
           }
+
+        ++timestep_number;
       }
 
     // We wait for any remaining background output thread to finish before
@@ -2628,18 +2636,17 @@ namespace Step69
     for (auto &it : U)
       it.reinit(offline_data.partitioner);
 
-    constexpr auto problem_dimension =
-      ProblemDescription<dim>::problem_dimension;
+    constexpr auto n_solution_variables =
+      ProblemDescription<dim>::n_solution_variables;
 
     // The function signature of
     // <code>InitialValues<dim>::initial_state</code> is not quite right
     // for VectorTools::interpolate(). We work around this issue by, first,
     // creating a lambda function that for a given position <code>x</code>
     // returns just the value of the <code>i</code>th component. This
-    // lambda in turn is converted to a dealii::Function with the help of
+    // lambda in turn is converted to a Function<dim> object with the help of
     // the ScalarFunctionFromFunctionObject wrapper.
-
-    for (unsigned int i = 0; i < problem_dimension; ++i)
+    for (unsigned int i = 0; i < n_solution_variables; ++i)
       VectorTools::interpolate(offline_data.dof_handler,
                                ScalarFunctionFromFunctionObject<dim, double>(
                                  [&](const Point<dim> &x) {
@@ -2681,7 +2688,7 @@ namespace Step69
 
     discretization.triangulation.save(name + "-checkpoint.mesh");
 
-    if (dealii::Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
+    if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
       {
         std::ofstream file(name + "-checkpoint.metadata", std::ios::binary);
         boost::archive::binary_oarchive oa(file);
@@ -2704,7 +2711,7 @@ namespace Step69
 
   template <int dim>
   void MainLoop<dim>::output(const typename MainLoop<dim>::vector_type &U,
-                             const std::string &                        name,
+                             const std::string                         &name,
                              const double                               t,
                              const unsigned int                         cycle)
   {
@@ -2728,8 +2735,8 @@ namespace Step69
         background_thread_state.wait();
       }
 
-    constexpr auto problem_dimension =
-      ProblemDescription<dim>::problem_dimension;
+    constexpr auto n_solution_variables =
+      ProblemDescription<dim>::n_solution_variables;
 
     // At this point we make a copy of the state vector, run the schlieren
     // postprocessor, and run DataOut<dim>::build_patches() The actual
@@ -2741,7 +2748,7 @@ namespace Step69
     // worker thread to ensure that once we exit this function and the
     // worker thread finishes the DataOut<dim> object gets destroyed again.
 
-    for (unsigned int i = 0; i < problem_dimension; ++i)
+    for (unsigned int i = 0; i < n_solution_variables; ++i)
       {
         output_vector[i] = U[i];
         output_vector[i].update_ghost_values();
@@ -2749,14 +2756,12 @@ namespace Step69
 
     schlieren_postprocessor.compute_schlieren(output_vector);
 
-    auto data_out = std::make_shared<DataOut<dim>>();
-
+    std::unique_ptr<DataOut<dim>> data_out = std::make_unique<DataOut<dim>>();
     data_out->attach_dof_handler(offline_data.dof_handler);
 
-    const auto &component_names = ProblemDescription<dim>::component_names;
-
-    for (unsigned int i = 0; i < problem_dimension; ++i)
-      data_out->add_data_vector(output_vector[i], component_names[i]);
+    for (unsigned int i = 0; i < n_solution_variables; ++i)
+      data_out->add_data_vector(output_vector[i],
+                                ProblemDescription<dim>::component_names[i]);
 
     data_out->add_data_vector(schlieren_postprocessor.schlieren,
                               "schlieren_plot");
@@ -2769,16 +2774,31 @@ namespace Step69
     // the <code>this</code> pointer as well as most of the arguments of
     // the output function by value so that we have access to them inside
     // the lambda function.
-    const auto output_worker = [this, name, t, cycle, data_out]() {
-      DataOutBase::VtkFlags flags(t,
-                                  cycle,
-                                  true,
-                                  DataOutBase::VtkFlags::best_speed);
-      data_out->set_flags(flags);
+    //
+    // The first capture argument of the lambda function, `data_out_copy`
+    // in essence creates a local variable inside the lambda function into
+    // which we "move" the `data_out` variable from above. The way this works
+    // is that we create a `std::unique_ptr` above that points to the DataOut
+    // object. But we have no use for it any more after this point: We really
+    // just want to move ownership from the current function to the lambda
+    // function implemented in the following few lines. We could have done
+    // this by using a `std::shared_ptr` above and giving the lambda function
+    // a copy of that shared pointer; once the current function returns (but
+    // maybe while the lambda function is still running), our local shared
+    // pointer would go out of scope and stop pointing at the actual
+    // object, at which point the lambda function simply becomes the sole
+    // owner. But using the `std::unique_ptr` is conceptually cleaner as it
+    // makes it clear that the current function's `data_out` variable isn't
+    // even pointing to the object any more.
+    auto output_worker =
+      [data_out_copy = std::move(data_out), this, name, t, cycle]() {
+        const DataOutBase::VtkFlags flags(
+          t, cycle, true, DataOutBase::CompressionLevel::best_speed);
+        data_out_copy->set_flags(flags);
 
-      data_out->write_vtu_with_pvtu_record(
-        "", name + "-solution", cycle, mpi_communicator, 6);
-    };
+        data_out_copy->write_vtu_with_pvtu_record(
+          "", name + "-solution", cycle, mpi_communicator, 6);
+      };
 
     // If the asynchronous writeback option is set we launch a new
     // background thread with the help of
@@ -2792,7 +2812,8 @@ namespace Step69
     // run in the background.
     if (asynchronous_writeback)
       {
-        background_thread_state = std::async(std::launch::async, output_worker);
+        background_thread_state =
+          std::async(std::launch::async, std::move(output_worker));
       }
     else
       {

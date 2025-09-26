@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2010 - 2021 by the deal.II authors
+ * Copyright (C) 2010 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -112,7 +112,7 @@ namespace Step38
     value(const Point<dim> &p, const unsigned int component = 0) const override;
 
     virtual Tensor<1, dim>
-    gradient(const Point<dim> & p,
+    gradient(const Point<dim>  &p,
              const unsigned int component = 0) const override;
   };
 
@@ -228,8 +228,7 @@ namespace Step38
       Triangulation<spacedim> volume_mesh;
       GridGenerator::half_hyper_ball(volume_mesh);
 
-      std::set<types::boundary_id> boundary_ids;
-      boundary_ids.insert(0);
+      const std::set<types::boundary_id> boundary_ids = {0};
 
 #ifdef USE_SIMPLEX
       Triangulation<dim, spacedim> tria_temp;
@@ -419,7 +418,7 @@ main()
       LaplaceBeltramiProblem<3> laplace_beltrami;
       laplace_beltrami.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

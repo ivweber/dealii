@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,6 +44,7 @@
 
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>
@@ -119,11 +120,11 @@ public:
   vector_value(const Point<dim> &p, Vector<double> &result) const;
   virtual void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<double> &          values,
+             std::vector<double>           &values,
              const unsigned int             component) const;
   virtual void
   vector_value_list(const std::vector<Point<dim>> &points,
-                    std::vector<Vector<double>> &  values) const;
+                    std::vector<Vector<double>>   &values) const;
 
 private:
   static const double bc_constant;
@@ -142,7 +143,7 @@ public:
   vector_value(const Point<dim> &p, Vector<double> &values) const;
   virtual void
   vector_value_list(const std::vector<Point<dim>> &points,
-                    std::vector<Vector<double>> &  value_list) const;
+                    std::vector<Vector<double>>   &value_list) const;
 
 private:
   static const double bc_constant;
@@ -153,7 +154,7 @@ const double RightHandSide<dim>::bc_constant = 0.1;
 // DEFINE EXACT SOLUTION MEMBERS
 template <int dim>
 double
-ExactSolution<dim>::value(const Point<dim> & p,
+ExactSolution<dim>::value(const Point<dim>  &p,
                           const unsigned int component) const
 {
   Assert(dim >= 2, ExcNotImplemented());
@@ -172,7 +173,7 @@ ExactSolution<dim>::value(const Point<dim> & p,
 template <int dim>
 void
 ExactSolution<dim>::vector_value(const Point<dim> &p,
-                                 Vector<double> &  result) const
+                                 Vector<double>   &result) const
 {
   Assert(dim >= 2, ExcNotImplemented());
   result(0) = cos(numbers::PI * p(0)) * sin(numbers::PI * p(1)) + bc_constant;
@@ -181,7 +182,7 @@ ExactSolution<dim>::vector_value(const Point<dim> &p,
 template <int dim>
 void
 ExactSolution<dim>::value_list(const std::vector<Point<dim>> &points,
-                               std::vector<double> &          values,
+                               std::vector<double>           &values,
                                const unsigned int             component) const
 {
   Assert(values.size() == points.size(),
@@ -229,7 +230,7 @@ RightHandSide<dim>::RightHandSide()
 template <int dim>
 inline void
 RightHandSide<dim>::vector_value(const Point<dim> &p,
-                                 Vector<double> &  values) const
+                                 Vector<double>   &values) const
 {
   Assert(values.size() == dim, ExcDimensionMismatch(values.size(), dim));
   Assert(dim >= 2, ExcNotImplemented());
@@ -246,7 +247,7 @@ template <int dim>
 void
 RightHandSide<dim>::vector_value_list(
   const std::vector<Point<dim>> &points,
-  std::vector<Vector<double>> &  value_list) const
+  std::vector<Vector<double>>   &value_list) const
 {
   Assert(value_list.size() == points.size(),
          ExcDimensionMismatch(value_list.size(), points.size()));

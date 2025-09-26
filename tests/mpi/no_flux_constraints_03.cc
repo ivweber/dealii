@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,7 +17,7 @@
 
 // check that the AffineConstraints<double> with hanging nodes and
 // no-normal-flux constraints on an adaptively refined hyper_cube are the same
-// independet of the number of CPUs
+// independent of the number of CPUs
 
 #include <deal.II/base/tensor.h>
 
@@ -84,15 +84,13 @@ test()
   if (myid == 0)
     deallog << "#dofs = " << dofh.locally_owned_dofs().size() << std::endl;
 
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dofh, relevant_set);
+  const IndexSet relevant_set = DoFTools::extract_locally_relevant_dofs(dofh);
 
   AffineConstraints<double> constraints;
   constraints.reinit(relevant_set);
   DoFTools::make_hanging_node_constraints(dofh, constraints);
-  std::set<types::boundary_id> no_normal_flux_boundaries;
-  no_normal_flux_boundaries.insert(0);
-  const unsigned int degree = 1;
+  const std::set<types::boundary_id> no_normal_flux_boundaries = {0};
+  const unsigned int                 degree                    = 1;
   VectorTools::compute_no_normal_flux_constraints(
     dofh, 0, no_normal_flux_boundaries, constraints, MappingQ<dim>(degree));
   constraints.close();
@@ -104,7 +102,7 @@ test()
   {
     // write the constraintmatrix to a file on each cpu
     std::string fname = base + "cm_" + Utilities::int_to_string(myid) + ".dot";
-    std::ofstream file(fname.c_str());
+    std::ofstream file(fname);
     constraints.print(file);
   }
   MPI_Barrier(MPI_COMM_WORLD);
@@ -117,7 +115,7 @@ test()
                                  "cm_*.dot | sort -n | uniq > " + base + "cm")
                                   .c_str());
       {
-        std::ifstream     file((base + "cm").c_str());
+        std::ifstream     file(base + "cm");
         std::stringstream ss;
         ss << file.rdbuf();
         std::string str = ss.str();

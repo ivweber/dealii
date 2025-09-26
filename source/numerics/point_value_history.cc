@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,13 +13,11 @@
 //
 // ---------------------------------------------------------------------
 
-
 #include <deal.II/grid/grid_tools.h>
 
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -42,8 +40,8 @@ namespace internal
   {
     template <int dim>
     PointGeometryData<dim>::PointGeometryData(
-      const Point<dim> &                          new_requested_location,
-      const std::vector<Point<dim>> &             new_locations,
+      const Point<dim>                           &new_requested_location,
+      const std::vector<Point<dim>>              &new_locations,
       const std::vector<types::global_dof_index> &new_sol_indices)
     {
       requested_location      = new_requested_location;
@@ -228,8 +226,7 @@ PointValueHistory<dim>::add_point(const Point<dim> &location)
   for (unsigned int support_point = 0; support_point < n_support_points;
        support_point++)
     {
-      // setup valid data in the empty
-      // vectors
+      // set up valid data in the empty vectors
       unsigned int component =
         dof_handler->get_fe().system_to_component_index(support_point).first;
       current_points[component]   = fe_values.quadrature_point(support_point);
@@ -374,8 +371,7 @@ PointValueHistory<dim>::add_points(const std::vector<Point<dim>> &locations)
   for (unsigned int support_point = 0; support_point < n_support_points;
        support_point++)
     {
-      // setup valid data in the empty
-      // vectors
+      // set up valid data in the empty vectors
       unsigned int component =
         dof_handler->get_fe().system_to_component_index(support_point).first;
       temp_points[component]   = fe_values.quadrature_point(support_point);
@@ -458,7 +454,7 @@ PointValueHistory<dim>::add_points(const std::vector<Point<dim>> &locations)
 
 template <int dim>
 void
-PointValueHistory<dim>::add_field_name(const std::string &  vector_name,
+PointValueHistory<dim>::add_field_name(const std::string   &vector_name,
                                        const ComponentMask &mask)
 {
   // can't be closed to add additional points
@@ -507,7 +503,7 @@ void
 PointValueHistory<dim>::add_field_name(const std::string &vector_name,
                                        const unsigned int n_components)
 {
-  std::vector<bool> temp_mask(n_components, true);
+  ComponentMask temp_mask(std::vector<bool>(n_components, true));
   add_field_name(vector_name, temp_mask);
 }
 
@@ -515,7 +511,7 @@ PointValueHistory<dim>::add_field_name(const std::string &vector_name,
 template <int dim>
 void
 PointValueHistory<dim>::add_component_names(
-  const std::string &             vector_name,
+  const std::string              &vector_name,
   const std::vector<std::string> &component_names)
 {
   typename std::map<std::string, std::vector<std::string>>::iterator names =
@@ -581,7 +577,7 @@ template <int dim>
 template <typename VectorType>
 void
 PointValueHistory<dim>::evaluate_field(const std::string &vector_name,
-                                       const VectorType & solution)
+                                       const VectorType  &solution)
 {
   // must be closed to add data to internal
   // members.
@@ -650,9 +646,9 @@ template <typename VectorType>
 void
 PointValueHistory<dim>::evaluate_field(
   const std::vector<std::string> &vector_names,
-  const VectorType &              solution,
-  const DataPostprocessor<dim> &  data_postprocessor,
-  const Quadrature<dim> &         quadrature)
+  const VectorType               &solution,
+  const DataPostprocessor<dim>   &data_postprocessor,
+  const Quadrature<dim>          &quadrature)
 {
   // must be closed to add data to internal
   // members.
@@ -710,15 +706,20 @@ PointValueHistory<dim>::evaluate_field(
   typename std::vector<
     internal::PointValueHistoryImplementation::PointGeometryData<dim>>::iterator
     point = point_geometry_data.begin();
+  Assert(!dof_handler->get_triangulation().is_mixed_mesh(),
+         ExcNotImplemented());
+  const auto reference_cell =
+    dof_handler->get_triangulation().get_reference_cells()[0];
   for (unsigned int data_store_index = 0; point != point_geometry_data.end();
        ++point, ++data_store_index)
     {
       // we now have a point to query, need to know what cell it is in
       const Point<dim> requested_location = point->requested_location;
       const typename DoFHandler<dim>::active_cell_iterator cell =
-        GridTools::find_active_cell_around_point(StaticMappingQ1<dim>::mapping,
-                                                 *dof_handler,
-                                                 requested_location)
+        GridTools::find_active_cell_around_point(
+          reference_cell.template get_default_linear_mapping<dim, dim>(),
+          *dof_handler,
+          requested_location)
           .first;
 
 
@@ -876,10 +877,10 @@ template <int dim>
 template <typename VectorType>
 void
 PointValueHistory<dim>::evaluate_field(
-  const std::string &           vector_name,
-  const VectorType &            solution,
+  const std::string            &vector_name,
+  const VectorType             &solution,
   const DataPostprocessor<dim> &data_postprocessor,
-  const Quadrature<dim> &       quadrature)
+  const Quadrature<dim>        &quadrature)
 {
   std::vector<std::string> vector_names;
   vector_names.push_back(vector_name);
@@ -893,7 +894,7 @@ template <typename VectorType>
 void
 PointValueHistory<dim>::evaluate_field_at_requested_location(
   const std::string &vector_name,
-  const VectorType & solution)
+  const VectorType  &solution)
 {
   using number = typename VectorType::value_type;
   // must be closed to add data to internal
@@ -998,7 +999,7 @@ PointValueHistory<dim>::push_back_independent(
 template <int dim>
 void
 PointValueHistory<dim>::write_gnuplot(
-  const std::string &            base_name,
+  const std::string             &base_name,
   const std::vector<Point<dim>> &postprocessor_locations)
 {
   AssertThrow(closed, ExcInvalidState());
@@ -1009,7 +1010,7 @@ PointValueHistory<dim>::write_gnuplot(
   if (n_indep != 0)
     {
       std::string   filename = base_name + "_indep.gpl";
-      std::ofstream to_gnuplot(filename.c_str());
+      std::ofstream to_gnuplot(filename);
 
       to_gnuplot << "# Data independent of mesh location\n";
 
@@ -1053,7 +1054,7 @@ PointValueHistory<dim>::write_gnuplot(
   if (have_dof_handler)
     {
       AssertThrow(have_dof_handler, ExcDoFHandlerRequired());
-      AssertThrow(postprocessor_locations.size() == 0 ||
+      AssertThrow(postprocessor_locations.empty() ||
                     postprocessor_locations.size() ==
                       point_geometry_data.size(),
                   ExcDimensionMismatch(postprocessor_locations.size(),
@@ -1088,7 +1089,7 @@ PointValueHistory<dim>::write_gnuplot(
           // Utilities::int_to_string(data_store_index,
           // 2) call, can handle up to 100
           // points
-          std::ofstream to_gnuplot(filename.c_str());
+          std::ofstream to_gnuplot(filename);
 
           // put helpful info about the
           // support point into the file as
@@ -1253,7 +1254,7 @@ PointValueHistory<dim>::get_support_locations(
 template <int dim>
 void
 PointValueHistory<dim>::get_postprocessor_locations(
-  const Quadrature<dim> &  quadrature,
+  const Quadrature<dim>   &quadrature,
   std::vector<Point<dim>> &locations)
 {
   Assert(!cleared, ExcInvalidState());
@@ -1271,6 +1272,10 @@ PointValueHistory<dim>::get_postprocessor_locations(
   typename std::vector<
     internal::PointValueHistoryImplementation::PointGeometryData<dim>>::iterator
     point = point_geometry_data.begin();
+  Assert(!dof_handler->get_triangulation().is_mixed_mesh(),
+         ExcNotImplemented());
+  const auto reference_cell =
+    dof_handler->get_triangulation().get_reference_cells()[0];
   for (unsigned int data_store_index = 0; point != point_geometry_data.end();
        ++point, ++data_store_index)
     {
@@ -1278,9 +1283,10 @@ PointValueHistory<dim>::get_postprocessor_locations(
       // need to know what cell it is in
       Point<dim> requested_location = point->requested_location;
       typename DoFHandler<dim>::active_cell_iterator cell =
-        GridTools::find_active_cell_around_point(StaticMappingQ1<dim>::mapping,
-                                                 *dof_handler,
-                                                 requested_location)
+        GridTools::find_active_cell_around_point(
+          reference_cell.template get_default_linear_mapping<dim, dim>(),
+          *dof_handler,
+          requested_location)
           .first;
       fe_values.reinit(cell);
 

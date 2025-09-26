@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,7 +28,6 @@
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_manifold.h>
-#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/manifold.h>
 #include <deal.II/grid/tria.h>
@@ -172,7 +171,7 @@ template <int dim, int spacedim>
 Point<spacedim>
 MappingManifold<dim, spacedim>::transform_unit_to_real_cell(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-  const Point<dim> &                                          p) const
+  const Point<dim>                                           &p) const
 {
   std::array<Point<spacedim>, GeometryInfo<dim>::vertices_per_cell> vertices;
   std::array<double, GeometryInfo<dim>::vertices_per_cell>          weights;
@@ -225,18 +224,18 @@ MappingManifold<dim, spacedim>::requires_update_flags(
       // update_boundary_forms is simply
       // ignored for the interior of a
       // cell.
-      if ((out & (update_JxW_values | update_normal_vectors)) != 0u)
+      if (out & (update_JxW_values | update_normal_vectors))
         out |= update_boundary_forms;
 
-      if ((out & (update_covariant_transformation | update_JxW_values |
-                  update_jacobians | update_jacobian_grads |
-                  update_boundary_forms | update_normal_vectors)) != 0u)
+      if (out & (update_covariant_transformation | update_JxW_values |
+                 update_jacobians | update_jacobian_grads |
+                 update_boundary_forms | update_normal_vectors))
         out |= update_contravariant_transformation;
 
-      if ((out &
-           (update_inverse_jacobians | update_jacobian_pushed_forward_grads |
-            update_jacobian_pushed_forward_2nd_derivatives |
-            update_jacobian_pushed_forward_3rd_derivatives)) != 0u)
+      if (out &
+          (update_inverse_jacobians | update_jacobian_pushed_forward_grads |
+           update_jacobian_pushed_forward_2nd_derivatives |
+           update_jacobian_pushed_forward_3rd_derivatives))
         out |= update_covariant_transformation;
 
       // The contravariant transformation used in the Piola
@@ -245,10 +244,10 @@ MappingManifold<dim, spacedim>::requires_update_flags(
       // knowing here whether the finite elements wants to use the
       // contravariant of the Piola transforms, we add the JxW values
       // to the list of flags to be updated for each cell.
-      if ((out & update_contravariant_transformation) != 0u)
+      if (out & update_contravariant_transformation)
         out |= update_JxW_values;
 
-      if ((out & update_normal_vectors) != 0u)
+      if (out & update_normal_vectors)
         out |= update_JxW_values;
     }
 
@@ -336,7 +335,7 @@ namespace internal
       maybe_compute_q_points(
         const typename QProjector<dim>::DataSetDescriptor data_set,
         const typename dealii::MappingManifold<dim, spacedim>::InternalData
-          &                           data,
+                                     &data,
         std::vector<Point<spacedim>> &quadrature_points)
       {
         const UpdateFlags update_flags = data.update_each;
@@ -466,7 +465,7 @@ CellSimilarity::Similarity
 MappingManifold<dim, spacedim>::fill_fe_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const CellSimilarity::Similarity,
-  const Quadrature<dim> &                                  quadrature,
+  const Quadrature<dim>                                   &quadrature,
   const typename Mapping<dim, spacedim>::InternalDataBase &internal_data,
   internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &output_data) const
@@ -497,7 +496,7 @@ MappingManifold<dim, spacedim>::fill_fe_values(
   // Multiply quadrature weights by absolute value of Jacobian determinants or
   // the area element g=sqrt(DX^t DX) in case of codim > 0
 
-  if ((update_flags & (update_normal_vectors | update_JxW_values)) != 0u)
+  if (update_flags & (update_normal_vectors | update_JxW_values))
     {
       AssertDimension(output_data.JxW_values.size(), n_q_points);
 
@@ -515,8 +514,8 @@ MappingManifold<dim, spacedim>::fill_fe_values(
 
               // check for distorted cells.
 
-              // TODO: this allows for anisotropies of up to 1e6 in 3D and
-              // 1e12 in 2D. might want to find a finer
+              // TODO: this allows for anisotropies of up to 1e6 in 3d and
+              // 1e12 in 2d. might want to find a finer
               // (dimension-independent) criterion
               Assert(det > 1e-12 * Utilities::fixed_power<dim>(
                                      cell->diameter() / std::sqrt(double(dim))),
@@ -543,7 +542,7 @@ MappingManifold<dim, spacedim>::fill_fe_values(
               output_data.JxW_values[point] =
                 std::sqrt(determinant(G)) * weights[point];
 
-              if ((update_flags & update_normal_vectors) != 0u)
+              if (update_flags & update_normal_vectors)
                 {
                   Assert(spacedim == dim + 1,
                          ExcMessage(
@@ -575,7 +574,7 @@ MappingManifold<dim, spacedim>::fill_fe_values(
 
 
   // copy values from InternalData to vector given by reference
-  if ((update_flags & update_jacobians) != 0u)
+  if (update_flags & update_jacobians)
     {
       AssertDimension(output_data.jacobians.size(), n_q_points);
       for (unsigned int point = 0; point < n_q_points; ++point)
@@ -583,7 +582,7 @@ MappingManifold<dim, spacedim>::fill_fe_values(
     }
 
   // copy values from InternalData to vector given by reference
-  if ((update_flags & update_inverse_jacobians) != 0u)
+  if (update_flags & update_inverse_jacobians)
     {
       AssertDimension(output_data.inverse_jacobians.size(), n_q_points);
       for (unsigned int point = 0; point < n_q_points; ++point)
@@ -616,7 +615,7 @@ namespace internal
       maybe_compute_face_data(
         const dealii::MappingManifold<dim, spacedim> &mapping,
         const typename dealii::Triangulation<dim, spacedim>::cell_iterator
-          &                        cell,
+                                  &cell,
         const unsigned int         face_no,
         const unsigned int         subface_no,
         const unsigned int         n_q_points,
@@ -785,11 +784,11 @@ namespace internal
       do_fill_fe_face_values(
         const dealii::MappingManifold<dim, spacedim> &mapping,
         const typename dealii::Triangulation<dim, spacedim>::cell_iterator
-          &                                               cell,
+                                                         &cell,
         const unsigned int                                face_no,
         const unsigned int                                subface_no,
         const typename QProjector<dim>::DataSetDescriptor data_set,
-        const Quadrature<dim - 1> &                       quadrature,
+        const Quadrature<dim - 1>                        &quadrature,
         const typename dealii::MappingManifold<dim, spacedim>::InternalData
           &data,
         internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
@@ -817,10 +816,10 @@ namespace internal
       template <int dim, int spacedim, int rank>
       void
       transform_fields(
-        const ArrayView<const Tensor<rank, dim>> &               input,
+        const ArrayView<const Tensor<rank, dim>>                &input,
         const MappingKind                                        mapping_kind,
         const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-        const ArrayView<Tensor<rank, spacedim>> &                output)
+        const ArrayView<Tensor<rank, spacedim>>                 &output)
       {
         AssertDimension(input.size(), output.size());
         Assert((dynamic_cast<const typename dealii::
@@ -895,10 +894,10 @@ namespace internal
       template <int dim, int spacedim, int rank>
       void
       transform_gradients(
-        const ArrayView<const Tensor<rank, dim>> &               input,
+        const ArrayView<const Tensor<rank, dim>>                &input,
         const MappingKind                                        mapping_kind,
         const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-        const ArrayView<Tensor<rank, spacedim>> &                output)
+        const ArrayView<Tensor<rank, spacedim>>                 &output)
       {
         AssertDimension(input.size(), output.size());
         Assert((dynamic_cast<const typename dealii::
@@ -997,10 +996,10 @@ namespace internal
       template <int dim, int spacedim>
       void
       transform_hessians(
-        const ArrayView<const Tensor<3, dim>> &                  input,
+        const ArrayView<const Tensor<3, dim>>                   &input,
         const MappingKind                                        mapping_kind,
         const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-        const ArrayView<Tensor<3, spacedim>> &                   output)
+        const ArrayView<Tensor<3, spacedim>>                    &output)
       {
         AssertDimension(input.size(), output.size());
         Assert((dynamic_cast<const typename dealii::
@@ -1169,7 +1168,7 @@ namespace internal
         const ArrayView<const DerivativeForm<rank, dim, spacedim>> &input,
         const MappingKind                                        mapping_kind,
         const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-        const ArrayView<Tensor<rank + 1, spacedim>> &            output)
+        const ArrayView<Tensor<rank + 1, spacedim>>             &output)
       {
         AssertDimension(input.size(), output.size());
         Assert((dynamic_cast<const typename dealii::
@@ -1210,8 +1209,8 @@ void
 MappingManifold<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const hp::QCollection<dim - 1> &                            quadrature,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
+  const hp::QCollection<dim - 1>                             &quadrature,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
   internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &output_data) const
 {
@@ -1247,8 +1246,8 @@ MappingManifold<dim, spacedim>::fill_fe_subface_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
   const unsigned int                                          subface_no,
-  const Quadrature<dim - 1> &                                 quadrature,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
+  const Quadrature<dim - 1>                                  &quadrature,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
   internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
     &output_data) const
 {
@@ -1281,10 +1280,10 @@ MappingManifold<dim, spacedim>::fill_fe_subface_values(
 template <int dim, int spacedim>
 void
 MappingManifold<dim, spacedim>::transform(
-  const ArrayView<const Tensor<1, dim>> &                  input,
+  const ArrayView<const Tensor<1, dim>>                   &input,
   const MappingKind                                        mapping_kind,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-  const ArrayView<Tensor<1, spacedim>> &                   output) const
+  const ArrayView<Tensor<1, spacedim>>                    &output) const
 {
   internal::MappingManifoldImplementation::transform_fields(input,
                                                             mapping_kind,
@@ -1300,7 +1299,7 @@ MappingManifold<dim, spacedim>::transform(
   const ArrayView<const DerivativeForm<1, dim, spacedim>> &input,
   const MappingKind                                        mapping_kind,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-  const ArrayView<Tensor<2, spacedim>> &                   output) const
+  const ArrayView<Tensor<2, spacedim>>                    &output) const
 {
   internal::MappingManifoldImplementation::transform_differential_forms(
     input, mapping_kind, mapping_data, output);
@@ -1311,10 +1310,10 @@ MappingManifold<dim, spacedim>::transform(
 template <int dim, int spacedim>
 void
 MappingManifold<dim, spacedim>::transform(
-  const ArrayView<const Tensor<2, dim>> &                  input,
+  const ArrayView<const Tensor<2, dim>>                   &input,
   const MappingKind                                        mapping_kind,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-  const ArrayView<Tensor<2, spacedim>> &                   output) const
+  const ArrayView<Tensor<2, spacedim>>                    &output) const
 {
   switch (mapping_kind)
     {
@@ -1344,7 +1343,7 @@ MappingManifold<dim, spacedim>::transform(
   const ArrayView<const DerivativeForm<2, dim, spacedim>> &input,
   const MappingKind                                        mapping_kind,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-  const ArrayView<Tensor<3, spacedim>> &                   output) const
+  const ArrayView<Tensor<3, spacedim>>                    &output) const
 {
   AssertDimension(input.size(), output.size());
   Assert(dynamic_cast<const InternalData *>(&mapping_data) != nullptr,
@@ -1390,10 +1389,10 @@ MappingManifold<dim, spacedim>::transform(
 template <int dim, int spacedim>
 void
 MappingManifold<dim, spacedim>::transform(
-  const ArrayView<const Tensor<3, dim>> &                  input,
+  const ArrayView<const Tensor<3, dim>>                   &input,
   const MappingKind                                        mapping_kind,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_data,
-  const ArrayView<Tensor<3, spacedim>> &                   output) const
+  const ArrayView<Tensor<3, spacedim>>                    &output) const
 {
   switch (mapping_kind)
     {

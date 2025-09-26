@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2020 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -169,7 +169,7 @@
  *   number of them. It also gives them a global numbering.
  *
  *   A different viewpoint is this: While the mesh and finite element describe
- *   abstract properties of the the finite dimensional space $V_h$ in which we
+ *   abstract properties of the finite dimensional space $V_h$ in which we
  *   seek the discrete solution, the %DoFHandler classes enumerate a concrete
  *   basis of this space so that we can represent the discrete solution as
  *   $u_h(\mathbf x)= \sum_j U_j \varphi_i(\mathbf x)$ by an ordered set of
@@ -299,7 +299,7 @@
  * to use the tag file, you have to download it into a place where Doxygen can find it.
  * After that, find the key <code>TAGFILES</code> in your Doxygen options file and write something like
  * <pre>
- * TAGFILES = deal.tag=http://www.dealii.org/X.Y.Z/doxygen/deal.II
+ * TAGFILES = deal.tag=https://www.dealii.org/X.Y.Z/doxygen/deal.II
  * </pre>
  * where <code>X.Y.Z</code> refers to the release you want to link to. Be sure you use
  * the matching tag file. In theory, you can also link against the developing revisions

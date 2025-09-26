@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2017 - 2021 by the deal.II authors
+ * Copyright (C) 2017 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -84,8 +84,8 @@ test()
   dof_handler.distribute_dofs(fe);
 
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
   AffineConstraints<double> constraints;
   constraints.reinit(locally_relevant_dofs);
   DoFTools::make_hanging_node_constraints(dof_handler, constraints);
@@ -104,7 +104,7 @@ test()
       MatrixFree<dim, double>::AdditionalData::partition_color;
     data.mapping_update_flags =
       update_values | update_gradients | update_JxW_values;
-    mf_data->reinit(dof_handler, constraints, quad, data);
+    mf_data->reinit(MappingQ1<dim>{}, dof_handler, constraints, quad, data);
   }
 
   std::vector<LinearAlgebra::distributed::Vector<double>> eigenfunctions;
@@ -232,7 +232,7 @@ main(int argc, char **argv)
         test();
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

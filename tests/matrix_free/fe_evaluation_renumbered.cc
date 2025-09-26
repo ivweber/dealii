@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,8 +21,6 @@
 #include <deal.II/fe/mapping_q.h>
 
 #include <deal.II/grid/grid_generator.h>
-
-#include <deal.II/lac/la_vector.h>
 
 #include <deal.II/matrix_free/fe_evaluation.h>
 #include <deal.II/matrix_free/matrix_free.h>
@@ -59,7 +57,7 @@ test(const unsigned int n_refinements, const unsigned int geometry_type)
 {
   using VectorizedArrayType = VectorizedArray<Number>;
 
-  using VectorType = LinearAlgebra::Vector<Number>;
+  using VectorType = Vector<Number>;
 
   Triangulation<dim> tria;
 

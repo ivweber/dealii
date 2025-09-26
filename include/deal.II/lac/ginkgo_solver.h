@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2019 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,22 +14,22 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_ginkgo_solver_h
-#  define dealii_ginkgo_solver_h
+#define dealii_ginkgo_solver_h
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  ifdef DEAL_II_WITH_GINKGO
+#ifdef DEAL_II_WITH_GINKGO
 
-#    include <deal.II/lac/block_sparse_matrix.h>
-#    include <deal.II/lac/exceptions.h>
-#    include <deal.II/lac/solver_control.h>
-#    include <deal.II/lac/sparse_matrix.h>
-#    include <deal.II/lac/vector.h>
+#  include <deal.II/lac/block_sparse_matrix.h>
+#  include <deal.II/lac/exceptions.h>
+#  include <deal.II/lac/solver_control.h>
+#  include <deal.II/lac/sparse_matrix.h>
+#  include <deal.II/lac/vector.h>
 
-#    include <ginkgo/ginkgo.hpp>
+#  include <ginkgo/ginkgo.hpp>
 
-#    include <memory>
+#  include <memory>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -130,8 +130,8 @@ namespace GinkgoWrappers
      */
     void
     solve(const SparseMatrix<ValueType> &matrix,
-          Vector<ValueType> &            solution,
-          const Vector<ValueType> &      rhs);
+          Vector<ValueType>             &solution,
+          const Vector<ValueType>       &rhs);
 
     /**
      * Access to the object that controls convergence.
@@ -225,22 +225,22 @@ namespace GinkgoWrappers
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the CG solver from the CG factory which
+     * set the parameters and set up the CG solver from the CG factory which
      * solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the CG solver.
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverCG(SolverControl &       solver_control,
-             const std::string &   exec_type,
+    SolverCG(SolverControl        &solver_control,
+             const std::string    &exec_type,
              const AdditionalData &data = AdditionalData());
 
     /**
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the CG solver from the CG factory which
+     * set the parameters and set up the CG solver from the CG factory which
      * solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the CG solver.
@@ -249,10 +249,10 @@ namespace GinkgoWrappers
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverCG(SolverControl &                           solver_control,
-             const std::string &                       exec_type,
+    SolverCG(SolverControl                            &solver_control,
+             const std::string                        &exec_type,
              const std::shared_ptr<gko::LinOpFactory> &preconditioner,
-             const AdditionalData &                    data = AdditionalData());
+             const AdditionalData                     &data = AdditionalData());
 
   protected:
     /**
@@ -281,22 +281,22 @@ namespace GinkgoWrappers
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the Bicgstab solver from the Bicgstab
+     * set the parameters and set up the Bicgstab solver from the Bicgstab
      * factory which solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the Bicgstab solver.
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverBicgstab(SolverControl &       solver_control,
-                   const std::string &   exec_type,
+    SolverBicgstab(SolverControl        &solver_control,
+                   const std::string    &exec_type,
                    const AdditionalData &data = AdditionalData());
 
     /**
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the Bicgstab solver from the Bicgstab
+     * set the parameters and set up the Bicgstab solver from the Bicgstab
      * factory which solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the Bicgstab solver.
@@ -305,8 +305,8 @@ namespace GinkgoWrappers
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverBicgstab(SolverControl &                           solver_control,
-                   const std::string &                       exec_type,
+    SolverBicgstab(SolverControl                            &solver_control,
+                   const std::string                        &exec_type,
                    const std::shared_ptr<gko::LinOpFactory> &preconditioner,
                    const AdditionalData &data = AdditionalData());
 
@@ -339,22 +339,22 @@ namespace GinkgoWrappers
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the CGS solver from the CGS factory which
+     * set the parameters and set up the CGS solver from the CGS factory which
      * solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the CGS solver.
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverCGS(SolverControl &       solver_control,
-              const std::string &   exec_type,
+    SolverCGS(SolverControl        &solver_control,
+              const std::string    &exec_type,
               const AdditionalData &data = AdditionalData());
 
     /**
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the CGS solver from the CGS factory which
+     * set the parameters and set up the CGS solver from the CGS factory which
      * solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the CGS solver.
@@ -363,8 +363,8 @@ namespace GinkgoWrappers
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverCGS(SolverControl &                           solver_control,
-              const std::string &                       exec_type,
+    SolverCGS(SolverControl                            &solver_control,
+              const std::string                        &exec_type,
               const std::shared_ptr<gko::LinOpFactory> &preconditioner,
               const AdditionalData &data = AdditionalData());
 
@@ -406,22 +406,22 @@ namespace GinkgoWrappers
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the FCG solver from the FCG factory which
+     * set the parameters and set up the FCG solver from the FCG factory which
      * solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the FCG solver.
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverFCG(SolverControl &       solver_control,
-              const std::string &   exec_type,
+    SolverFCG(SolverControl        &solver_control,
+              const std::string    &exec_type,
               const AdditionalData &data = AdditionalData());
 
     /**
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the FCG solver from the FCG factory which
+     * set the parameters and set up the FCG solver from the FCG factory which
      * solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the FCG solver.
@@ -430,8 +430,8 @@ namespace GinkgoWrappers
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverFCG(SolverControl &                           solver_control,
-              const std::string &                       exec_type,
+    SolverFCG(SolverControl                            &solver_control,
+              const std::string                        &exec_type,
               const std::shared_ptr<gko::LinOpFactory> &preconditioner,
               const AdditionalData &data = AdditionalData());
 
@@ -472,22 +472,22 @@ namespace GinkgoWrappers
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the GMRES solver from the GMRES factory
+     * set the parameters and set up the GMRES solver from the GMRES factory
      * which solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the GMRES solver.
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverGMRES(SolverControl &       solver_control,
-                const std::string &   exec_type,
+    SolverGMRES(SolverControl        &solver_control,
+                const std::string    &exec_type,
                 const AdditionalData &data = AdditionalData());
 
     /**
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the GMRES solver from the GMRES factory
+     * set the parameters and set up the GMRES solver from the GMRES factory
      * which solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the GMRES solver.
@@ -496,8 +496,8 @@ namespace GinkgoWrappers
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverGMRES(SolverControl &                           solver_control,
-                const std::string &                       exec_type,
+    SolverGMRES(SolverControl                            &solver_control,
+                const std::string                        &exec_type,
                 const std::shared_ptr<gko::LinOpFactory> &preconditioner,
                 const AdditionalData &data = AdditionalData());
 
@@ -531,22 +531,22 @@ namespace GinkgoWrappers
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the IR solver from the IR factory which
+     * set the parameters and set up the IR solver from the IR factory which
      * solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the IR solver.
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverIR(SolverControl &       solver_control,
-             const std::string &   exec_type,
+    SolverIR(SolverControl        &solver_control,
+             const std::string    &exec_type,
              const AdditionalData &data = AdditionalData());
 
     /**
      * Constructor.
      *
      * @param[in,out] solver_control The solver control object is then used to
-     * set the parameters and setup the IR solver from the IR factory which
+     * set the parameters and set up the IR solver from the IR factory which
      * solves the linear system.
      *
      * @param[in] exec_type The execution paradigm for the IR solver.
@@ -555,10 +555,10 @@ namespace GinkgoWrappers
      *
      * @param[in] data The additional data required by the solver.
      */
-    SolverIR(SolverControl &                           solver_control,
-             const std::string &                       exec_type,
+    SolverIR(SolverControl                            &solver_control,
+             const std::string                        &exec_type,
              const std::shared_ptr<gko::LinOpFactory> &inner_solver,
-             const AdditionalData &                    data = AdditionalData());
+             const AdditionalData                     &data = AdditionalData());
 
   protected:
     /**
@@ -572,7 +572,6 @@ namespace GinkgoWrappers
 
 DEAL_II_NAMESPACE_CLOSE
 
-#  endif // DEAL_II_WITH_GINKGO
+#endif // DEAL_II_WITH_GINKGO
 
 #endif
-/*----------------------------   ginkgo_solver.h ---------------------------*/

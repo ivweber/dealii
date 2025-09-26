@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -87,7 +87,7 @@ public:
   DeclException1(ExcInvalidQuadrature,
                  std::string,
                  << arg1 << " is not a valid name for a quadrature rule.");
-  //@}
+  /** @} */
 private:
   /**
    * This static function creates a quadrature object according to the name

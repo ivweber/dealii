@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2000 - 2021 by the deal.II authors
+ * Copyright (C) 2000 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, University of Heidelberg, 2000
  */
@@ -154,7 +153,7 @@ namespace Step9
   class RightHandSide : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
   private:
@@ -184,7 +183,7 @@ namespace Step9
   // one past the last (i.e. again the half-open interval so often used in the
   // C++ standard library):
   template <int dim>
-  double RightHandSide<dim>::value(const Point<dim> & p,
+  double RightHandSide<dim>::value(const Point<dim>  &p,
                                    const unsigned int component) const
   {
     (void)component;
@@ -203,14 +202,14 @@ namespace Step9
   class BoundaryValues : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
 
 
   template <int dim>
-  double BoundaryValues<dim>::value(const Point<dim> & p,
+  double BoundaryValues<dim>::value(const Point<dim>  &p,
                                     const unsigned int component) const
   {
     (void)component;
@@ -309,8 +308,8 @@ namespace Step9
     void assemble_system();
     void local_assemble_system(
       const typename DoFHandler<dim>::active_cell_iterator &cell,
-      AssemblyScratchData &                                 scratch,
-      AssemblyCopyData &                                    copy_data);
+      AssemblyScratchData                                  &scratch,
+      AssemblyCopyData                                     &copy_data);
     void copy_local_to_global(const AssemblyCopyData &copy_data);
 
 
@@ -412,8 +411,8 @@ namespace Step9
   public:
     template <int dim>
     static void estimate(const DoFHandler<dim> &dof,
-                         const Vector<double> & solution,
-                         Vector<float> &        error_per_cell);
+                         const Vector<double>  &solution,
+                         Vector<float>         &error_per_cell);
 
     DeclException2(ExcInvalidVectorLength,
                    int,
@@ -427,8 +426,8 @@ namespace Step9
     struct EstimateScratchData
     {
       EstimateScratchData(const FiniteElement<dim> &fe,
-                          const Vector<double> &    solution,
-                          Vector<float> &           error_per_cell);
+                          const Vector<double>     &solution,
+                          Vector<float>            &error_per_cell);
       EstimateScratchData(const EstimateScratchData &data);
 
       FEValues<dim> fe_midpoint_value;
@@ -436,7 +435,7 @@ namespace Step9
         active_neighbors;
 
       const Vector<double> &solution;
-      Vector<float> &       error_per_cell;
+      Vector<float>        &error_per_cell;
 
       std::vector<double> cell_midpoint_value;
       std::vector<double> neighbor_midpoint_value;
@@ -449,7 +448,7 @@ namespace Step9
     static void
     estimate_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
                   EstimateScratchData<dim> &scratch_data,
-                  const EstimateCopyData &  copy_data);
+                  const EstimateCopyData   &copy_data);
   };
 
 
@@ -606,8 +605,8 @@ namespace Step9
   template <int dim>
   void AdvectionProblem<dim>::local_assemble_system(
     const typename DoFHandler<dim>::active_cell_iterator &cell,
-    AssemblyScratchData &                                 scratch_data,
-    AssemblyCopyData &                                    copy_data)
+    AssemblyScratchData                                  &scratch_data,
+    AssemblyCopyData                                     &copy_data)
   {
     // We define some abbreviations to avoid unnecessarily long lines:
     const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
@@ -812,8 +811,8 @@ namespace Step9
   // understand data that is associated with nodes: they cannot plot
   // fifth-degree basis functions, which results in a very inaccurate picture
   // of the solution we computed. To get around this we save multiple
-  // <em>patches</em> per cell: in 2D we save 64 bilinear `cells' to the VTU
-  // file for each cell, and in 3D we save 512. The end result is that the
+  // <em>patches</em> per cell: in 2d we save 64 bilinear `cells' to the VTU
+  // file for each cell, and in 3d we save 512. The end result is that the
   // visualization program will use a piecewise linear interpolation of the
   // cubic basis functions: this captures the solution detail and, with most
   // screen resolutions, looks smooth. We save the grid in a separate step
@@ -844,8 +843,7 @@ namespace Step9
       // disk. Here we ask ZLib, a compression library, to compress the data
       // in a way that maximizes throughput.
       DataOutBase::VtkFlags vtk_flags;
-      vtk_flags.compression_level =
-        DataOutBase::VtkFlags::ZlibCompressionLevel::best_speed;
+      vtk_flags.compression_level = DataOutBase::CompressionLevel::best_speed;
       data_out.set_flags(vtk_flags);
 
       std::ofstream output("solution-" + std::to_string(cycle) + ".vtu");
@@ -899,8 +897,8 @@ namespace Step9
   template <int dim>
   GradientEstimation::EstimateScratchData<dim>::EstimateScratchData(
     const FiniteElement<dim> &fe,
-    const Vector<double> &    solution,
-    Vector<float> &           error_per_cell)
+    const Vector<double>     &solution,
+    Vector<float>            &error_per_cell)
     : fe_midpoint_value(fe,
                         QMidpoint<dim>(),
                         update_values | update_quadrature_points)
@@ -944,8 +942,8 @@ namespace Step9
   // well worth the effort to check for such things.
   template <int dim>
   void GradientEstimation::estimate(const DoFHandler<dim> &dof_handler,
-                                    const Vector<double> & solution,
-                                    Vector<float> &        error_per_cell)
+                                    const Vector<double>  &solution,
+                                    Vector<float>         &error_per_cell)
   {
     Assert(
       error_per_cell.size() == dof_handler.get_triangulation().n_active_cells(),
@@ -1010,7 +1008,7 @@ namespace Step9
   template <int dim>
   void GradientEstimation::estimate_cell(
     const typename DoFHandler<dim>::active_cell_iterator &cell,
-    EstimateScratchData<dim> &                            scratch_data,
+    EstimateScratchData<dim>                             &scratch_data,
     const EstimateCopyData &)
   {
     // We need space for the tensor <code>Y</code>, which is the sum of
@@ -1054,7 +1052,7 @@ namespace Step9
 
           // Then check whether the neighbor is active. If it is, then it
           // is on the same level or one level coarser (if we are not in
-          // 1D), and we are interested in it in any case.
+          // 1d), and we are interested in it in any case.
           if (neighbor->is_active())
             scratch_data.active_neighbors.push_back(neighbor);
           else

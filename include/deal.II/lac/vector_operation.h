@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2018 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,8 +20,9 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*! @addtogroup Vectors
- *@{
+/**
+ * @addtogroup Vectors
+ * @{
  */
 
 /**
@@ -62,7 +63,7 @@ struct VectorOperation
   };
 };
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

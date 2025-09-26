@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -119,7 +119,7 @@ main()
     {
       comsol_grid<3>(SOURCE_DIR "/grids/comsol/mesh_1.mphtxt");
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

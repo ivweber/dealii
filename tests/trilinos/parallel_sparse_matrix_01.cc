@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,7 +26,8 @@
 // and with the option -log_info. All the output should say that no additional
 // malloc calls have been performed
 
-#include <deal.II/base/utilities.h>
+#include <deal.II/base/mpi.h>
+#include <deal.II/base/trilinos_utilities.h>
 
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
@@ -116,7 +117,7 @@ main(int argc, char **argv)
     {
       test();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

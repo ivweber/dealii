@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,7 +28,9 @@
 // opencascade needs "HAVE_CONFIG_H" to be exported...
 #  define HAVE_CONFIG_H
 #  include <Adaptor3d_Curve.hxx>
-#  include <Adaptor3d_HCurve.hxx>
+#  if !DEAL_II_OPENCASCADE_VERSION_GTE(7, 6, 0)
+#    include <Adaptor3d_HCurve.hxx>
+#  endif
 #  include <BRepAdaptor_Curve.hxx>
 #  undef HAVE_CONFIG_H
 
@@ -92,7 +94,7 @@ namespace OpenCASCADE
     virtual Point<spacedim>
     project_to_manifold(
       const ArrayView<const Point<spacedim>> &surrounding_points,
-      const Point<spacedim> &                 candidate) const override;
+      const Point<spacedim>                  &candidate) const override;
 
 
   protected:
@@ -137,7 +139,7 @@ namespace OpenCASCADE
      * Construct a Manifold object which will project points on the
      * TopoDS_Shape @p sh, along the given @p direction.
      */
-    DirectionalProjectionManifold(const TopoDS_Shape &       sh,
+    DirectionalProjectionManifold(const TopoDS_Shape        &sh,
                                   const Tensor<1, spacedim> &direction,
                                   const double               tolerance = 1e-7);
 
@@ -159,7 +161,7 @@ namespace OpenCASCADE
     virtual Point<spacedim>
     project_to_manifold(
       const ArrayView<const Point<spacedim>> &surrounding_points,
-      const Point<spacedim> &                 candidate) const override;
+      const Point<spacedim>                  &candidate) const override;
 
   protected:
     /**
@@ -251,7 +253,7 @@ namespace OpenCASCADE
     virtual Point<spacedim>
     project_to_manifold(
       const ArrayView<const Point<spacedim>> &surrounding_points,
-      const Point<spacedim> &                 candidate) const override;
+      const Point<spacedim>                  &candidate) const override;
 
   protected:
     /**
@@ -325,7 +327,11 @@ namespace OpenCASCADE
      * A Curve adaptor. This is the one which is used in the computations, and
      * it points to the right one above.
      */
+#  if DEAL_II_OPENCASCADE_VERSION_GTE(7, 6, 0)
+    Handle_Adaptor3d_Curve curve;
+#  else
     Handle_Adaptor3d_HCurve curve;
+#  endif
 
     /**
      * Relative tolerance used in all internal computations.
@@ -412,7 +418,7 @@ namespace OpenCASCADE
 
 } // namespace OpenCASCADE
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

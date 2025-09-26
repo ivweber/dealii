@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2021 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,6 +17,7 @@
 #include <deal.II/base/quadrature_lib.h>
 
 #include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_pyramid_p.h>
 #include <deal.II/fe/fe_q.h>
@@ -155,7 +156,7 @@ template <int dim, int spacedim>
 void
 FE_Q<dim, spacedim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   AssertDimension(support_point_values.size(),
                   this->get_unit_support_points().size());
@@ -256,12 +257,12 @@ FE_Q<dim, spacedim>::compare_for_domination(
              dynamic_cast<const FE_Hermite<dim, spacedim> *>(&fe_other))
     {
       if (this->degree == 1)
-      {
-        if (fe_hermite_other->degree > 1)
-          return FiniteElementDomination::this_element_dominates;
-        else
-          return FiniteElementDomination::either_element_can_dominate;
-      }
+        {
+          if (fe_hermite_other->degree > 1)
+            return FiniteElementDomination::this_element_dominates;
+          else
+            return FiniteElementDomination::either_element_can_dominate;
+        }
       else if (this->degree >= fe_hermite_other->degree)
         return FiniteElementDomination::other_element_dominates;
       else

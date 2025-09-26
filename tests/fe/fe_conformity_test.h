@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,7 +24,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe.h>
-#include <deal.II/fe/fe_base.h>
+#include <deal.II/fe/fe_data.h>
 #include <deal.II/fe/fe_interface_values.h>
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/fe/fe_values.h>
@@ -74,18 +74,18 @@ namespace FEConforimityTest
 
     void
     get_function_jump(const FEInterfaceValues<dim> &fe_interface_values,
-                      const Vector<double> &        dof_vector,
-                      std::vector<double> &         jumps);
+                      const Vector<double>         &dof_vector,
+                      std::vector<double>          &jumps);
 
     void
     get_normal_jump(const FEInterfaceValues<dim> &fe_interface_values,
-                    const Vector<double> &        dof_vector,
-                    std::vector<double> &         jumps);
+                    const Vector<double>         &dof_vector,
+                    std::vector<double>          &jumps);
 
     void
     get_tangential_jump(const FEInterfaceValues<dim> &fe_interface_values,
-                        const Vector<double> &        dof_vector,
-                        std::vector<double> &         jumps);
+                        const Vector<double>         &dof_vector,
+                        std::vector<double>          &jumps);
 
     SmartPointer<const FiniteElement<dim>> fe_ptr;
     Triangulation<dim>                     triangulation;
@@ -206,7 +206,7 @@ namespace FEConforimityTest
   {
     triangulation.clear();
 
-    // alias for better readabilty
+    // alias for better readability
     const unsigned int n_rotate_central_square = config_switch;
 
     GridGenerator::non_standard_orientation_mesh(triangulation,
@@ -279,8 +279,8 @@ namespace FEConforimityTest
   void
   FEConformityTest<dim>::get_function_jump(
     const FEInterfaceValues<dim> &fe_interface_values,
-    const Vector<double> &        dof_vector,
-    std::vector<double> &         jumps)
+    const Vector<double>         &dof_vector,
+    std::vector<double>          &jumps)
   {
     const unsigned n_q = fe_interface_values.n_quadrature_points;
 
@@ -306,8 +306,8 @@ namespace FEConforimityTest
   void
   FEConformityTest<dim>::get_normal_jump(
     const FEInterfaceValues<dim> &fe_interface_values,
-    const Vector<double> &        dof_vector,
-    std::vector<double> &         jumps)
+    const Vector<double>         &dof_vector,
+    std::vector<double>          &jumps)
   {
     const unsigned n_q = fe_interface_values.n_quadrature_points;
 
@@ -344,8 +344,8 @@ namespace FEConforimityTest
   void
   FEConformityTest<2>::get_tangential_jump(
     const FEInterfaceValues<2> &fe_interface_values,
-    const Vector<double> &      dof_vector,
-    std::vector<double> &       jumps)
+    const Vector<double>       &dof_vector,
+    std::vector<double>        &jumps)
   {
     const unsigned n_q = fe_interface_values.n_quadrature_points;
 
@@ -380,8 +380,8 @@ namespace FEConforimityTest
   void
   FEConformityTest<3>::get_tangential_jump(
     const FEInterfaceValues<3> &fe_interface_values,
-    const Vector<double> &      dof_vector,
-    std::vector<double> &       jumps)
+    const Vector<double>       &dof_vector,
+    std::vector<double>        &jumps)
   {
     const unsigned n_q = fe_interface_values.n_quadrature_points;
 

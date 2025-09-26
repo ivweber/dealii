@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,9 +29,7 @@
 #include <deal.II/grid/tria_iterator_base.h>
 #include <deal.II/grid/tria_iterator_selector.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <boost/container/small_vector.hpp>
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #include <utility>
 
@@ -41,6 +39,7 @@ DEAL_II_NAMESPACE_OPEN
 // Forward declarations
 #ifndef DOXYGEN
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class Triangulation;
 template <typename Accessor>
 class TriaRawIterator;
@@ -52,8 +51,16 @@ class TriaActiveIterator;
 namespace parallel
 {
   template <int dim, int spacedim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
   class TriangulationBase;
 }
+
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+class DoFHandler;
+template <int dim, int spacedim, bool lda>
+class DoFCellAccessor;
+
 
 template <int dim, int spacedim>
 class Manifold;
@@ -303,8 +310,9 @@ class TriaAccessorBase
 public:
   /**
    * Dimension of the space the object represented by this accessor lives in.
-   * For example, if this accessor represents a quad that is part of a two-
-   * dimensional surface in four-dimensional space, then this value is four.
+   * For example, if this accessor represents a quadrilateral that is part of
+   * a two-dimensional surface in four-dimensional space, then this value is
+   * four.
    */
   static constexpr unsigned int space_dimension = spacedim;
 
@@ -317,8 +325,8 @@ public:
 
   /**
    * Dimensionality of the current object represented by this accessor. For
-   * example, if it is line (irrespective of whether it is part of a quad or
-   * hex, and what dimension we are in), then this value equals 1.
+   * example, if it is line (irrespective of whether it is part of a 2d or 3d
+   * subobject), then this value equals 1.
    */
   static const unsigned int structure_dimension = structdim;
 
@@ -348,7 +356,7 @@ protected:
   TriaAccessorBase(const Triangulation<dim, spacedim> *parent = nullptr,
                    const int                           level  = -1,
                    const int                           index  = -1,
-                   const AccessorData *                       = nullptr);
+                   const AccessorData                       * = nullptr);
 
   /**
    * Copy constructor. Creates an object with exactly the same data.
@@ -563,14 +571,37 @@ private:
  * @ingroup Accessors
  */
 template <int structdim, int dim, int spacedim = dim>
-class InvalidAccessor : public TriaAccessorBase<structdim, dim, spacedim>
+class InvalidAccessor
 {
 public:
   /**
-   * Propagate alias from base class to this class.
+   * Dimension of the space the object represented by this accessor lives in.
+   * For example, if this accessor represents a quadrilateral that is part of
+   * a two-dimensional surface in four-dimensional space, then this value is
+   * four.
    */
-  using AccessorData =
-    typename TriaAccessorBase<structdim, dim, spacedim>::AccessorData;
+  static constexpr unsigned int space_dimension = spacedim;
+
+  /**
+   * Dimensionality of the object that the thing represented by this accessor
+   * is part of. For example, if this accessor represents a line that is part
+   * of a hexahedron, then this value will be three.
+   */
+  static constexpr unsigned int dimension = dim;
+
+  /**
+   * Dimensionality of the current object represented by this accessor. For
+   * example, if it is line (irrespective of whether it is part of a 2d or 3d
+   * subobject), then this value equals 1.
+   */
+  static const unsigned int structure_dimension = structdim;
+
+  /**
+   * Declare the data type that this accessor class expects to get passed from
+   * the iterator classes. Since the pure triangulation iterators need no
+   * additional data, this data type is @p void.
+   */
+  using AccessorData = void;
 
   /**
    * Constructor.  This class is used for iterators that do not make
@@ -579,10 +610,10 @@ public:
    * semantic sense, and we generate an exception when such an object is
    * actually generated.
    */
-  InvalidAccessor(const Triangulation<dim, spacedim> *parent     = nullptr,
-                  const int                           level      = -1,
-                  const int                           index      = -1,
-                  const AccessorData *                local_data = nullptr);
+  InvalidAccessor(const void         *parent     = nullptr,
+                  const int           level      = -1,
+                  const int           index      = -1,
+                  const AccessorData *local_data = nullptr);
 
   /**
    * Copy constructor.  This class is used for iterators that do not make
@@ -621,6 +652,28 @@ public:
   operator++() const;
   void
   operator--() const;
+
+  /**
+   * Return the state of the iterator.  For the different states an accessor
+   * can be in, refer to the TriaRawIterator documentation.
+   */
+  static IteratorState::IteratorStates
+  state();
+
+
+  /**
+   * Level of this object. Vertices have no level, so this function always
+   * returns zero.
+   */
+  static int
+  level();
+
+  /**
+   * Index of this object. Returns the global index of the vertex this object
+   * points to.
+   */
+  static int
+  index();
 
   /**
    * Dummy function representing whether the accessor points to a used or an
@@ -670,17 +723,15 @@ public:
    * Dummy function to extract lines. Returns a default-constructed line
    * iterator.
    */
-  typename dealii::internal::TriangulationImplementation::
-    Iterators<dim, spacedim>::line_iterator
-    line(const unsigned int i) const;
+  void *
+  line(const unsigned int i) const;
 
   /**
    * Dummy function to extract quads. Returns a default-constructed quad
    * iterator.
    */
-  typename dealii::internal::TriangulationImplementation::
-    Iterators<dim, spacedim>::quad_iterator
-    quad(const unsigned int i) const;
+  void *
+  quad(const unsigned int i) const;
 };
 
 
@@ -718,7 +769,7 @@ public:
   TriaAccessor(const Triangulation<dim, spacedim> *parent     = nullptr,
                const int                           level      = -1,
                const int                           index      = -1,
-               const AccessorData *                local_data = nullptr);
+               const AccessorData                 *local_data = nullptr);
 
   /**
    * The copy constructor is not deleted but copied constructed elements should
@@ -902,6 +953,8 @@ public:
   /**
    * Return an integer representation that uniquely encodes the orientation,
    * flip, and rotation of a @p face.
+   *
+   * @ingroup reordering
    */
   unsigned char
   combined_face_orientation(const unsigned int face) const;
@@ -981,13 +1034,6 @@ public:
    */
   unsigned int
   n_children() const;
-
-  /**
-   * @deprecated Use n_active_descendants() instead.
-   */
-  DEAL_II_DEPRECATED
-  unsigned int
-  number_of_children() const;
 
   /**
    * Compute and return the number of active descendants of this objects. For
@@ -1559,7 +1605,7 @@ public:
    * from the vertex points, this function also ignores the attached manifold
    * descriptions. The result is only exact in case the transformation from
    * the unit to the real cell is indeed affine, such as in one dimension or
-   * for Cartesian and affine (parallelogram) meshes in 2D/3D.
+   * for Cartesian and affine (parallelogram) meshes in 2d/3d.
    *
    * For exact transformations to the unit cell, use
    * Mapping::transform_real_to_unit_cell().
@@ -1591,12 +1637,12 @@ public:
    * setting to true the second additional parameter @p
    * interpolate_from_surrounding. This computes the location of the center by
    * a so-called transfinite interpolation from the center of all the bounding
-   * objects. For a 2D object, it puts a weight of <code>1/2</code> on each of
+   * objects. For a 2d object, it puts a weight of <code>1/2</code> on each of
    * the four surrounding lines and a weight <code>-1/4</code> on the four
    * vertices. This corresponds to a linear interpolation between the
    * descriptions of the four faces, subtracting the contribution of the
    * vertices that is added twice when coming through both lines adjacent to
-   * the vertex. In 3D, the weights for faces are <code>1/2</code>, the
+   * the vertex. In 3d, the weights for faces are <code>1/2</code>, the
    * weights for lines are <code>-1/4</code>, and the weights for vertices are
    * <code>1/8</code>. For further information, also confer to the
    * TransfiniteInterpolationManifold class that is able to not only apply
@@ -1651,6 +1697,11 @@ public:
    * after applying quadrature equals the summing the JxW values returned by
    * the FEValues or FEFaceValues object you will want to use for the
    * integral.
+   *
+   * @note There is no analytic formula for the area of a bilinear face (i.e.,
+   * something with a quadrilateral reference cell) in 3D. This function uses
+   * the quadrature defined by QGauss<2>(4) to approximate the measure in this
+   * case.
    */
   double
   measure() const;
@@ -1692,9 +1743,13 @@ public:
   n_lines() const;
 
   /**
-   * Number of faces.
-   *
-   * @note Only implemented for cells (structdim==dim).
+   * Return the number of faces for a cell. This function is only
+   * implemented for cells (i.e., `structdim==dim`) to avoid the question
+   * of what exactly is meant in a construct such as
+   * `cell->face(f)->n_faces()`. If you want to ask how many bounding
+   * lines a face of a 3d cell has, use `cell->face(f)->n_lines()`; if
+   * you want to ask about the number of vertices of a face of a 2d cell,
+   * use `cell->face(f)->n_vertices()`.
    */
   unsigned int
   n_faces() const;
@@ -1763,35 +1818,17 @@ private:
   set_line_orientation(const unsigned int line, const bool orientation) const;
 
   /**
-   * Set whether the quad with index @p face has its normal pointing in the
-   * standard direction (@p true) or whether it is the opposite (@p false).
-   * Which is the standard direction is documented with the GeometryInfo
-   * class.
-   *
-   * This function is only for internal use in the library. Setting this flag
-   * to any other value than the one that the triangulation has already set is
-   * bound to bring you disaster.
-   */
-  void
-  set_face_orientation(const unsigned int face, const bool orientation) const;
-
-  /**
-   * Set the flag indicating, what <code>face_flip()</code> will return.
+   * Set the combined face orientation (i.e., the integer that uniquely encodes
+   * the orientation, flip, and rotation).
    *
    * It is only possible to set the face_orientation of cells in 3d (i.e.
    * <code>structdim==3 && dim==3</code>).
-   */
-  void
-  set_face_flip(const unsigned int face, const bool flip) const;
-
-  /**
-   * Set the flag indicating, what <code>face_rotation()</code> will return.
    *
-   * It is only possible to set the face_orientation of cells in 3d (i.e.
-   * <code>structdim==3 && dim==3</code>).
+   * @ingroup reordering
    */
   void
-  set_face_rotation(const unsigned int face, const bool rotation) const;
+  set_combined_face_orientation(const unsigned int  face,
+                                const unsigned char combined_orientation) const;
 
   /**
    * Set the @p used flag. Only for internal use in the library.
@@ -1843,8 +1880,7 @@ private:
   clear_children() const;
 
 private:
-  template <int, int>
-  friend class Triangulation;
+  friend class Triangulation<dim, spacedim>;
 
   friend struct dealii::internal::TriangulationImplementation::Implementation;
   friend struct dealii::internal::TriangulationImplementation::
@@ -1917,7 +1953,7 @@ public:
   TriaAccessor(const Triangulation<dim, spacedim> *tria  = nullptr,
                const int                           level = 0,
                const int                           index = 0,
-               const AccessorData *                      = nullptr);
+               const AccessorData                      * = nullptr);
 
   /**
    * Constructor. Should never be called and thus produces an error.
@@ -2113,6 +2149,8 @@ public:
 
   /**
    * @brief Always return 0
+   *
+   * @ingroup reordering
    */
   static unsigned char
   combined_face_orientation(const unsigned int face);
@@ -2171,14 +2209,6 @@ public:
    */
   static unsigned int
   n_active_descendants();
-
-  /**
-   * @deprecated Use n_active_descendants() instead.
-   */
-  DEAL_II_DEPRECATED
-  static unsigned int
-  number_of_children();
-
 
   /**
    * Return the number of times that this object is refined. Always 0.
@@ -2310,8 +2340,8 @@ public:
 
   /**
    * Dimensionality of the current object represented by this accessor. For
-   * example, if it is line (irrespective of whether it is part of a quad or
-   * hex, and what dimension we are in), then this value equals 1.
+   * example, if it is line (irrespective of whether it is part of a 2d or 3d
+   * subobject), then this value equals 1.
    */
   static const unsigned int structure_dimension = 0;
 
@@ -2363,7 +2393,7 @@ public:
   TriaAccessor(const Triangulation<1, spacedim> *tria = nullptr,
                const int                              = 0,
                const int                              = 0,
-               const AccessorData *                   = nullptr);
+               const AccessorData                   * = nullptr);
 
   /**
    * Constructor. Should never be called and thus produces an error.
@@ -2788,6 +2818,8 @@ public:
 
   /**
    * @brief Always return 0
+   *
+   * @ingroup reordering
    */
   static unsigned char
   combined_face_orientation(const unsigned int face);
@@ -2846,14 +2878,6 @@ public:
    */
   static unsigned int
   n_active_descendants();
-
-  /**
-   * @deprecated Use n_active_descendants() instead.
-   */
-  DEAL_II_DEPRECATED
-  static unsigned int
-  number_of_children();
-
 
   /**
    * Return the number of times that this object is refined. Always 0.
@@ -3035,8 +3059,8 @@ protected:
  *
  * The following refers to any dimension:
  *
- * This class allows access to a <tt>cell</tt>, which is a line in 1D and a
- * quad in 2D. Cells have more functionality than lines or quads by
+ * This class allows access to a <tt>cell</tt>, which is a line in 1d and a
+ * quad in 2d. Cells have more functionality than lines or quads by
  * themselves, for example they can be flagged for refinement, they have
  * neighbors, they have the possibility to check whether they are at the
  * boundary etc. This class offers access to all this data.
@@ -3071,7 +3095,7 @@ public:
   CellAccessor(const Triangulation<dim, spacedim> *parent     = nullptr,
                const int                           level      = -1,
                const int                           index      = -1,
-               const AccessorData *                local_data = nullptr);
+               const AccessorData                 *local_data = nullptr);
 
   /**
    * Copy constructor.
@@ -3134,6 +3158,44 @@ public:
   // NOLINTNEXTLINE OSX does not compile with noexcept
   CellAccessor<dim, spacedim> &
   operator=(CellAccessor<dim, spacedim> &&) = default; // NOLINT
+
+  /**
+   * @}
+   */
+
+  /**
+   * @name Converting iterators
+   */
+  /**
+   * @{
+   */
+
+  /**
+   * A function that converts a Triangulation active cell iterator to a
+   * DoFHandler active cell iterator, or a DoFHandler active cell iterator
+   * to an active cell iterator of another DoFHandler. The @p iterator must be
+   * associated with the triangulation of the @p dof_handler.
+   *
+   * @param dof_handler The DoFHandler for the output active cell iterator.
+   * @return An active cell iterator for the @p dof_handler, matching the cell
+   *         referenced by the input @p iterator. The type of the
+   *         returned object is a DoFHandler::active_cell_iterator.
+   */
+  TriaActiveIterator<DoFCellAccessor<dim, spacedim, false>>
+  as_dof_handler_iterator(const DoFHandler<dim, spacedim> &dof_handler) const;
+
+  /**
+   * A function similar to as_dof_handler_iterator(). It converts
+   * a Triangulation active/level cell iterator to a
+   * DoFHandler active level cell iterator, or a DoFHandler level active/cell
+   * iterator to a level cell iterator of another DoFHandler. The
+   * @p iterator must be associated with the triangulation of the
+   * @p dof_handler.
+   */
+  TriaIterator<DoFCellAccessor<dim, spacedim, true>>
+  as_dof_handler_level_iterator(
+    const DoFHandler<dim, spacedim> &dof_handler) const;
+
 
   /**
    * @}
@@ -3324,7 +3386,7 @@ public:
    * for the case of a coarser neighbor. It returns a pair of numbers, face_no
    * and subface_no, with the following property, if the neighbor is not
    * refined: <tt>cell->neighbor(neighbor)->neighbor_child_on_subface(face_no,
-   * subface_no)==cell</tt>. In 3D, a coarser neighbor can still be refined.
+   * subface_no)==cell</tt>. In 3d, a coarser neighbor can still be refined.
    * In that case subface_no denotes the child index of the neighbors face
    * that relates to our face:
    * <tt>cell->neighbor(neighbor)->face(face_no)->child(subface_no)==cell->face(neighbor)</tt>.
@@ -3499,8 +3561,8 @@ public:
   /**
    * Return whether the cell is at the boundary. Being at the boundary is
    * defined by one face being on the boundary. Note that this does not catch
-   * cases where only one vertex of a quad or of a hex is at the boundary, or
-   * where only one line of a hex is at the boundary while the interiors of
+   * cases where only one vertex of a 2d or 3d subobject is at the boundary,
+   * or where only one line of a hex is at the boundary while the interiors of
    * all faces are in the interior of the domain. For the latter case, the @p
    * has_boundary_lines function is the right one to ask.
    */
@@ -3781,7 +3843,9 @@ public:
   /**
    * Return a globally unique index for a non-artificial level cell.
    *
-   * @note Similar to global_active_cell_index().
+   * @note Similar to global_active_cell_index(), with the difference
+   * that the cell-data vector has been set up with
+   * parallel::TriangulationBase::global_level_cell_index_partitioner().
    */
   types::global_cell_index
   global_level_cell_index() const;
@@ -4116,11 +4180,9 @@ private:
   void
   set_direction_flag(const bool new_direction_flag) const;
 
-  template <int, int>
-  friend class Triangulation;
+  friend class Triangulation<dim, spacedim>;
 
-  template <int, int>
-  friend class parallel::TriangulationBase;
+  friend class parallel::TriangulationBase<dim, spacedim>;
 
   friend struct dealii::internal::TriangulationImplementation::Implementation;
   friend struct dealii::internal::TriangulationImplementation::
@@ -4237,6 +4299,6 @@ TriaAccessor<3, 3, 3>::set_all_manifold_ids(const types::manifold_id) const;
 DEAL_II_NAMESPACE_CLOSE
 
 // include more templates in debug and optimized mode
-#include "tria_accessor.templates.h"
+#include <deal.II/grid/tria_accessor.templates.h>
 
 #endif

@@ -113,7 +113,7 @@ test(const bool with_weighting, const bool write_to_vtk = false)
       std::stringstream filename;
       filename << "grid_" << dim << "d.with_weighting_" << with_weighting
                << ".vtk";
-      std::ofstream outfile(filename.str().c_str());
+      std::ofstream outfile(filename.str());
       data_out.write_vtk(outfile);
     }
 }
@@ -137,7 +137,7 @@ main()
       test<2>(true);
       test<3>(true);
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

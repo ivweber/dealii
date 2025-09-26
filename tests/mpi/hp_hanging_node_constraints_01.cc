@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -66,7 +66,7 @@ test()
       cell->set_refine_flag();
   tria.execute_coarsening_and_refinement();
 
-  // setup finite elemets
+  // setup finite elements
   hp::FECollection<dim> fes;
   fes.push_back(FE_Q<dim>(1));
 
@@ -74,8 +74,8 @@ test()
   dh.distribute_dofs(fes);
 
   // make constraints
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dh, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dh);
 
   AffineConstraints<double> constraints;
   constraints.reinit(locally_relevant_dofs);

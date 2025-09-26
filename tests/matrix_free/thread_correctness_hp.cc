@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -41,31 +41,12 @@ public:
     : data(data_in){};
 
   void
-  local_apply(const MatrixFree<dim, Number> &              data,
-              Vector<Number> &                             dst,
-              const Vector<Number> &                       src,
+  local_apply(const MatrixFree<dim, Number>               &data,
+              Vector<Number>                              &dst,
+              const Vector<Number>                        &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
-    // Ask MatrixFree for cell_range for different
-    // orders
-    std::pair<unsigned int, unsigned int> subrange_deg;
-#define CALL_METHOD(degree)                                         \
-  subrange_deg = data.create_cell_subrange_hp(cell_range, degree);  \
-  if (subrange_deg.second > subrange_deg.first)                     \
-  helmholtz_operator<dim, degree, Vector<Number>, degree + 1>(data, \
-                                                              dst,  \
-                                                              src,  \
-                                                              subrange_deg)
-
-    CALL_METHOD(1);
-    CALL_METHOD(2);
-    CALL_METHOD(3);
-    CALL_METHOD(4);
-    CALL_METHOD(5);
-    CALL_METHOD(6);
-    CALL_METHOD(7);
-
-#undef CALL_METHOD
+    helmholtz_operator_no_template<dim>(data, dst, src, cell_range);
   }
 
   void
@@ -146,7 +127,8 @@ do_test(const unsigned int parallel_option)
   MatrixFree<dim, number>                          mf_data;
   typename MatrixFree<dim, number>::AdditionalData data;
   data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
-  mf_data.reinit(dof, constraints, quadrature_collection_mf, data);
+  mf_data.reinit(
+    MappingQ1<dim>{}, dof, constraints, quadrature_collection_mf, data);
   MatrixFreeTestHP<dim, number> mf(mf_data);
 
   // test different block sizes, starting from
@@ -174,7 +156,8 @@ do_test(const unsigned int parallel_option)
           deallog << "Parallel option partition/color" << std::endl;
         }
       data.tasks_block_size = 1;
-      mf_data_par.reinit(dof, constraints, quadrature_collection_mf, data);
+      mf_data_par.reinit(
+        MappingQ1<dim>{}, dof, constraints, quadrature_collection_mf, data);
       MatrixFreeTestHP<dim, number> mf_par(mf_data_par);
 
       // fill a right hand side vector with random

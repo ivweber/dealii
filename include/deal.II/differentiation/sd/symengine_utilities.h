@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -103,7 +103,7 @@ namespace Differentiation
       template <typename StreamType>
       StreamType &
       print_substitution_map(
-        StreamType &                       stream,
+        StreamType                        &stream,
         const SD::types::substitution_map &symbol_value_map);
 
     } // namespace Utilities
@@ -142,7 +142,7 @@ namespace Differentiation
       template <typename StreamType>
       StreamType &
       print_substitution_map(
-        StreamType &                       stream,
+        StreamType                        &stream,
         const SD::types::substitution_map &symbol_value_map)
       {
         for (const auto &entry : symbol_value_map)

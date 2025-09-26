@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -47,7 +47,7 @@ public:
    * Constructor. Create an iterator into the matrix <tt>matrix</tt> for the
    * given <tt>row</tt> and the <tt>index</tt> within it.
    */
-  MatrixIterator(MatrixType *    matrix,
+  MatrixIterator(MatrixType     *matrix,
                  const size_type row   = 0,
                  const size_type index = 0);
 
@@ -87,14 +87,16 @@ public:
   /**
    * Comparison. True, if both accessors are equal.
    */
+  template <class OtherAccessor>
   bool
-  operator==(const MatrixIterator &) const;
+  operator==(const MatrixIterator<OtherAccessor> &) const;
 
   /**
    * Inverse of <tt>==</tt>.
    */
+  template <class OtherAccessor>
   bool
-  operator!=(const MatrixIterator &) const;
+  operator!=(const MatrixIterator<OtherAccessor> &) const;
 
   /**
    * Comparison operator. Result is true if either the first row number is
@@ -127,7 +129,7 @@ private:
 //----------------------------------------------------------------------//
 
 template <class ACCESSOR>
-inline MatrixIterator<ACCESSOR>::MatrixIterator(MatrixType *    matrix,
+inline MatrixIterator<ACCESSOR>::MatrixIterator(MatrixType     *matrix,
                                                 const size_type r,
                                                 const size_type i)
   : accessor(matrix, r, i)
@@ -178,16 +180,20 @@ MatrixIterator<ACCESSOR>::operator->() const
 
 
 template <class ACCESSOR>
+template <class OtherAccessor>
 inline bool
-MatrixIterator<ACCESSOR>::operator==(const MatrixIterator &other) const
+MatrixIterator<ACCESSOR>::operator==(
+  const MatrixIterator<OtherAccessor> &other) const
 {
   return (accessor == other.accessor);
 }
 
 
 template <class ACCESSOR>
+template <class OtherAccessor>
 inline bool
-MatrixIterator<ACCESSOR>::operator!=(const MatrixIterator &other) const
+MatrixIterator<ACCESSOR>::operator!=(
+  const MatrixIterator<OtherAccessor> &other) const
 {
   return !(*this == other);
 }

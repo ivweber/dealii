@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,7 +51,7 @@ DEAL_II_NAMESPACE_OPEN
  * the positive axis direction and not necessarily normal to the element for
  * consistent orientation across edges.
  *<dl>
- *   <dt> 2D bubble functions (in order)
+ *   <dt> 2d bubble functions (in order)
  *   <dd> $x=0$ edge: $\mathbf{p}_1 = \mathbf{n}_1 (1-x)(y)(1-y)$
  *
  *        $x=1$ edge: $\mathbf{p}_2 = \mathbf{n}_2 (x)(y)(1-y)$
@@ -60,7 +60,7 @@ DEAL_II_NAMESPACE_OPEN
  *
  *        $y=1$ edge: $\mathbf{p}_4 = \mathbf{n}_4 (x)(1-x)(y)$
  *
- *   <dt> 3D bubble functions (in order)
+ *   <dt> 3d bubble functions (in order)
  *   <dd> $x=0$ edge: $\mathbf{p}_1 = \mathbf{n}_1 (1-x)(y)(1-y)(z)(1-z)$
  *
  *        $x=1$ edge: $\mathbf{p}_2 = \mathbf{n}_2 (x)(y)(1-y)(z)(1-z)$
@@ -106,14 +106,9 @@ public:
    *
    * The size of the vectors must either be zero or equal <tt>n()</tt>.  In
    * the first case, the function will not compute these values.
-   *
-   * If you need values or derivatives of all tensor product polynomials then
-   * use this function, rather than using any of the <tt>compute_value</tt>,
-   * <tt>compute_grad</tt> or <tt>compute_grad_grad</tt> functions, see below,
-   * in a loop over all tensor product polynomials.
    */
   void
-  evaluate(const Point<dim> &           unit_point,
+  evaluate(const Point<dim>            &unit_point,
            std::vector<Tensor<1, dim>> &values,
            std::vector<Tensor<2, dim>> &grads,
            std::vector<Tensor<3, dim>> &grad_grads,

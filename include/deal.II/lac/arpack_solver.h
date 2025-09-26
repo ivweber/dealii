@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,91 +31,91 @@ DEAL_II_NAMESPACE_OPEN
 
 
 extern "C" void
-dnaupd_(int *         ido,
-        char *        bmat,
+dnaupd_(int          *ido,
+        char         *bmat,
         unsigned int *n,
-        char *        which,
+        char         *which,
         unsigned int *nev,
         const double *tol,
-        double *      resid,
-        int *         ncv,
-        double *      v,
-        int *         ldv,
-        int *         iparam,
-        int *         ipntr,
-        double *      workd,
-        double *      workl,
-        int *         lworkl,
-        int *         info);
+        double       *resid,
+        int          *ncv,
+        double       *v,
+        int          *ldv,
+        int          *iparam,
+        int          *ipntr,
+        double       *workd,
+        double       *workl,
+        int          *lworkl,
+        int          *info);
 
 extern "C" void
-dsaupd_(int *         ido,
-        char *        bmat,
+dsaupd_(int          *ido,
+        char         *bmat,
         unsigned int *n,
-        char *        which,
+        char         *which,
         unsigned int *nev,
-        double *      tol,
-        double *      resid,
-        int *         ncv,
-        double *      v,
-        int *         ldv,
-        int *         iparam,
-        int *         ipntr,
-        double *      workd,
-        double *      workl,
-        int *         lworkl,
-        int *         info);
+        double       *tol,
+        double       *resid,
+        int          *ncv,
+        double       *v,
+        int          *ldv,
+        int          *iparam,
+        int          *ipntr,
+        double       *workd,
+        double       *workl,
+        int          *lworkl,
+        int          *info);
 
 extern "C" void
-dneupd_(int *         rvec,
-        char *        howmany,
-        int *         select,
-        double *      d,
-        double *      di,
-        double *      z,
-        int *         ldz,
-        double *      sigmar,
-        double *      sigmai,
-        double *      workev,
-        char *        bmat,
+dneupd_(int          *rvec,
+        char         *howmany,
+        int          *select,
+        double       *d,
+        double       *di,
+        double       *z,
+        int          *ldz,
+        double       *sigmar,
+        double       *sigmai,
+        double       *workev,
+        char         *bmat,
         unsigned int *n,
-        char *        which,
+        char         *which,
         unsigned int *nev,
-        double *      tol,
-        double *      resid,
-        int *         ncv,
-        double *      v,
-        int *         ldv,
-        int *         iparam,
-        int *         ipntr,
-        double *      workd,
-        double *      workl,
-        int *         lworkl,
-        int *         info);
+        double       *tol,
+        double       *resid,
+        int          *ncv,
+        double       *v,
+        int          *ldv,
+        int          *iparam,
+        int          *ipntr,
+        double       *workd,
+        double       *workl,
+        int          *lworkl,
+        int          *info);
 
 extern "C" void
-dseupd_(int *         rvec,
-        char *        howmany,
-        int *         select,
-        double *      d,
-        double *      z,
-        int *         ldz,
-        double *      sigmar,
-        char *        bmat,
+dseupd_(int          *rvec,
+        char         *howmany,
+        int          *select,
+        double       *d,
+        double       *z,
+        int          *ldz,
+        double       *sigmar,
+        char         *bmat,
         unsigned int *n,
-        char *        which,
+        char         *which,
         unsigned int *nev,
-        double *      tol,
-        double *      resid,
-        int *         ncv,
-        double *      v,
-        int *         ldv,
-        int *         iparam,
-        int *         ipntr,
-        double *      workd,
-        double *      workl,
-        int *         lworkl,
-        int *         info);
+        double       *tol,
+        double       *resid,
+        int          *ncv,
+        double       *v,
+        int          *ldv,
+        int          *iparam,
+        int          *ipntr,
+        double       *workd,
+        double       *workl,
+        int          *lworkl,
+        int          *info);
 
 /**
  * Interface for using ARPACK. ARPACK is a collection of Fortran77 subroutines
@@ -129,7 +129,7 @@ dseupd_(int *         rvec,
  *
  * In this class we make use of the method applied to the generalized
  * eigenspectrum problem $(A-\lambda B)x=0$, for $x\neq0$; where $A$ is a
- * system matrix, $B$ is a mass matrix, and $\lambda, x$ are a set of
+ * system matrix, $B$ is a @ref GlossMassMatrix "mass matrix", and $\lambda, x$ are a set of
  * eigenvalues and eigenvectors respectively.
  *
  * The ArpackSolver can be used in application codes with serial objects in
@@ -262,7 +262,7 @@ public:
   /**
    * Constructor.
    */
-  ArpackSolver(SolverControl &       control,
+  ArpackSolver(SolverControl        &control,
                const AdditionalData &data = AdditionalData());
 
   /**
@@ -301,7 +301,7 @@ public:
    * this parameter is entirely unused.
    *
    * @param B The inner product of the underlying space, typically the mass
-   * matrix. For constrained problems, it can be a partial mass matrix, like
+   * matrix. For constrained problems, it can be a partial @ref GlossMassMatrix "mass matrix", like
    * for instance the velocity mass matrix of a Stokes problem. Only its
    * function <code>vmult()</code> is used.
    *
@@ -334,11 +334,11 @@ public:
             typename MatrixType2,
             typename INVERSE>
   void
-  solve(const MatrixType1 &                A,
-        const MatrixType2 &                B,
-        const INVERSE &                    inverse,
+  solve(const MatrixType1                 &A,
+        const MatrixType2                 &B,
+        const INVERSE                     &inverse,
         std::vector<std::complex<double>> &eigenvalues,
-        std::vector<VectorType> &          eigenvectors,
+        std::vector<VectorType>           &eigenvectors,
         const unsigned int                 n_eigenvalues = 0);
 
 protected:
@@ -499,7 +499,7 @@ inline ArpackSolver::AdditionalData::AdditionalData(
 }
 
 
-inline ArpackSolver::ArpackSolver(SolverControl &       control,
+inline ArpackSolver::ArpackSolver(SolverControl        &control,
                                   const AdditionalData &data)
   : solver_control(control)
   , additional_data(data)
@@ -536,10 +536,10 @@ template <typename VectorType,
           typename INVERSE>
 inline void
 ArpackSolver::solve(const MatrixType1 & /*system_matrix*/,
-                    const MatrixType2 &                mass_matrix,
-                    const INVERSE &                    inverse,
+                    const MatrixType2                 &mass_matrix,
+                    const INVERSE                     &inverse,
                     std::vector<std::complex<double>> &eigenvalues,
-                    std::vector<VectorType> &          eigenvectors,
+                    std::vector<VectorType>           &eigenvectors,
                     const unsigned int                 n_eigenvalues)
 {
   // Problem size

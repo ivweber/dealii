@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_q.h>
-#include <deal.II/fe/mapping.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 
@@ -44,16 +44,16 @@ public:
   TestIntegrator(){};
 
   void
-  cell(MeshWorker::DoFInfo<dim, spacedim> &                 dinfo,
+  cell(MeshWorker::DoFInfo<dim, spacedim>                  &dinfo,
        typename MeshWorker::IntegrationInfo<dim, spacedim> &info) const {};
 
   void
-  boundary(MeshWorker::DoFInfo<dim, spacedim> &                 dinfo,
+  boundary(MeshWorker::DoFInfo<dim, spacedim>                  &dinfo,
            typename MeshWorker::IntegrationInfo<dim, spacedim> &info) const {};
 
   void
-  face(MeshWorker::DoFInfo<dim, spacedim> &                 dinfo1,
-       MeshWorker::DoFInfo<dim, spacedim> &                 dinfo2,
+  face(MeshWorker::DoFInfo<dim, spacedim>                  &dinfo1,
+       MeshWorker::DoFInfo<dim, spacedim>                  &dinfo2,
        typename MeshWorker::IntegrationInfo<dim, spacedim> &info1,
        typename MeshWorker::IntegrationInfo<dim, spacedim> &info2) const {};
 };

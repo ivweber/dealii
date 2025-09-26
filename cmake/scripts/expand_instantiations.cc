@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2020 by the deal.II authors
+// Copyright (C) 2007 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -111,6 +111,16 @@ get_substring_with_delim(std::string &in, const std::string &delim_list)
       x += in[0];
       in.erase(0, 1);
     }
+
+  // We often end up with the '}' delimiter on a separate line, but
+  // not in the first column of the line. Since whitespace isn't
+  // harmful, that isn't a problem in itself, except that it makes
+  // producing nicely formatted output a bit harder than necessary. It
+  // would be nice if we could just end the text we read with the last
+  // newline in such cases. To this end, just trim trailing
+  // whitespace.
+  while ((x.size() > 0) && (x.back() == ' '))
+    x.erase(x.size() - 1, 1);
 
   return x;
 }
@@ -231,7 +241,7 @@ delete_empty_entries(const std::list<std::string> &list)
 // determine whether a given substring at position #pos and length #length
 // in the string #text is a real token, i.e. not just part of another word
 bool
-is_real_token(const std::string &          text,
+is_real_token(const std::string           &text,
               const std::string::size_type pos,
               const std::string::size_type length)
 {
@@ -352,7 +362,7 @@ read_expansion_lists(const std::string &filename)
 // produce all combinations of substitutions of the tokens given in the
 // #substitutions list in #text and output it to std::cout
 void
-substitute(const std::string &                                   text,
+substitute(const std::string                                    &text,
            const std::list<std::pair<std::string, std::string>> &substitutions)
 {
   // do things recursively: if the list of substitutions has a single
@@ -416,8 +426,8 @@ substitute(const std::string &                                   text,
           static unsigned int counter = 0;
           std::cout << "#if (SPLIT_INSTANTIATIONS_CHECK(" << counter++ << "))"
                     << std::endl;
-          std::cout << substitute_tokens(text, name, *expansion) << std::endl;
-          std::cout << "#endif" << std::endl;
+          std::cout << substitute_tokens(text, name, *expansion);
+          std::cout << "#endif" << std::endl << std::endl;
         }
     }
   else

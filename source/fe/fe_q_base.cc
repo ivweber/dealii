@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2021 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,9 +22,11 @@
 #include <deal.II/base/tensor_product_polynomials.h>
 #include <deal.II/base/tensor_product_polynomials_bubbles.h>
 #include <deal.II/base/tensor_product_polynomials_const.h>
+#include <deal.II/base/thread_management.h>
 
 #include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_pyramid_p.h>
 #include <deal.II/fe/fe_q_base.h>
@@ -366,7 +368,7 @@ struct FE_Q_Base<xdim, xspacedim>::Implementation
             // difference could be attributed to FP errors, as it was in the
             // range of 1.0e-16. These errors originate in the loss of
             // symmetry in the FP approximation of the shape-functions.
-            // Considering a 3rd order shape function in 1D, we have
+            // Considering a 3rd order shape function in 1d, we have
             // N0(x)=N3(1-x) and N1(x)=N2(1-x).  For higher order polynomials
             // the FP approximations of the shape functions do not satisfy
             // these equations any more!  Thus in the following code
@@ -416,13 +418,13 @@ struct FE_Q_Base<xdim, xspacedim>::Implementation
 template <int dim, int spacedim>
 FE_Q_Base<dim, spacedim>::FE_Q_Base(
   const ScalarPolynomialsBase<dim> &poly_space,
-  const FiniteElementData<dim> &    fe_data,
-  const std::vector<bool> &         restriction_is_additive_flags)
+  const FiniteElementData<dim>     &fe_data,
+  const std::vector<bool>          &restriction_is_additive_flags)
   : FE_Poly<dim, spacedim>(
       poly_space,
       fe_data,
       restriction_is_additive_flags,
-      std::vector<ComponentMask>(1, std::vector<bool>(1, true)))
+      std::vector<ComponentMask>(1, ComponentMask(std::vector<bool>(1, true))))
   , q_degree(dynamic_cast<const TensorProductPolynomialsBubbles<dim> *>(
                &poly_space) != nullptr ?
                this->degree - 1 :
@@ -511,7 +513,7 @@ template <int dim, int spacedim>
 void
 FE_Q_Base<dim, spacedim>::get_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
-  FullMatrix<double> &                interpolation_matrix) const
+  FullMatrix<double>                 &interpolation_matrix) const
 {
   // go through the list of elements we can interpolate from
   if (const FE_Q_Base<dim, spacedim> *source_fe =
@@ -611,7 +613,7 @@ template <int dim, int spacedim>
 void
 FE_Q_Base<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   get_subface_interpolation_matrix(source_fe,
@@ -627,7 +629,7 @@ void
 FE_Q_Base<dim, spacedim>::get_subface_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
   const unsigned int                  subface,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   Assert(interpolation_matrix.m() == source_fe.n_dofs_per_face(face_no),
@@ -668,7 +670,7 @@ FE_Q_Base<dim, spacedim>::get_subface_interpolation_matrix(
       // support points.
       // TODO: Verify that all faces are the same with respect to
       // these support points. Furthermore, check if something has to
-      // be done for the face orientation flag in 3D.
+      // be done for the face orientation flag in 3d.
       const Quadrature<dim> subface_quadrature =
         subface == numbers::invalid_unsigned_int ?
           QProjector<dim>::project_to_face(this->reference_cell(),
@@ -753,7 +755,8 @@ FE_Q_Base<dim, spacedim>::hp_vertex_dof_identities(
       // should have identical value
       return {{0U, 0U}};
     }
-  else if (dynamic_cast<const FE_Hermite<dim, spacedim> *>(&fe_other) != nullptr)
+  else if (dynamic_cast<const FE_Hermite<dim, spacedim> *>(&fe_other) !=
+           nullptr)
     {
       // FE_Hermite will usually have several degrees of freedom on
       // each vertex, however only the first one will actually
@@ -996,7 +999,7 @@ FE_Q_Base<dim, spacedim>::initialize_unit_face_support_points(
   this->unit_face_support_points[face_no].resize(
     Utilities::fixed_power<dim - 1>(q_degree + 1));
 
-  // In 1D, there is only one 0-dimensional support point, so there is nothing
+  // In 1d, there is only one 0-dimensional support point, so there is nothing
   // more to be done.
   if (dim == 1)
     return;
@@ -1026,7 +1029,7 @@ template <int dim, int spacedim>
 void
 FE_Q_Base<dim, spacedim>::initialize_quad_dof_index_permutation()
 {
-  // for 1D and 2D, do nothing
+  // for 1d and 2d, do nothing
   if (dim < 3)
     return;
 
@@ -1035,9 +1038,11 @@ FE_Q_Base<dim, spacedim>::initialize_quad_dof_index_permutation()
   AssertDimension(this->n_unique_faces(), 1);
   const unsigned int face_no = 0;
 
-  Assert(this->adjust_quad_dof_index_for_face_orientation_table[0]
-             .n_elements() == 8 * this->n_dofs_per_quad(face_no),
-         ExcInternalError());
+  Assert(
+    this->adjust_quad_dof_index_for_face_orientation_table[0].n_elements() ==
+      this->reference_cell().n_face_orientations(face_no) *
+        this->n_dofs_per_quad(face_no),
+    ExcInternalError());
 
   const unsigned int n = q_degree - 1;
   Assert(n * n == this->n_dofs_per_quad(face_no), ExcInternalError());
@@ -1067,35 +1072,35 @@ FE_Q_Base<dim, spacedim>::initialize_quad_dof_index_permutation()
       unsigned int i = local % n, j = local / n;
 
       // face_orientation=false, face_flip=false, face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      0) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, false, false)) =
         j + i * n - local;
       // face_orientation=false, face_flip=false, face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      1) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, true, false)) =
         i + (n - 1 - j) * n - local;
       // face_orientation=false, face_flip=true,  face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      2) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, false, true)) =
         (n - 1 - j) + (n - 1 - i) * n - local;
       // face_orientation=false, face_flip=true,  face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      3) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(false, true, true)) =
         (n - 1 - i) + j * n - local;
       // face_orientation=true,  face_flip=false, face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      4) = 0;
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, false, false)) = 0;
       // face_orientation=true,  face_flip=false, face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      5) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, true, false)) =
         j + (n - 1 - i) * n - local;
       // face_orientation=true,  face_flip=true,  face_rotation=false
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      6) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, false, true)) =
         (n - 1 - i) + (n - 1 - j) * n - local;
       // face_orientation=true,  face_flip=true,  face_rotation=true
-      this->adjust_quad_dof_index_for_face_orientation_table[face_no](local,
-                                                                      7) =
+      this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+        local, internal::combined_face_orientation(true, true, true)) =
         (n - 1 - j) + i * n - local;
     }
 
@@ -1309,7 +1314,7 @@ FE_Q_Base<dim, spacedim>::get_prolongation_matrix(
 #endif
 
       // to efficiently evaluate the polynomial at the subcell, make use of
-      // the tensor product structure of this element and only evaluate 1D
+      // the tensor product structure of this element and only evaluate 1d
       // information from the polynomial. This makes the cost of this function
       // almost negligible also for high order elements
       const unsigned int            dofs1d = q_degree + 1;
@@ -1377,7 +1382,7 @@ FE_Q_Base<dim, spacedim>::get_prolongation_matrix(
               }
         }
 
-      // now expand from 1D info. block innermost dimension (x_0) in order to
+      // now expand from 1d info. block innermost dimension (x_0) in order to
       // avoid difficult checks at innermost loop
       unsigned int j_indices[dim];
       internal::FE_Q_Base::zero_indices<dim>(j_indices);
@@ -1516,7 +1521,7 @@ FE_Q_Base<dim, spacedim>::get_restriction_matrix(
               // same logic as in initialize_embedding to evaluate the
               // polynomial faster than from the tensor product: since we
               // evaluate all polynomials, it is much faster to just compute
-              // the 1D values for all polynomials before and then get the
+              // the 1d values for all polynomials before and then get the
               // dim-data.
               for (unsigned int j = 0; j < dofs1d; ++j)
                 for (unsigned int d = 0; d < dim; ++d)

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2020 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -25,8 +25,6 @@
  * These classes are only available if a SLEPc installation and a
  * PETSc installation was detected during configuration of
  * deal.II. Refer to the README file for more details about this.
- *
- * @author Toby D. Young, 2011
  *
  * @ingroup LAC PETScWrappers
  */

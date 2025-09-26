@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2020 by the deal.II authors
+// Copyright (C) 2015 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,6 +16,7 @@
 #include <deal.II/grid/cell_id.h>
 #include <deal.II/grid/tria.h>
 
+#include <limits>
 #include <sstream>
 
 DEAL_II_NAMESPACE_OPEN
@@ -48,7 +49,7 @@ CellId::CellId(const types::coarse_cell_id      coarse_cell_id,
 
 CellId::CellId(const types::coarse_cell_id coarse_cell_id,
                const unsigned int          n_child_indices,
-               const std::uint8_t *        id)
+               const std::uint8_t         *id)
   : coarse_cell_id(coarse_cell_id)
   , n_child_indices(n_child_indices)
 {
@@ -158,15 +159,6 @@ CellId::to_string() const
   std::ostringstream ss;
   ss << *this;
   return ss.str();
-}
-
-
-
-template <int dim, int spacedim>
-typename Triangulation<dim, spacedim>::cell_iterator
-CellId::to_cell(const Triangulation<dim, spacedim> &tria) const
-{
-  return tria.create_cell_iterator(*this);
 }
 
 

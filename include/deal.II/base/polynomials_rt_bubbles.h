@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -39,16 +39,20 @@ DEAL_II_NAMESPACE_OPEN
  * polynomial space <i>Q<sub>k-1</sub></i>.
  *
  * This space is of the form <i>V<sub>k</sub> = RT<sub>k-1</sub> +
- * B<sub>k</sub></i>, where <i>B<sub>k</sub></i> is defined as follows: <dl>
- * <dt> In 2D:
+ * B<sub>k</sub></i>, where <i>B<sub>k</sub></i> is defined as follows:
+ * <dl>
+ * <dt> In 2d:</dt>
+ * <dd>
  * @f{align*}{
  *  B_k^1(E) = \text{span}\left\{x^{a_1-1} y^{a_2}\begin{pmatrix} (a_2+1) x \\
  *    -a_1 y \end{pmatrix}\text{ : } a_2=k \right\} \\
  *  B_k^2(E) = \text{span}\left\{x^{b_1} y^{b_2-1}\begin{pmatrix} -b_2 x \\
  *     (b_1+1) y \end{pmatrix}\text{ : } b_1=k \right\}
  * @f}
+ * </dd>
  *
- * <dt> In 3D:
+ * <dt> In 3d: </dt>
+ * <dd>
  *  @f{align*}{
  *   B_k^1(E) = \text{span}\left\{x^{a_1-1} y^{a_2} z^{a_3}\begin{pmatrix}
  * (a_2+a_3+2) x \\
@@ -62,6 +66,7 @@ DEAL_II_NAMESPACE_OPEN
  * \\ -c_3y \\ (c_1+c_2+2)z \end{pmatrix}\text{ : } c_1=k \text{ or } c_2=k
  * \right\},
  *  @f}
+ * </dd>
  * </dl>
  * where $0 \le a_1, a_2, a_3 \le k$.
  *
@@ -76,8 +81,8 @@ DEAL_II_NAMESPACE_OPEN
  * @image html rtbubbles.png
  * </td></tr>
  *
- * <tr> <td align="center"> Left - $2D,\,k=3$,
- * right - $3D,\,k=2$.</td></tr> </table>
+ * <tr> <td align="center"> Left - $2d,\,k=3$,
+ * right - $3d,\,k=2$.</td></tr> </table>
  *
  * @ingroup Polynomials
  */
@@ -98,14 +103,9 @@ public:
    *
    * The size of the vectors must either be zero or equal <tt>n()</tt>.  In
    * the first case, the function will not compute these values.
-   *
-   * If you need values or derivatives of all tensor product polynomials then
-   * use this function, rather than using any of the <tt>compute_value</tt>,
-   * <tt>compute_grad</tt> or <tt>compute_grad_grad</tt> functions, see below,
-   * in a loop over all tensor product polynomials.
    */
   void
-  evaluate(const Point<dim> &           unit_point,
+  evaluate(const Point<dim>            &unit_point,
            std::vector<Tensor<1, dim>> &values,
            std::vector<Tensor<2, dim>> &grads,
            std::vector<Tensor<3, dim>> &grad_grads,

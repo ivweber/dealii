@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -58,8 +58,11 @@ test()
 
   deallog << "We inverted " << n_cells_inverted << " cells." << std::endl;
 
+  std::swap(cells[0].vertices[2], cells[0].vertices[3]);
+  std::swap(cells[1].vertices[2], cells[1].vertices[3]);
+
   Triangulation<dim> tria;
-  tria.create_triangulation_compatibility(vertices, cells, subcelldata);
+  tria.create_triangulation(vertices, cells, subcelldata);
 
   std::ostream &logfile = deallog.get_file_stream();
   logfile << "---------------------------------------------" << std::endl

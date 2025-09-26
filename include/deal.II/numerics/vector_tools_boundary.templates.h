@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,7 @@
 #define dealii_vector_tools_boundary_templates_h
 
 #include <deal.II/base/qprojector.h>
+#include <deal.II/base/quadrature_lib.h>
 
 #include <deal.II/dofs/dof_tools.h>
 
@@ -40,6 +41,7 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools_boundary.h>
 
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -56,12 +58,12 @@ namespace VectorTools
               class M_or_MC>
     static inline void
     do_interpolate_boundary_values(
-      const M_or_MC<dim, spacedim> &   mapping,
+      const M_or_MC<dim, spacedim>    &mapping,
       const DoFHandler<dim, spacedim> &dof,
       const std::map<types::boundary_id, const Function<spacedim, number> *>
-        &                                        function_map,
+                                                &function_map,
       std::map<types::global_dof_index, number> &boundary_values,
-      const ComponentMask &                      component_mask)
+      const ComponentMask                       &component_mask)
     {
       Assert(
         component_mask.represents_n_components(dof.get_fe(0).n_components()),
@@ -72,7 +74,7 @@ namespace VectorTools
 
       // if for whatever reason we were passed an empty map, return
       // immediately
-      if (function_map.size() == 0)
+      if (function_map.empty())
         return;
 
       Assert(function_map.find(numbers::internal_face_boundary_id) ==
@@ -160,60 +162,65 @@ namespace VectorTools
           dof_values_system.reserve(
             dof.get_fe_collection().max_dofs_per_face());
 
-          // TODO: get support for each face -> PR #10764
-          const unsigned int face_no = 0;
-
           // before we start with the loop over all cells create an hp::FEValues
           // object that holds the interpolation points of all finite elements
           // that may ever be in use
           const dealii::hp::FECollection<dim, spacedim> &finite_elements =
             dof.get_fe_collection();
-          dealii::hp::QCollection<dim - 1> q_collection;
+          std::vector<dealii::hp::QCollection<dim - 1>> q_collection(
+            finite_elements.size());
           for (unsigned int f = 0; f < finite_elements.size(); ++f)
-            {
-              const FiniteElement<dim, spacedim> &fe = finite_elements[f];
+            for (unsigned int face_no = 0;
+                 face_no < (finite_elements[f].n_unique_faces() == 1 ?
+                              1 :
+                              finite_elements[f].reference_cell().n_faces());
+                 ++face_no)
+              {
+                const FiniteElement<dim, spacedim> &fe = finite_elements[f];
 
-              // generate a quadrature rule on the face from the unit support
-              // points. this will be used to obtain the quadrature points on
-              // the real cell's face
-              //
-              // to do this, we check whether the FE has support points on the
-              // face at all:
-              if (fe.has_face_support_points(face_no))
-                q_collection.push_back(Quadrature<dim - 1>(
-                  fe.get_unit_face_support_points(face_no)));
-              else
-                {
-                  // if not, then we should try a more clever way. the idea is
-                  // that a finite element may not offer support points for all
-                  // its shape functions, but maybe only some. if it offers
-                  // support points for the components we are interested in in
-                  // this function, then that's fine. if not, the function we
-                  // call in the finite element will raise an exception. the
-                  // support points for the other shape functions are left
-                  // uninitialized (well, initialized by the default
-                  // constructor), since we don't need them anyway.
-                  //
-                  // As a detour, we must make sure we only query
-                  // face_system_to_component_index if the index corresponds to
-                  // a primitive shape function. since we know that all the
-                  // components we are interested in are primitive (by the above
-                  // check), we can safely put such a check in front
-                  std::vector<Point<dim - 1>> unit_support_points(
-                    fe.n_dofs_per_face(face_no));
+                // generate a quadrature rule on the face from the unit support
+                // points. this will be used to obtain the quadrature points on
+                // the real cell's face
+                //
+                // to do this, we check whether the FE has support points on the
+                // face at all:
+                if (fe.has_face_support_points(face_no))
+                  q_collection[f].push_back(Quadrature<dim - 1>(
+                    fe.get_unit_face_support_points(face_no)));
+                else
+                  {
+                    // if not, then we should try a more clever way. the idea is
+                    // that a finite element may not offer support points for
+                    // all its shape functions, but maybe only some. if it
+                    // offers support points for the components we are
+                    // interested in in this function, then that's fine. if not,
+                    // the function we call in the finite element will raise an
+                    // exception. the support points for the other shape
+                    // functions are left uninitialized (well, initialized by
+                    // the default constructor), since we don't need them
+                    // anyway.
+                    //
+                    // As a detour, we must make sure we only query
+                    // face_system_to_component_index if the index corresponds
+                    // to a primitive shape function. since we know that all the
+                    // components we are interested in are primitive (by the
+                    // above check), we can safely put such a check in front
+                    std::vector<Point<dim - 1>> unit_support_points(
+                      fe.n_dofs_per_face(face_no));
 
-                  for (unsigned int i = 0; i < fe.n_dofs_per_face(face_no); ++i)
-                    if (fe.is_primitive(fe.face_to_cell_index(i, face_no)))
-                      if (component_mask[fe.face_system_to_component_index(
-                                             i, face_no)
-                                           .first] == true)
-                        unit_support_points[i] =
-                          fe.unit_face_support_point(i, face_no);
+                    for (unsigned int i = 0; i < fe.n_dofs_per_face(face_no);
+                         ++i)
+                      if (fe.is_primitive(fe.face_to_cell_index(i, face_no)))
+                        if (component_mask[fe.face_system_to_component_index(
+                                               i, face_no)
+                                             .first] == true)
+                          unit_support_points[i] =
+                            fe.unit_face_support_point(i, face_no);
 
-                  q_collection.push_back(
-                    Quadrature<dim - 1>(unit_support_points));
-                }
-            }
+                    q_collection[f].push_back(
+                      Quadrature<dim - 1>(unit_support_points));
+                  }
+              }
           // now that we have a q_collection object with all the right
           // quadrature points, create an hp::FEFaceValues object that we can
           // use to evaluate the boundary values at
@@ -225,7 +232,7 @@ namespace VectorTools
             q_collection,
             update_quadrature_points);
 
-          for (auto const &cell : dof.active_cell_iterators())
+          for (const auto &cell : dof.active_cell_iterators())
             if (!cell->is_artificial())
               for (const unsigned int face_no : cell->face_indices())
                 {
@@ -278,21 +285,15 @@ namespace VectorTools
                       // dofs on this face
                       face_dofs.resize(fe.n_dofs_per_face(face_no));
                       face->get_dof_indices(face_dofs, cell->active_fe_index());
-                      const std::vector<Point<spacedim>> &dof_locations =
+                      std::vector<Point<spacedim>> dof_locations =
                         fe_values.get_quadrature_points();
+                      dof_locations.resize(fe.n_dofs_per_face(face_no));
 
                       if (fe_is_system)
                         {
-                          // resize array. avoid construction of a memory
-                          // allocating temporary if possible
-                          if (dof_values_system.size() <
-                              fe.n_dofs_per_face(face_no))
-                            dof_values_system.resize(
-                              fe.n_dofs_per_face(face_no),
-                              Vector<number>(fe.n_components()));
-                          else
-                            dof_values_system.resize(
-                              fe.n_dofs_per_face(face_no));
+                          dof_values_system.resize(fe.n_dofs_per_face(face_no),
+                                                   Vector<number>(
+                                                     fe.n_components()));
 
                           function_map.find(boundary_component)
                             ->second->vector_value_list(dof_locations,
@@ -393,12 +394,12 @@ namespace VectorTools
   template <int dim, int spacedim, typename number>
   void
   interpolate_boundary_values(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                                        function_map,
+                                              &function_map,
     std::map<types::global_dof_index, number> &boundary_values,
-    const ComponentMask &                      component_mask_)
+    const ComponentMask                       &component_mask_)
   {
     internal::do_interpolate_boundary_values(
       mapping, dof, function_map, boundary_values, component_mask_);
@@ -409,12 +410,12 @@ namespace VectorTools
   template <int dim, int spacedim, typename number>
   void
   interpolate_boundary_values(
-    const Mapping<dim, spacedim> &             mapping,
-    const DoFHandler<dim, spacedim> &          dof,
+    const Mapping<dim, spacedim>              &mapping,
+    const DoFHandler<dim, spacedim>           &dof,
     const types::boundary_id                   boundary_component,
-    const Function<spacedim, number> &         boundary_function,
+    const Function<spacedim, number>          &boundary_function,
     std::map<types::global_dof_index, number> &boundary_values,
-    const ComponentMask &                      component_mask)
+    const ComponentMask                       &component_mask)
   {
     std::map<types::boundary_id, const Function<spacedim, number> *>
       function_map = {{boundary_component, &boundary_function}};
@@ -427,11 +428,11 @@ namespace VectorTools
   void
   interpolate_boundary_values(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof,
+    const DoFHandler<dim, spacedim>            &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                                        function_map,
+                                              &function_map,
     std::map<types::global_dof_index, number> &boundary_values,
-    const ComponentMask &                      component_mask_)
+    const ComponentMask                       &component_mask_)
   {
     internal::do_interpolate_boundary_values(
       mapping, dof, function_map, boundary_values, component_mask_);
@@ -443,11 +444,11 @@ namespace VectorTools
   void
   interpolate_boundary_values(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof,
+    const DoFHandler<dim, spacedim>            &dof,
     const types::boundary_id                    boundary_component,
-    const Function<spacedim, number> &          boundary_function,
-    std::map<types::global_dof_index, number> & boundary_values,
-    const ComponentMask &                       component_mask)
+    const Function<spacedim, number>           &boundary_function,
+    std::map<types::global_dof_index, number>  &boundary_values,
+    const ComponentMask                        &component_mask)
   {
     std::map<types::boundary_id, const Function<spacedim, number> *>
       function_map = {{boundary_component, &boundary_function}};
@@ -460,11 +461,11 @@ namespace VectorTools
   template <int dim, int spacedim, typename number>
   void
   interpolate_boundary_values(
-    const DoFHandler<dim, spacedim> &          dof,
+    const DoFHandler<dim, spacedim>           &dof,
     const types::boundary_id                   boundary_component,
-    const Function<spacedim, number> &         boundary_function,
+    const Function<spacedim, number>          &boundary_function,
     std::map<types::global_dof_index, number> &boundary_values,
-    const ComponentMask &                      component_mask)
+    const ComponentMask                       &component_mask)
   {
     interpolate_boundary_values(get_default_linear_mapping(
                                   dof.get_triangulation()),
@@ -482,9 +483,9 @@ namespace VectorTools
   interpolate_boundary_values(
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                                        function_map,
+                                              &function_map,
     std::map<types::global_dof_index, number> &boundary_values,
-    const ComponentMask &                      component_mask)
+    const ComponentMask                       &component_mask)
   {
     interpolate_boundary_values(get_default_linear_mapping(
                                   dof.get_triangulation()),
@@ -504,12 +505,12 @@ namespace VectorTools
   template <int dim, int spacedim, typename number>
   void
   interpolate_boundary_values(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                        function_map,
+                              &function_map,
     AffineConstraints<number> &constraints,
-    const ComponentMask &      component_mask_)
+    const ComponentMask       &component_mask_)
   {
     std::map<types::global_dof_index, number> boundary_values;
     interpolate_boundary_values(
@@ -531,12 +532,12 @@ namespace VectorTools
   template <int dim, int spacedim, typename number>
   void
   interpolate_boundary_values(
-    const Mapping<dim, spacedim> &    mapping,
-    const DoFHandler<dim, spacedim> & dof,
+    const Mapping<dim, spacedim>     &mapping,
+    const DoFHandler<dim, spacedim>  &dof,
     const types::boundary_id          boundary_component,
     const Function<spacedim, number> &boundary_function,
-    AffineConstraints<number> &       constraints,
-    const ComponentMask &             component_mask)
+    AffineConstraints<number>        &constraints,
+    const ComponentMask              &component_mask)
   {
     std::map<types::boundary_id, const Function<spacedim, number> *>
       function_map = {{boundary_component, &boundary_function}};
@@ -550,11 +551,11 @@ namespace VectorTools
   void
   interpolate_boundary_values(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof,
+    const DoFHandler<dim, spacedim>            &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                        function_map,
+                              &function_map,
     AffineConstraints<number> &constraints,
-    const ComponentMask &      component_mask_)
+    const ComponentMask       &component_mask_)
   {
     std::map<types::global_dof_index, number> boundary_values;
     interpolate_boundary_values(
@@ -577,11 +578,11 @@ namespace VectorTools
   void
   interpolate_boundary_values(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof,
+    const DoFHandler<dim, spacedim>            &dof,
     const types::boundary_id                    boundary_component,
-    const Function<spacedim, number> &          boundary_function,
-    AffineConstraints<number> &                 constraints,
-    const ComponentMask &                       component_mask)
+    const Function<spacedim, number>           &boundary_function,
+    AffineConstraints<number>                  &constraints,
+    const ComponentMask                        &component_mask)
   {
     std::map<types::boundary_id, const Function<spacedim, number> *>
       function_map = {{boundary_component, &boundary_function}};
@@ -594,11 +595,11 @@ namespace VectorTools
   template <int dim, int spacedim, typename number>
   void
   interpolate_boundary_values(
-    const DoFHandler<dim, spacedim> & dof,
+    const DoFHandler<dim, spacedim>  &dof,
     const types::boundary_id          boundary_component,
     const Function<spacedim, number> &boundary_function,
-    AffineConstraints<number> &       constraints,
-    const ComponentMask &             component_mask)
+    AffineConstraints<number>        &constraints,
+    const ComponentMask              &component_mask)
   {
     interpolate_boundary_values(get_default_linear_mapping(
                                   dof.get_triangulation()),
@@ -616,9 +617,9 @@ namespace VectorTools
   interpolate_boundary_values(
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                        function_map,
+                              &function_map,
     AffineConstraints<number> &constraints,
-    const ComponentMask &      component_mask)
+    const ComponentMask       &component_mask)
   {
     interpolate_boundary_values(get_default_linear_mapping(
                                   dof.get_triangulation()),
@@ -697,18 +698,18 @@ namespace VectorTools
               typename number>
     void
     do_project_boundary_values(
-      const M_or_MC<dim, spacedim> &   mapping,
+      const M_or_MC<dim, spacedim>    &mapping,
       const DoFHandler<dim, spacedim> &dof,
       const std::map<types::boundary_id, const Function<spacedim, number> *>
-        &                                        boundary_functions,
-      const Q_or_QC<dim - 1> &                   q,
+                                                &boundary_functions,
+      const Q_or_QC<dim - 1>                    &q,
       std::map<types::global_dof_index, number> &boundary_values,
       std::vector<unsigned int>                  component_mapping)
     {
       // in 1d, projection onto the 0d end points == interpolation
       if (dim == 1)
         {
-          Assert(component_mapping.size() == 0, ExcNotImplemented());
+          Assert(component_mapping.empty(), ExcNotImplemented());
           interpolate_boundary_values(
             mapping, dof, boundary_functions, boundary_values, ComponentMask());
           return;
@@ -720,7 +721,7 @@ namespace VectorTools
       //    there are no constrained nodes on the boundary, but is not
       //    acceptable for higher dimensions. Fix this.
 
-      if (component_mapping.size() == 0)
+      if (component_mapping.empty())
         {
           AssertDimension(dof.get_fe(0).n_components(),
                           boundary_functions.begin()->second->n_components);
@@ -865,11 +866,11 @@ namespace VectorTools
   template <int dim, int spacedim, typename number>
   void
   project_boundary_values(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                                        boundary_functions,
-    const Quadrature<dim - 1> &                q,
+                                              &boundary_functions,
+    const Quadrature<dim - 1>                 &q,
     std::map<types::global_dof_index, number> &boundary_values,
     std::vector<unsigned int>                  component_mapping)
   {
@@ -884,8 +885,8 @@ namespace VectorTools
   project_boundary_values(
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                                        boundary_functions,
-    const Quadrature<dim - 1> &                q,
+                                              &boundary_functions,
+    const Quadrature<dim - 1>                 &q,
     std::map<types::global_dof_index, number> &boundary_values,
     std::vector<unsigned int>                  component_mapping)
   {
@@ -903,10 +904,10 @@ namespace VectorTools
   void
   project_boundary_values(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof,
+    const DoFHandler<dim, spacedim>            &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                                        boundary_functions,
-    const hp::QCollection<dim - 1> &           q,
+                                              &boundary_functions,
+    const hp::QCollection<dim - 1>            &q,
     std::map<types::global_dof_index, number> &boundary_values,
     std::vector<unsigned int>                  component_mapping)
   {
@@ -921,8 +922,8 @@ namespace VectorTools
   project_boundary_values(
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                                        boundary_function,
-    const hp::QCollection<dim - 1> &           q,
+                                              &boundary_function,
+    const hp::QCollection<dim - 1>            &q,
     std::map<types::global_dof_index, number> &boundary_values,
     std::vector<unsigned int>                  component_mapping)
   {
@@ -943,10 +944,10 @@ namespace VectorTools
   template <int dim, int spacedim, typename number>
   void
   project_boundary_values(
-    const Mapping<dim, spacedim> &   mapping,
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                        boundary_functions,
+                              &boundary_functions,
     const Quadrature<dim - 1> &q,
     AffineConstraints<number> &constraints,
     std::vector<unsigned int>  component_mapping)
@@ -974,7 +975,7 @@ namespace VectorTools
   project_boundary_values(
     const DoFHandler<dim, spacedim> &dof,
     const std::map<types::boundary_id, const Function<spacedim, number> *>
-      &                        boundary_functions,
+                              &boundary_functions,
     const Quadrature<dim - 1> &q,
     AffineConstraints<number> &constraints,
     std::vector<unsigned int>  component_mapping)
@@ -991,18 +992,18 @@ namespace VectorTools
   namespace internals
   {
     template <int dim, typename cell_iterator, typename number>
-    typename std::enable_if<dim == 3>::type
-    compute_edge_projection_l2(const cell_iterator &        cell,
+    std::enable_if_t<dim == 3>
+    compute_edge_projection_l2(const cell_iterator         &cell,
                                const unsigned int           face,
                                const unsigned int           line,
-                               hp::FEValues<dim> &          hp_fe_values,
+                               hp::FEValues<dim>           &hp_fe_values,
                                const Function<dim, number> &boundary_function,
                                const unsigned int   first_vector_component,
                                std::vector<number> &dof_values,
-                               std::vector<bool> &  dofs_processed)
+                               std::vector<bool>   &dofs_processed)
     {
       // This function computes the L2-projection of the given
-      // boundary function on 3D edges and returns the constraints
+      // boundary function on 3d edges and returns the constraints
       // associated with the edge functions for the given cell.
       //
       // In the context of this function, by associated DoFs we mean:
@@ -1172,7 +1173,7 @@ namespace VectorTools
       // Sanity check:
       const unsigned int n_associated_edge_dofs = associated_edge_dof_index;
       Assert(n_associated_edge_dofs == degree + 1,
-             ExcMessage("Error: Unexpected number of 3D edge DoFs"));
+             ExcMessage("Error: Unexpected number of 3d edge DoFs"));
 
       // Matrix and RHS vectors to store linear system:
       // We have (degree+1) basis functions for an edge
@@ -1281,7 +1282,7 @@ namespace VectorTools
 
 
     template <int dim, typename cell_iterator, typename number>
-    typename std::enable_if<dim != 3>::type
+    std::enable_if_t<dim != 3>
     compute_edge_projection_l2(const cell_iterator &,
                                const unsigned int,
                                const unsigned int,
@@ -1300,16 +1301,16 @@ namespace VectorTools
     template <int dim, typename cell_iterator, typename number>
     void
     compute_face_projection_curl_conforming_l2(
-      const cell_iterator &        cell,
+      const cell_iterator         &cell,
       const unsigned int           face,
-      hp::FEFaceValues<dim> &      hp_fe_face_values,
+      hp::FEFaceValues<dim>       &hp_fe_face_values,
       const Function<dim, number> &boundary_function,
       const unsigned int           first_vector_component,
-      std::vector<number> &        dof_values,
-      std::vector<bool> &          dofs_processed)
+      std::vector<number>         &dof_values,
+      std::vector<bool>           &dofs_processed)
     {
       // This function computes the L2-projection of the boundary
-      // function on the interior of faces only. In 3D, this should only be
+      // function on the interior of faces only. In 3d, this should only be
       // called after first calling compute_edge_projection_l2, as it relies on
       // edge constraints which are found.
 
@@ -1324,7 +1325,7 @@ namespace VectorTools
         hp_fe_face_values.get_present_fe_values();
 
       // Initialize the required objects.
-      const FiniteElement<dim> &     fe = cell->get_fe();
+      const FiniteElement<dim>      &fe = cell->get_fe();
       const std::vector<Point<dim>> &quadrature_points =
         fe_face_values.get_quadrature_points();
 
@@ -1382,7 +1383,7 @@ namespace VectorTools
         {
           case 2:
             // NOTE: This is very similar to compute_edge_projection as used in
-            // 3D,
+            // 3d,
             //       and contains a lot of overlap with that function.
             {
               // Find the DoFs we want to constrain. There are degree+1 in
@@ -1418,7 +1419,7 @@ namespace VectorTools
               const unsigned int associated_edge_dofs =
                 associated_edge_dof_index;
               Assert(associated_edge_dofs == degree + 1,
-                     ExcMessage("Error: Unexpected number of 2D edge DoFs"));
+                     ExcMessage("Error: Unexpected number of 2d edge DoFs"));
 
               // Matrix and RHS vectors to store:
               // We have (degree+1) edge basis functions
@@ -1448,7 +1449,7 @@ namespace VectorTools
                   // \int_{edge} (tangential* boundary_value) * (tangential *
                   // edge_shape_function_i) dS.
                   //
-                  // In 2D, tangential*vector is equivalent to
+                  // In 2d, tangential*vector is equivalent to
                   // cross_product_3d(normal, vector), so we use this instead.
                   // This avoids possible issues with the computation of the
                   // tangent.
@@ -1658,11 +1659,11 @@ namespace VectorTools
               const unsigned int associated_face_dofs =
                 associated_face_dof_index;
               Assert(associated_face_dofs == 2 * degree * (degree + 1),
-                     ExcMessage("Error: Unexpected number of 3D face DoFs"));
+                     ExcMessage("Error: Unexpected number of 3d face DoFs"));
 
               // Storage for the linear system.
               // There are 2*degree*(degree+1) DoFs associated with a face in
-              // 3D. Note this doesn't include the DoFs associated with edges on
+              // 3d. Note this doesn't include the DoFs associated with edges on
               // that face.
               FullMatrix<number> face_matrix(2 * degree * (degree + 1));
               FullMatrix<number> face_matrix_inv(2 * degree * (degree + 1));
@@ -1793,26 +1794,26 @@ namespace VectorTools
     template <int dim, int spacedim, typename number>
     void
     compute_project_boundary_values_curl_conforming_l2(
-      const DoFHandler<dim, spacedim> &      dof_handler,
+      const DoFHandler<dim, spacedim>       &dof_handler,
       const unsigned int                     first_vector_component,
-      const Function<dim, number> &          boundary_function,
+      const Function<dim, number>           &boundary_function,
       const types::boundary_id               boundary_component,
-      AffineConstraints<number> &            constraints,
+      AffineConstraints<number>             &constraints,
       const hp::MappingCollection<dim, dim> &mapping_collection)
     {
-      // L2-projection based interpolation formed in one (in 2D) or two (in 3D)
+      // L2-projection based interpolation formed in one (in 2d) or two (in 3d)
       // steps.
       //
-      // In 2D we only need to constrain edge DoFs.
+      // In 2d we only need to constrain edge DoFs.
       //
-      // In 3D we need to constrain both edge and face DoFs. This is done in two
+      // In 3d we need to constrain both edge and face DoFs. This is done in two
       // parts.
       //
       // For edges, since the face shape functions are zero here ("bubble
       // functions"), we project the tangential component of the boundary
       // function and compute the L2-projection. This returns the values for the
-      // DoFs associated with each edge shape function. In 3D, this is computed
-      // by internals::compute_edge_projection_l2, in 2D, it is handled by
+      // DoFs associated with each edge shape function. In 3d, this is computed
+      // by internals::compute_edge_projection_l2, in 2d, it is handled by
       // compute_face_projection_curl_conforming_l2.
       //
       // For faces we compute the residual of the boundary function which is
@@ -1907,7 +1908,7 @@ namespace VectorTools
                                 }
 
                               // Compute the projection of the boundary function
-                              // on the edge. In 2D this is all that's required.
+                              // on the edge. In 2d this is all that's required.
                               compute_face_projection_curl_conforming_l2(
                                 cell,
                                 face,
@@ -1969,8 +1970,11 @@ namespace VectorTools
                         {
                           edge_quadrature_collection.push_back(
                             QProjector<dim>::project_to_face(
+                              ReferenceCells::get_hypercube<dim>(),
                               QProjector<dim - 1>::project_to_face(
-                                reference_edge_quadrature, line),
+                                ReferenceCells::get_hypercube<dim - 1>(),
+                                reference_edge_quadrature,
+                                line),
                               face));
                         }
                     }
@@ -2103,12 +2107,12 @@ namespace VectorTools
   template <int dim, typename number>
   void
   project_boundary_values_curl_conforming_l2(
-    const DoFHandler<dim> &      dof_handler,
+    const DoFHandler<dim>       &dof_handler,
     const unsigned int           first_vector_component,
     const Function<dim, number> &boundary_function,
     const types::boundary_id     boundary_component,
-    AffineConstraints<number> &  constraints,
-    const Mapping<dim> &         mapping)
+    AffineConstraints<number>   &constraints,
+    const Mapping<dim>          &mapping)
   {
     // non-hp-version - calls the internal
     // compute_project_boundary_values_curl_conforming_l2() function
@@ -2127,11 +2131,11 @@ namespace VectorTools
   template <int dim, typename number>
   void
   project_boundary_values_curl_conforming_l2(
-    const DoFHandler<dim> &                dof_handler,
+    const DoFHandler<dim>                 &dof_handler,
     const unsigned int                     first_vector_component,
-    const Function<dim, number> &          boundary_function,
+    const Function<dim, number>           &boundary_function,
     const types::boundary_id               boundary_component,
-    AffineConstraints<number> &            constraints,
+    AffineConstraints<number>             &constraints,
     const hp::MappingCollection<dim, dim> &mapping_collection)
   {
     // hp-version - calls the internal
@@ -2151,31 +2155,31 @@ namespace VectorTools
   {
     // This function computes the projection of the boundary function on the
     // boundary in 2d.
-    template <typename cell_iterator>
+    template <typename cell_iterator, typename number, typename number2>
     void
     compute_face_projection_div_conforming(
-      const cell_iterator &                       cell,
+      const cell_iterator                        &cell,
       const unsigned int                          face,
-      const FEFaceValues<2> &                     fe_values,
+      const FEFaceValues<2>                      &fe_values,
       const unsigned int                          first_vector_component,
-      const Function<2> &                         boundary_function,
+      const Function<2, number2>                 &boundary_function,
       const std::vector<DerivativeForm<1, 2, 2>> &jacobians,
-      AffineConstraints<double> &                 constraints)
+      AffineConstraints<number>                  &constraints)
     {
       // Compute the integral over the product of the normal components of
       // the boundary function times the normal components of the shape
       // functions supported on the boundary.
       const FEValuesExtractors::Vector vec(first_vector_component);
-      const FiniteElement<2> &         fe      = cell->get_fe();
+      const FiniteElement<2>          &fe      = cell->get_fe();
       const std::vector<Tensor<1, 2>> &normals = fe_values.get_normal_vectors();
       const unsigned int
         face_coordinate_direction[GeometryInfo<2>::faces_per_cell] = {1,
                                                                       1,
                                                                       0,
                                                                       0};
-      std::vector<Vector<double>> values(fe_values.n_quadrature_points,
-                                         Vector<double>(2));
-      Vector<double>              dof_values(fe.n_dofs_per_face(face));
+      std::vector<Vector<number2>> values(fe_values.n_quadrature_points,
+                                          Vector<number2>(2));
+      Vector<number2>              dof_values(fe.n_dofs_per_face(face));
 
       // Get the values of the boundary function at the quadrature points.
       {
@@ -2188,7 +2192,7 @@ namespace VectorTools
       for (unsigned int q_point = 0; q_point < fe_values.n_quadrature_points;
            ++q_point)
         {
-          double tmp = 0.0;
+          number2 tmp = 0.0;
 
           for (unsigned int d = 0; d < 2; ++d)
             tmp += normals[q_point][d] * values[q_point](d);
@@ -2237,46 +2241,49 @@ namespace VectorTools
     }
 
     // dummy implementation of above function for all other dimensions
-    template <int dim, typename cell_iterator>
+    template <int dim,
+              typename cell_iterator,
+              typename number,
+              typename number2>
     void
     compute_face_projection_div_conforming(
       const cell_iterator &,
       const unsigned int,
       const FEFaceValues<dim> &,
       const unsigned int,
-      const Function<dim> &,
+      const Function<dim, number2> &,
       const std::vector<DerivativeForm<1, dim, dim>> &,
-      AffineConstraints<double> &)
+      AffineConstraints<number> &)
     {
       Assert(false, ExcNotImplemented());
     }
 
     // This function computes the projection of the boundary function on the
     // boundary in 3d.
-    template <typename cell_iterator>
+    template <typename cell_iterator, typename number, typename number2>
     void
     compute_face_projection_div_conforming(
-      const cell_iterator &                       cell,
+      const cell_iterator                        &cell,
       const unsigned int                          face,
-      const FEFaceValues<3> &                     fe_values,
+      const FEFaceValues<3>                      &fe_values,
       const unsigned int                          first_vector_component,
-      const Function<3> &                         boundary_function,
+      const Function<3, number2>                 &boundary_function,
       const std::vector<DerivativeForm<1, 3, 3>> &jacobians,
-      std::vector<double> &                       dof_values,
-      std::vector<types::global_dof_index> &      projected_dofs)
+      std::vector<number>                        &dof_values,
+      std::vector<types::global_dof_index>       &projected_dofs)
     {
       // Compute the intergral over the product of the normal components of
       // the boundary function times the normal components of the shape
       // functions supported on the boundary.
       const FEValuesExtractors::Vector vec(first_vector_component);
-      const FiniteElement<3> &         fe      = cell->get_fe();
+      const FiniteElement<3>          &fe      = cell->get_fe();
       const std::vector<Tensor<1, 3>> &normals = fe_values.get_normal_vectors();
       const unsigned int
         face_coordinate_directions[GeometryInfo<3>::faces_per_cell][2] = {
           {1, 2}, {1, 2}, {2, 0}, {2, 0}, {0, 1}, {0, 1}};
-      std::vector<Vector<double>> values(fe_values.n_quadrature_points,
-                                         Vector<double>(3));
-      Vector<double>              dof_values_local(fe.n_dofs_per_face(face));
+      std::vector<Vector<number2>> values(fe_values.n_quadrature_points,
+                                          Vector<number2>(3));
+      Vector<number2>              dof_values_local(fe.n_dofs_per_face(face));
 
       {
         const std::vector<Point<3>> &quadrature_points =
@@ -2288,7 +2295,7 @@ namespace VectorTools
       for (unsigned int q_point = 0; q_point < fe_values.n_quadrature_points;
            ++q_point)
         {
-          double tmp = 0.0;
+          number2 tmp = 0.0;
 
           for (unsigned int d = 0; d < 3; ++d)
             tmp += normals[q_point][d] * values[q_point](d);
@@ -2344,16 +2351,19 @@ namespace VectorTools
     // dummy implementation of above
     // function for all other
     // dimensions
-    template <int dim, typename cell_iterator>
+    template <int dim,
+              typename cell_iterator,
+              typename number,
+              typename number2>
     void
     compute_face_projection_div_conforming(
       const cell_iterator &,
       const unsigned int,
       const FEFaceValues<dim> &,
       const unsigned int,
-      const Function<dim> &,
+      const Function<dim, number2> &,
       const std::vector<DerivativeForm<1, dim, dim>> &,
-      std::vector<double> &,
+      std::vector<number> &,
       std::vector<types::global_dof_index> &)
     {
       Assert(false, ExcNotImplemented());
@@ -2361,15 +2371,15 @@ namespace VectorTools
   } // namespace internals
 
 
-  template <int dim>
+  template <int dim, typename number, typename number2>
   void
   project_boundary_values_div_conforming(
-    const DoFHandler<dim> &    dof_handler,
-    const unsigned int         first_vector_component,
-    const Function<dim> &      boundary_function,
-    const types::boundary_id   boundary_component,
-    AffineConstraints<double> &constraints,
-    const Mapping<dim> &       mapping)
+    const DoFHandler<dim>        &dof_handler,
+    const unsigned int            first_vector_component,
+    const Function<dim, number2> &boundary_function,
+    const types::boundary_id      boundary_component,
+    AffineConstraints<number>    &constraints,
+    const Mapping<dim>           &mapping)
   {
     const unsigned int spacedim = dim;
     // Interpolate the normal components
@@ -2383,7 +2393,7 @@ namespace VectorTools
     // normal components of the shape
     // functions supported on the
     // boundary.
-    const FiniteElement<dim> &       fe = dof_handler.get_fe();
+    const FiniteElement<dim>        &fe = dof_handler.get_fe();
     QGauss<dim - 1>                  face_quadrature(fe.degree + 1);
     FEFaceValues<dim>                fe_face_values(mapping,
                                      fe,
@@ -2395,9 +2405,9 @@ namespace VectorTools
     const hp::MappingCollection<dim> mapping_collection(mapping);
     hp::QCollection<dim>             quadrature_collection;
 
-    for (unsigned int face : GeometryInfo<dim>::face_indices())
-      quadrature_collection.push_back(
-        QProjector<dim>::project_to_face(face_quadrature, face));
+    for (const unsigned int face : GeometryInfo<dim>::face_indices())
+      quadrature_collection.push_back(QProjector<dim>::project_to_face(
+        ReferenceCells::get_hypercube<dim>(), face_quadrature, face));
 
     hp::FEValues<dim> fe_values(mapping_collection,
                                 fe_collection,
@@ -2432,7 +2442,9 @@ namespace VectorTools
                         {
                           AssertThrow(
                             dynamic_cast<const FE_RaviartThomas<dim> *>(&fe) !=
-                              nullptr,
+                                nullptr ||
+                              dynamic_cast<const FE_RaviartThomasNodal<dim> *>(
+                                &fe) != nullptr,
                             typename FiniteElement<
                               dim>::ExcInterpolationNotImplemented());
                         }
@@ -2487,7 +2499,9 @@ namespace VectorTools
                         {
                           AssertThrow(
                             dynamic_cast<const FE_RaviartThomas<dim> *>(&fe) !=
-                              nullptr,
+                                nullptr ||
+                              dynamic_cast<const FE_RaviartThomasNodal<dim> *>(
+                                &fe) != nullptr,
                             typename FiniteElement<
                               dim>::ExcInterpolationNotImplemented());
                         }
@@ -2531,14 +2545,14 @@ namespace VectorTools
   }
 
 
-  template <int dim>
+  template <int dim, typename number, typename number2>
   void
   project_boundary_values_div_conforming(
-    const DoFHandler<dim> &                dof_handler,
+    const DoFHandler<dim>                 &dof_handler,
     const unsigned int                     first_vector_component,
-    const Function<dim> &                  boundary_function,
+    const Function<dim, number2>          &boundary_function,
     const types::boundary_id               boundary_component,
-    AffineConstraints<double> &            constraints,
+    AffineConstraints<number>             &constraints,
     const hp::MappingCollection<dim, dim> &mapping_collection)
   {
     const unsigned int           spacedim = dim;
@@ -2553,9 +2567,9 @@ namespace VectorTools
 
         face_quadrature_collection.push_back(quadrature);
 
-        for (unsigned int face : GeometryInfo<dim>::face_indices())
-          quadrature_collection.push_back(
-            QProjector<dim>::project_to_face(quadrature, face));
+        for (const unsigned int face : GeometryInfo<dim>::face_indices())
+          quadrature_collection.push_back(QProjector<dim>::project_to_face(
+            ReferenceCells::get_hypercube<dim>(), quadrature, face));
       }
 
     hp::FEFaceValues<dim> fe_face_values(mapping_collection,
@@ -2590,7 +2604,9 @@ namespace VectorTools
                         {
                           AssertThrow(
                             dynamic_cast<const FE_RaviartThomas<dim> *>(
-                              &cell->get_fe()) != nullptr,
+                              &cell->get_fe()) != nullptr ||
+                              dynamic_cast<const FE_RaviartThomasNodal<dim> *>(
+                                &cell->get_fe()) != nullptr,
                             typename FiniteElement<
                               dim>::ExcInterpolationNotImplemented());
                         }
@@ -2620,7 +2636,7 @@ namespace VectorTools
         case 3:
           {
             const unsigned int                   n_dofs = dof_handler.n_dofs();
-            std::vector<double>                  dof_values(n_dofs);
+            std::vector<number2>                 dof_values(n_dofs);
             std::vector<types::global_dof_index> projected_dofs(n_dofs);
 
             for (unsigned int dof = 0; dof < n_dofs; ++dof)
@@ -2642,7 +2658,9 @@ namespace VectorTools
                         {
                           AssertThrow(
                             dynamic_cast<const FE_RaviartThomas<dim> *>(
-                              &cell->get_fe()) != nullptr,
+                              &cell->get_fe()) != nullptr ||
+                              dynamic_cast<const FE_RaviartThomasNodal<dim> *>(
+                                &cell->get_fe()) != nullptr,
                             typename FiniteElement<
                               dim>::ExcInterpolationNotImplemented());
                         }

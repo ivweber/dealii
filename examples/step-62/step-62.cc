@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2021 by the deal.II authors
+ * Copyright (C) 2018 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level of the deal.II distribution.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Daniel Garcia-Sanchez, CNRS, 2019
  */
@@ -86,7 +85,7 @@ namespace step62
   public:
     RightHandSide(HDF5::Group &data);
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component) const override;
 
   private:
@@ -154,7 +153,7 @@ namespace step62
   public:
     Rho(HDF5::Group &data);
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
   private:
@@ -378,7 +377,7 @@ namespace step62
 
   // This function defines the spatial shape of the force vector pulse which
   // takes the form of a Gaussian function
-  // @f{align*}
+  // @f{align*}{
   // F_x &=
   // \left\{
   // \begin{array}{ll}
@@ -394,7 +393,7 @@ namespace step62
   // that the pulse has been cropped to $x_\textrm{min}<x<x_\textrm{max}$ and
   // $y_\textrm{min} <y<y_\textrm{max}$.
   template <int dim>
-  double RightHandSide<dim>::value(const Point<dim> & p,
+  double RightHandSide<dim>::value(const Point<dim>  &p,
                                    const unsigned int component) const
   {
     if (component == force_component)
@@ -450,7 +449,7 @@ namespace step62
   // The PML coefficient for the `x` component takes the form
   // $s'_x = a_x x^{\textrm{degree}}$
   template <int dim>
-  std::complex<double> PML<dim>::value(const Point<dim> & p,
+  std::complex<double> PML<dim>::value(const Point<dim>  &p,
                                        const unsigned int component) const
   {
     double calculated_pml_x_coeff = 0;
@@ -486,7 +485,7 @@ namespace step62
 
   // @sect4{The `Rho` class implementation}
 
-  // This class is used to define the mass density. As we have explaine before,
+  // This class is used to define the mass density. As we have explained before,
   // a phononic superlattice cavity is formed by two
   // [Distributed Reflector](https://en.wikipedia.org/wiki/Band_gap),
   // mirrors and a $\lambda/2$ cavity where $\lambda$ is the acoustic
@@ -710,7 +709,7 @@ namespace step62
                       Triangulation<dim>::smoothing_on_refinement |
                       Triangulation<dim>::smoothing_on_coarsening))
     , quadrature_formula(2)
-    , fe(FE_Q<dim>(1), dim)
+    , fe(FE_Q<dim>(1) ^ dim)
     , dof_handler(triangulation)
     , frequency(parameters.nb_frequency_points)
     , probe_positions(parameters.nb_probe_points, dim)
@@ -911,7 +910,7 @@ namespace step62
                           const Tensor<2, dim> grad_phi_j =
                             fe_values[displacement].gradient(j, q);
 
-                          // calculate the values of the mass matrix.
+                          // calculate the values of the @ref GlossMassMatrix "mass matrix".
                           quadrature_data.mass_coefficient[i][j] =
                             rho_values[q] * xi * phi_i * phi_j;
 
@@ -1189,7 +1188,7 @@ namespace step62
                              << std::setfill('0') << frequency_idx;
         std::string filename = (parameters.simulation_name + "_" +
                                 frequency_idx_stream.str() + ".vtu");
-        data_out.write_vtu_in_parallel(filename.c_str(), mpi_communicator);
+        data_out.write_vtu_in_parallel(filename, mpi_communicator);
       }
   }
 
@@ -1386,9 +1385,9 @@ int main(int argc, char *argv[])
 
       // Each of the simulations (displacement and calibration) is stored in a
       // separate HDF5 group:
-      const std::vector<std::string> group_names = {"displacement",
-                                                    "calibration"};
-      for (auto group_name : group_names)
+      const std::array<std::string, 2> group_names{
+        {"displacement", "calibration"}};
+      for (const std::string &group_name : group_names)
         {
           // For each of these two group names, we now create the group and put
           // attributes into these groups.
@@ -1420,7 +1419,7 @@ int main(int argc, char *argv[])
           group.set_attribute<double>("youngs_modulus", 270000000000.0);
           group.set_attribute<double>("material_a_rho", 3200);
 
-          if (group_name == std::string("displacement"))
+          if (group_name == "displacement")
             group.set_attribute<double>("material_b_rho", 2000);
           else
             group.set_attribute<double>("material_b_rho", 3200);

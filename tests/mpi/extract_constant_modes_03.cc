@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2018 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -79,7 +79,7 @@ test(unsigned int fe_nothing_index)
 
   if (myid == 0)
     {
-      std::vector<bool> mask(1, true);
+      ComponentMask mask(1, true);
 
       std::vector<std::vector<bool>> constant_modes;
       DoFTools::extract_constant_modes(dofh, mask, constant_modes);

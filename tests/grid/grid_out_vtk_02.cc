@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2018 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -69,7 +69,7 @@ test()
   //    + "d." +
   //    Utilities::int_to_string(tr.locally_owned_subdomain(), 4) +
   //    ".vtk");
-  // std::ofstream stream(filename.c_str());
+  // std::ofstream stream(filename);
   output(tr, deallog.get_file_stream());
 
   // tr.begin_active()->set_level_subdomain_id(1+myid);

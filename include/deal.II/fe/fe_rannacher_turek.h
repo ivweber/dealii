@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2020 by the deal.II authors
+// Copyright (C) 2015 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,7 @@
 
 #include <deal.II/base/polynomials_rannacher_turek.h>
 
-#include <deal.II/fe/fe_base.h>
+#include <deal.II/fe/fe_data.h>
 #include <deal.II/fe/fe_poly.h>
 
 #include <string>
@@ -87,7 +87,7 @@ public:
    * n_face_support_points quadrature points on each face for interpolation.
    * Notice that the element of order 0 contains polynomials of degree 2.
    *
-   * The element is currently only implemented for order 0 in 2D.
+   * The element is currently only implemented for order 0 in 2d.
    */
   FE_RannacherTurek(const unsigned int order                 = 0,
                     const unsigned int n_face_support_points = 2);
@@ -102,7 +102,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 
 private:
   /**

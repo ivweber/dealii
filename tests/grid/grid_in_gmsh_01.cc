@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -63,7 +63,7 @@ main()
       gmsh_grid<3>(SOURCE_DIR "/grids/grid_in_msh_01.3da.msh");
       gmsh_grid<3>(SOURCE_DIR "/grids/grid_in_msh_01.3d_neg.msh");
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

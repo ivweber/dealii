@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,6 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
+#include <deal.II/base/thread_management.h>
+
 #include <deal.II/grid/tria_iterator.h>
 
 #include <deal.II/non_matching/fe_immersed_values.h>
@@ -23,8 +25,8 @@ namespace NonMatching
 {
   template <int dim>
   FEImmersedSurfaceValues<dim>::FEImmersedSurfaceValues(
-    const Mapping<dim> &                  mapping,
-    const FiniteElement<dim> &            element,
+    const Mapping<dim>                   &mapping,
+    const FiniteElement<dim>             &element,
     const ImmersedSurfaceQuadrature<dim> &quadrature,
     const UpdateFlags                     update_flags)
     : FEValuesBase<dim, dim>(quadrature.size(),

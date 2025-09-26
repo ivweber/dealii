@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,7 +24,6 @@
 #include <deal.II/base/thread_local_storage.h>
 
 #include <cmath>
-#include <map>
 #include <memory>
 #include <sstream>
 #include <stack>
@@ -153,7 +152,7 @@ public:
    * @param[in] flags Format flags to set on the output stream @p o.
    */
   void
-  attach(std::ostream &                o,
+  attach(std::ostream                 &o,
          const bool                    print_job_id = true,
          const std::ios_base::fmtflags flags        = std::ios::showpoint |
                                                std::ios::left);

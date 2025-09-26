@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2021 by the deal.II authors
+// Copyright (C) 2008 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,11 +21,12 @@
 
 #ifdef DEAL_II_WITH_TRILINOS
 #  include <deal.II/base/index_set.h>
-#  include <deal.II/base/mpi.h>
+#  include <deal.II/base/mpi_stub.h>
+#  include <deal.II/base/partitioner.h>
 #  include <deal.II/base/subscriptor.h>
-#  include <deal.II/base/utilities.h>
 
 #  include <deal.II/lac/exceptions.h>
+#  include <deal.II/lac/read_vector.h>
 #  include <deal.II/lac/vector.h>
 #  include <deal.II/lac/vector_operation.h>
 #  include <deal.II/lac/vector_type_traits.h>
@@ -35,7 +36,6 @@
 #  include <Epetra_LocalMap.h>
 #  include <Epetra_Map.h>
 #  include <Epetra_MpiComm.h>
-#  include <mpi.h>
 
 #  include <memory>
 #  include <utility>
@@ -394,9 +394,8 @@ namespace TrilinosWrappers
      *
      * @ingroup TrilinosWrappers
      * @ingroup Vectors
-     *         2008, 2009, 2017
      */
-    class Vector : public Subscriptor
+    class Vector : public Subscriptor, public ReadVector<TrilinosScalar>
     {
     public:
       /**
@@ -415,7 +414,7 @@ namespace TrilinosWrappers
       /**
        * @name 1: Basic Object-handling
        */
-      //@{
+      /** @{ */
       /**
        * Default constructor that generates an empty (zero size) vector. The
        * function <tt>reinit()</tt> will have to give the vector the correct
@@ -447,7 +446,7 @@ namespace TrilinosWrappers
        * @ref GlossGhostedVector "vectors with ghost elements"
        */
       explicit Vector(const IndexSet &parallel_partitioning,
-                      const MPI_Comm &communicator = MPI_COMM_WORLD);
+                      const MPI_Comm  communicator = MPI_COMM_WORLD);
 
       /**
        * Creates a ghosted parallel vector.
@@ -462,7 +461,7 @@ namespace TrilinosWrappers
        */
       Vector(const IndexSet &local,
              const IndexSet &ghost,
-             const MPI_Comm &communicator = MPI_COMM_WORLD);
+             const MPI_Comm  communicator = MPI_COMM_WORLD);
 
       /**
        * Copy constructor from the TrilinosWrappers vector class. Since a
@@ -479,8 +478,8 @@ namespace TrilinosWrappers
        * @ref GlossGhostedVector "vectors with ghost elements"
        */
       Vector(const IndexSet &parallel_partitioning,
-             const Vector &  v,
-             const MPI_Comm &communicator = MPI_COMM_WORLD);
+             const Vector   &v,
+             const MPI_Comm  communicator = MPI_COMM_WORLD);
 
       /**
        * Copy-constructor from deal.II vectors. Sets the dimension to that of
@@ -495,15 +494,19 @@ namespace TrilinosWrappers
        * @ref GlossGhostedVector "vectors with ghost elements"
        */
       template <typename Number>
-      Vector(const IndexSet &              parallel_partitioning,
+      Vector(const IndexSet               &parallel_partitioning,
              const dealii::Vector<Number> &v,
-             const MPI_Comm &              communicator = MPI_COMM_WORLD);
+             const MPI_Comm                communicator = MPI_COMM_WORLD);
 
       /**
        * Move constructor. Creates a new vector by stealing the internal data
        * of the vector @p v.
+       *
+       * @note In order for this constructor to leave the moved-from object in a
+       * valid state it must allocate memory (in this case, an empty
+       * Epetra_FEVector) - hence it cannot be marked as noexcept.
        */
-      Vector(Vector &&v) noexcept;
+      Vector(Vector &&v); // NOLINT
 
       /**
        * Destructor.
@@ -569,7 +572,7 @@ namespace TrilinosWrappers
        */
       void
       reinit(const IndexSet &parallel_partitioning,
-             const MPI_Comm &communicator         = MPI_COMM_WORLD,
+             const MPI_Comm  communicator         = MPI_COMM_WORLD,
              const bool      omit_zeroing_entries = false);
 
       /**
@@ -577,19 +580,28 @@ namespace TrilinosWrappers
        * and generates a new one based on the input partitioning. In addition
        * to just specifying one index set as in all the other methods above,
        * this method allows to supply an additional set of ghost entries.
+       *
        * There are two different versions of a vector that can be created. If
        * the flag @p vector_writable is set to @p false, the vector only
        * allows read access to the joint set of @p parallel_partitioning and
-       * @p ghost_entries. The effect of the reinit method is then equivalent
-       * to calling the other reinit method with an index set containing both
-       * the locally owned entries and the ghost entries.
+       * @p locally_relevant_or_ghost_entries. The effect of the reinit method
+       * is then equivalent to calling the other reinit method with an index set
+       * containing the union of the two provided index sets. In this case,
+       * it does not matter whether the second argument contains all
+       * locally relevant DoF indices, or only the ones indicating ghost
+       * indices: The union between the two index sets is the same in either
+       * case.
        *
        * If the flag @p vector_writable is set to true, this creates an
        * alternative storage scheme for ghost elements that allows multiple
        * threads to write into the vector (for the other reinit methods, only
-       * one thread is allowed to write into the ghost entries at a time).
+       * one thread is allowed to write into the ghost entries at a time). In
+       * this case, the set of ghost elements of the resulting vector is the
+       * *set difference* between the second and first argument -- where again
+       * it does not matter whether the second argument does or does not
+       * contain the locally owned entries specified by the first argument.
        *
-       * Depending on whether the @p ghost_entries argument uniquely
+       * Depending on whether the @p locally_relevant_or_ghost_entries argument uniquely
        * subdivides elements among processors or not, the resulting vector may
        * or may not have ghost elements. See the general documentation of this
        * class for more information.
@@ -599,9 +611,25 @@ namespace TrilinosWrappers
        */
       void
       reinit(const IndexSet &locally_owned_entries,
-             const IndexSet &ghost_entries,
-             const MPI_Comm &communicator    = MPI_COMM_WORLD,
+             const IndexSet &locally_relevant_or_ghost_entries,
+             const MPI_Comm  communicator    = MPI_COMM_WORLD,
              const bool      vector_writable = false);
+
+      /**
+       * Initialize the vector given to the parallel partitioning described in
+       * @p partitioner using the function above.
+       *
+       * You can decide whether your vector will contain ghost elements with
+       * @p make_ghosted.
+       *
+       * The parameter @p vector_writable only has effect on ghosted vectors
+       * and is ignored for non-ghosted vectors.
+       */
+      void
+      reinit(
+        const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
+        const bool make_ghosted    = true,
+        const bool vector_writable = false);
 
       /**
        * Create vector by merging components from a block vector.
@@ -626,7 +654,7 @@ namespace TrilinosWrappers
        * for more information.
        */
       void
-      compress(::dealii::VectorOperation::values operation);
+      compress(VectorOperation::values operation);
 
       /**
        * Set all components of the vector to the given number @p s. Simply
@@ -689,7 +717,7 @@ namespace TrilinosWrappers
       void
       import_nonlocal_data_for_fe(
         const dealii::TrilinosWrappers::SparseMatrix &matrix,
-        const Vector &                                vector);
+        const Vector                                 &vector);
 
       /**
        * Imports all the elements present in the vector's IndexSet from the
@@ -698,8 +726,19 @@ namespace TrilinosWrappers
        * current elements.
        */
       void
+      import_elements(const LinearAlgebra::ReadWriteVector<double> &rwv,
+                      const VectorOperation::values                 operation);
+
+      /**
+       * @deprecated Use import_elements() instead.
+       */
+      DEAL_II_DEPRECATED
+      void
       import(const LinearAlgebra::ReadWriteVector<double> &rwv,
-             const VectorOperation::values                 operation);
+             const VectorOperation::values                 operation)
+      {
+        import_elements(rwv, operation);
+      }
 
 
       /**
@@ -722,24 +761,7 @@ namespace TrilinosWrappers
        * Return the global dimension of the vector.
        */
       size_type
-      size() const;
-
-      /**
-       * Return the local dimension of the vector, i.e. the number of elements
-       * stored on the present MPI process. For sequential vectors, this number
-       * is the same as size(), but for parallel vectors it may be smaller.
-       *
-       * To figure out which elements exactly are stored locally, use
-       * local_range().
-       *
-       * If the vector contains ghost elements, they are included in this
-       * number.
-       *
-       * @deprecated This function is deprecated.
-       */
-      DEAL_II_DEPRECATED
-      size_type
-      local_size() const;
+      size() const override;
 
       /**
        * Return the local size of the vector, i.e., the number of indices
@@ -754,9 +776,10 @@ namespace TrilinosWrappers
        * stored, the second the index of the one past the last one that is
        * stored locally. If this is a sequential vector, then the result will be
        * the pair <code>(0,N)</code>, otherwise it will be a pair
-       * <code>(i,i+n)</code>, where <code>n=local_size()</code> and
-       * <code>i</code> is the first element of the vector stored on this
-       * processor, corresponding to the half open interval $[i,i+n)$
+       * <code>(i,i+n)</code>, where <code>n</code> is the number of elements
+       * stored on this processor and and <code>i</code> is the first element of
+       * the vector stored on this processor, corresponding to the half open
+       * interval $[i,i+n)$
        *
        * @note The description above is true most of the time, but not always.
        * In particular, Trilinos vectors need not store contiguous ranges of
@@ -911,13 +934,13 @@ namespace TrilinosWrappers
        */
       bool
       is_non_negative() const;
-      //@}
+      /** @} */
 
 
       /**
        * @name 2: Data-Access
        */
-      //@{
+      /** @{ */
 
       /**
        * Provide access to a given element, both read and write.
@@ -972,7 +995,14 @@ namespace TrilinosWrappers
        */
       void
       extract_subvector_to(const std::vector<size_type> &indices,
-                           std::vector<TrilinosScalar> & values) const;
+                           std::vector<TrilinosScalar>  &values) const;
+
+      /**
+       * Extract a range of elements all at once.
+       */
+      virtual void
+      extract_subvector_to(const ArrayView<const size_type> &indices,
+                           ArrayView<TrilinosScalar> &elements) const override;
 
       /**
        * Instead of getting individual elements of a vector via operator(),
@@ -1014,8 +1044,6 @@ namespace TrilinosWrappers
        * corresponds to the one given by the global indices in case the vector
        * is constructed from an IndexSet or other methods in deal.II (note that
        * an Epetra_Map can contain elements in arbitrary orders, though).
-       *
-       * It holds that end() - begin() == local_size().
        */
       iterator
       begin();
@@ -1041,13 +1069,13 @@ namespace TrilinosWrappers
       const_iterator
       end() const;
 
-      //@}
+      /** @} */
 
 
       /**
        * @name 3: Modification of vectors
        */
-      //@{
+      /** @{ */
 
       /**
        * A collective set operation: instead of setting individual elements of a
@@ -1056,7 +1084,7 @@ namespace TrilinosWrappers
        * the corresponding values in the second.
        */
       void
-      set(const std::vector<size_type> &     indices,
+      set(const std::vector<size_type>      &indices,
           const std::vector<TrilinosScalar> &values);
 
       /**
@@ -1064,7 +1092,7 @@ namespace TrilinosWrappers
        * function takes a deal.II vector of values.
        */
       void
-      set(const std::vector<size_type> &          indices,
+      set(const std::vector<size_type>           &indices,
           const ::dealii::Vector<TrilinosScalar> &values);
 
       /**
@@ -1074,7 +1102,7 @@ namespace TrilinosWrappers
        */
       void
       set(const size_type       n_elements,
-          const size_type *     indices,
+          const size_type      *indices,
           const TrilinosScalar *values);
 
       /**
@@ -1082,7 +1110,7 @@ namespace TrilinosWrappers
        * stored in @p values to the vector components specified by @p indices.
        */
       void
-      add(const std::vector<size_type> &     indices,
+      add(const std::vector<size_type>      &indices,
           const std::vector<TrilinosScalar> &values);
 
       /**
@@ -1090,7 +1118,7 @@ namespace TrilinosWrappers
        * function takes a deal.II vector of values.
        */
       void
-      add(const std::vector<size_type> &          indices,
+      add(const std::vector<size_type>           &indices,
           const ::dealii::Vector<TrilinosScalar> &values);
 
       /**
@@ -1100,7 +1128,7 @@ namespace TrilinosWrappers
        */
       void
       add(const size_type       n_elements,
-          const size_type *     indices,
+          const size_type      *indices,
           const TrilinosScalar *values);
 
       /**
@@ -1160,9 +1188,9 @@ namespace TrilinosWrappers
        */
       void
       add(const TrilinosScalar a,
-          const Vector &       V,
+          const Vector        &V,
           const TrilinosScalar b,
-          const Vector &       W);
+          const Vector        &W);
 
       /**
        * Scaling and simple vector addition, i.e.  <tt>*this = s*(*this) +
@@ -1190,12 +1218,12 @@ namespace TrilinosWrappers
        */
       void
       equ(const TrilinosScalar a, const Vector &V);
-      //@}
+      /** @} */
 
       /**
        * @name 4: Mixed stuff
        */
-      //@{
+      /** @{ */
 
       /**
        * Return a const reference to the underlying Trilinos Epetra_MultiVector
@@ -1226,7 +1254,7 @@ namespace TrilinosWrappers
        * separate line each.
        */
       void
-      print(std::ostream &     out,
+      print(std::ostream      &out,
             const unsigned int precision  = 3,
             const bool         scientific = true,
             const bool         across     = true) const;
@@ -1254,12 +1282,11 @@ namespace TrilinosWrappers
       memory_consumption() const;
 
       /**
-       * Return a reference to the MPI communicator object in use with this
-       * object.
+       * Return the underlying MPI communicator.
        */
-      const MPI_Comm &
+      MPI_Comm
       get_mpi_communicator() const;
-      //@}
+      /** @} */
 
       /**
        * Exception
@@ -1372,7 +1399,7 @@ namespace TrilinosWrappers
 
   namespace internal
   {
-    inline VectorReference::VectorReference(MPI::Vector &   vector,
+    inline VectorReference::VectorReference(MPI::Vector    &vector,
                                             const size_type index)
       : vector(vector)
       , index(index)
@@ -1515,10 +1542,24 @@ namespace TrilinosWrappers
 
     inline void
     Vector::extract_subvector_to(const std::vector<size_type> &indices,
-                                 std::vector<TrilinosScalar> & values) const
+                                 std::vector<TrilinosScalar>  &values) const
     {
       for (size_type i = 0; i < indices.size(); ++i)
         values[i] = operator()(indices[i]);
+    }
+
+
+
+    inline void
+    Vector::extract_subvector_to(const ArrayView<const size_type> &indices,
+                                 ArrayView<TrilinosScalar> &elements) const
+    {
+      AssertDimension(indices.size(), elements.size());
+      for (unsigned int i = 0; i < indices.size(); ++i)
+        {
+          AssertIndexRange(indices[i], size());
+          elements[i] = (*this)[indices[i]];
+        }
     }
 
 
@@ -1572,7 +1613,7 @@ namespace TrilinosWrappers
 
 
     inline void
-    Vector::set(const std::vector<size_type> &     indices,
+    Vector::set(const std::vector<size_type>      &indices,
                 const std::vector<TrilinosScalar> &values)
     {
       // if we have ghost values, do not allow
@@ -1587,7 +1628,7 @@ namespace TrilinosWrappers
 
 
     inline void
-    Vector::set(const std::vector<size_type> &          indices,
+    Vector::set(const std::vector<size_type>           &indices,
                 const ::dealii::Vector<TrilinosScalar> &values)
     {
       // if we have ghost values, do not allow
@@ -1603,7 +1644,7 @@ namespace TrilinosWrappers
 
     inline void
     Vector::set(const size_type       n_elements,
-                const size_type *     indices,
+                const size_type      *indices,
                 const TrilinosScalar *values)
     {
       // if we have ghost values, do not allow
@@ -1643,7 +1684,7 @@ namespace TrilinosWrappers
 
 
     inline void
-    Vector::add(const std::vector<size_type> &     indices,
+    Vector::add(const std::vector<size_type>      &indices,
                 const std::vector<TrilinosScalar> &values)
     {
       // if we have ghost values, do not allow
@@ -1657,7 +1698,7 @@ namespace TrilinosWrappers
 
 
     inline void
-    Vector::add(const std::vector<size_type> &          indices,
+    Vector::add(const std::vector<size_type>           &indices,
                 const ::dealii::Vector<TrilinosScalar> &values)
     {
       // if we have ghost values, do not allow
@@ -1672,7 +1713,7 @@ namespace TrilinosWrappers
 
     inline void
     Vector::add(const size_type       n_elements,
-                const size_type *     indices,
+                const size_type      *indices,
                 const TrilinosScalar *values)
     {
       // if we have ghost values, do not allow
@@ -1734,14 +1775,6 @@ namespace TrilinosWrappers
 #    else
       return vector->Map().MaxAllGID64() + 1 - vector->Map().MinAllGID64();
 #    endif
-    }
-
-
-
-    inline Vector::size_type
-    Vector::local_size() const
-    {
-      return vector->Map().NumMyElements();
     }
 
 
@@ -1912,8 +1945,8 @@ namespace TrilinosWrappers
 
     inline TrilinosScalar
     Vector::add_and_dot(const TrilinosScalar a,
-                        const Vector &       V,
-                        const Vector &       W)
+                        const Vector        &V,
+                        const Vector        &W)
     {
       this->add(a, V);
       return *this * W;
@@ -2019,9 +2052,9 @@ namespace TrilinosWrappers
 
     inline void
     Vector::add(const TrilinosScalar a,
-                const Vector &       v,
+                const Vector        &v,
                 const TrilinosScalar b,
-                const Vector &       w)
+                const Vector        &w)
     {
       // if we have ghost values, do not allow
       // writing to this vector at all.
@@ -2071,7 +2104,7 @@ namespace TrilinosWrappers
     inline void
     Vector::sadd(const TrilinosScalar s,
                  const TrilinosScalar a,
-                 const Vector &       v)
+                 const Vector        &v)
     {
       // if we have ghost values, do not allow
       // writing to this vector at all.
@@ -2164,22 +2197,20 @@ namespace TrilinosWrappers
 
 
 
-    inline const MPI_Comm &
+    inline MPI_Comm
     Vector::get_mpi_communicator() const
     {
-      static MPI_Comm comm;
-
       const Epetra_MpiComm *mpi_comm =
         dynamic_cast<const Epetra_MpiComm *>(&vector->Map().Comm());
-      comm = mpi_comm->Comm();
-
-      return comm;
+      return mpi_comm->Comm();
     }
 
+
+
     template <typename number>
-    Vector::Vector(const IndexSet &              parallel_partitioner,
+    Vector::Vector(const IndexSet               &parallel_partitioner,
                    const dealii::Vector<number> &v,
-                   const MPI_Comm &              communicator)
+                   const MPI_Comm                communicator)
     {
       *this =
         Vector(parallel_partitioner.make_trilinos_map(communicator, true), v);
@@ -2210,7 +2241,7 @@ namespace TrilinosWrappers
 
 } /* end of namespace TrilinosWrappers */
 
-/*@}*/
+/** @} */
 
 
 namespace internal
@@ -2230,7 +2261,7 @@ namespace internal
     public:
       template <typename Matrix>
       static void
-      reinit_range_vector(const Matrix &                 matrix,
+      reinit_range_vector(const Matrix                  &matrix,
                           TrilinosWrappers::MPI::Vector &v,
                           bool                           omit_zeroing_entries)
       {
@@ -2241,7 +2272,7 @@ namespace internal
 
       template <typename Matrix>
       static void
-      reinit_domain_vector(const Matrix &                 matrix,
+      reinit_domain_vector(const Matrix                  &matrix,
                            TrilinosWrappers::MPI::Vector &v,
                            bool                           omit_zeroing_entries)
       {
@@ -2266,8 +2297,6 @@ struct is_serial_vector<TrilinosWrappers::MPI::Vector> : std::false_type
 
 DEAL_II_NAMESPACE_CLOSE
 
-#endif // DEAL_II_WITH_TRILINOS
+#endif
 
-/*----------------------------   trilinos_vector.h ---------------------------*/
-
-#endif // dealii_trilinos_vector_h
+#endif

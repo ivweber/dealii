@@ -64,7 +64,7 @@ solution.
 In order to find out how we can write a code that performs a matrix-vector
 product, but does not need to store the matrix elements, let us start at
 looking how a finite element matrix <i>A</i> is assembled:
-@f{eqnarray*}
+@f{eqnarray*}{
 A = \sum_{\mathrm{cell}=1}^{\mathrm{n\_cells}}
 P_{\mathrm{cell,{loc-glob}}}^T A_{\mathrm{cell}} P_{\mathrm{cell,{loc-glob}}}.
 @f}
@@ -76,7 +76,7 @@ variable and is used in the assembly calls filling matrices in deal.II. Here,
 <i>A</i><sub>cell</sub> denotes the cell matrix associated with <i>A</i>.
 
 If we are to perform a matrix-vector product, we can hence use that
-@f{eqnarray*}
+@f{eqnarray*}{
 y &=& A\cdot u = \left(\sum_{\text{cell}=1}^{\mathrm{n\_cells}} P_\mathrm{cell,{loc-glob}}^T
 A_\mathrm{cell} P_\mathrm{cell,{loc-glob}}\right) \cdot u
 \\
@@ -162,7 +162,7 @@ is much cheaper.
 
 One way to improve this is to realize that conceptually the local
 matrix can be thought of as the product of three matrices,
-@f{eqnarray*}
+@f{eqnarray*}{
 A_\mathrm{cell} = B_\mathrm{cell}^T D_\mathrm{cell} B_\mathrm{cell},
 @f}
 where for the example of the Laplace operator the (<i>q</i>*dim+<i>d,i</i>)-th
@@ -175,7 +175,7 @@ dim copies of each of these values). This kind of representation of
 finite element matrices can often be found in the engineering literature.
 
 When the cell matrix is applied to a vector,
-@f{eqnarray*}
+@f{eqnarray*}{
 A_\mathrm{cell}\cdot u_\mathrm{cell} = B_\mathrm{cell}^T
 D_\mathrm{cell} B_\mathrm{cell} \cdot u_\mathrm{cell},
 @f}
@@ -240,14 +240,14 @@ problem. Each diagonal block is the Jacobian transformation that goes from the
 reference cell to the real cell.
 
 Putting things together, we find that
-@f{eqnarray*}
+@f{eqnarray*}{
 A_\mathrm{cell} = B_\mathrm{cell}^T D B_\mathrm{cell}
                 = B_\mathrm{ref\_cell}^T J_\mathrm{cell}^{-1}
                   D_\mathrm{cell}
                   J_\mathrm{cell}^{-\mathrm T} B_\mathrm{ref\_cell},
 @f}
 so we calculate the product (starting the local product from the right)
-@f{eqnarray*}
+@f{eqnarray*}{
 v_\mathrm{cell} = B_\mathrm{ref\_cell}^T J_\mathrm{cell}^{-1} D J_\mathrm{cell}^{-\mathrm T}
 B_\mathrm{ref\_cell} u_\mathrm{cell}, \quad
 v = \sum_{\mathrm{cell}=1}^{\mathrm{n\_cells}} P_\mathrm{cell,{loc-glob}}^T
@@ -529,25 +529,26 @@ parallel vector facilities.
 The deal.II parallel vector class, LinearAlgebra::distributed::Vector, holds
 the processor-local part of the solution as well as data fields for ghosted
 DoFs, i.e. DoFs that are owned by a remote processor but accessed by cells
-that are owned by the present processor. In the @ref GlossLocallyActiveDof
-"glossary" these degrees of freedom are referred to as locally active degrees
-of freedom. The function MatrixFree::initialize_dof_vector() provides a method
-that sets this design. Note that hanging nodes can relate to additional
-ghosted degrees of freedom that must be included in the distributed vector but
-are not part of the locally active DoFs in the sense of the @ref
-GlossLocallyActiveDof "glossary". Moreover, the distributed vector holds the
-MPI metadata for DoFs that are owned locally but needed by other
+that are owned by the present processor. In the
+@ref GlossLocallyActiveDof "glossary" these degrees of freedom are referred
+to as locally active degrees of freedom. The function
+MatrixFree::initialize_dof_vector() provides a method that sets this
+design. Note that hanging nodes can relate to additional ghosted degrees of
+freedom that must be included in the distributed vector but are not part of
+the locally active DoFs in the sense of the
+@ref GlossLocallyActiveDof "glossary". Moreover, the distributed vector
+holds the MPI metadata for DoFs that are owned locally but needed by other
 processors. A benefit of the design of this vector class is the way ghosted
 entries are accessed. In the storage scheme of the vector, the data array
 extends beyond the processor-local part of the solution with further vector
-entries available for the ghosted degrees of freedom. This gives a contiguous
-index range for all locally active degrees of freedom. (Note that the index
-range depends on the exact configuration of the mesh.) Since matrix-free
-operations can be thought of doing linear algebra that is performance
-critical, and performance-critical code cannot waste time on doing MPI-global
-to MPI-local index translations, the availability of an index spaces local to
-one MPI rank is fundamental. The way things are accessed here is a direct
-array access. This is provided through
+entries available for the ghosted degrees of freedom. This gives a
+contiguous index range for all locally active degrees of freedom. (Note
+that the index range depends on the exact configuration of the mesh.) Since
+matrix-free operations can be thought of doing linear algebra that is
+performance critical, and performance-critical code cannot waste time on
+doing MPI-global to MPI-local index translations, the availability of an
+index spaces local to one MPI rank is fundamental. The way things are
+accessed here is a direct array access. This is provided through
 LinearAlgebra::distributed::Vector::local_element(), but it is actually rarely
 needed because all of this happens internally in FEEvaluation.
 

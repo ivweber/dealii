@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,8 +26,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Discontinuous finite elements evaluated at the mapped quadrature points.
@@ -314,7 +316,7 @@ public:
    */
   virtual double
   shape_value_component(const unsigned int i,
-                        const Point<dim> & p,
+                        const Point<dim>  &p,
                         const unsigned int component) const override;
 
   /**
@@ -342,7 +344,7 @@ public:
    */
   virtual Tensor<1, dim>
   shape_grad_component(const unsigned int i,
-                       const Point<dim> & p,
+                       const Point<dim>  &p,
                        const unsigned int component) const override;
 
   /**
@@ -370,7 +372,7 @@ public:
    */
   virtual Tensor<2, dim>
   shape_grad_grad_component(const unsigned int i,
-                            const Point<dim> & p,
+                            const Point<dim>  &p,
                             const unsigned int component) const override;
 
   /**
@@ -393,7 +395,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                                FullMatrix<double> &                matrix,
+                                FullMatrix<double>                 &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -411,7 +413,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim, spacedim> &source,
     const unsigned int                  subface,
-    FullMatrix<double> &                matrix,
+    FullMatrix<double>                 &matrix,
     const unsigned int                  face_no = 0) const override;
 
   /**
@@ -514,7 +516,7 @@ protected:
   get_data(
     const UpdateFlags             update_flags,
     const Mapping<dim, spacedim> &mapping,
-    const Quadrature<dim> &       quadrature,
+    const Quadrature<dim>        &quadrature,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                        spacedim>
       &output_data) const override;
@@ -523,12 +525,11 @@ protected:
   fill_fe_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const CellSimilarity::Similarity                            cell_similarity,
-    const Quadrature<dim> &                                     quadrature,
-    const Mapping<dim, spacedim> &                              mapping,
+    const Quadrature<dim>                                      &quadrature,
+    const Mapping<dim, spacedim>                               &mapping,
     const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                       spacedim>
-      &                                                            mapping_data,
+    const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                  &mapping_data,
     const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                        spacedim>
@@ -540,12 +541,11 @@ protected:
   fill_fe_face_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const unsigned int                                          face_no,
-    const hp::QCollection<dim - 1> &                            quadrature,
-    const Mapping<dim, spacedim> &                              mapping,
+    const hp::QCollection<dim - 1>                             &quadrature,
+    const Mapping<dim, spacedim>                               &mapping,
     const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                       spacedim>
-      &                                                            mapping_data,
+    const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                  &mapping_data,
     const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                        spacedim>
@@ -556,12 +556,11 @@ protected:
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const unsigned int                                          face_no,
     const unsigned int                                          sub_no,
-    const Quadrature<dim - 1> &                                 quadrature,
-    const Mapping<dim, spacedim> &                              mapping,
+    const Quadrature<dim - 1>                                  &quadrature,
+    const Mapping<dim, spacedim>                               &mapping,
     const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                       spacedim>
-      &                                                            mapping_data,
+    const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                  &mapping_data,
     const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                        spacedim>
@@ -587,7 +586,7 @@ private:
   friend class FE_DGPNonparametric;
 };
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

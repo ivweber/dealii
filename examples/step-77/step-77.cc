@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2021 by the deal.II authors
+ * Copyright (C) 2021 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, Colorado State University, 2021.
  * Based on step-15 by Sven Wetterauer, University of Heidelberg, 2012.
@@ -99,14 +98,14 @@ namespace Step77
   private:
     void setup_system(const bool initial_step);
     void solve(const Vector<double> &rhs,
-               Vector<double> &      solution,
+               Vector<double>       &solution,
                const double          tolerance);
     void refine_mesh();
     void output_results(const unsigned int refinement_cycle);
     void set_boundary_values();
     void compute_and_factorize_jacobian(const Vector<double> &evaluation_point);
     void compute_residual(const Vector<double> &evaluation_point,
-                          Vector<double> &      residual);
+                          Vector<double>       &residual);
 
     Triangulation<dim> triangulation;
 
@@ -133,7 +132,7 @@ namespace Step77
   class BoundaryValues : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -328,11 +327,13 @@ namespace Step77
   template <int dim>
   void MinimalSurfaceProblem<dim>::compute_residual(
     const Vector<double> &evaluation_point,
-    Vector<double> &      residual)
+    Vector<double>       &residual)
   {
     TimerOutput::Scope t(computing_timer, "assembling the residual");
 
     std::cout << "  Computing residual vector..." << std::flush;
+
+    residual = 0.0;
 
     const QGauss<dim> quadrature_formula(fe.degree + 1);
     FEValues<dim>     fe_values(fe,
@@ -364,7 +365,7 @@ namespace Step77
                                     evaluation_point_gradients[q]);
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i)
-              cell_residual(i) =
+              cell_residual(i) +=
                 (fe_values.shape_grad(i, q)      // \nabla \phi_i
                  * coeff                         // * a_n
                  * evaluation_point_gradients[q] // * \nabla u_n
@@ -410,7 +411,7 @@ namespace Step77
   // only inexactly.
   template <int dim>
   void MinimalSurfaceProblem<dim>::solve(const Vector<double> &rhs,
-                                         Vector<double> &      solution,
+                                         Vector<double>       &solution,
                                          const double /*tolerance*/)
   {
     TimerOutput::Scope t(computing_timer, "linear system solve");
@@ -572,10 +573,8 @@ namespace Step77
           // the SUNDIALS::KINSOL class that are of type `std::function`, i.e.,
           // they are objects to which we can assign a pointer to a function or,
           // as we do here, a "lambda function" that takes the appropriate
-          // arguments and returns the appropriate information. By convention,
-          // KINSOL wants that functions doing something nontrivial return an
-          // integer where zero indicates success. It turns out that we can do
-          // all of this in just 25 lines of code.
+          // arguments and returns the appropriate information. It turns out
+          // that we can do all of this in just over 20 lines of code.
           //
           // (If you're not familiar what "lambda functions" are, take
           // a look at step-12 or at the
@@ -592,7 +591,7 @@ namespace Step77
           //
           // At the very end of the code block we then tell KINSOL to go to work
           // and solve our problem. The member functions called from the
-          // 'residual', 'setup_jacobian', and 'solve_jacobian_system' functions
+          // 'residual', 'setup_jacobian', and 'solve_with_jacobian' functions
           // will then print output to screen that allows us to follow along
           // with the progress of the program.
           nonlinear_solver.reinit_vector = [&](Vector<double> &x) {
@@ -601,26 +600,20 @@ namespace Step77
 
           nonlinear_solver.residual =
             [&](const Vector<double> &evaluation_point,
-                Vector<double> &      residual) {
+                Vector<double>       &residual) {
               compute_residual(evaluation_point, residual);
-
-              return 0;
             };
 
           nonlinear_solver.setup_jacobian =
             [&](const Vector<double> &current_u,
                 const Vector<double> & /*current_f*/) {
               compute_and_factorize_jacobian(current_u);
-
-              return 0;
             };
 
           nonlinear_solver.solve_with_jacobian = [&](const Vector<double> &rhs,
-                                                     Vector<double> &      dst,
+                                                     Vector<double>       &dst,
                                                      const double tolerance) {
-            this->solve(rhs, dst, tolerance);
-
-            return 0;
+            solve(rhs, dst, tolerance);
           };
 
           nonlinear_solver.solve(current_solution);

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2019 by the deal.II authors
+// Copyright (C) 2000 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -81,7 +81,7 @@ namespace Polynomials
   void
   PiecewisePolynomial<number>::value(const number       x,
                                      const unsigned int n_derivatives,
-                                     number *           values) const
+                                     number            *values) const
   {
     if (points.size() > 0)
       {

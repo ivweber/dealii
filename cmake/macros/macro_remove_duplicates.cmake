@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2014 by the deal.II authors
+## Copyright (C) 2014 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -18,17 +18,17 @@
 # order, keeping the rightmost element
 #
 # Usage:
-#     REMOVE_DUPLICATES(list [REVERSE])
+#     remove_duplicates(list [REVERSE])
 #
 
-MACRO(REMOVE_DUPLICATES _list)
-  IF(NOT "${${_list}}" STREQUAL "")
-    IF("${ARGN}" STREQUAL "REVERSE")
-      LIST(REVERSE ${_list})
-    ENDIF()
-    LIST(REMOVE_DUPLICATES ${_list})
-    IF("${ARGN}" STREQUAL "REVERSE")
-      LIST(REVERSE ${_list})
-    ENDIF()
-  ENDIF()
-ENDMACRO()
+macro(remove_duplicates _list)
+  if(NOT "${${_list}}" STREQUAL "")
+    if("${ARGN}" STREQUAL "REVERSE")
+      list(REVERSE ${_list})
+    endif()
+    list(REMOVE_DUPLICATES ${_list})
+    if("${ARGN}" STREQUAL "REVERSE")
+      list(REVERSE ${_list})
+    endif()
+  endif()
+endmacro()

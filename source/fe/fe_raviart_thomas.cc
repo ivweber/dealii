@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,16 +44,17 @@ DEAL_II_NAMESPACE_OPEN
 template <int dim>
 FE_RaviartThomas<dim>::FE_RaviartThomas(const unsigned int deg)
   : FE_PolyTensor<dim>(
-      PolynomialsRaviartThomas<dim>(deg),
+      PolynomialsRaviartThomas<dim>(deg + 1, deg),
       FiniteElementData<dim>(get_dpo_vector(deg),
                              dim,
                              deg + 1,
                              FiniteElementData<dim>::Hdiv),
-      std::vector<bool>(PolynomialsRaviartThomas<dim>::n_polynomials(deg),
+      std::vector<bool>(PolynomialsRaviartThomas<dim>::n_polynomials(deg + 1,
+                                                                     deg),
                         true),
-      std::vector<ComponentMask>(PolynomialsRaviartThomas<dim>::n_polynomials(
-                                   deg),
-                                 std::vector<bool>(dim, true)))
+      std::vector<ComponentMask>(
+        PolynomialsRaviartThomas<dim>::n_polynomials(deg + 1, deg),
+        ComponentMask(std::vector<bool>(dim, true))))
 {
   Assert(dim >= 2, ExcImpossibleInDim(dim));
   const unsigned int n_dofs = this->n_dofs_per_cell();
@@ -254,10 +255,10 @@ template <int dim>
 void
 FE_RaviartThomas<dim>::initialize_quad_dof_index_permutation_and_sign_change()
 {
-  // For 1D do nothing.
+  // For 1d do nothing.
   //
-  // TODO: For 2D we simply keep the legacy behavior for now. This should be
-  // changed in the future and can be taken care of by similar means as the 3D
+  // TODO: For 2d we simply keep the legacy behavior for now. This should be
+  // changed in the future and can be taken care of by similar means as the 3d
   // case below. The legacy behavior can be found in fe_poly_tensor.cc in the
   // function internal::FE_PolyTensor::get_dof_sign_change_h_div(...)
   if (dim < 3)
@@ -268,11 +269,13 @@ FE_RaviartThomas<dim>::initialize_quad_dof_index_permutation_and_sign_change()
   AssertDimension(this->n_unique_faces(), 1);
   const unsigned int face_no = 0;
 
-  Assert(this->adjust_quad_dof_index_for_face_orientation_table[0]
-             .n_elements() == 8 * this->n_dofs_per_quad(face_no),
-         ExcInternalError());
+  Assert(
+    this->adjust_quad_dof_index_for_face_orientation_table[0].n_elements() ==
+      this->reference_cell().n_face_orientations(face_no) *
+        this->n_dofs_per_quad(face_no),
+    ExcInternalError());
 
-  // The 3D RaviartThomas space has tensor_degree*tensor_degree face dofs
+  // The 3d RaviartThomas space has tensor_degree*tensor_degree face dofs
   const unsigned int n = this->tensor_degree();
   Assert(n * n == this->n_dofs_per_quad(face_no), ExcInternalError());
 
@@ -338,75 +341,85 @@ FE_RaviartThomas<dim>::initialize_quad_dof_index_permutation_and_sign_change()
       // We have 8 cases that are all treated the same way. Note that the
       // corresponding case to case_no is just its binary representation.
       // The above example of (false | true | true) would be case_no=3
-      for (unsigned int case_no = 0; case_no < 8; ++case_no)
-        {
-          // Get the binary representation of the case
-          const bool face_orientation = Utilities::get_bit(case_no, 2);
-          const bool face_flip        = Utilities::get_bit(case_no, 1);
-          const bool face_rotation    = Utilities::get_bit(case_no, 0);
+      for (const bool face_orientation : {false, true})
+        for (const bool face_flip : {false, true})
+          for (const bool face_rotation : {false, true})
+            {
+              const auto case_no =
+                internal::combined_face_orientation(face_orientation,
+                                                    face_rotation,
+                                                    face_flip);
 
-          if (((!face_orientation) && (!face_rotation)) ||
-              ((face_orientation) && (face_rotation)))
-            {
-              // We flip across the diagonal
-              // This is the local face dof offset
-              this->adjust_quad_dof_index_for_face_orientation_table[face_no](
-                local_face_dof, case_no) = j + i * n - local_face_dof;
-            }
-          else
-            {
-              // Offset is zero
-              this->adjust_quad_dof_index_for_face_orientation_table[face_no](
-                local_face_dof, case_no) = 0;
-            } // if face needs dof permutation
+              if (((!face_orientation) && (!face_rotation)) ||
+                  ((face_orientation) && (face_rotation)))
+                {
+                  // We flip across the diagonal
+                  // This is the local face dof offset
+                  this
+                    ->adjust_quad_dof_index_for_face_orientation_table[face_no](
+                      local_face_dof, case_no) = j + i * n - local_face_dof;
+                }
+              else
+                {
+                  // Offset is zero
+                  this
+                    ->adjust_quad_dof_index_for_face_orientation_table[face_no](
+                      local_face_dof, case_no) = 0;
+                } // if face needs dof permutation
 
-          // Get new local face_dof by adding offset
-          const unsigned int new_local_face_dof =
-            local_face_dof +
-            this->adjust_quad_dof_index_for_face_orientation_table[face_no](
-              local_face_dof, case_no);
-          // compute new row and column index
-          i = new_local_face_dof % n;
-          j = new_local_face_dof / n;
+              // Get new local face_dof by adding offset
+              const unsigned int new_local_face_dof =
+                local_face_dof +
+                this->adjust_quad_dof_index_for_face_orientation_table[face_no](
+                  local_face_dof, case_no);
+              // compute new row and column index
+              i = new_local_face_dof % n;
+              j = new_local_face_dof / n;
 
-          /*
-           * Now compute if a sign change is necessary. This is done for the
-           * case of face_orientation==true
-           */
-          // flip = false, rotation=true
-          if (!face_flip && face_rotation)
-            {
-              this->adjust_quad_dof_sign_for_face_orientation_table[face_no](
-                local_face_dof, case_no) = ((j % 2) == 1);
-            }
-          // flip = true, rotation=false
-          else if (face_flip && !face_rotation)
-            {
-              // This case is symmetric (although row and column may be
-              // switched)
-              this->adjust_quad_dof_sign_for_face_orientation_table[face_no](
-                local_face_dof, case_no) = ((j % 2) == 1) != ((i % 2) == 1);
-            }
-          // flip = true, rotation=true
-          else if (face_flip && face_rotation)
-            {
-              this->adjust_quad_dof_sign_for_face_orientation_table[face_no](
-                local_face_dof, case_no) = ((i % 2) == 1);
-            }
-          /*
-           * flip = false, rotation=false => nothing to do
-           */
+              /*
+               * Now compute if a sign change is necessary. This is done for the
+               * case of face_orientation==true
+               */
+              // flip = false, rotation=true
+              if (!face_flip && face_rotation)
+                {
+                  this
+                    ->adjust_quad_dof_sign_for_face_orientation_table[face_no](
+                      local_face_dof, case_no) = ((j % 2) == 1);
+                }
+              // flip = true, rotation=false
+              else if (face_flip && !face_rotation)
+                {
+                  // This case is symmetric (although row and column may be
+                  // switched)
+                  this
+                    ->adjust_quad_dof_sign_for_face_orientation_table[face_no](
+                      local_face_dof, case_no) =
+                    ((j % 2) == 1) != ((i % 2) == 1);
+                }
+              // flip = true, rotation=true
+              else if (face_flip && face_rotation)
+                {
+                  this
+                    ->adjust_quad_dof_sign_for_face_orientation_table[face_no](
+                      local_face_dof, case_no) = ((i % 2) == 1);
+                }
+              /*
+               * flip = false, rotation=false => nothing to do
+               */
 
-          /*
-           * If face_orientation==false the sign flip is exactly the opposite.
-           */
-          if (!face_orientation)
-            this->adjust_quad_dof_sign_for_face_orientation_table[face_no](
-              local_face_dof, case_no) =
-              !this->adjust_quad_dof_sign_for_face_orientation_table[face_no](
-                local_face_dof, case_no);
-        } // case_no
-    }     // local_face_dof
+              /*
+               * If face_orientation==false the sign flip is exactly the
+               * opposite.
+               */
+              if (!face_orientation)
+                this->adjust_quad_dof_sign_for_face_orientation_table[face_no](
+                  local_face_dof, case_no) =
+                  !this
+                     ->adjust_quad_dof_sign_for_face_orientation_table[face_no](
+                       local_face_dof, case_no);
+            } // case_no
+    }         // local_face_dof
 }
 
 
@@ -443,7 +456,7 @@ FE_RaviartThomas<dim>::initialize_restriction()
   const unsigned int n_face_points = q_base.size();
   // First, compute interpolation on
   // subfaces
-  for (unsigned int face : GeometryInfo<dim>::face_indices())
+  for (const unsigned int face : GeometryInfo<dim>::face_indices())
     {
       // The shape functions of the
       // child cell are evaluated
@@ -664,7 +677,7 @@ template <int dim>
 void
 FE_RaviartThomas<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->generalized_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),
@@ -678,7 +691,7 @@ FE_RaviartThomas<dim>::convert_generalized_support_point_values_to_dof_values(
   std::fill(nodal_values.begin(), nodal_values.end(), 0.);
 
   const unsigned int n_face_points = boundary_weights.size(0);
-  for (unsigned int face : GeometryInfo<dim>::face_indices())
+  for (const unsigned int face : GeometryInfo<dim>::face_indices())
     for (unsigned int k = 0; k < n_face_points; ++k)
       for (unsigned int i = 0; i < boundary_weights.size(1); ++i)
         {

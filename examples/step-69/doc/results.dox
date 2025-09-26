@@ -166,7 +166,7 @@ the features we care about.
 This can be fixed, but it would exceed what a *tutorial* is about.
 Nevertheless, it is worth showing what one can achieve by adding a
 second-order scheme. For example, here is a video computed with <a
-href=https://conservation-laws.43-1.org/>the following research code</a>
+href=https://conservation-laws.org/>the following research code</a>
 that shows (with a different color scheme) a 2d simulation that corresponds
 to the cases shown above:
 
@@ -199,7 +199,7 @@ One can also with relative ease further extend this to the 3d case:
 Solving this becomes expensive, however: The simulation was done with
 1,817 million degrees of freedom (continuous $Q_1$ finite elements)
 per component (for a total of 9.09 billion spatial degrees of freedom)
-and ran on 30,720 MPI ranks. The code achieved an average througput of
+and ran on 30,720 MPI ranks. The code achieved an average throughput of
 969M grid points per second (0.04M gridpoints per second per CPU). The
 front and back wall show a "Schlieren plot": the magnitude of the
 gradient of the density on an exponential scale from white (low) to

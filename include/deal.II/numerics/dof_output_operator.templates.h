@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2019 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,8 @@
 
 
 #include <deal.II/base/config.h>
+
+#include <deal.II/base/parameter_handler.h>
 
 #include <deal.II/numerics/dof_output_operator.h>
 
@@ -61,7 +63,7 @@ namespace Algorithms
     std::ostringstream streamOut;
     streamOut << filename_base << std::setw(digits) << std::setfill('0')
               << this->step << out.default_suffix();
-    std::ofstream out_filename(streamOut.str().c_str());
+    std::ofstream out_filename(streamOut.str());
     out.build_patches();
     out.write(out_filename);
     out.clear();

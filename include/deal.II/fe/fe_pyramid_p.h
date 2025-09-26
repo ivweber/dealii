@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,9 +27,10 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * Base class of FE_PyramidP and FE_PyramidDGP.
  *
- * @note Only implemented for 3D.
+ * @note Only implemented for 3d.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_PyramidPoly : public dealii::FE_Poly<dim, spacedim>
@@ -39,7 +40,7 @@ public:
    * Constructor.
    */
   FE_PyramidPoly(const unsigned int                                degree,
-                 const internal::GenericDoFsPerObject &            dpos,
+                 const internal::GenericDoFsPerObject             &dpos,
                  const typename FiniteElementData<dim>::Conformity conformity);
 
   /**
@@ -48,7 +49,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 };
 
 /**
@@ -59,7 +60,8 @@ public:
  * @note Currently, only linear polynomials (degree=1) are implemented. See
  * also the documentation of ScalarLagrangePolynomialPyramid.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_PyramidP : public FE_PyramidPoly<dim, spacedim>
@@ -121,7 +123,8 @@ public:
  * @note Currently, only linear polynomials (degree=1) are implemented. See
  * also the documentation of ScalarLagrangePolynomialPyramid.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_PyramidDGP : public FE_PyramidPoly<dim, spacedim>

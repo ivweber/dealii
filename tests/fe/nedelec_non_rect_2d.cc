@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,7 +43,6 @@
 
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q.h>
 #include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
@@ -81,17 +80,17 @@ namespace polytest
     {}
     void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<double>> &  values) const;
+                      std::vector<Vector<double>>   &values) const;
 
     void
     rhs_value_list(const std::vector<Point<dim>> &points,
-                   std::vector<Vector<double>> &  values) const;
+                   std::vector<Vector<double>>   &values) const;
   };
   template <int dim>
   void
   SimplePolynomial<dim>::vector_value_list(
     const std::vector<Point<dim>> &points,
-    std::vector<Vector<double>> &  values) const
+    std::vector<Vector<double>>   &values) const
   {
     Assert(dim == 2, ExcNotImplemented());
     Assert(values.size() == points.size(),
@@ -109,7 +108,7 @@ namespace polytest
   void
   SimplePolynomial<dim>::rhs_value_list(
     const std::vector<Point<dim>> &points,
-    std::vector<Vector<double>> &  values) const
+    std::vector<Vector<double>>   &values) const
   {
     Assert(dim == 2, ExcNotImplemented());
     Assert(values.size() == points.size(),

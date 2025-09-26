@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,6 +30,7 @@ DEAL_II_NAMESPACE_OPEN
 // forward declarations
 #ifndef DOXYGEN
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class Triangulation;
 template <typename Number>
 class Vector;
@@ -65,11 +66,11 @@ namespace GridRefinement
    * @param[in] max_n_cells The maximal number of cells. If current cell
    * number @p current_n_cells is already exceeded maximal cell number @p
    * max_n_cells, refinement fraction of cells will be set to zero and
-   * coarsening fraction of cells will be adjusted to reduce cell number to @
-   * max_n_cells. If cell number is going to be exceeded only upon refinement,
-   * then refinement and coarsening fractions are going to be adjusted with a
-   * same ratio in an attempt to reach the maximum number of cells. Be aware
-   * though that through proliferation of refinement due to
+   * coarsening fraction of cells will be adjusted to reduce cell number to
+   * @p max_n_cells. If cell number is going to be exceeded only upon
+   * refinement, then refinement and coarsening fractions are going to be
+   * adjusted with a same ratio in an attempt to reach the maximum number of
+   * cells. Be aware though that through proliferation of refinement due to
    * Triangulation::MeshSmoothing, this number is only an indicator. The
    * default value of this argument is to impose no limit on the number of
    * cells.
@@ -161,7 +162,7 @@ namespace GridRefinement
   void
   refine_and_coarsen_fixed_number(
     Triangulation<dim, spacedim> &triangulation,
-    const Vector<Number> &        criteria,
+    const Vector<Number>         &criteria,
     const double                  top_fraction_of_cells,
     const double                  bottom_fraction_of_cells,
     const unsigned int max_n_cells = std::numeric_limits<unsigned int>::max());
@@ -232,7 +233,7 @@ namespace GridRefinement
   void
   refine_and_coarsen_fixed_fraction(
     Triangulation<dim, spacedim> &tria,
-    const Vector<Number> &        criteria,
+    const Vector<Number>         &criteria,
     const double                  top_fraction,
     const double                  bottom_fraction,
     const unsigned int max_n_cells = std::numeric_limits<unsigned int>::max(),
@@ -314,7 +315,7 @@ namespace GridRefinement
   template <int dim, typename Number, int spacedim>
   void
   refine_and_coarsen_optimize(Triangulation<dim, spacedim> &tria,
-                              const Vector<Number> &        criteria,
+                              const Vector<Number>         &criteria,
                               const unsigned int            order = 2);
 
   /**
@@ -334,7 +335,7 @@ namespace GridRefinement
   template <int dim, typename Number, int spacedim>
   void
   refine(Triangulation<dim, spacedim> &tria,
-         const Vector<Number> &        criteria,
+         const Vector<Number>         &criteria,
          const double                  threshold,
          const unsigned int max_to_mark = numbers::invalid_unsigned_int);
 
@@ -355,7 +356,7 @@ namespace GridRefinement
   template <int dim, typename Number, int spacedim>
   void
   coarsen(Triangulation<dim, spacedim> &tria,
-          const Vector<Number> &        criteria,
+          const Vector<Number>         &criteria,
           const double                  threshold);
 
   /**

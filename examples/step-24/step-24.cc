@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2021 by the deal.II authors
+ * Copyright (C) 2006 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,9 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Xing Jin, Wolfgang Bangerth, Texas A&M University, 2006
+ * Authors: Xing Jin, Wolfgang Bangerth, Texas A&M University, 2006
  */
 
 
@@ -95,7 +94,7 @@ namespace Step24
     unsigned int timestep_number;
     const double theta;
 
-    //  Here's what's new: first, we need that boundary mass matrix $B$ that
+    //  Here's what's new: first, we need that boundary @ref GlossMassMatrix "mass matrix" $B$ that
     //  came out of the absorbing boundary condition. Likewise, since this
     //  time we consider a realistic medium, we must have a measure of the
     //  wave speed $c_0$ that will enter all the formulas with the Laplace
@@ -431,8 +430,7 @@ namespace Step24
     const std::string filename =
       "solution-" + Utilities::int_to_string(timestep_number, 3) + ".vtu";
     DataOutBase::VtkFlags vtk_flags;
-    vtk_flags.compression_level =
-      DataOutBase::VtkFlags::ZlibCompressionLevel::best_speed;
+    vtk_flags.compression_level = DataOutBase::CompressionLevel::best_speed;
     std::ofstream output(filename);
     data_out.write_vtu(output);
   }

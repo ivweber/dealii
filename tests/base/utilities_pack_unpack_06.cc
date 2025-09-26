@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,6 +21,9 @@
 
 #include <deal.II/base/point.h>
 #include <deal.II/base/utilities.h>
+
+// We need this header to define the exception when we compile with zlib
+#include <boost/iostreams/filter/gzip.hpp>
 
 #include "../tests.h"
 

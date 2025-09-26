@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -38,6 +38,7 @@
 #include <deal.II/grid/tria.h>
 
 #include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/vector.h>
@@ -65,9 +66,9 @@ public:
     : data(data_in){};
 
   void
-  local_apply(const MatrixFree<dim, Number> &              data,
-              VectorType &                                 dst,
-              const VectorType &                           src,
+  local_apply(const MatrixFree<dim, Number>               &data,
+              VectorType                                  &dst,
+              const VectorType                            &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     using vector_t = VectorizedArray<Number>;
@@ -160,9 +161,7 @@ test(const FESystem<dim> &fe)
 
   dof_handler.distribute_dofs(fe);
 
-  std::set<types::boundary_id> no_normal_flux_boundaries;
-  no_normal_flux_boundaries.insert(0);
-  no_normal_flux_boundaries.insert(1);
+  const std::set<types::boundary_id> no_normal_flux_boundaries = {0, 1};
   DoFTools::make_hanging_node_constraints(dof_handler, constraints);
   if (fe.dofs_per_vertex > 0)
     VectorTools::compute_no_normal_flux_constraints(

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2018 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,9 @@
 
 
 #include <deal.II/base/graph_coloring.h>
+
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/lac/sparsity_pattern.h>
 
 #include "../tests.h"
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,8 +44,8 @@
 
 template <int dim>
 void
-test_hessians(const dealii::FE_Poly<dim> &                   fe,
-              const dealii::Quadrature<dim> &                quad,
+test_hessians(const dealii::FE_Poly<dim>                    &fe,
+              const dealii::Quadrature<dim>                 &quad,
               const dealii::EvaluationFlags::EvaluationFlags evaluation_flags)
 {
   using namespace dealii;

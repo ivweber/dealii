@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2018 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,7 +13,7 @@
 //
 // ---------------------------------------------------------------------
 
-// Adoptation of base/utilities_pack_unpack_01.cc as a quick test.
+// Adaptation of base/utilities_pack_unpack_01.cc as a quick test.
 
 // test Utilities::pack/unpack on some types.
 

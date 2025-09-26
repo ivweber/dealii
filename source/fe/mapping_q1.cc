@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2021 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,15 +34,6 @@ MappingQ1<dim, spacedim>::clone() const
 {
   return std::make_unique<MappingQ1<dim, spacedim>>(*this);
 }
-
-//---------------------------------------------------------------------------
-
-
-template <int dim, int spacedim>
-MappingQ<dim, spacedim>
-  StaticMappingQ1<dim, spacedim>::mapping = MappingQ<dim, spacedim>(1);
-
-
 
 //--------------------------- Explicit instantiations -----------------------
 #include "mapping_q1.inst"

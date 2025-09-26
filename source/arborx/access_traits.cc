@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,22 +21,31 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace ArborXWrappers
 {
+  namespace
+  {
+    template <int dim, typename Number>
+    dealii::Point<3, float>
+    to_3d_float_point(dealii::Point<dim, Number> p)
+    {
+      static_assert(dim >= 1 && dim <= 3);
+      if (dim == 1)
+        return Point<3, float>(p[0], 0.f, 0.f);
+      else if (dim == 2)
+        return Point<3, float>(p[0], p[1], 0.f);
+      else
+        return Point<3, float>(p[0], p[1], p[2]);
+    }
+  } // namespace
+
   // ------------------- PointPredicate ------------------- //
   template <int dim, typename Number>
   PointPredicate::PointPredicate(
     const std::vector<dealii::Point<dim, Number>> &dim_points)
   {
-    static_assert(dim != 1, "dim equal to one is not supported.");
-
     const unsigned int size = dim_points.size();
     points.reserve(size);
     for (unsigned int i = 0; i < size; ++i)
-      {
-        points.emplace_back(static_cast<float>(dim_points[i][0]),
-                            static_cast<float>(dim_points[i][1]),
-                            dim == 2 ? 0.f :
-                                       static_cast<float>(dim_points[i][2]));
-      }
+      points.emplace_back(to_3d_float_point(dim_points[i]));
   }
 
 
@@ -146,12 +155,89 @@ namespace ArborXWrappers
   {
     return n_nearest_neighbors;
   }
+
+  // ------------------- SpherePredicate ------------------- //
+  template <int dim, typename Number>
+  SpherePredicate::SpherePredicate(
+    const std::vector<std::pair<dealii::Point<dim, Number>, Number>>
+      &dim_spheres)
+  {
+    const unsigned int size = dim_spheres.size();
+    spheres.reserve(size);
+    for (unsigned int i = 0; i < size; ++i)
+      {
+        // ArborX assumes that the center coordinates and the radius use float
+        // and the sphere is 3d
+        spheres.emplace_back(to_3d_float_point(dim_spheres[i].first),
+                             static_cast<float>(dim_spheres[i].second));
+      }
+  }
+
+
+
+  std::size_t
+  SpherePredicate::size() const
+  {
+    return spheres.size();
+  }
+
+
+
+  const std::pair<dealii::Point<3, float>, float> &
+  SpherePredicate::get(unsigned int i) const
+  {
+    return spheres[i];
+  }
+
+
+
+  template <int dim, typename Number>
+  SphereIntersectPredicate::SphereIntersectPredicate(
+    const std::vector<std::pair<dealii::Point<dim, Number>, Number>> &spheres)
+    : SpherePredicate(spheres)
+  {}
+
+
+
+  template <int dim, typename Number>
+  SphereNearestPredicate::SphereNearestPredicate(
+    const std::vector<std::pair<dealii::Point<dim, Number>, Number>> &spheres,
+    const unsigned int n_nearest_neighbors)
+    : SpherePredicate(spheres)
+    , n_nearest_neighbors(n_nearest_neighbors)
+  {}
+
+
+
+  unsigned int
+  SphereNearestPredicate::get_n_nearest_neighbors() const
+  {
+    return n_nearest_neighbors;
+  }
 } // namespace ArborXWrappers
 
 DEAL_II_NAMESPACE_CLOSE
 
 namespace ArborX
 {
+  namespace
+  {
+    template <int dim, typename Number>
+    Point
+    to_arborx_point(dealii::Point<dim, Number> p)
+    {
+      static_assert(dim >= 1 && dim <= 3);
+      if (dim == 1)
+        return {float(p[0]), 0.f, 0.f};
+      else if (dim == 2)
+        return {float(p[0]), float(p[1]), 0.f};
+      else
+        return {float(p[0]), float(p[1]), float(p[2])};
+    }
+  } // namespace
+
+
+
   // ------------------- Point Primitives AccessTraits ------------------- //
   template <int dim, typename Number>
   std::size_t
@@ -170,10 +256,8 @@ namespace ArborX
     std::size_t                                    i)
   {
     // ArborX assumes that the point coordinates use float and that the point
-    // is 3D
-    return {static_cast<float>(v[i][0]),
-            static_cast<float>(v[i][1]),
-            dim == 2 ? 0 : static_cast<float>(v[i][2])};
+    // is 3d
+    return to_arborx_point(v[i]);
   }
 
 
@@ -198,13 +282,34 @@ namespace ArborX
     const dealii::Point<dim, Number> min_corner = boundary_points.first;
     const dealii::Point<dim, Number> max_corner = boundary_points.second;
     // ArborX assumes that the bounding box coordinates use float and that the
-    // bounding box is 3D
-    return {{static_cast<float>(min_corner[0]),
-             static_cast<float>(min_corner[1]),
-             dim == 2 ? 0.f : static_cast<float>(min_corner[2])},
-            {static_cast<float>(max_corner[0]),
-             static_cast<float>(max_corner[1]),
-             dim == 2 ? 0.f : static_cast<float>(max_corner[2])}};
+    // bounding box is 3d
+    return {to_arborx_point(min_corner), to_arborx_point(max_corner)};
+  }
+
+
+
+  // ---------------------- Sphere Primitives AccessTraits ----------------- //
+  template <int dim, typename Number>
+  std::size_t
+  AccessTraits<std::vector<std::pair<dealii::Point<dim, Number>, Number>>,
+               PrimitivesTag>::
+    size(const std::vector<std::pair<dealii::Point<dim, Number>, Number>> &v)
+  {
+    return v.size();
+  }
+
+
+
+  template <int dim, typename Number>
+  Sphere
+  AccessTraits<std::vector<std::pair<dealii::Point<dim, Number>, Number>>,
+               PrimitivesTag>::
+    get(const std::vector<std::pair<dealii::Point<dim, Number>, Number>> &v,
+        std::size_t                                                       i)
+  {
+    // ArborX assumes that the center coordinates and the radius use float and
+    // the sphere is 3d
+    return {to_arborx_point(v[i].first), static_cast<float>(v[i].second)};
   }
 } // namespace ArborX
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2014 - 2020 by the deal.II authors
+## Copyright (C) 2014 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -27,6 +27,9 @@
 
 # Run indent-all and fail if script fails:
 ./contrib/utilities/indent-all || exit $?
+
+# Run lowercase_cmake and fail if script fails:
+./contrib/utilities/lowercase_cmake || exit $?
 
 # Show the diff in the output:
 git diff

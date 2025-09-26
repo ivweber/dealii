@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -106,15 +106,15 @@ test(const FiniteElement<dim, spacedim> &fe, const unsigned int n_components)
   // Sadly hdf5 is binary and we can not use hd5dump because it might
   // not be in the path. At least we can make sure that both the xdmf and
   // the h5 file are created.
-  std::ifstream h5((output_basename + ".h5").c_str());
+  std::ifstream h5(output_basename + ".h5");
   AssertThrow(h5.good(), ExcIO());
 
-  std::ifstream xdmf((output_basename + ".xdmf").c_str());
+  std::ifstream xdmf(output_basename + ".xdmf");
   AssertThrow(h5.good(), ExcIO());
 
   deallog << "Files " << output_basename + ".h5"
           << " and " << output_basename + ".xdmf"
-          << " created succesfully!" << std::endl;
+          << " created successfully!" << std::endl;
 }
 
 int

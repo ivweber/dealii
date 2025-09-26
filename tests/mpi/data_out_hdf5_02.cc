@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -54,10 +54,11 @@ check()
 
   std::string output_basename = std::to_string(dim) + std::to_string(spacedim);
 
-  DataOutBase::write_hdf5_parallel(patches,
-                                   data_filter,
-                                   output_basename + ".h5",
-                                   MPI_COMM_WORLD);
+  DataOutBase::Hdf5Flags hdf5Flags;
+  hdf5Flags.compression_level = DataOutBase::CompressionLevel::no_compression;
+
+  DataOutBase::write_hdf5_parallel(
+    patches, data_filter, hdf5Flags, output_basename + ".h5", MPI_COMM_WORLD);
 
   const double current_time = 0.0;
   XDMFEntry    entry(output_basename + ".h5",
@@ -76,7 +77,7 @@ check()
                           data_filter.get_data_set_dim(i));
     }
 
-  std::ofstream xdmf_file((output_basename + ".xdmf").c_str());
+  std::ofstream xdmf_file(output_basename + ".xdmf");
 
   xdmf_file << "<?xml version=\"1.0\" ?>\n";
   xdmf_file << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
@@ -104,7 +105,7 @@ check()
   if (0 == Utilities::MPI::this_mpi_process(MPI_COMM_WORLD))
     {
       cat_file((output_basename + ".xdmf").c_str());
-      std::ifstream f((output_basename + ".h5").c_str());
+      std::ifstream f(output_basename + ".h5");
       AssertThrow(f.good(), ExcIO());
     }
 
@@ -131,7 +132,7 @@ main(int argc, char *argv[])
 
       return 0;
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

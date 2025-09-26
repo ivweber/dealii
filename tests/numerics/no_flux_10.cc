@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2020 by the deal.II authors
+// Copyright (C) 2012 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -53,7 +53,7 @@
 
 void
 colorize_sixty_deg_hyper_shell(Triangulation<3> &tria,
-                               const Point<3> &  center,
+                               const Point<3>   &center,
                                const double      inner_radius,
                                const double      outer_radius)
 {
@@ -140,7 +140,7 @@ colorize_sixty_deg_hyper_shell(Triangulation<3> &tria,
 
 void
 sixty_deg_hyper_shell(Triangulation<3> &tria,
-                      const Point<3> &  center,
+                      const Point<3>   &center,
                       const double      inner_radius,
                       const double      outer_radius)
 {
@@ -229,9 +229,7 @@ run()
             << (int)triangulation.begin_active()->face(f)->boundary_id()
             << std::endl;
 
-  std::set<types::boundary_id> no_normal_flux_boundaries;
-  no_normal_flux_boundaries.insert(0);
-  no_normal_flux_boundaries.insert(2);
+  const std::set<types::boundary_id> no_normal_flux_boundaries = {0, 2};
   VectorTools::compute_no_normal_flux_constraints(dof_handler,
                                                   0,
                                                   no_normal_flux_boundaries,

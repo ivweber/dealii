@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -84,7 +84,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 
   /**
    * Return the matrix interpolating from a face of one element to the face
@@ -96,7 +96,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                                FullMatrix<double> &                matrix,
+                                FullMatrix<double>                 &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -111,7 +111,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim, spacedim> &source,
     const unsigned int                  subface,
-    FullMatrix<double> &                matrix,
+    FullMatrix<double>                 &matrix,
     const unsigned int                  face_no = 0) const override;
 
   /**
@@ -204,12 +204,12 @@ private:
 
 
 /**
- * Specialization of FE_FaceQ for 1D. In that case, the finite element only
+ * Specialization of FE_FaceQ for 1d. In that case, the finite element only
  * consists of one degree of freedom in each of the two faces (= vertices) of
  * a cell, irrespective of the degree. However, this element still accepts a
  * degree in its constructor and also returns that degree. This way,
  * dimension-independent programming with trace elements is also possible in
- * 1D (even though there is no computational benefit at all from it in 1D).
+ * 1d (even though there is no computational benefit at all from it in 1d).
  *
  * @ingroup fe
  */
@@ -247,7 +247,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<1, spacedim> &source,
-                                FullMatrix<double> &              matrix,
+                                FullMatrix<double>               &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -262,7 +262,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<1, spacedim> &source,
     const unsigned int                subface,
-    FullMatrix<double> &              matrix,
+    FullMatrix<double>               &matrix,
     const unsigned int                face_no = 0) const override;
 
   /**
@@ -385,7 +385,7 @@ protected:
   get_subface_data(
     const UpdateFlags           update_flags,
     const Mapping<1, spacedim> &mapping,
-    const Quadrature<0> &       quadrature,
+    const Quadrature<0>        &quadrature,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<1,
                                                                        spacedim>
       &output_data) const override
@@ -400,12 +400,11 @@ protected:
   fill_fe_values(
     const typename Triangulation<1, spacedim>::cell_iterator &cell,
     const CellSimilarity::Similarity                          cell_similarity,
-    const Quadrature<1> &                                     quadrature,
-    const Mapping<1, spacedim> &                              mapping,
-    const typename Mapping<1, spacedim>::InternalDataBase &   mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<1,
-                                                                       spacedim>
-      &                                                          mapping_data,
+    const Quadrature<1>                                      &quadrature,
+    const Mapping<1, spacedim>                               &mapping,
+    const typename Mapping<1, spacedim>::InternalDataBase    &mapping_internal,
+    const internal::FEValuesImplementation::MappingRelatedData<1, spacedim>
+                                                                &mapping_data,
     const typename FiniteElement<1, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<1,
                                                                        spacedim>
@@ -417,12 +416,11 @@ protected:
   fill_fe_face_values(
     const typename Triangulation<1, spacedim>::cell_iterator &cell,
     const unsigned int                                        face_no,
-    const hp::QCollection<0> &                                quadrature,
-    const Mapping<1, spacedim> &                              mapping,
-    const typename Mapping<1, spacedim>::InternalDataBase &   mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<1,
-                                                                       spacedim>
-      &                                                          mapping_data,
+    const hp::QCollection<0>                                 &quadrature,
+    const Mapping<1, spacedim>                               &mapping,
+    const typename Mapping<1, spacedim>::InternalDataBase    &mapping_internal,
+    const internal::FEValuesImplementation::MappingRelatedData<1, spacedim>
+                                                                &mapping_data,
     const typename FiniteElement<1, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<1,
                                                                        spacedim>
@@ -433,12 +431,11 @@ protected:
     const typename Triangulation<1, spacedim>::cell_iterator &cell,
     const unsigned int                                        face_no,
     const unsigned int                                        sub_no,
-    const Quadrature<0> &                                     quadrature,
-    const Mapping<1, spacedim> &                              mapping,
-    const typename Mapping<1, spacedim>::InternalDataBase &   mapping_internal,
-    const dealii::internal::FEValuesImplementation::MappingRelatedData<1,
-                                                                       spacedim>
-      &                                                          mapping_data,
+    const Quadrature<0>                                      &quadrature,
+    const Mapping<1, spacedim>                               &mapping,
+    const typename Mapping<1, spacedim>::InternalDataBase    &mapping_internal,
+    const internal::FEValuesImplementation::MappingRelatedData<1, spacedim>
+                                                                &mapping_data,
     const typename FiniteElement<1, spacedim>::InternalDataBase &fe_internal,
     dealii::internal::FEValuesImplementation::FiniteElementRelatedData<1,
                                                                        spacedim>
@@ -508,7 +505,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                                FullMatrix<double> &                matrix,
+                                FullMatrix<double>                 &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -523,7 +520,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim, spacedim> &source,
     const unsigned int                  subface,
-    FullMatrix<double> &                matrix,
+    FullMatrix<double>                 &matrix,
     const unsigned int                  face_no = 0) const override;
 
   /**
@@ -568,7 +565,7 @@ private:
 
 
 /**
- * FE_FaceP in 1D, i.e., with degrees of freedom on the element vertices.
+ * FE_FaceP in 1d, i.e., with degrees of freedom on the element vertices.
  * See the documentation of the general template for more information.
  */
 template <int spacedim>

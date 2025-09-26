@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,6 +15,7 @@
 
 // Output standard parameters for ParsedConvergenceTable class
 
+#include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/parsed_convergence_table.h>
 
 #include "../tests.h"

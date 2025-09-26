@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2018 by the deal.II authors
+// Copyright (C) 2008 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,7 +36,7 @@
 template <int dim, int spacedim>
 void
 write_vtk(const parallel::distributed::Triangulation<dim, spacedim> &tria,
-          const char *                                               filename)
+          const char                                                *filename)
 {
   AssertThrow(tria.are_vertices_communicated_to_p4est(),
               ExcMessage("To use this function the flag "
@@ -89,18 +89,22 @@ test(std::ostream & /*out*/)
   dh.distribute_dofs(fe);
   deallog << "dofs " << dh.n_dofs() << std::endl;
 
+  DataOutBase::VtkFlags vtk_flags;
+  vtk_flags.compression_level = DataOutBase::CompressionLevel::best_compression;
+
   DataOut<dim, spacedim> data_out;
   data_out.attach_triangulation(tr);
   Vector<float> subdomain(tr.n_active_cells());
   for (unsigned int i = 0; i < subdomain.size(); ++i)
     subdomain(i) = tr.locally_owned_subdomain();
   data_out.add_data_vector(subdomain, "subdomain");
+  data_out.set_flags(vtk_flags);
 
   std::string name = "f0.vtu";
   name[1] += tr.locally_owned_subdomain();
 
   {
-    std::ofstream file(name.c_str());
+    std::ofstream file(name);
     data_out.build_patches();
     data_out.write_vtu(file);
   }

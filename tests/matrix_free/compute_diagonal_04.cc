@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -74,10 +74,10 @@ test()
     constraint,
     [](FEEvaluation<dim, -1, 0, n_components, Number, VectorizedArrayType>
          &phi) {
-      phi.evaluate(false, true);
+      phi.evaluate(EvaluationFlags::gradients);
       for (unsigned int q = 0; q < phi.n_q_points; ++q)
         phi.submit_gradient(phi.get_gradient(q), q);
-      phi.integrate(false, true);
+      phi.integrate(EvaluationFlags::gradients);
     });
 
   test.do_test();

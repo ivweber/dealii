@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,7 @@
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>

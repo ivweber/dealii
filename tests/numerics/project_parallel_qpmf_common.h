@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -103,7 +103,7 @@ private:
 template <int fe_degree, int n_q_points_1d, int dim>
 void
 do_project(const parallel::distributed::Triangulation<dim> &triangulation,
-           const std::vector<const FiniteElement<dim> *> &  fes,
+           const std::vector<const FiniteElement<dim> *>   &fes,
            const unsigned int                               p,
            const unsigned int                               fe_index = 0)
 {
@@ -124,8 +124,8 @@ do_project(const parallel::distributed::Triangulation<dim> &triangulation,
       dof_handlers[i]->distribute_dofs(*fes[i]);
       deallog << "n_dofs=" << dof_handlers[i]->n_dofs() << std::endl;
 
-      DoFTools::extract_locally_relevant_dofs(*dof_handlers[i],
-                                              locally_relevant_dofs[i]);
+      locally_relevant_dofs[i] =
+        DoFTools::extract_locally_relevant_dofs(*dof_handlers[i]);
 
       constraints[i].reinit(locally_relevant_dofs[i]);
       DoFTools::make_hanging_node_constraints(*dof_handlers[i], constraints[i]);
@@ -145,7 +145,8 @@ do_project(const parallel::distributed::Triangulation<dim> &triangulation,
   additional_data.mapping_update_flags =
     update_values | update_JxW_values | update_quadrature_points;
   std::shared_ptr<MatrixFree<dim, double>> data(new MatrixFree<dim, double>());
-  data->reinit(dof_handlers_mf,
+  data->reinit(MappingQ1<dim>{},
+               dof_handlers_mf,
                constraints_mf,
                quadrature_formula_1d,
                additional_data);

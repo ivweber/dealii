@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -74,6 +74,8 @@ main(int argc, char *argv[])
           u[i] = 1;
         for (auto i : v.locally_owned_elements())
           v[i] = 1;
+        u.compress(VectorOperation::insert);
+        v.compress(VectorOperation::insert);
 
         op_a.vmult(v, u);
       }

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2021 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,15 +18,17 @@
 
 #include <deal.II/base/config.h>
 
-#include <deal.II/base/thread_management.h>
+#include <deal.II/base/mutex.h>
 
 #include <deal.II/fe/fe_poly.h>
 
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * This class collects the basic methods used in FE_Q, FE_Q_DG0 and
@@ -42,8 +44,8 @@ public:
    * Constructor.
    */
   FE_Q_Base(const ScalarPolynomialsBase<dim> &poly_space,
-            const FiniteElementData<dim> &    fe_data,
-            const std::vector<bool> &         restriction_is_additive_flags);
+            const FiniteElementData<dim>     &fe_data,
+            const std::vector<bool>          &restriction_is_additive_flags);
 
   /**
    * Return the matrix interpolating from the given finite element to the
@@ -70,7 +72,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                                FullMatrix<double> &                matrix,
+                                FullMatrix<double>                 &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -86,7 +88,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim, spacedim> &source,
     const unsigned int                  subface,
-    FullMatrix<double> &                matrix,
+    FullMatrix<double>                 &matrix,
     const unsigned int                  face_no = 0) const override;
 
   /**
@@ -260,7 +262,7 @@ public:
   hp_quad_dof_identities(const FiniteElement<dim, spacedim> &fe_other,
                          const unsigned int face_no = 0) const override;
 
-  //@}
+  /** @} */
 
   /**
    * Attempt to construct an FE_Q object of degree 0
@@ -284,7 +286,7 @@ protected:
   get_dpo_vector(const unsigned int degree);
 
   /**
-   * Perform the initialization of the element based on 1D support points,
+   * Perform the initialization of the element based on 1d support points,
    * i.e., sets renumbering, initializes unit support points, initializes
    * constraints as well as restriction and prolongation matrices.
    */
@@ -345,7 +347,7 @@ private:
 };
 
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

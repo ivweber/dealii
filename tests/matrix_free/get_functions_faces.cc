@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -65,7 +65,7 @@ private:
   local_apply_boundary_face(
     const MatrixFree<dim, number> &data,
     Vector<number> &,
-    const Vector<number> &                       src,
+    const Vector<number>                        &src,
     const std::pair<unsigned int, unsigned int> &face_range) const
   {
     FEFaceEvaluation<dim, fe_degree, fe_degree + 1, 1, number> fe_eval(data,
@@ -143,7 +143,7 @@ test()
     data.mapping_update_flags_boundary_faces =
       (update_gradients | update_JxW_values);
 
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
   MatrixFreeTest<dim, fe_degree, double> mf(mf_data);
   Vector<double>                         in(dof.n_dofs());

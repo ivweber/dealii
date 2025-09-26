@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2020 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -56,29 +56,34 @@ template <int dim, int spacedim>
 void
 check_all(std::ostream &log)
 {
-  for (unsigned int i = 0; i < 4; ++i)
+  for (unsigned int i = 0; i < 5; ++i)
     {
       DataOutBase::VtkFlags flags;
       switch (i)
         {
           case (0):
-            flags.compression_level = DataOutBase::VtkFlags::no_compression;
+            flags.compression_level =
+              DataOutBase::CompressionLevel::no_compression;
             break;
           case (1):
-            flags.compression_level = DataOutBase::VtkFlags::best_speed;
+            flags.compression_level = DataOutBase::CompressionLevel::best_speed;
             break;
           case (2):
-            flags.compression_level = DataOutBase::VtkFlags::best_compression;
+            flags.compression_level =
+              DataOutBase::CompressionLevel::best_compression;
             break;
           case (3):
             flags.compression_level =
-              DataOutBase::VtkFlags::default_compression;
+              DataOutBase::CompressionLevel::default_compression;
+            break;
+          case (4):
+            flags.compression_level = DataOutBase::CompressionLevel::plain_text;
             break;
           default:
             Assert(false, ExcInternalError());
         }
       log << "==============================\n"
-          << dim << spacedim << '-' << flags.compression_level << ".vtu"
+          << dim << spacedim << '-' << i << ".vtu"
           << "\n==============================\n";
       check<dim, spacedim>(flags, log);
     }

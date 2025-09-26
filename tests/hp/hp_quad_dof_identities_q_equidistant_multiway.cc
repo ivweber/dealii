@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2018 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,7 +17,7 @@
 
 // Check FE_Collection::hp_quad_dof_identities with multiway
 // identities for the FE_Q element. For this particular test, we use
-// equidistant support points for the the FE_Q element since that adds
+// equidistant support points for the FE_Q element since that adds
 // additional identities between FE_Q(4) and FE_Q(8).
 
 

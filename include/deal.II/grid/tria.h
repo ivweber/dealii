@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,11 +21,13 @@
 
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/base/iterator_range.h>
+#include <deal.II/base/partitioner.h>
 #include <deal.II/base/point.h>
 #include <deal.II/base/smartpointer.h>
 #include <deal.II/base/subscriptor.h>
 
 #include <deal.II/grid/cell_id.h>
+#include <deal.II/grid/cell_status.h>
 #include <deal.II/grid/tria_description.h>
 #include <deal.II/grid/tria_iterator_selector.h>
 #include <deal.II/grid/tria_levels.h>
@@ -177,6 +179,18 @@ namespace internal
       std::vector<unsigned int> n_active_lines_level;
 
       /**
+       * Partitioner for the global active cell indices.
+       */
+      std::shared_ptr<const Utilities::MPI::Partitioner>
+        active_cell_index_partitioner;
+
+      /**
+       * Partitioner for the global level cell indices for each level.
+       */
+      std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
+        level_cell_index_partitioners;
+
+      /**
        * Constructor. Set values to zero by default.
        */
       NumberCache();
@@ -315,6 +329,206 @@ namespace internal
       serialize(Archive &ar, const unsigned int version);
     };
   } // namespace TriangulationImplementation
+
+
+  /**
+   * A structure that binds information about data attached to cells.
+   */
+  template <int dim, int spacedim = dim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  struct CellAttachedData
+  {
+    using cell_iterator = TriaIterator<CellAccessor<dim, spacedim>>;
+
+    /**
+     * Number of functions that get attached to the Triangulation through
+     * register_data_attach() for example SolutionTransfer.
+     */
+    unsigned int n_attached_data_sets;
+
+    /**
+     * Number of functions that need to unpack their data after a call from
+     * load().
+     */
+    unsigned int n_attached_deserialize;
+
+    using pack_callback_t =
+      std::function<std::vector<char>(cell_iterator, CellStatus)>;
+
+    /**
+     * These callback functions will be stored in the order in which they
+     * have been registered with the register_data_attach() function.
+     */
+    std::vector<pack_callback_t> pack_callbacks_fixed;
+    std::vector<pack_callback_t> pack_callbacks_variable;
+  };
+
+  /**
+   * A structure that stores information about the data that has been, or
+   * will be, attached to cells via the register_data_attach() function
+   * and later retrieved via notify_ready_to_unpack().
+   *
+   * This internalclass is dedicated to the data serialization and transfer
+   * across repartitioned meshes and to/from the file system.
+   *
+   * It is designed to store all data buffers intended for serialization.
+   */
+  template <int dim, int spacedim = dim>
+  DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+  class CellAttachedDataSerializer
+  {
+  public:
+    using cell_iterator = TriaIterator<CellAccessor<dim, spacedim>>;
+
+    /**
+     * Auxiliary data structure for assigning a CellStatus to a deal.II cell
+     * iterator. For an extensive description of the former, see the
+     * documentation for the member function register_data_attach().
+     */
+    using cell_relation_t = typename std::pair<cell_iterator, CellStatus>;
+
+    CellAttachedDataSerializer();
+
+    /**
+     * Prepare data serialization by calling the pack callback functions on each
+     * cell in @p cell_relations.
+     *
+     * All registered callback functions in @p pack_callbacks_fixed will write
+     * into the fixed size buffer, whereas each entry of @p pack_callbacks_variable
+     * will write its data into the variable size buffer.
+     */
+    void
+    pack_data(
+      const std::vector<cell_relation_t> &cell_relations,
+      const std::vector<
+        typename internal::CellAttachedData<dim, spacedim>::pack_callback_t>
+        &pack_callbacks_fixed,
+      const std::vector<
+        typename internal::CellAttachedData<dim, spacedim>::pack_callback_t>
+                     &pack_callbacks_variable,
+      const MPI_Comm &mpi_communicator);
+
+    /**
+     * Unpack the CellStatus information on each entry of
+     * @p cell_relations.
+     *
+     * Data has to be previously transferred with execute_transfer()
+     * or deserialized from the file system via load().
+     */
+    void
+    unpack_cell_status(std::vector<cell_relation_t> &cell_relations) const;
+
+    /**
+     * Unpack previously serialized data on each cell registered in
+     * @p cell_relations with the provided @p unpack_callback function.
+     *
+     * The parameter @p handle corresponds to the position where the
+     * @p unpack_callback function is allowed to read from the memory. Its
+     * value needs to be in accordance with the corresponding pack_callback
+     * function that has been registered previously.
+     *
+     * Data has to be previously transferred with execute_transfer()
+     * or deserialized from the file system via load().
+     */
+    void
+    unpack_data(
+      const std::vector<cell_relation_t> &cell_relations,
+      const unsigned int                  handle,
+      const std::function<
+        void(const cell_iterator &,
+             const CellStatus &,
+             const boost::iterator_range<std::vector<char>::const_iterator> &)>
+        &unpack_callback) const;
+
+    /**
+     * Serialize data to file system.
+     *
+     * The data will be written in a separate file, whose name
+     * consists of the stem @p filename and an attached identifier
+     * <tt>_fixed.data</tt> for fixed size data and <tt>_variable.data</tt>
+     * for variable size data.
+     *
+     * If MPI support is enabled, all processors write into these files
+     * simultaneously via MPIIO. Each processor's position to write to will be
+     * determined from the provided input parameters.
+     *
+     * Data has to be previously packed with pack_data().
+     */
+    void
+    save(const unsigned int global_first_cell,
+         const unsigned int global_num_cells,
+         const std::string &filename,
+         const MPI_Comm    &mpi_communicator) const;
+
+    /**
+     * Deserialize data from file system.
+     *
+     * The data will be read from separate file, whose name
+     * consists of the stem @p filename and an attached identifier
+     * <tt>_fixed.data</tt> for fixed size data and <tt>_variable.data</tt>
+     * for variable size data.
+     * The @p n_attached_deserialize_fixed and @p n_attached_deserialize_variable
+     * parameters are required to gather the memory offsets for each
+     * callback.
+     *
+     * If MPI support is enabled, all processors read from these files
+     * simultaneously via MPIIO. Each processor's position to read from will be
+     * determined from the provided input arguments.
+     *
+     * After loading, unpack_data() needs to be called to finally
+     * distribute data across the associated triangulation.
+     */
+    void
+    load(const unsigned int global_first_cell,
+         const unsigned int global_num_cells,
+         const unsigned int local_num_cells,
+         const std::string &filename,
+         const unsigned int n_attached_deserialize_fixed,
+         const unsigned int n_attached_deserialize_variable,
+         const MPI_Comm    &mpi_communicator);
+
+    /**
+     * Clears all containers and associated data, and resets member
+     * values to their default state.
+     *
+     * Frees memory completely.
+     */
+    void
+    clear();
+
+    /**
+     * Flag that denotes if variable size data has been packed.
+     */
+    bool variable_size_data_stored;
+
+    /**
+     * Cumulative size in bytes that those functions that have called
+     * register_data_attach() want to attach to each cell. This number
+     * only pertains to fixed-sized buffers where the data attached to
+     * each cell has exactly the same size.
+     *
+     * The last entry of this container corresponds to the data size
+     * packed per cell in the fixed size buffer (which can be accessed
+     * calling <tt>sizes_fixed_cumulative.back()</tt>).
+     */
+    std::vector<unsigned int> sizes_fixed_cumulative;
+
+    /**
+     * Consecutive buffers designed for the fixed size serialization
+     * functions.
+     */
+    std::vector<char> src_data_fixed;
+    std::vector<char> dest_data_fixed;
+
+    /**
+     * Consecutive buffers designed for the variable size serialization
+     * functions.
+     */
+    std::vector<int>  src_sizes_variable;
+    std::vector<int>  dest_sizes_variable;
+    std::vector<char> src_data_variable;
+    std::vector<char> dest_data_variable;
+  };
 } // namespace internal
 
 
@@ -334,7 +548,7 @@ namespace internal
  * and handle the usual one-dimensional triangulation used in the finite
  * element method (so, segments on a straight line). On the other hand,
  * objects such as @p Triangulation<1,2> or @p Triangulation<2,3> (that are
- * associated with curves in 2D or surfaces in 3D) are the ones one wants to
+ * associated with curves in 2d or surfaces in 3d) are the ones one wants to
  * use in the boundary element method.
  *
  * The name of the class is mostly hierarchical and is not meant to imply that
@@ -396,7 +610,7 @@ namespace internal
  * By using the cell iterators, you can write code independent of the spatial
  * dimension. The same applies for substructure iterators, where a
  * substructure is defined as a face of a cell. The face of a cell is a vertex
- * in 1D and a line in 2D; however, vertices are handled in a different way
+ * in 1d and a line in 2d; however, vertices are handled in a different way
  * and therefore lines have no faces.
  *
  * The Triangulation class offers functions like begin_active() which gives
@@ -515,7 +729,7 @@ namespace internal
  *
  * Creating the hierarchical information needed for this library from cells
  * storing only vertex information can be quite a complex task.  For example
- * in 2D, we have to create lines between vertices (but only once, though
+ * in 2d, we have to create lines between vertices (but only once, though
  * there are two cells which link these two vertices) and we have to create
  * neighborhood information. Grids being read in should therefore not be too
  * large, reading refined grids would be inefficient (although there is
@@ -530,7 +744,7 @@ namespace internal
  * guarantee this, in the input vector keeping the cell list, the vertex
  * indices for each cell have to be in a defined order, see the documentation
  * of GeometryInfo<dim>. In one dimension, the first vertex index must refer
- * to that vertex with the lower coordinate value. In 2D and 3D, the
+ * to that vertex with the lower coordinate value. In 2d and 3d, the
  * corresponding conditions are not easy to verify and no full attempt to do
  * so is made. If you violate this condition, you may end up with matrix
  * entries having the wrong sign (clockwise vertex numbering, which results in
@@ -542,9 +756,9 @@ namespace internal
  * numbering within cells. They do not only hold for the data read from an UCD
  * or any other input file, but also for the data passed to
  * create_triangulation(). See the documentation for the GridIn class for more
- * details on this, and above all to the GridReordering class that explains
- * many of the problems and an algorithm to reorder cells such that they
- * satisfy the conditions outlined above.
+ * details on this, and above all to the GridTools::consistently_order_cells()
+ * function that explains many of the problems and an algorithm to reorder cells
+ * such that they satisfy the conditions outlined above.
  *
  * <li> Copying a triangulation: when computing on time dependent meshes or
  * when using adaptive refinement, you will often want to create a new
@@ -694,7 +908,7 @@ namespace internal
  * Boundary indicators may be in the range from zero to
  * numbers::internal_face_boundary_id-1. The value
  * numbers::internal_face_boundary_id is reserved to denote interior lines (in
- * 2D) and interior lines and quads (in 3D), which do not have a boundary
+ * 2d) and interior lines and quads (in 3d), which do not have a boundary
  * indicator. This way, a program can easily determine, whether such an object
  * is at the boundary or not. Material indicators may be in the range from
  * zero to numbers::invalid_material_id-1.
@@ -702,7 +916,7 @@ namespace internal
  * Lines in two dimensions and quads in three dimensions inherit their
  * boundary indicator to their children upon refinement. You should therefore
  * make sure that if you have different boundary parts, the different parts
- * are separated by a vertex (in 2D) or a line (in 3D) such that each boundary
+ * are separated by a vertex (in 2d) or a line (in 3d) such that each boundary
  * line or quad has a unique boundary indicator.
  *
  * By default (unless otherwise specified during creation of a triangulation),
@@ -768,15 +982,14 @@ namespace internal
  *
  * <h3>User flags and data</h3>
  *
- * A triangulation offers one bit per line, quad, etc for user flags. This
- * field can be accessed as all other data using iterators. Normally, this
- * user flag is used if an algorithm walks over all cells and needs
- * information whether another cell, e.g. a neighbor, has already been
- * processed. See
- * @ref GlossUserFlags "the glossary for more information".
+ * A triangulation offers one bit per subobject for user flags. This field can
+ * be accessed as all other data using iterators. Normally, this user flag is
+ * used if an algorithm walks over all cells and needs information whether
+ * another cell, e.g. a neighbor, has already been processed.
+ * See @ref GlossUserFlags "the glossary for more information".
  *
  * There is another set of user data, which can be either an <tt>unsigned
- * int</tt> or a <tt>void *</tt>, for each line, quad, etc. You can access
+ * int</tt> or a <tt>void *</tt>, for each subobject. You can access
  * these through the functions listed under <tt>User data</tt> in the accessor
  * classes. Again, see
  * @ref GlossUserData "the glossary for more information".
@@ -867,7 +1080,7 @@ namespace internal
  * must make sure that a new boundary vertex does not lie too much inside the
  * cell which is to be refined. The reason is that the center vertex is placed
  * at the point which is a weighted average of the vertices of the original
- * cell, new face midpoints, and (in 3D) new line midpoints. Therefore if your
+ * cell, new face midpoints, and (in 3d) new line midpoints. Therefore if your
  * new boundary vertex is too near the center of the old quadrilateral or
  * hexahedron, the distance to the midpoint vertex will become too small, thus
  * generating distorted cells. This issue is discussed extensively in
@@ -1116,8 +1329,11 @@ namespace internal
  * data stored in the triangulation.
  *
  * @ingroup grid aniso
+ *
+ * @dealiiConceptRequires{(concepts::is_valid_dim_spacedim<dim, spacedim>)}
  */
 template <int dim, int spacedim = dim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class Triangulation : public Subscriptor
 {
 private:
@@ -1197,7 +1413,7 @@ public:
      * unrefined cells are flagged for refinement. Cells which are not yet
      * refined but flagged for that are accounted for the number of refined
      * neighbors. Cells on the boundary are not accounted for at all. An
-     * unrefined island is, by this definition also a cell which (in 2D) is
+     * unrefined island is, by this definition also a cell which (in 2d) is
      * surrounded by three refined cells and one unrefined one, or one
      * surrounded by two refined cells, one unrefined one and is at the
      * boundary on one side. It is thus not a true island, as the name of the
@@ -1275,7 +1491,7 @@ public:
      * for refinement. This definition is unlike that for
      * #eliminate_unrefined_islands, which would mean that an island is
      * defined as a cell which is refined but more of its neighbors are not
-     * refined than are refined. For example, in 2D, a cell's refinement would
+     * refined than are refined. For example, in 2d, a cell's refinement would
      * be reverted if at most one of its neighbors is also refined (or refined
      * but flagged for coarsening).
      *
@@ -1616,9 +1832,24 @@ public:
   get_communicator() const;
 
   /**
+   * Return the partitioner for the global indices of the cells on the active
+   * level of the triangulation, which is returned by the function
+   * CellAccessor::global_active_cell_index().
+   */
+  virtual std::weak_ptr<const Utilities::MPI::Partitioner>
+  global_active_cell_index_partitioner() const;
+
+  /**
+   * Return the partitioner for the global indices of the cells on the given @p
+   * level of the triangulation, which is returned by the function
+   * CellAccessor::global_level_cell_index().
+   */
+  virtual std::weak_ptr<const Utilities::MPI::Partitioner>
+  global_level_cell_index_partitioner(const unsigned int level) const;
+
+  /**
    * Set the mesh smoothing to @p mesh_smoothing. This overrides the
-   * MeshSmoothing given to the constructor. It is allowed to call this
-   * function only if the triangulation is empty.
+   * MeshSmoothing given to the constructor.
    */
   virtual void
   set_mesh_smoothing(const MeshSmoothing mesh_smoothing);
@@ -1807,7 +2038,8 @@ public:
    * constraints; see the general class documentation for this.
    *
    * For conditions when this function can generate a valid triangulation, see
-   * the documentation of this class, and the GridIn and GridReordering class.
+   * the documentation of this class, and the GridIn and
+   * GridTools::consistently_order_cells() function.
    *
    * If the <code>check_for_distorted_cells</code> flag was specified upon
    * creation of this object, at the very end of its operation, the current
@@ -1841,8 +2073,8 @@ public:
    */
   virtual void
   create_triangulation(const std::vector<Point<spacedim>> &vertices,
-                       const std::vector<CellData<dim>> &  cells,
-                       const SubCellData &                 subcelldata);
+                       const std::vector<CellData<dim>>   &cells,
+                       const SubCellData                  &subcelldata);
 
   /**
    * Create a triangulation from the provided
@@ -1860,21 +2092,6 @@ public:
   create_triangulation(
     const TriangulationDescription::Description<dim, spacedim>
       &construction_data);
-
-  /**
-   * For backward compatibility, only. This function takes the cell data in
-   * the ordering as requested by deal.II versions up to 5.2, converts it to
-   * the new (lexicographic) ordering and calls create_triangulation().
-   *
-   * @note This function internally calls create_triangulation and therefore
-   * can throw the same exception as the other function.
-   */
-  DEAL_II_DEPRECATED
-  virtual void
-  create_triangulation_compatibility(
-    const std::vector<Point<spacedim>> &vertices,
-    const std::vector<CellData<dim>> &  cells,
-    const SubCellData &                 subcelldata);
 
   /**
    * Revert or flip the direction_flags of a dim<spacedim triangulation, see
@@ -2005,46 +2222,53 @@ public:
   virtual bool
   prepare_coarsening_and_refinement();
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
-   * @name Keeping up with what happens to a triangulation
-   * @{
+   * The elements of this `enum` are used to inform functions how a
+   * specific cell is going to change. This is used in the course of
+   * transferring data from one mesh to a refined or coarsened version of
+   * the mesh, for example. Note that this may me different than the
+   * refine_flag() and coarsen_flag() set on a cell, for example in
+   * parallel calculations, because of refinement constraints that an
+   * individual machine does not see.
+   *
+   * @deprecated This is an alias for backward compatibility. Use
+   * ::dealii::CellStatus directly.
    */
+  using CellStatus DEAL_II_DEPRECATED_EARLY = ::dealii::CellStatus;
+
+  /**
+   * @deprecated This is an alias for backward compatibility. Use
+   * ::dealii::CellStatus directly.
+   */
+  static constexpr auto CELL_PERSIST DEAL_II_DEPRECATED_EARLY =
+    ::dealii::CellStatus::cell_will_persist;
+
+  /**
+   * @deprecated This is an alias for backward compatibility. Use
+   * ::dealii::CellStatus directly.
+   */
+  static constexpr auto CELL_REFINE DEAL_II_DEPRECATED_EARLY =
+    ::dealii::CellStatus::cell_will_be_refined;
+
+  /**
+   * @deprecated This is an alias for backward compatibility. Use
+   * ::dealii::CellStatus directly.
+   */
+  static constexpr auto CELL_COARSEN DEAL_II_DEPRECATED_EARLY =
+    ::dealii::CellStatus::children_will_be_coarsened;
+
+  /**
+   * @deprecated This is an alias for backward compatibility. Use
+   * ::dealii::CellStatus directly.
+   */
+  static constexpr auto CELL_INVALID DEAL_II_DEPRECATED_EARLY =
+    ::dealii::CellStatus::cell_invalid;
 
 
   /**
-   * Used to inform functions in derived classes how the cell with the given
-   * cell_iterator is going to change. Note that this may me different than
-   * the refine_flag() and coarsen_flag() in the cell_iterator in parallel
-   * calculations because of refinement constraints that this machine does not
-   * see.
-   */
-  enum CellStatus
-  {
-    /**
-     * The cell will not be refined or coarsened and might or might not move
-     * to a different processor.
-     */
-    CELL_PERSIST,
-    /**
-     * The cell will be or was refined.
-     */
-    CELL_REFINE,
-    /**
-     * The children of this cell will be or were coarsened into this cell.
-     */
-    CELL_COARSEN,
-    /**
-     * Invalid status. Will not occur for the user.
-     */
-    CELL_INVALID
-  };
-
-  /**
-   * A structure used to accumulate the results of the cell_weights slot
+   * A structure used to accumulate the results of the `weight` signal slot
    * functions below. It takes an iterator range and returns the sum of
    * values.
    */
@@ -2173,9 +2397,7 @@ public:
 
     /**
      * This signal is triggered for each cell during every automatic or manual
-     * repartitioning. This signal is somewhat special in that it is only
-     * triggered for distributed parallel calculations and only if functions
-     * are connected to it. It is intended to allow a weighted repartitioning
+     * repartitioning. It is intended to allow a weighted repartitioning
      * of the domain to balance the computational load across processes in a
      * different way than balancing the number of cells. Any connected
      * function is expected to take an iterator to a cell, and a CellStatus
@@ -2183,23 +2405,36 @@ public:
      * coarsened or left untouched (see the documentation of the CellStatus
      * enum for more information). The function is expected to return an
      * unsigned integer, which is interpreted as the additional computational
-     * load of this cell. If this cell is going to be coarsened, the signal is
-     * called for the parent cell and you need to provide the weight of the
-     * future parent cell. If this cell is going to be refined the function
-     * should return a weight, which will be equally assigned to every future
-     * child cell of the current cell. As a reference a value of 1000 is added
-     * for every cell to the total weight. This means a signal return value of
-     * 1000 (resulting in a weight of 2000) means that it is twice as
-     * expensive for a process to handle this particular cell. If several
-     * functions are connected to this signal, their return values will be
-     * summed to calculate the final weight.
+     * load of this cell.
      *
-     * This function is used in step-68.
+     * In serial and parallel shared applications, partitioning happens after
+     * refinement. So all cells will have the `CellStatus::cell_will_persist`
+     * status.
+     *
+     * In parallel distributed applications, partitioning happens during
+     * refinement. If this cell is going to be coarsened, the signal is called
+     * for the parent cell and you need to provide the weight of the future
+     * parent cell. If this cell is going to be refined, the function is called
+     * on all children while `cell_iterator` refers to their parent cell. In
+     * this case, you need to pick a weight for each individual child based on
+     * information given by the parent cell.
+     *
+     * If several functions are connected to this signal, their return values
+     * will be summed to calculate the final weight of a cell. This allows
+     * different parts of a larger code base to have their own functions
+     * computing the weight of a cell; for example in a code that does both
+     * finite element and particle computations on each cell, the code could
+     * separate the computation of a cell's weight into two functions, each
+     * implemented in their respective files, that provide the finite
+     * element-based and the particle-based weights.
+     *
+     * This function is used in step-68 and implicitly in step-75 using the
+     * parallel::CellWeights class.
      */
     boost::signals2::signal<unsigned int(const cell_iterator &,
-                                         const CellStatus),
+                                         const ::dealii::CellStatus),
                             CellWeightSum<unsigned int>>
-      cell_weight;
+      weight;
 
     /**
      * This signal is triggered at the beginning of execution of the
@@ -2279,13 +2514,16 @@ public:
   };
 
   /**
+   * @name Keeping up with what happens to a triangulation
+   * @{
+   */
+
+  /**
    * Signals for the various actions that a triangulation can do to itself.
    */
   mutable Signals signals;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * @name History of a triangulation
@@ -2348,9 +2586,7 @@ public:
   bool
   get_anisotropic_refinement_flag() const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * @name User data
@@ -2630,9 +2866,7 @@ public:
   void
   load_user_pointers_hex(const std::vector<void *> &v);
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * @name Cell iterator functions
@@ -2759,19 +2993,29 @@ public:
    * Return an iterator to a cell of this Triangulation object constructed from
    * an independent CellId object.
    *
-   * If the given argument corresponds to a valid cell in this triangulation,
-   * this operation will always succeed for sequential triangulations where the
-   * current processor stores all cells that are part of the triangulation. On
-   * the other hand, if this is a parallel triangulation, then the current
-   * processor may not actually know about this cell. In this case, this
-   * operation will succeed for locally relevant cells, but may not for
-   * artificial cells that are less refined on the current processor.
+   * @note See the documentation of contains_cell() about which CellId objects
+   * are valid.
    */
   cell_iterator
   create_cell_iterator(const CellId &cell_id) const;
 
   /**
+   * Check if the triangulation contains a cell with the id @p cell_id.
+   * If the given argument corresponds to a valid cell in this triangulation,
+   * this operation will always return true for sequential triangulations where
+   * the current processor stores all cells that are part of the triangulation.
+   * On the other hand, if this is a parallel triangulation, then the current
+   * processor may not actually know about this cell. In this case, this
+   * operation will return true for locally relevant cells, but may return false
+   * for artificial cells that are less refined on the current processor.
+   */
+  bool
+  contains_cell(const CellId &cell_id) const;
+  /** @} */
+
+  /**
    * @name Cell iterator functions returning ranges of iterators
+   * @{
    */
 
   /**
@@ -2861,9 +3105,7 @@ public:
   IteratorRange<active_cell_iterator>
   active_cell_iterators_on_level(const unsigned int level) const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /*-------------------------------------------------------------------------*/
 
@@ -2912,9 +3154,7 @@ public:
   IteratorRange<active_face_iterator>
   active_face_iterators() const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /*-------------------------------------------------------------------------*/
 
@@ -2946,9 +3186,7 @@ public:
   vertex_iterator
   end_vertex() const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * @name Information about the triangulation
@@ -2959,8 +3197,8 @@ public:
    * In the following, most functions are provided in two versions, with and
    * without an argument describing the level. The versions with this argument
    * are only applicable for objects describing the cells of the present
-   * triangulation. For example: in 2D <tt>n_lines(level)</tt> cannot be
-   * called, only <tt>n_lines()</tt>, as lines are faces in 2D and therefore
+   * triangulation. For example: in 2d <tt>n_lines(level)</tt> cannot be
+   * called, only <tt>n_lines()</tt>, as lines are faces in 2d and therefore
    * have no level.
    */
 
@@ -3085,16 +3323,16 @@ public:
   n_global_coarse_cells() const;
 
   /**
-   * Return the total number of used faces, active or not.  In 2D, the result
-   * equals n_lines(), in 3D it equals n_quads(), while in 1D it equals
+   * Return the total number of used faces, active or not.  In 2d, the result
+   * equals n_lines(), in 3d it equals n_quads(), while in 1d it equals
    * the number of used vertices.
    */
   unsigned int
   n_faces() const;
 
   /**
-   * Return the total number of active faces.  In 2D, the result equals
-   * n_active_lines(), in 3D it equals n_active_quads(), while in 1D it equals
+   * Return the total number of active faces.  In 2d, the result equals
+   * n_active_lines(), in 3d it equals n_active_quads(), while in 1d it equals
    * the number of used vertices.
    */
   unsigned int
@@ -3225,9 +3463,7 @@ public:
   get_triangulation() const;
 
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * @name Internal information about the number of objects
@@ -3308,7 +3544,7 @@ public:
 
   /**
    * Return the total number of faces, used or not. In 2d, the result equals
-   * n_raw_lines(), in 3d it equals n_raw_quads(), while in 1D it equals
+   * n_raw_lines(), in 3d it equals n_raw_quads(), while in 1d it equals
    * the number of vertices.
    *
    * @note This function really exports internal information about the
@@ -3320,9 +3556,7 @@ public:
   unsigned int
   n_raw_faces() const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * Determine an estimate for the memory consumption (in bytes) of this
@@ -3368,6 +3602,22 @@ public:
   template <class Archive>
   void
   load(Archive &ar, const unsigned int version);
+
+
+  /**
+   * Save the triangulation into the given file. Internally, this
+   * function calls the save funtion which uses BOOST archives. This
+   * is a placeholder implementation that, in the near future, will also
+   * attach the data associated with the triangulation
+   */
+  virtual void
+  save(const std::string &filename) const;
+
+  /**
+   * Load the triangulation saved with save() back in.
+   */
+  virtual void
+  load(const std::string &filename);
 
 
   /**
@@ -3441,6 +3691,241 @@ public:
   BOOST_SERIALIZATION_SPLIT_MEMBER()
 #endif
 
+  /**
+   * @name Serialization facilities.
+   * @{
+   */
+public:
+  /**
+   * Register a function that can be used to attach data of fixed size
+   * to cells. This is useful for two purposes: (i) Upon refinement and
+   * coarsening of a triangulation (@a e.g. in
+   * parallel::distributed::Triangulation::execute_coarsening_and_refinement()),
+   * one needs to be able to store one or more data vectors per cell that
+   * characterizes the solution values on the cell so that this data can
+   * then be transferred to the new owning processor of the cell (or
+   * its parent/children) when the mesh is re-partitioned; (ii) when
+   * serializing a computation to a file, it is necessary to attach
+   * data to cells so that it can be saved (@a e.g. in
+   * parallel::distributed::Triangulation::save()) along with the cell's
+   * other information and, if necessary, later be reloaded from disk
+   * with a different subdivision of cells among the processors.
+   *
+   * The way this function works is that it allows any number of interest
+   * parties to register their intent to attach data to cells. One example
+   * of classes that do this is parallel::distributed::SolutionTransfer
+   * where each parallel::distributed::SolutionTransfer object that works
+   * on the current Triangulation object then needs to register its intent.
+   * Each of these parties registers a callback function (the first
+   * argument here, @p pack_callback) that will be called whenever the
+   * triangulation's execute_coarsening_and_refinement() or save()
+   * functions are called.
+   *
+   * The current function then returns an integer handle that corresponds
+   * to the number of data set that the callback provided here will attach.
+   * While this number could be given a precise meaning, this is
+   * not important: You will never actually have to do anything with
+   * this number except return it to the notify_ready_to_unpack() function.
+   * In other words, each interested party (i.e., the caller of the current
+   * function) needs to store their respective returned handle for later use
+   * when unpacking data in the callback provided to
+   * notify_ready_to_unpack().
+   *
+   * Whenever @p pack_callback is then called by
+   * execute_coarsening_and_refinement() or load() on a given cell, it
+   * receives a number of arguments. In particular, the first
+   * argument passed to the callback indicates the cell for which
+   * it is supposed to attach data. This is always an active cell.
+   *
+   * The second, CellStatus, argument provided to the callback function
+   * will tell you if the given cell will be coarsened, refined, or will
+   * persist as is. (This status may be different than the refinement
+   * or coarsening flags set on that cell, to accommodate things such as
+   * the "one hanging node per edge" rule.). These flags need to be
+   * read in context with the p4est quadrant they belong to, as their
+   * relations are gathered in local_cell_relations.
+   *
+   * Specifically, the values for this argument mean the following:
+   *
+   * - `CellStatus::cell_will_persist`: The cell won't be refined/coarsened, but
+   * might be moved to a different processor. If this is the case, the callback
+   * will want to pack up the data on this cell into an array and store
+   * it at the provided address for later unpacking wherever this cell
+   * may land.
+   * - `CellStatus::cell_will_be_refined`: This cell will be refined into 4 or 8
+   * cells (in 2d and 3d, respectively). However, because these children don't
+   * exist yet, you cannot access them at the time when the callback is called.
+   * Thus, in local_cell_relations, the corresponding p4est quadrants of the
+   * children cells are linked to the deal.II cell which is going to be refined.
+   * To be specific, only the very first child is marked with
+   * `CellStatus::cell_will_be_refined`, whereas the others will be marked with
+   * `CellStatus::cell_invalid`, which indicates that these cells will be
+   * ignored by default during the packing or unpacking process. This
+   * ensures that data is only transferred once onto or from the parent
+   * cell. If the callback is called with `CellStatus::cell_will_be_refined`,
+   * the callback will want to pack up the data on this cell into an array and
+   * store it at the provided address for later unpacking in a way so that it
+   * can then be transferred to the children of the cell that will then be
+   * available. In other words, if the data the callback will want to pack up
+   * corresponds to a finite element field, then the prolongation from parent to
+   * (new) children will have to happen during unpacking.
+   * - `CellStatus::children_will_be_coarsened`: The children of this cell will
+   * be coarsened into the given cell. These children still exist, so if this is
+   * the value given to the callback as second argument, the callback will want
+   * to transfer data from the children to the current parent cell and
+   * pack it up so that it can later be unpacked again on a cell that
+   * then no longer has any children (and may also be located on a
+   * different processor). In other words, if the data the callback
+   * will want to pack up corresponds to a finite element field, then
+   * it will need to do the restriction from children to parent at
+   * this point.
+   * - `CellStatus::cell_invalid`: See `CellStatus::cell_will_be_refined`.
+   *
+   * @note If this function is used for serialization of data
+   *   using save() and load(), then the cell status argument with which
+   *   the callback is called will always be `CellStatus::cell_will_persist`.
+   *
+   * The callback function is expected to return a memory chunk of the
+   * format `std::vector<char>`, representing the packed data on a
+   * certain cell.
+   *
+   * The second parameter @p returns_variable_size_data indicates whether
+   * the returned size of the memory region from the callback function
+   * varies by cell (<tt>=true</tt>) or stays constant on each one
+   * throughout the whole domain (<tt>=false</tt>).
+   *
+   * @note The purpose of this function is to register intent to
+   *   attach data for a single, subsequent call to
+   *   execute_coarsening_and_refinement() and notify_ready_to_unpack(),
+   *   save(), load(). Consequently, notify_ready_to_unpack(), save(),
+   *   and load() all forget the registered callbacks once these
+   *   callbacks have been called, and you will have to re-register
+   *   them with a triangulation if you want them to be active for
+   *   another call to these functions.
+   */
+  unsigned int
+  register_data_attach(
+    const std::function<std::vector<char>(const cell_iterator &,
+                                          const ::dealii::CellStatus)>
+              &pack_callback,
+    const bool returns_variable_size_data);
+
+  /**
+   * This function is the opposite of register_data_attach(). It is called
+   * <i>after</i> the execute_coarsening_and_refinement() or save()/load()
+   * functions are done when classes and functions that have previously
+   * attached data to a triangulation for either transfer to other
+   * processors, across mesh refinement, or serialization of data to
+   * a file are ready to receive that data back. The important part about
+   * this process is that the triangulation cannot do this right away from
+   * the end of execute_coarsening_and_refinement() or load() via a
+   * previously attached callback function (as the register_data_attach()
+   * function does) because the classes that eventually want the data
+   * back may need to do some setup between the point in time where the
+   * mesh has been recreated and when the data can actually be received.
+   * An example is the parallel::distributed::SolutionTransfer class
+   * that can really only receive the data once not only the mesh is
+   * completely available again on the current processor, but only
+   * after a DoFHandler has been reinitialized and distributed
+   * degrees of freedom. In other words, there is typically a significant
+   * amount of set up that needs to happen in user space before the classes
+   * that can receive data attached to cell are ready to actually do so.
+   * When they are, they use the current function to tell the triangulation
+   * object that now is the time when they are ready by calling the
+   * current function.
+   *
+   * The supplied callback function is then called for each newly locally
+   * owned cell. The first argument to the callback is an iterator that
+   * designates the cell; the second argument indicates the status of the
+   * cell in question; and the third argument localizes a memory area by
+   * two iterators that contains the data that was previously saved from
+   * the callback provided to register_data_attach().
+   *
+   * The CellStatus will indicate if the cell was refined, coarsened, or
+   * persisted unchanged. The @p cell_iterator argument to the callback
+   * will then either be an active,
+   * locally owned cell (if the cell was not refined), or the immediate
+   * parent if it was refined during execute_coarsening_and_refinement().
+   * Therefore, contrary to during register_data_attach(), you can now
+   * access the children if the status is `CellStatus::cell_will_be_refined` but
+   * no longer for callbacks with status
+   * `CellStatus::children_will_be_coarsened`.
+   *
+   * The first argument to this function, `handle`, corresponds to
+   * the return value of register_data_attach(). (The precise
+   * meaning of what the numeric value of this handle is supposed
+   * to represent is neither important, nor should you try to use
+   * it for anything other than transmit information between a
+   * call to register_data_attach() to the corresponding call to
+   * notify_ready_to_unpack().)
+   */
+  void
+  notify_ready_to_unpack(
+    const unsigned int handle,
+    const std::function<
+      void(const cell_iterator &,
+           const ::dealii::CellStatus,
+           const boost::iterator_range<std::vector<char>::const_iterator> &)>
+      &unpack_callback);
+
+  internal::CellAttachedData<dim, spacedim> cell_attached_data;
+
+protected:
+  /**
+   * Save additional cell-attached data into the given file. The first
+   * arguments are used to determine the offsets where to write buffers to.
+   *
+   * Called by @ref save.
+   */
+  void
+  save_attached_data(const unsigned int global_first_cell,
+                     const unsigned int global_num_cells,
+                     const std::string &filename) const;
+
+  /**
+   * Load additional cell-attached data from the given file, if any was saved.
+   * The first arguments are used to determine the offsets where to read
+   * buffers from.
+   *
+   * Called by @ref load.
+   */
+  void
+  load_attached_data(const unsigned int global_first_cell,
+                     const unsigned int global_num_cells,
+                     const unsigned int local_num_cells,
+                     const std::string &filename,
+                     const unsigned int n_attached_deserialize_fixed,
+                     const unsigned int n_attached_deserialize_variable);
+
+  /**
+   * A function to record the CellStatus of currently active cells that
+   * are locally owned. This information is mandatory to transfer data
+   * between meshes during adaptation or serialization, e.g., using
+   * parallel::distributed::SolutionTransfer.
+   *
+   * Relations will be stored in the private member local_cell_relations. For
+   * an extensive description of CellStatus, see the documentation for the
+   * member function register_data_attach().
+   */
+  virtual void
+  update_cell_relations()
+  {}
+
+  /**
+   * Vector of pairs, each containing a deal.II cell iterator and its
+   * respective CellStatus. To update its contents, use the
+   * update_cell_relations() member function.
+   */
+  std::vector<typename internal::CellAttachedDataSerializer<dim, spacedim>::
+                cell_relation_t>
+    local_cell_relations;
+
+  internal::CellAttachedDataSerializer<dim, spacedim> data_serializer;
+  /**
+   * @}
+   */
+
+public:
   /**
    * @name Exceptions
    * @{
@@ -3524,9 +4009,7 @@ public:
     "coarsen flags on your triangulation via "
     "Triangulation::prepare_coarsening_and_refinement() beforehand!");
 
-  /*
-   * @}
-   */
+  /** @} */
 
 protected:
   /**
@@ -3558,7 +4041,7 @@ protected:
   write_bool_vector(const unsigned int       magic_number1,
                     const std::vector<bool> &v,
                     const unsigned int       magic_number2,
-                    std::ostream &           out);
+                    std::ostream            &out);
 
   /**
    * Re-read a vector of bools previously written by @p write_bool_vector and
@@ -3568,7 +4051,7 @@ protected:
   read_bool_vector(const unsigned int magic_number1,
                    std::vector<bool> &v,
                    const unsigned int magic_number2,
-                   std::istream &     in);
+                   std::istream      &in);
 
   /**
    * Recreate information about periodic neighbors from
@@ -3611,11 +4094,6 @@ private:
     periodic_face_map;
 
   /**
-   * @name Cell iterator functions for internal use
-   * @{
-   */
-
-  /**
    * Declare a number of iterator types for raw iterators, i.e., iterators
    * that also iterate over holes in the list of cells left by cells that have
    * been coarsened away in previous mesh refinement cycles.
@@ -3633,6 +4111,11 @@ private:
   using raw_hex_iterator  = typename IteratorSelector::raw_hex_iterator;
 
   /**
+   * @name Cell iterator functions for internal use
+   * @{
+   */
+
+  /**
    * Iterator to the first cell, used or not, on level @p level. If a level
    * has no cells, a past-the-end iterator is returned.
    */
@@ -3646,9 +4129,7 @@ private:
   raw_cell_iterator
   end_raw(const unsigned int level) const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * @name Line iterator functions for internal use
@@ -3711,9 +4192,7 @@ private:
   line_iterator
   end_line() const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * @name Quad iterator functions for internal use
@@ -3789,9 +4268,7 @@ private:
   quad_iterator
   end_quad() const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
   /**
    * @name Hex iterator functions for internal use
@@ -3866,9 +4343,7 @@ private:
   hex_iterator
   end_hex() const;
 
-  /*
-   * @}
-   */
+  /** @} */
 
 
   /**
@@ -3903,7 +4378,7 @@ private:
   reset_active_cell_indices();
 
   /**
-   * Reset global cell ids and globale level cell ids.
+   * Reset global cell ids and global level cell ids.
    */
   void
   reset_global_cell_indices();
@@ -3954,7 +4429,9 @@ private:
    *
    * @note For serial and shared triangulation both id and index are the same.
    *       For distributed triangulations setting both might differ, since the
-   *       id might correspond to a global id and the index to a local id.
+   *       id might correspond to a global id and the index to a local id. If
+   *       a cell does not exist locally, the returned value is
+   *       numbers::invalid_unsigned_int.
    *
    * @param coarse_cell_id Unique id of the coarse cell.
    * @return Index of the coarse cell within the current triangulation.
@@ -3990,7 +4467,7 @@ private:
 
   /**
    * Pointer to the faces of the triangulation. In 1d this contains nothing,
-   * in 2D it contains data concerning lines and in 3D quads and lines.  All
+   * in 2d it contains data concerning lines and in 3d quads and lines.  All
    * of these have no level and are therefore treated separately.
    */
   std::unique_ptr<dealii::internal::TriangulationImplementation::TriaFaces>
@@ -4116,8 +4593,8 @@ namespace internal
     void
     NumberCache<1>::serialize(Archive &ar, const unsigned int)
     {
-      ar &n_levels;
-      ar &n_lines &n_lines_level;
+      ar                 &n_levels;
+      ar &n_lines        &n_lines_level;
       ar &n_active_lines &n_active_lines_level;
     }
 
@@ -4128,7 +4605,7 @@ namespace internal
     {
       this->NumberCache<1>::serialize(ar, version);
 
-      ar &n_quads &n_quads_level;
+      ar &n_quads        &n_quads_level;
       ar &n_active_quads &n_active_quads_level;
     }
 
@@ -4139,7 +4616,7 @@ namespace internal
     {
       this->NumberCache<2>::serialize(ar, version);
 
-      ar &n_hexes &n_hexes_level;
+      ar &n_hexes        &n_hexes_level;
       ar &n_active_hexes &n_active_hexes_level;
     }
 
@@ -4148,8 +4625,9 @@ namespace internal
 
 
 template <int dim, int spacedim>
-inline bool
-Triangulation<dim, spacedim>::vertex_used(const unsigned int index) const
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+inline bool Triangulation<dim, spacedim>::vertex_used(
+  const unsigned int index) const
 {
   AssertIndexRange(index, vertices_used.size());
   return vertices_used[index];
@@ -4158,23 +4636,23 @@ Triangulation<dim, spacedim>::vertex_used(const unsigned int index) const
 
 
 template <int dim, int spacedim>
-inline unsigned int
-Triangulation<dim, spacedim>::n_levels() const
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+inline unsigned int Triangulation<dim, spacedim>::n_levels() const
 {
   return number_cache.n_levels;
 }
 
 template <int dim, int spacedim>
-inline unsigned int
-Triangulation<dim, spacedim>::n_global_levels() const
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+inline unsigned int Triangulation<dim, spacedim>::n_global_levels() const
 {
   return number_cache.n_levels;
 }
 
 
 template <int dim, int spacedim>
-inline unsigned int
-Triangulation<dim, spacedim>::n_vertices() const
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+inline unsigned int Triangulation<dim, spacedim>::n_vertices() const
 {
   return vertices.size();
 }
@@ -4182,24 +4660,25 @@ Triangulation<dim, spacedim>::n_vertices() const
 
 
 template <int dim, int spacedim>
-inline const std::vector<Point<spacedim>> &
-Triangulation<dim, spacedim>::get_vertices() const
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+inline const std::vector<Point<spacedim>>
+  &Triangulation<dim, spacedim>::get_vertices() const
 {
   return vertices;
 }
 
 
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 template <class Archive>
-void
-Triangulation<dim, spacedim>::save(Archive &ar, const unsigned int) const
+void Triangulation<dim, spacedim>::save(Archive &ar, const unsigned int) const
 {
   // as discussed in the documentation, do not store the signals as
   // well as boundary and manifold description but everything else
   ar &smooth_grid;
 
   unsigned int n_levels = levels.size();
-  ar &         n_levels;
+  ar          &n_levels;
   for (const auto &level : levels)
     ar &level;
 
@@ -4207,7 +4686,7 @@ Triangulation<dim, spacedim>::save(Archive &ar, const unsigned int) const
   // at least up to 1.65.1. This causes problems with clang-5.
   // Therefore, work around it.
   bool faces_is_nullptr = (faces.get() == nullptr);
-  ar & faces_is_nullptr;
+  ar  &faces_is_nullptr;
   if (!faces_is_nullptr)
     ar &faces;
 
@@ -4229,9 +4708,9 @@ Triangulation<dim, spacedim>::save(Archive &ar, const unsigned int) const
 
 
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 template <class Archive>
-void
-Triangulation<dim, spacedim>::load(Archive &ar, const unsigned int)
+void Triangulation<dim, spacedim>::load(Archive &ar, const unsigned int)
 {
   // clear previous content. this also calls the respective signal
   clear();
@@ -4241,18 +4720,18 @@ Triangulation<dim, spacedim>::load(Archive &ar, const unsigned int)
   ar &smooth_grid;
 
   unsigned int size;
-  ar &         size;
+  ar          &size;
   levels.resize(size);
   for (auto &level_ : levels)
     {
       std::unique_ptr<internal::TriangulationImplementation::TriaLevel> level;
-      ar &                                                              level;
+      ar                                                               &level;
       level_ = std::move(level);
     }
 
   // Workaround for nullptr, see in save().
   bool faces_is_nullptr = true;
-  ar & faces_is_nullptr;
+  ar  &faces_is_nullptr;
   if (!faces_is_nullptr)
     ar &faces;
 
@@ -4280,7 +4759,7 @@ Triangulation<dim, spacedim>::load(Archive &ar, const unsigned int)
   reset_policy();
 
   bool my_check_for_distorted_cells;
-  ar & my_check_for_distorted_cells;
+  ar  &my_check_for_distorted_cells;
 
   Assert(my_check_for_distorted_cells == check_for_distorted_cells,
          ExcMessage("The triangulation loaded into here must have the "
@@ -4302,9 +4781,10 @@ Triangulation<dim, spacedim>::load(Archive &ar, const unsigned int)
 
 
 template <int dim, int spacedim>
-inline unsigned int
-Triangulation<dim, spacedim>::coarse_cell_id_to_coarse_cell_index(
-  const types::coarse_cell_id coarse_cell_id) const
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
+inline unsigned int Triangulation<dim, spacedim>::
+  coarse_cell_id_to_coarse_cell_index(
+    const types::coarse_cell_id coarse_cell_id) const
 {
   return coarse_cell_id;
 }
@@ -4312,9 +4792,10 @@ Triangulation<dim, spacedim>::coarse_cell_id_to_coarse_cell_index(
 
 
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 inline types::coarse_cell_id
-Triangulation<dim, spacedim>::coarse_cell_index_to_coarse_cell_id(
-  const unsigned int coarse_cell_index) const
+  Triangulation<dim, spacedim>::coarse_cell_index_to_coarse_cell_id(
+    const unsigned int coarse_cell_index) const
 {
   return coarse_cell_index;
 }

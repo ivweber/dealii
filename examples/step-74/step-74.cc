@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2020 - 2021 by the deal.II authors
+ * Copyright (C) 2020 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,9 +12,8 @@
  * the top level of the deal.II distribution.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Timo Heister and Jiaqi Zhang, Clemson University, 2020
+ * Authors: Timo Heister and Jiaqi Zhang, Clemson University, 2020
  */
 
 // The first few files have already been covered in previous examples and will
@@ -31,10 +30,10 @@
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/numerics/data_out.h>
-#include <deal.II/fe/mapping_q1.h>
 // Here the discontinuous finite elements and FEInterfaceValues are defined.
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_interface_values.h>
@@ -72,11 +71,11 @@ namespace Step74
     {}
 
     virtual void value_list(const std::vector<Point<dim>> &points,
-                            std::vector<double> &          values,
+                            std::vector<double>           &values,
                             const unsigned int component = 0) const override;
 
     virtual Tensor<1, dim>
-    gradient(const Point<dim> & point,
+    gradient(const Point<dim>  &point,
              const unsigned int component = 0) const override;
   };
 
@@ -84,7 +83,7 @@ namespace Step74
 
   template <int dim>
   void SmoothSolution<dim>::value_list(const std::vector<Point<dim>> &points,
-                                       std::vector<double> &          values,
+                                       std::vector<double>           &values,
                                        const unsigned int /*component*/) const
   {
     using numbers::PI;
@@ -121,7 +120,7 @@ namespace Step74
     {}
 
     virtual void value_list(const std::vector<Point<dim>> &points,
-                            std::vector<double> &          values,
+                            std::vector<double>           &values,
                             const unsigned int /*component*/) const override;
   };
 
@@ -130,7 +129,7 @@ namespace Step74
   template <int dim>
   void
   SmoothRightHandSide<dim>::value_list(const std::vector<Point<dim>> &points,
-                                       std::vector<double> &          values,
+                                       std::vector<double>           &values,
                                        const unsigned int /*component*/) const
   {
     using numbers::PI;
@@ -153,7 +152,7 @@ namespace Step74
     {}
 
     virtual void value_list(const std::vector<Point<dim>> &points,
-                            std::vector<double> &          values,
+                            std::vector<double>           &values,
                             const unsigned int /*component*/) const override;
 
   private:
@@ -165,7 +164,7 @@ namespace Step74
   template <int dim>
   void
   SingularRightHandSide<dim>::value_list(const std::vector<Point<dim>> &points,
-                                         std::vector<double> &          values,
+                                         std::vector<double>           &values,
                                          const unsigned int /*component*/) const
   {
     for (unsigned int i = 0; i < values.size(); ++i)
@@ -175,47 +174,6 @@ namespace Step74
 
 
   // @sect3{Auxiliary functions}
-  // The following two auxiliary functions are used to compute
-  // jump terms for $u_h$ and $\nabla u_h$ on a face,
-  // respectively.
-  template <int dim>
-  void get_function_jump(const FEInterfaceValues<dim> &fe_iv,
-                         const Vector<double> &        solution,
-                         std::vector<double> &         jump)
-  {
-    const unsigned int                 n_q = fe_iv.n_quadrature_points;
-    std::array<std::vector<double>, 2> face_values;
-    jump.resize(n_q);
-    for (unsigned int i = 0; i < 2; ++i)
-      {
-        face_values[i].resize(n_q);
-        fe_iv.get_fe_face_values(i).get_function_values(solution,
-                                                        face_values[i]);
-      }
-    for (unsigned int q = 0; q < n_q; ++q)
-      jump[q] = face_values[0][q] - face_values[1][q];
-  }
-
-
-
-  template <int dim>
-  void get_function_gradient_jump(const FEInterfaceValues<dim> &fe_iv,
-                                  const Vector<double> &        solution,
-                                  std::vector<Tensor<1, dim>> & gradient_jump)
-  {
-    const unsigned int          n_q = fe_iv.n_quadrature_points;
-    std::vector<Tensor<1, dim>> face_gradients[2];
-    gradient_jump.resize(n_q);
-    for (unsigned int i = 0; i < 2; ++i)
-      {
-        face_gradients[i].resize(n_q);
-        fe_iv.get_fe_face_values(i).get_function_gradients(solution,
-                                                           face_gradients[i]);
-      }
-    for (unsigned int q = 0; q < n_q; ++q)
-      gradient_jump[q] = face_gradients[0][q] - face_gradients[1][q];
-  }
-
   // This function computes the penalty $\sigma$.
   double get_penalty_factor(const unsigned int fe_degree,
                             const double       cell_extent_left,
@@ -391,7 +349,7 @@ namespace Step74
         const unsigned int   dofs_per_cell = fe_v.dofs_per_cell;
         copy_data.reinit(cell, dofs_per_cell);
 
-        const auto &       q_points    = scratch_data.get_quadrature_points();
+        const auto        &q_points    = scratch_data.get_quadrature_points();
         const unsigned int n_q_points  = q_points.size();
         const std::vector<double> &JxW = scratch_data.get_JxW_values();
 
@@ -415,17 +373,17 @@ namespace Step74
       };
 
     // Next, we need a function that assembles face integrals on the boundary:
-    const auto boundary_worker = [&](const auto &        cell,
+    const auto boundary_worker = [&](const auto         &cell,
                                      const unsigned int &face_no,
-                                     auto &              scratch_data,
-                                     auto &              copy_data) {
+                                     auto               &scratch_data,
+                                     auto               &copy_data) {
       const FEFaceValuesBase<dim> &fe_fv = scratch_data.reinit(cell, face_no);
 
-      const auto &       q_points      = scratch_data.get_quadrature_points();
+      const auto        &q_points      = scratch_data.get_quadrature_points();
       const unsigned int n_q_points    = q_points.size();
       const unsigned int dofs_per_cell = fe_fv.dofs_per_cell;
 
-      const std::vector<double> &        JxW = scratch_data.get_JxW_values();
+      const std::vector<double>         &JxW = scratch_data.get_JxW_values();
       const std::vector<Tensor<1, dim>> &normals =
         scratch_data.get_normal_vectors();
 
@@ -477,24 +435,24 @@ namespace Step74
     // faces. To reinitialize FEInterfaceValues, we need to pass
     // cells, face and subface indices (for adaptive refinement) to
     // the reinit() function of FEInterfaceValues:
-    const auto face_worker = [&](const auto &        cell,
+    const auto face_worker = [&](const auto         &cell,
                                  const unsigned int &f,
                                  const unsigned int &sf,
-                                 const auto &        ncell,
+                                 const auto         &ncell,
                                  const unsigned int &nf,
                                  const unsigned int &nsf,
-                                 auto &              scratch_data,
-                                 auto &              copy_data) {
+                                 auto               &scratch_data,
+                                 auto               &copy_data) {
       const FEInterfaceValues<dim> &fe_iv =
         scratch_data.reinit(cell, f, sf, ncell, nf, nsf);
 
       copy_data.face_data.emplace_back();
-      CopyDataFace &     copy_data_face = copy_data.face_data.back();
+      CopyDataFace      &copy_data_face = copy_data.face_data.back();
       const unsigned int n_dofs_face    = fe_iv.n_current_interface_dofs();
       copy_data_face.joint_dof_indices  = fe_iv.get_interface_dof_indices();
       copy_data_face.cell_matrix.reinit(n_dofs_face, n_dofs_face);
 
-      const std::vector<double> &        JxW     = fe_iv.get_JxW_values();
+      const std::vector<double>         &JxW     = fe_iv.get_JxW_values();
       const std::vector<Tensor<1, dim>> &normals = fe_iv.get_normal_vectors();
 
       const double extent1 = cell->measure() / cell->face(f)->measure();
@@ -625,7 +583,7 @@ namespace Step74
 
         copy_data.cell_index = cell->active_cell_index();
 
-        const auto &               q_points   = fe_v.get_quadrature_points();
+        const auto                &q_points   = fe_v.get_quadrature_points();
         const unsigned int         n_q_points = q_points.size();
         const std::vector<double> &JxW        = fe_v.get_JxW_values();
 
@@ -649,13 +607,13 @@ namespace Step74
 
     // Next compute boundary terms $\sum_{f\in \partial K \cap \partial \Omega}
     // \sigma \left\| [  u_h-g_D ]  \right\|_f^2  $:
-    const auto boundary_worker = [&](const auto &        cell,
+    const auto boundary_worker = [&](const auto         &cell,
                                      const unsigned int &face_no,
-                                     auto &              scratch_data,
-                                     auto &              copy_data) {
+                                     auto               &scratch_data,
+                                     auto               &copy_data) {
       const FEFaceValuesBase<dim> &fe_fv = scratch_data.reinit(cell, face_no);
 
-      const auto &   q_points   = fe_fv.get_quadrature_points();
+      const auto    &q_points   = fe_fv.get_quadrature_points();
       const unsigned n_q_points = q_points.size();
 
       const std::vector<double> &JxW = fe_fv.get_JxW_values();
@@ -681,14 +639,14 @@ namespace Step74
     // And finally interior face terms $\sum_{f\in \partial K}\lbrace \sigma
     // \left\| [u_h]  \right\|_f^2   +  h_f \left\|  [\nu \nabla u_h \cdot
     // \mathbf n ] \right\|_f^2 \rbrace$:
-    const auto face_worker = [&](const auto &        cell,
+    const auto face_worker = [&](const auto         &cell,
                                  const unsigned int &f,
                                  const unsigned int &sf,
-                                 const auto &        ncell,
+                                 const auto         &ncell,
                                  const unsigned int &nf,
                                  const unsigned int &nsf,
-                                 auto &              scratch_data,
-                                 auto &              copy_data) {
+                                 auto               &scratch_data,
+                                 auto               &copy_data) {
       const FEInterfaceValues<dim> &fe_iv =
         scratch_data.reinit(cell, f, sf, ncell, nf, nsf);
 
@@ -698,17 +656,17 @@ namespace Step74
       copy_data_face.cell_indices[0] = cell->active_cell_index();
       copy_data_face.cell_indices[1] = ncell->active_cell_index();
 
-      const std::vector<double> &        JxW     = fe_iv.get_JxW_values();
+      const std::vector<double>         &JxW     = fe_iv.get_JxW_values();
       const std::vector<Tensor<1, dim>> &normals = fe_iv.get_normal_vectors();
 
-      const auto &       q_points   = fe_iv.get_quadrature_points();
+      const auto        &q_points   = fe_iv.get_quadrature_points();
       const unsigned int n_q_points = q_points.size();
 
       std::vector<double> jump(n_q_points);
-      get_function_jump(fe_iv, solution, jump);
+      fe_iv.get_jump_in_function_values(solution, jump);
 
       std::vector<Tensor<1, dim>> grad_jump(n_q_points);
-      get_function_gradient_jump(fe_iv, solution, grad_jump);
+      fe_iv.get_jump_in_function_gradients(solution, grad_jump);
 
       const double h = cell->face(f)->diameter();
 
@@ -798,7 +756,7 @@ namespace Step74
 
         copy_data.cell_index = cell->active_cell_index();
 
-        const auto &               q_points   = fe_v.get_quadrature_points();
+        const auto                &q_points   = fe_v.get_quadrature_points();
         const unsigned int         n_q_points = q_points.size();
         const std::vector<double> &JxW        = fe_v.get_JxW_values();
 
@@ -818,13 +776,13 @@ namespace Step74
       };
 
     // Assemble $\sum_{f \in F_b}\sigma  \|u_h-g_D\|_f^2$.
-    const auto boundary_worker = [&](const auto &        cell,
+    const auto boundary_worker = [&](const auto         &cell,
                                      const unsigned int &face_no,
-                                     auto &              scratch_data,
-                                     auto &              copy_data) {
+                                     auto               &scratch_data,
+                                     auto               &copy_data) {
       const FEFaceValuesBase<dim> &fe_fv = scratch_data.reinit(cell, face_no);
 
-      const auto &   q_points   = fe_fv.get_quadrature_points();
+      const auto    &q_points   = fe_fv.get_quadrature_points();
       const unsigned n_q_points = q_points.size();
 
       const std::vector<double> &JxW = fe_fv.get_JxW_values();
@@ -848,14 +806,14 @@ namespace Step74
     };
 
     // Assemble $\sum_{f \in F_i} \sigma  \| [ u_h ] \|_f^2$.
-    const auto face_worker = [&](const auto &        cell,
+    const auto face_worker = [&](const auto         &cell,
                                  const unsigned int &f,
                                  const unsigned int &sf,
-                                 const auto &        ncell,
+                                 const auto         &ncell,
                                  const unsigned int &nf,
                                  const unsigned int &nsf,
-                                 auto &              scratch_data,
-                                 auto &              copy_data) {
+                                 auto               &scratch_data,
+                                 auto               &copy_data) {
       const FEInterfaceValues<dim> &fe_iv =
         scratch_data.reinit(cell, f, sf, ncell, nf, nsf);
 
@@ -867,11 +825,11 @@ namespace Step74
 
       const std::vector<double> &JxW = fe_iv.get_JxW_values();
 
-      const auto &       q_points   = fe_iv.get_quadrature_points();
+      const auto        &q_points   = fe_iv.get_quadrature_points();
       const unsigned int n_q_points = q_points.size();
 
       std::vector<double> jump(n_q_points);
-      get_function_jump(fe_iv, solution, jump);
+      fe_iv.get_jump_in_function_values(solution, jump);
 
       const double extent1 = cell->measure() / cell->face(f)->measure();
       const double extent2 = ncell->measure() / ncell->face(nf)->measure();

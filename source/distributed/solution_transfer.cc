@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2021 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,8 +26,6 @@
 
 #  include <deal.II/grid/tria_accessor.h>
 #  include <deal.II/grid/tria_iterator.h>
-
-#  include <deal.II/hp/dof_handler.h>
 
 #  include <deal.II/lac/block_vector.h>
 #  include <deal.II/lac/la_parallel_block_vector.h>
@@ -116,8 +114,10 @@ namespace parallel
   {
     template <int dim, typename VectorType, int spacedim>
     SolutionTransfer<dim, VectorType, spacedim>::SolutionTransfer(
-      const DoFHandler<dim, spacedim> &dof)
+      const DoFHandler<dim, spacedim> &dof,
+      const bool                       average_values)
       : dof_handler(&dof, typeid(*this).name())
+      , average_values(average_values)
       , handle(numbers::invalid_unsigned_int)
     {
       Assert(
@@ -157,10 +157,14 @@ namespace parallel
             &dof_handler->get_triangulation())));
       Assert(tria != nullptr, ExcInternalError());
 
+      Assert(handle == numbers::invalid_unsigned_int,
+             ExcMessage("You can only add one solution per "
+                        "SolutionTransfer object."));
+
       handle = tria->register_data_attach(
         [this](
           const typename Triangulation<dim, spacedim>::cell_iterator &cell_,
-          const typename Triangulation<dim, spacedim>::CellStatus     status) {
+          const CellStatus                                            status) {
           return this->pack_callback(cell_, status);
         },
         /*returns_variable_size_data=*/dof_handler->has_hp_capabilities());
@@ -242,22 +246,52 @@ namespace parallel
             &dof_handler->get_triangulation())));
       Assert(tria != nullptr, ExcInternalError());
 
+      if (average_values)
+        for (auto *const vec : all_out)
+          *vec = 0.0;
+
+      VectorType valence;
+
+      // initialize valence vector only if we need to average
+      if (average_values)
+        valence.reinit(*all_out[0]);
+
       tria->notify_ready_to_unpack(
         handle,
-        [this, &all_out](
+        [this, &all_out, &valence](
           const typename Triangulation<dim, spacedim>::cell_iterator &cell_,
-          const typename Triangulation<dim, spacedim>::CellStatus     status,
+          const CellStatus                                            status,
           const boost::iterator_range<std::vector<char>::const_iterator>
             &data_range) {
-          this->unpack_callback(cell_, status, data_range, all_out);
+          this->unpack_callback(cell_, status, data_range, all_out, valence);
         });
 
-      for (typename std::vector<VectorType *>::iterator it = all_out.begin();
-           it != all_out.end();
-           ++it)
-        (*it)->compress(::dealii::VectorOperation::insert);
+      if (average_values)
+        {
+          // finalize valence: compress and invert
+          using Number = typename VectorType::value_type;
+          valence.compress(VectorOperation::add);
+          for (const auto i : valence.locally_owned_elements())
+            valence[i] = (static_cast<Number>(valence[i]) == Number() ?
+                            Number() :
+                            (Number(1.0) / static_cast<Number>(valence[i])));
+          valence.compress(VectorOperation::insert);
+
+          for (auto *const vec : all_out)
+            {
+              // compress and weight with valence
+              vec->compress(VectorOperation::add);
+              vec->scale(valence);
+            }
+        }
+      else
+        {
+          for (auto *const vec : all_out)
+            vec->compress(VectorOperation::insert);
+        }
 
       input_vectors.clear();
+      handle = numbers::invalid_unsigned_int;
     }
 
 
@@ -276,7 +310,7 @@ namespace parallel
     std::vector<char>
     SolutionTransfer<dim, VectorType, spacedim>::pack_callback(
       const typename Triangulation<dim, spacedim>::cell_iterator &cell_,
-      const typename Triangulation<dim, spacedim>::CellStatus     status)
+      const CellStatus                                            status)
     {
       typename DoFHandler<dim, spacedim>::cell_iterator cell(*cell_,
                                                              dof_handler);
@@ -290,17 +324,14 @@ namespace parallel
         {
           switch (status)
             {
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_PERSIST:
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_REFINE:
+              case CellStatus::cell_will_persist:
+              case CellStatus::cell_will_be_refined:
                 {
                   fe_index = cell->future_fe_index();
                   break;
                 }
 
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_COARSEN:
+              case CellStatus::children_will_be_coarsened:
                 {
                   // In case of coarsening, we need to find a suitable FE index
                   // for the parent cell. We choose the 'least dominant fe'
@@ -347,10 +378,11 @@ namespace parallel
     void
     SolutionTransfer<dim, VectorType, spacedim>::unpack_callback(
       const typename Triangulation<dim, spacedim>::cell_iterator &cell_,
-      const typename Triangulation<dim, spacedim>::CellStatus     status,
+      const CellStatus                                            status,
       const boost::iterator_range<std::vector<char>::const_iterator>
-        &                        data_range,
-      std::vector<VectorType *> &all_out)
+                                &data_range,
+      std::vector<VectorType *> &all_out,
+      VectorType                &valence)
     {
       typename DoFHandler<dim, spacedim>::cell_iterator cell(*cell_,
                                                              dof_handler);
@@ -360,17 +392,14 @@ namespace parallel
         {
           switch (status)
             {
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_PERSIST:
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_COARSEN:
+              case CellStatus::cell_will_persist:
+              case CellStatus::children_will_be_coarsened:
                 {
                   fe_index = cell->active_fe_index();
                   break;
                 }
 
-              case parallel::distributed::Triangulation<dim,
-                                                        spacedim>::CELL_REFINE:
+              case CellStatus::cell_will_be_refined:
                 {
                   // After refinement, this particular cell is no longer active,
                   // and its children have inherited its FE index. However, to
@@ -422,9 +451,25 @@ namespace parallel
       auto it_input  = dof_values.cbegin();
       auto it_output = all_out.begin();
       for (; it_input != dof_values.cend(); ++it_input, ++it_output)
-        cell->set_dof_values_by_interpolation(*it_input,
-                                              *(*it_output),
-                                              fe_index);
+        if (average_values)
+          cell->distribute_local_to_global_by_interpolation(*it_input,
+                                                            *(*it_output),
+                                                            fe_index);
+        else
+          cell->set_dof_values_by_interpolation(*it_input,
+                                                *(*it_output),
+                                                fe_index,
+                                                true);
+
+      if (average_values)
+        {
+          // compute valence vector if averaging should be performed
+          Vector<typename VectorType::value_type> ones(dofs_per_cell);
+          ones = 1.0;
+          cell->distribute_local_to_global_by_interpolation(ones,
+                                                            valence,
+                                                            fe_index);
+        }
     }
   } // namespace distributed
 } // namespace parallel

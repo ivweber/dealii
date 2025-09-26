@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -97,8 +97,7 @@ test()
     for (cell = tr.begin_active(); cell != tr.end(); ++cell)
       if (cell->is_locally_owned())
         {
-          typename DoFHandler<dim>::active_cell_iterator dof_cell(*cell,
-                                                                  &dof_handler);
+          const auto dof_cell = cell->as_dof_handler_iterator(dof_handler);
           fe_values.reinit(dof_cell);
           const std::vector<Point<dim>> &q_points =
             fe_values.get_quadrature_points();

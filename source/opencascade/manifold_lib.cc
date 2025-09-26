@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,6 +14,8 @@
 // ---------------------------------------------------------------------
 
 
+#include <deal.II/base/config.h>
+
 #include <deal.II/opencascade/manifold_lib.h>
 
 #ifdef DEAL_II_WITH_OPENCASCADE
@@ -21,16 +23,17 @@
 
 #  include <BRepAdaptor_CompCurve.hxx>
 #  include <BRepAdaptor_Curve.hxx>
-#  include <BRepAdaptor_HCompCurve.hxx>
-#  include <BRepAdaptor_HCurve.hxx>
+#  if !DEAL_II_OPENCASCADE_VERSION_GTE(7, 6, 0)
+#    include <BRepAdaptor_HCompCurve.hxx>
+#    include <BRepAdaptor_HCurve.hxx>
+#  endif
 #  include <BRepTools.hxx>
 #  include <BRep_Tool.hxx>
 #  include <GCPnts_AbscissaPoint.hxx>
 #  include <ShapeAnalysis_Curve.hxx>
 #  include <ShapeAnalysis_Surface.hxx>
-#  include <Standard_Version.hxx>
 #  include <TopoDS.hxx>
-#  if (OCC_VERSION_MAJOR < 7)
+#  if !DEAL_II_OPENCASCADE_VERSION_GTE(7, 0, 0)
 #    include <Handle_Adaptor3d_HCurve.hxx>
 #  endif
 
@@ -47,6 +50,24 @@ namespace OpenCASCADE
      * TopoDS_Shape. This function will fail when the given shape is
      * not of topological dimension one.
      */
+#  if DEAL_II_OPENCASCADE_VERSION_GTE(7, 6, 0)
+    Handle_Adaptor3d_Curve
+    curve_adaptor(const TopoDS_Shape &shape)
+    {
+      Assert((shape.ShapeType() == TopAbs_WIRE) ||
+               (shape.ShapeType() == TopAbs_EDGE),
+             ExcUnsupportedShape());
+      if (shape.ShapeType() == TopAbs_WIRE)
+        return Handle(BRepAdaptor_CompCurve)(
+          new BRepAdaptor_CompCurve(TopoDS::Wire(shape)));
+      else if (shape.ShapeType() == TopAbs_EDGE)
+        return Handle(BRepAdaptor_Curve)(
+          new BRepAdaptor_Curve(TopoDS::Edge(shape)));
+
+      Assert(false, ExcInternalError());
+      return Handle(BRepAdaptor_Curve)(new BRepAdaptor_Curve());
+    }
+#  else
     Handle_Adaptor3d_HCurve
     curve_adaptor(const TopoDS_Shape &shape)
     {
@@ -63,6 +84,7 @@ namespace OpenCASCADE
       Assert(false, ExcInternalError());
       return Handle(BRepAdaptor_HCurve)(new BRepAdaptor_HCurve());
     }
+#  endif
 
 
 
@@ -70,8 +92,13 @@ namespace OpenCASCADE
     double
     shape_length(const TopoDS_Shape &sh)
     {
+#  if DEAL_II_OPENCASCADE_VERSION_GTE(7, 6, 0)
+      Handle_Adaptor3d_Curve adapt = curve_adaptor(sh);
+      return GCPnts_AbscissaPoint::Length(*adapt);
+#  else
       Handle_Adaptor3d_HCurve adapt = curve_adaptor(sh);
       return GCPnts_AbscissaPoint::Length(adapt->GetCurve());
+#  endif
     }
   } // namespace
 
@@ -102,7 +129,7 @@ namespace OpenCASCADE
   Point<spacedim>
   NormalProjectionManifold<dim, spacedim>::project_to_manifold(
     const ArrayView<const Point<spacedim>> &surrounding_points,
-    const Point<spacedim> &                 candidate) const
+    const Point<spacedim>                  &candidate) const
   {
     (void)surrounding_points;
 #  ifdef DEBUG
@@ -119,7 +146,7 @@ namespace OpenCASCADE
   /*===================== DirectionalProjectionManifold ======================*/
   template <int dim, int spacedim>
   DirectionalProjectionManifold<dim, spacedim>::DirectionalProjectionManifold(
-    const TopoDS_Shape &       sh,
+    const TopoDS_Shape        &sh,
     const Tensor<1, spacedim> &direction,
     const double               tolerance)
     : sh(sh)
@@ -145,7 +172,7 @@ namespace OpenCASCADE
   Point<spacedim>
   DirectionalProjectionManifold<dim, spacedim>::project_to_manifold(
     const ArrayView<const Point<spacedim>> &surrounding_points,
-    const Point<spacedim> &                 candidate) const
+    const Point<spacedim>                  &candidate) const
   {
     (void)surrounding_points;
 #  ifdef DEBUG
@@ -200,22 +227,20 @@ namespace OpenCASCADE
     template <>
     Point<3>
     internal_project_to_manifold(
-      const TopoDS_Shape &             sh,
+      const TopoDS_Shape              &sh,
       const double                     tolerance,
       const ArrayView<const Point<3>> &surrounding_points,
-      const Point<3> &                 candidate)
+      const Point<3>                  &candidate)
     {
       constexpr int       spacedim = 3;
       TopoDS_Shape        out_shape;
       Tensor<1, spacedim> average_normal;
 #  ifdef DEBUG
-      for (unsigned int i = 0; i < surrounding_points.size(); ++i)
+      for (const auto &point : surrounding_points)
         {
-          Assert(closest_point(sh, surrounding_points[i], tolerance)
-                     .distance(surrounding_points[i]) <
-                   std::max(tolerance * surrounding_points[i].norm(),
-                            tolerance),
-                 ExcPointNotOnManifold<spacedim>(surrounding_points[i]));
+          Assert(closest_point(sh, point, tolerance).distance(point) <
+                   std::max(tolerance * point.norm(), tolerance),
+                 ExcPointNotOnManifold<spacedim>(point));
         }
 #  endif
 
@@ -223,11 +248,13 @@ namespace OpenCASCADE
         {
           case 2:
             {
-              for (unsigned int i = 0; i < surrounding_points.size(); ++i)
+              for (const auto &point : surrounding_points)
                 {
                   std::tuple<Point<3>, Tensor<1, 3>, double, double>
-                    p_and_diff_forms = closest_point_and_differential_forms(
-                      sh, surrounding_points[i], tolerance);
+                    p_and_diff_forms =
+                      closest_point_and_differential_forms(sh,
+                                                           point,
+                                                           tolerance);
                   average_normal += std::get<1>(p_and_diff_forms);
                 }
 
@@ -367,7 +394,7 @@ namespace OpenCASCADE
   Point<spacedim>
   NormalToMeshProjectionManifold<dim, spacedim>::project_to_manifold(
     const ArrayView<const Point<spacedim>> &surrounding_points,
-    const Point<spacedim> &                 candidate) const
+    const Point<spacedim>                  &candidate) const
   {
     return internal_project_to_manifold(sh,
                                         tolerance,
@@ -413,13 +440,24 @@ namespace OpenCASCADE
     double              t(0.0);
     ShapeAnalysis_Curve curve_analysis;
     gp_Pnt              proj;
-    const double        dist = curve_analysis.Project(
+
+    const double dist = curve_analysis.Project(
+#  if DEAL_II_OPENCASCADE_VERSION_GTE(7, 6, 0)
+      *curve, point(space_point), tolerance, proj, t, true);
+#  else
       curve->GetCurve(), point(space_point), tolerance, proj, t, true);
+#  endif
+
+    (void)dist;
     Assert(dist < tolerance * length,
            ExcPointNotOnManifold<spacedim>(space_point));
-    (void)dist; // Silence compiler warning in Release mode.
+
     return Point<1>(GCPnts_AbscissaPoint::Length(
+#  if DEAL_II_OPENCASCADE_VERSION_GTE(7, 6, 0)
+      *curve, curve->FirstParameter(), t));
+#  else
       curve->GetCurve(), curve->GetCurve().FirstParameter(), t));
+#  endif
   }
 
 
@@ -429,10 +467,16 @@ namespace OpenCASCADE
   ArclengthProjectionLineManifold<dim, spacedim>::push_forward(
     const Point<1> &chart_point) const
   {
+#  if DEAL_II_OPENCASCADE_VERSION_GTE(7, 6, 0)
+    GCPnts_AbscissaPoint AP(*curve, chart_point[0], curve->FirstParameter());
+    gp_Pnt               P = curve->Value(AP.Parameter());
+#  else
     GCPnts_AbscissaPoint AP(curve->GetCurve(),
                             chart_point[0],
                             curve->GetCurve().FirstParameter());
     gp_Pnt               P = curve->GetCurve().Value(AP.Parameter());
+#  endif
+
     return point<spacedim>(P);
   }
 

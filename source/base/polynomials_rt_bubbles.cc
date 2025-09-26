@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,8 +14,7 @@
 // ---------------------------------------------------------------------
 
 
-#include "deal.II/base/polynomials_rt_bubbles.h"
-
+#include <deal.II/base/polynomials_rt_bubbles.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/thread_management.h>
 
@@ -43,30 +42,29 @@ PolynomialsRT_Bubbles<dim>::PolynomialsRT_Bubbles(const unsigned int k)
 template <int dim>
 void
 PolynomialsRT_Bubbles<dim>::evaluate(
-  const Point<dim> &           unit_point,
+  const Point<dim>            &unit_point,
   std::vector<Tensor<1, dim>> &values,
   std::vector<Tensor<2, dim>> &grads,
   std::vector<Tensor<3, dim>> &grad_grads,
   std::vector<Tensor<4, dim>> &third_derivatives,
   std::vector<Tensor<5, dim>> &fourth_derivatives) const
 {
-  Assert(values.size() == this->n() || values.size() == 0,
+  Assert(values.size() == this->n() || values.empty(),
          ExcDimensionMismatch(values.size(), this->n()));
-  Assert(grads.size() == this->n() || grads.size() == 0,
+  Assert(grads.size() == this->n() || grads.empty(),
          ExcDimensionMismatch(grads.size(), this->n()));
-  Assert(grad_grads.size() == this->n() || grad_grads.size() == 0,
+  Assert(grad_grads.size() == this->n() || grad_grads.empty(),
          ExcDimensionMismatch(grad_grads.size(), this->n()));
-  Assert(third_derivatives.size() == this->n() || third_derivatives.size() == 0,
+  Assert(third_derivatives.size() == this->n() || third_derivatives.empty(),
          ExcDimensionMismatch(third_derivatives.size(), this->n()));
-  Assert(fourth_derivatives.size() == this->n() ||
-           fourth_derivatives.size() == 0,
+  Assert(fourth_derivatives.size() == this->n() || fourth_derivatives.empty(),
          ExcDimensionMismatch(fourth_derivatives.size(), this->n()));
 
   // Third and fourth derivatives are not implemented
   (void)third_derivatives;
-  Assert(third_derivatives.size() == 0, ExcNotImplemented());
+  Assert(third_derivatives.empty(), ExcNotImplemented());
   (void)fourth_derivatives;
-  Assert(fourth_derivatives.size() == 0, ExcNotImplemented());
+  Assert(fourth_derivatives.empty(), ExcNotImplemented());
 
   const unsigned int n_sub     = raviart_thomas_space.n();
   const unsigned int my_degree = this->degree();
@@ -84,9 +82,9 @@ PolynomialsRT_Bubbles<dim>::evaluate(
     static std::vector<Tensor<4, dim>> p_third_derivatives;
     static std::vector<Tensor<5, dim>> p_fourth_derivatives;
 
-    p_values.resize((values.size() == 0) ? 0 : n_sub);
-    p_grads.resize((grads.size() == 0) ? 0 : n_sub);
-    p_grad_grads.resize((grad_grads.size() == 0) ? 0 : n_sub);
+    p_values.resize((values.empty()) ? 0 : n_sub);
+    p_grads.resize((grads.empty()) ? 0 : n_sub);
+    p_grad_grads.resize((grad_grads.empty()) ? 0 : n_sub);
 
     // This is the Raviart-Thomas part of the space
     raviart_thomas_space.evaluate(unit_point,
@@ -107,15 +105,17 @@ PolynomialsRT_Bubbles<dim>::evaluate(
   // of the curl part of the space
   const unsigned int n_derivatives = 3;
   double             monoval_plus[dim][n_derivatives + 1];
-  double             monoval[dim][n_derivatives + 1];
+  double             monoval_i[dim][n_derivatives + 1];
 
-  double monoval_i[dim][n_derivatives + 1];
-  double monoval_j[dim][n_derivatives + 1];
-  double monoval_jplus[dim][n_derivatives + 1];
+
+  if constexpr (dim <= 1)
+    {
+      (void)monoval_plus;
+      (void)monoval_i;
+    }
 
   unsigned int start = n_sub;
-
-  if (dim == 2)
+  if constexpr (dim == 2)
     {
       // In 2d the curl part of the space is spanned by the vectors
       // of two types. The first one is
@@ -198,8 +198,12 @@ PolynomialsRT_Bubbles<dim>::evaluate(
         }
       Assert(start == this->n() - my_degree - 1, ExcInternalError());
     }
-  else if (dim == 3)
+  else if constexpr (dim == 3)
     {
+      double monoval[dim][n_derivatives + 1];
+      double monoval_j[dim][n_derivatives + 1];
+      double monoval_jplus[dim][n_derivatives + 1];
+
       // In 3d the first type of basis vector is
       //  [ x^i * y^j * z^k * (j+k+2) ]
       //  [  -[x^i]' * y^(j+1) * z^k  ]

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2018 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,12 +24,8 @@
 
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/tria_iterator.h>
-
-#include <deal.II/hp/fe_values.h>
-#include <deal.II/hp/mapping_collection.h>
 
 #include <deal.II/lac/block_sparse_matrix.h>
 #include <deal.II/lac/block_vector.h>
@@ -54,7 +50,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <set>
 
 
 DEAL_II_NAMESPACE_OPEN
@@ -80,9 +75,9 @@ namespace MatrixTools
   void
   apply_boundary_values(
     const std::map<types::global_dof_index, number> &boundary_values,
-    SparseMatrix<number> &                           matrix,
-    Vector<number> &                                 solution,
-    Vector<number> &                                 right_hand_side,
+    SparseMatrix<number>                            &matrix,
+    Vector<number>                                  &solution,
+    Vector<number>                                  &right_hand_side,
     const bool                                       eliminate_columns)
   {
     Assert(matrix.n() == right_hand_side.size(),
@@ -94,7 +89,7 @@ namespace MatrixTools
 
     // if no boundary values are to be applied
     // simply return
-    if (boundary_values.size() == 0)
+    if (boundary_values.empty())
       return;
 
 
@@ -241,9 +236,9 @@ namespace MatrixTools
   void
   apply_boundary_values(
     const std::map<types::global_dof_index, number> &boundary_values,
-    BlockSparseMatrix<number> &                      matrix,
-    BlockVector<number> &                            solution,
-    BlockVector<number> &                            right_hand_side,
+    BlockSparseMatrix<number>                       &matrix,
+    BlockVector<number>                             &solution,
+    BlockVector<number>                             &right_hand_side,
     const bool                                       eliminate_columns)
   {
     const unsigned int blocks = matrix.n_block_rows();
@@ -265,7 +260,7 @@ namespace MatrixTools
 
     // if no boundary values are to be applied
     // simply return
-    if (boundary_values.size() == 0)
+    if (boundary_values.empty())
       return;
 
 
@@ -504,9 +499,9 @@ namespace MatrixTools
   void
   local_apply_boundary_values(
     const std::map<types::global_dof_index, number> &boundary_values,
-    const std::vector<types::global_dof_index> &     local_dof_indices,
-    FullMatrix<number> &                             local_matrix,
-    Vector<number> &                                 local_rhs,
+    const std::vector<types::global_dof_index>      &local_dof_indices,
+    FullMatrix<number>                              &local_matrix,
+    Vector<number>                                  &local_rhs,
     const bool                                       eliminate_columns)
   {
     Assert(local_dof_indices.size() == local_matrix.m(),
@@ -518,7 +513,7 @@ namespace MatrixTools
 
     // if there is nothing to do, then exit
     // right away
-    if (boundary_values.size() == 0)
+    if (boundary_values.empty())
       return;
 
     // otherwise traverse all the dofs used in

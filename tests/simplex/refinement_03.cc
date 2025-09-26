@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,14 +46,14 @@ test()
   tria.execute_coarsening_and_refinement();
 
   // find face index on unrefined cell to neighboring cells
-  const auto & unrefined_cell = tria.begin_active(0);
+  const auto  &unrefined_cell = tria.begin_active(0);
   unsigned int unrefined_f    = numbers::invalid_unsigned_int;
   for (unsigned int f = 0; f < unrefined_cell->n_faces(); ++f)
     if (!unrefined_cell->face(f)->at_boundary())
       unrefined_f = f;
 
   // verify whether unrefined cell and neighboring children have matching
-  // vertices on their correpsonding subface
+  // vertices on their corresponding subface
   for (unsigned int sf = 0; sf < GeometryInfo<dim>::max_children_per_face; ++sf)
     {
       // unrefined vertex on subface

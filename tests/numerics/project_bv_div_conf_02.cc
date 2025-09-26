@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------
 
 // Test VectorTools::project_boundary_values_div_conforming for the
-// case that the DoFHandler constains is more than one FE_RaviartThomas element.
+// case that the DoFHandler contains is more than one FE_RaviartThomas element.
 
 #include <deal.II/base/function.h>
 
@@ -24,7 +24,7 @@
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_raviart_thomas.h>
 #include <deal.II/fe/fe_system.h>
-#include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>

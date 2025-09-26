@@ -1,6 +1,6 @@
 //-----------------------------------------------------------
 //
-//    Copyright (C) 2017 - 2021 by the deal.II authors
+//    Copyright (C) 2017 - 2023 by the deal.II authors
 //
 //    This file is part of the deal.II library.
 //
@@ -25,9 +25,21 @@
 
 #include <boost/signals2/signal.hpp>
 
+#include <mutex>
 #include <typeinfo>
 
 DEAL_II_NAMESPACE_OPEN
+
+class ParameterAcceptor;
+
+namespace internal
+{
+  /**
+   * Compare operator between two parameter acceptors. Same as std::less applied
+   * to the acceptor ids of each instance.
+   */
+  struct ParameterAcceptorCompare;
+} // namespace internal
 
 /**
  * A parameter acceptor base class. This class is used to define a public
@@ -177,7 +189,7 @@ DEAL_II_NAMESPACE_OPEN
  *   , my_subclass("Forcing term")
  * {}
  *
- * void MyClass::declare_parmeters(ParameterHandler &prm)
+ * void MyClass::declare_parameters(ParameterHandler &prm)
  * {
  *   // many add_parameter(...);
  * }
@@ -357,6 +369,12 @@ public:
   ParameterAcceptor(const std::string &section_name = "");
 
   /**
+   * Get the acceptor id of this object.
+   */
+  unsigned int
+  get_acceptor_id() const;
+
+  /**
    * Destructor.
    */
   virtual ~ParameterAcceptor() override;
@@ -402,7 +420,7 @@ public:
              const std::string &output_filename = "",
              const ParameterHandler::OutputStyle
                output_style_for_output_filename      = ParameterHandler::Short,
-             ParameterHandler &                  prm = ParameterAcceptor::prm,
+             ParameterHandler                   &prm = ParameterAcceptor::prm,
              const ParameterHandler::OutputStyle output_style_for_filename =
                ParameterHandler::DefaultStyle);
 
@@ -416,7 +434,7 @@ public:
    * @param prm The ParameterHandler to use
    */
   static void
-  initialize(std::istream &    input_stream,
+  initialize(std::istream     &input_stream,
              ParameterHandler &prm = ParameterAcceptor::prm);
 
 
@@ -502,12 +520,12 @@ public:
    * See the documentation of ParameterHandler::add_parameter() for more
    * information.
    */
-  template <class ParameterType>
+  template <typename ParameterType>
   void
-  add_parameter(const std::string &          entry,
-                ParameterType &              parameter,
-                const std::string &          documentation = "",
-                ParameterHandler &           prm_          = prm,
+  add_parameter(const std::string           &entry,
+                ParameterType               &parameter,
+                const std::string           &documentation = "",
+                ParameterHandler            &prm_          = prm,
                 const Patterns::PatternBase &pattern =
                   *Patterns::Tools::Convert<ParameterType>::to_pattern());
 
@@ -592,12 +610,24 @@ public:
 
 private:
   /**
-   * A list containing all constructed classes of type
+   * Get the next free id for this class.
+   */
+  static unsigned int
+  get_next_free_id();
+
+  /**
+   * A mutex to prevent writing on the class_list set from multiple threads.
+   */
+  static std::mutex class_list_mutex;
+
+  /**
+   * A set containing the address of all constructed classes of type
    * ParameterAcceptor.
    */
-  static std::vector<SmartPointer<ParameterAcceptor>> class_list;
+  static std::set<ParameterAcceptor *, internal::ParameterAcceptorCompare>
+    class_list;
 
-  /** The index of this specific class within the class list. */
+  /** The id of this specific class instance. */
   const unsigned int acceptor_id;
 
   /**
@@ -694,12 +724,12 @@ public:
 
 
 // Inline and template functions
-template <class ParameterType>
+template <typename ParameterType>
 void
-ParameterAcceptor::add_parameter(const std::string &          entry,
-                                 ParameterType &              parameter,
-                                 const std::string &          documentation,
-                                 ParameterHandler &           prm,
+ParameterAcceptor::add_parameter(const std::string           &entry,
+                                 ParameterType               &parameter,
+                                 const std::string           &documentation,
+                                 ParameterHandler            &prm,
                                  const Patterns::PatternBase &pattern)
 {
   enter_my_subsection(prm);

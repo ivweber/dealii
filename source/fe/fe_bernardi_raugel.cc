@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,7 +51,7 @@ FE_BernardiRaugel<dim>::FE_BernardiRaugel(const unsigned int p)
       std::vector<bool>(PolynomialsBernardiRaugel<dim>::n_polynomials(p), true),
       std::vector<ComponentMask>(PolynomialsBernardiRaugel<dim>::n_polynomials(
                                    p),
-                                 std::vector<bool>(dim, true)))
+                                 ComponentMask(std::vector<bool>(dim, true))))
 {
   Assert(dim == 2 || dim == 3, ExcImpossibleInDim(dim));
   Assert(p == 1, ExcMessage("Only BR1 elements are available"));
@@ -89,7 +89,7 @@ template <int dim>
 void
 FE_BernardiRaugel<dim>::initialize_quad_dof_index_permutation_and_sign_change()
 {
-  // for 1D and 2D, do nothing
+  // for 1d and 2d, do nothing
   if (dim < 3)
     return;
 
@@ -111,7 +111,7 @@ template <int dim>
 void
 FE_BernardiRaugel<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->generalized_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),
@@ -121,7 +121,7 @@ FE_BernardiRaugel<dim>::convert_generalized_support_point_values_to_dof_values(
          ExcDimensionMismatch(nodal_values.size(), this->n_dofs_per_cell()));
 
   std::vector<Tensor<1, dim>> normals;
-  for (unsigned int i : GeometryInfo<dim>::face_indices())
+  for (const unsigned int i : GeometryInfo<dim>::face_indices())
     {
       Tensor<1, dim> normal;
       normal[i / 2] = 1;
@@ -154,7 +154,7 @@ FE_BernardiRaugel<dim>::get_dpo_vector()
   // compute the number of unknowns per cell interior/face/edge
   //
   // there are <tt>dim</tt> degrees of freedom per vertex and there
-  // is 1 degree of freedom per edge in 2D (face in 3D)
+  // is 1 degree of freedom per edge in 2d (face in 3d)
   std::vector<unsigned int> dpo(dim + 1, 0u);
   dpo[0]       = dim;
   dpo[dim - 1] = 1u;

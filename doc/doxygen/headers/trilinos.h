@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2020 by the deal.II authors
+// Copyright (C) 2008 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,8 +27,6 @@
  * These classes are only available if a Trilinos installation was
  * detected during configuration of deal.II. Refer to the README file
  * for more details about this.
- *
- * @author Martin Kronbichler, Wolfgang Bangerth, 2008
  *
  * @ingroup LAC
  */

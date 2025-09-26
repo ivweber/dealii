@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2014 by the deal.II authors
+## Copyright (C) 2012 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -18,14 +18,14 @@
 # string "${variable}"
 #
 # Usage:
-#     ADD_FLAGS(variable flags)
+#     add_flags(variable flags)
 #
 
-MACRO(ADD_FLAGS _variable _flags)
-  STRING(STRIP "${_flags}" _flags_stripped)
-  IF(NOT "${_flags_stripped}" STREQUAL "")
-    SET(${_variable} "${${_variable}} ${_flags}")
-    STRING(STRIP "${${_variable}}" ${_variable})
-  ENDIF()
-ENDMACRO()
+macro(add_flags _variable _flags)
+  string(STRIP "${_flags}" _flags_stripped)
+  if(NOT "${_flags_stripped}" STREQUAL "")
+    set(${_variable} "${${_variable}} ${_flags}")
+    string(STRIP "${${_variable}}" ${_variable})
+  endif()
+endmacro()
 

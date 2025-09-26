@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,10 +43,10 @@ struct Geom_parameters
 };
 
 void
-concentric_disks(Triangulation<2> &         tria,
+concentric_disks(Triangulation<2>          &tria,
                  const double               s,
                  const std::vector<double> &x,
-                 Geom_parameters &          gp)
+                 Geom_parameters           &gp)
 {
   double r = x[0], d = 0.5 * x[0],
          q = 1.0 / sqrt(2.0); // q: corner points factor
@@ -264,9 +264,9 @@ concentric_disks(Triangulation<2> &         tria,
 }
 
 void
-concentric_disks(Triangulation<2> &  tria,
+concentric_disks(Triangulation<2>   &tria,
                  std::vector<double> x,
-                 Geom_parameters &   gp)
+                 Geom_parameters    &gp)
 {
   concentric_disks(tria, 0.0, x, gp);
 }

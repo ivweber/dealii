@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2018 by the deal.II authors
+// Copyright (C) 2012 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -45,8 +45,6 @@
 #include <iostream>
 
 #include "../tests.h"
-
-std::ofstream logfile("output");
 
 template <int dim>
 void
@@ -124,9 +122,9 @@ test(unsigned int chunk_size)
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(2);
-  logfile << std::setprecision(2);
-  deallog.attach(logfile);
+  deallog.get_file_stream() << std::setprecision(2);
 
   test<2>(1);
   test<2>(2);

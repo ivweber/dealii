@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,11 +26,11 @@
 
 #include <deal.II/fe/component_mask.h>
 #include <deal.II/fe/fe.h>
-#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_tools_cache.h>
 
 #include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/sparsity_pattern_base.h>
 
 #include <deal.II/particles/particle_handler.h>
 
@@ -91,18 +91,15 @@ namespace Particles
      * AffineConstraints::add_entries_local_to_global() is used to fill the
      * final sparsity pattern.
      */
-    template <int dim,
-              int spacedim,
-              typename SparsityType,
-              typename number = double>
+    template <int dim, int spacedim, typename number = double>
     void
     create_interpolation_sparsity_pattern(
-      const DoFHandler<dim, spacedim> &                space_dh,
+      const DoFHandler<dim, spacedim>                 &space_dh,
       const Particles::ParticleHandler<dim, spacedim> &particle_handler,
-      SparsityType &                                   sparsity,
-      const AffineConstraints<number> &                constraints =
+      SparsityPatternBase                             &sparsity,
+      const AffineConstraints<number>                 &constraints =
         AffineConstraints<number>(),
-      const ComponentMask &space_comps = ComponentMask());
+      const ComponentMask &space_comps = {});
 
     /**
      * Create an interpolation matrix for particles.
@@ -150,12 +147,12 @@ namespace Particles
     template <int dim, int spacedim, typename MatrixType>
     void
     create_interpolation_matrix(
-      const DoFHandler<dim, spacedim> &                space_dh,
+      const DoFHandler<dim, spacedim>                 &space_dh,
       const Particles::ParticleHandler<dim, spacedim> &particle_handler,
-      MatrixType &                                     matrix,
+      MatrixType                                      &matrix,
       const AffineConstraints<typename MatrixType::value_type> &constraints =
         AffineConstraints<typename MatrixType::value_type>(),
-      const ComponentMask &space_comps = ComponentMask());
+      const ComponentMask &space_comps = {});
 
     /**
      * Given a DoFHandler and a ParticleHandler, interpolate a vector field
@@ -185,11 +182,11 @@ namespace Particles
               typename OutputVectorType>
     void
     interpolate_field_on_particles(
-      const DoFHandler<dim, spacedim> &                field_dh,
+      const DoFHandler<dim, spacedim>                 &field_dh,
       const Particles::ParticleHandler<dim, spacedim> &particle_handler,
-      const InputVectorType &                          field_vector,
-      OutputVectorType &                               interpolated_field,
-      const ComponentMask &field_comps = ComponentMask())
+      const InputVectorType                           &field_vector,
+      OutputVectorType                                &interpolated_field,
+      const ComponentMask                             &field_comps = {})
     {
       if (particle_handler.n_locally_owned_particles() == 0)
         {

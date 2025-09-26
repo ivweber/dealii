@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,6 +32,7 @@ DEAL_II_NAMESPACE_OPEN
 #ifndef DOXYGEN
 class ParameterHandler;
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class Triangulation;
 template <int dim, int spacedim>
 class Mapping;
@@ -655,19 +656,19 @@ namespace GridOutFlags
   struct Svg
   {
     /**
-     *  Height of the plot in SVG units, computed from width if zero. Defaults
-     *  to 1000.
+     * Height of the plot in SVG units, computed from width if zero. Defaults
+     * to 1000.
      */
     unsigned int height;
 
     /**
-     *  The width of the plot. Computed automatically from height if zero
-     *  (default).
+     * The width of the plot. Computed automatically from height if zero
+     * (default).
      */
     unsigned int width;
 
     /**
-     *  Thickness of the lines between cells.
+     * Thickness of the lines between cells.
      */
     unsigned int line_thickness;
     /**
@@ -676,7 +677,7 @@ namespace GridOutFlags
     unsigned int boundary_line_thickness;
 
     /**
-     *  Margin around the plotted area.
+     * Margin around the plotted area.
      */
     bool margin;
 
@@ -930,7 +931,7 @@ namespace GridOutFlags
  * if you know which format you want to have, or if you want the format to be
  * a runtime parameter, you can write
  * @code
- *   GridOut::OutputFormat grid_format =
+ *   GridOut::OutputFormat output_format =
  *     GridOut::parse_output_format(get_format_name_from_somewhere());
  *   std::ofstream output_file("some_filename"
  *                             + GridOut::default_suffix(output_format));
@@ -1073,8 +1074,8 @@ public:
   template <int dim, int spacedim>
   void
   write_gnuplot(const Triangulation<dim, spacedim> &tria,
-                std::ostream &                      out,
-                const Mapping<dim, spacedim> *      mapping = nullptr) const;
+                std::ostream                       &out,
+                const Mapping<dim, spacedim>       *mapping = nullptr) const;
 
   /**
    * Write the triangulation in the msh format.
@@ -1142,7 +1143,7 @@ public:
   template <int dim, int spacedim>
   void
   write_msh(const Triangulation<dim, spacedim> &tria,
-            const std::string &                 filename) const;
+            const std::string                  &filename) const;
 #endif
 
   /**
@@ -1200,8 +1201,8 @@ public:
   template <int dim, int spacedim>
   void
   write_eps(const Triangulation<dim, spacedim> &tria,
-            std::ostream &                      out,
-            const Mapping<dim, spacedim> *      mapping = nullptr) const;
+            std::ostream                       &out,
+            const Mapping<dim, spacedim>       *mapping = nullptr) const;
 
   /**
    * Write two-dimensional XFig-file.
@@ -1224,8 +1225,8 @@ public:
   template <int dim, int spacedim>
   void
   write_xfig(const Triangulation<dim, spacedim> &tria,
-             std::ostream &                      out,
-             const Mapping<dim, spacedim> *      mapping = nullptr) const;
+             std::ostream                       &out,
+             const Mapping<dim, spacedim>       *mapping = nullptr) const;
 
   /**
    * Write the triangulation in the SVG format.
@@ -1277,7 +1278,7 @@ public:
   template <int dim, int spacedim>
   void
   write_mathgl(const Triangulation<dim, spacedim> &tria,
-               std::ostream &                      out) const;
+               std::ostream                       &out) const;
 
   /**
    * Write triangulation in VTK format. This function writes a
@@ -1385,9 +1386,9 @@ public:
   template <int dim, int spacedim>
   void
   write(const Triangulation<dim, spacedim> &tria,
-        std::ostream &                      out,
+        std::ostream                       &out,
         const OutputFormat                  output_format,
-        const Mapping<dim, spacedim> *      mapping = nullptr) const;
+        const Mapping<dim, spacedim>       *mapping = nullptr) const;
 
   /**
    * Write mesh in default format set by ParameterHandler.
@@ -1395,8 +1396,8 @@ public:
   template <int dim, int spacedim>
   void
   write(const Triangulation<dim, spacedim> &tria,
-        std::ostream &                      out,
-        const Mapping<dim, spacedim> *      mapping = nullptr) const;
+        std::ostream                       &out,
+        const Mapping<dim, spacedim>       *mapping = nullptr) const;
 
   /**
    * Set flags for DX output
@@ -1643,7 +1644,7 @@ private:
   unsigned int
   write_msh_faces(const Triangulation<dim, spacedim> &tria,
                   const unsigned int                  next_element_index,
-                  std::ostream &                      out) const;
+                  std::ostream                       &out) const;
 
   /**
    * Declaration of the specialization of above function for 1d. Does nothing.
@@ -1651,7 +1652,7 @@ private:
   unsigned int
   write_msh_faces(const Triangulation<1, 1> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
   /**
    * Declaration of the specialization of above function for 1d, 2sd. Does
    * nothing.
@@ -1659,11 +1660,11 @@ private:
   unsigned int
   write_msh_faces(const Triangulation<1, 2> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
   unsigned int
   write_msh_faces(const Triangulation<1, 3> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
 
 
 
@@ -1696,7 +1697,7 @@ private:
   unsigned int
   write_msh_lines(const Triangulation<dim, spacedim> &tria,
                   const unsigned int                  next_element_index,
-                  std::ostream &                      out) const;
+                  std::ostream                       &out) const;
 
   /**
    * Declaration of the specialization of above function for 1d. Does nothing.
@@ -1704,7 +1705,7 @@ private:
   unsigned int
   write_msh_lines(const Triangulation<1, 1> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
 
   /**
    * Declaration of the specialization of above function for 1d, 2sd. Does
@@ -1713,7 +1714,7 @@ private:
   unsigned int
   write_msh_lines(const Triangulation<1, 2> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
 
   /**
    * Declaration of the specialization of above function for 1d, 3sd. Does
@@ -1722,14 +1723,14 @@ private:
   unsigned int
   write_msh_lines(const Triangulation<1, 3> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
   /**
    * Declaration of the specialization of above function for 2d. Does nothing.
    */
   unsigned int
   write_msh_lines(const Triangulation<2, 2> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
   /**
    * Declaration of the specialization of above function for 2d, 3sd. Does
    * nothing.
@@ -1737,7 +1738,7 @@ private:
   unsigned int
   write_msh_lines(const Triangulation<2, 3> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
 
   /**
    * Write the grid information about faces to @p out. Only those faces are
@@ -1768,7 +1769,7 @@ private:
   unsigned int
   write_ucd_faces(const Triangulation<dim, spacedim> &tria,
                   const unsigned int                  next_element_index,
-                  std::ostream &                      out) const;
+                  std::ostream                       &out) const;
 
   /**
    * Declaration of the specialization of above function for 1d. Does nothing.
@@ -1776,7 +1777,7 @@ private:
   unsigned int
   write_ucd_faces(const Triangulation<1, 1> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
 
   /**
    * Declaration of the specialization of above function for 1d, 2sd. Does
@@ -1785,11 +1786,11 @@ private:
   unsigned int
   write_ucd_faces(const Triangulation<1, 2> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
   unsigned int
   write_ucd_faces(const Triangulation<1, 3> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
 
 
   /**
@@ -1821,7 +1822,7 @@ private:
   unsigned int
   write_ucd_lines(const Triangulation<dim, spacedim> &tria,
                   const unsigned int                  next_element_index,
-                  std::ostream &                      out) const;
+                  std::ostream                       &out) const;
 
   /**
    * Declaration of the specialization of above function for 1d. Does nothing.
@@ -1829,7 +1830,7 @@ private:
   unsigned int
   write_ucd_lines(const Triangulation<1, 1> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
   /**
    * Declaration of the specialization of above function for 1d, 2sd. Does
    * nothing.
@@ -1837,7 +1838,7 @@ private:
   unsigned int
   write_ucd_lines(const Triangulation<1, 2> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
   /**
    * Declaration of the specialization of above function for 1d, 3sd. Does
    * nothing.
@@ -1845,7 +1846,7 @@ private:
   unsigned int
   write_ucd_lines(const Triangulation<1, 3> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
 
 
   /**
@@ -1854,7 +1855,7 @@ private:
   unsigned int
   write_ucd_lines(const Triangulation<2, 2> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
   /**
    * Declaration of the specialization of above function for 2d, 3sd. Does
    * nothing.
@@ -1862,7 +1863,7 @@ private:
   unsigned int
   write_ucd_lines(const Triangulation<2, 3> &tria,
                   const unsigned int         next_element_index,
-                  std::ostream &             out) const;
+                  std::ostream              &out) const;
 
 
   /**

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -72,7 +72,7 @@ public:
   }
 
   virtual void
-  vector_gradient(const Point<dim> &           p,
+  vector_gradient(const Point<dim>            &p,
                   std::vector<Tensor<1, dim>> &gradients) const
   {
     gradients[0] = gradient(p, 0);
@@ -107,7 +107,7 @@ public:
   }
 
   virtual void
-  vector_gradient(const Point<dim> &           p,
+  vector_gradient(const Point<dim>            &p,
                   std::vector<Tensor<1, dim>> &gradients) const
   {
     gradients(0) = gradient(p, 0);

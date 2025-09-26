@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2021 by the deal.II authors
+ * Copyright (C) 2018 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -180,9 +180,8 @@ namespace Step37
 
     dof_euler.distribute_dofs(fe_system);
     {
-      IndexSet locally_relevant_euler;
-      DoFTools::extract_locally_relevant_dofs(dof_euler,
-                                              locally_relevant_euler);
+      const IndexSet locally_relevant_euler =
+        DoFTools::extract_locally_relevant_dofs(dof_euler);
       euler_positions.reinit(dof_euler.locally_owned_dofs(),
                              locally_relevant_euler,
                              MPI_COMM_WORLD);
@@ -209,7 +208,8 @@ namespace Step37
     pcout << "Number of degrees of freedom: " << dof_handler.n_dofs()
           << std::endl;
 
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     constraints.clear();
     constraints.reinit(locally_relevant_dofs);
@@ -244,18 +244,15 @@ namespace Step37
     const unsigned int nlevels = triangulation.n_global_levels();
     mg_matrices.resize(0, nlevels - 1);
 
-    std::set<types::boundary_id> dirichlet_boundary;
-    dirichlet_boundary.insert(0);
+    const std::set<types::boundary_id> dirichlet_boundary = {0};
     mg_constrained_dofs.initialize(dof_handler);
     mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
                                                        dirichlet_boundary);
 
     for (unsigned int level = 0; level < nlevels; ++level)
       {
-        IndexSet relevant_dofs;
-        DoFTools::extract_locally_relevant_level_dofs(dof_handler,
-                                                      level,
-                                                      relevant_dofs);
+        const IndexSet relevant_dofs =
+          DoFTools::extract_locally_relevant_level_dofs(dof_handler, level);
         AffineConstraints<double> level_constraints;
         level_constraints.reinit(relevant_dofs);
         level_constraints.add_lines(
@@ -270,7 +267,8 @@ namespace Step37
         additional_data.mg_level = level;
         std::shared_ptr<MatrixFree<dim, float>> mg_mf_storage_level(
           new MatrixFree<dim, float>());
-        mg_mf_storage_level->reinit(dof_handler,
+        mg_mf_storage_level->reinit(MappingQ1<dim>{},
+                                    dof_handler,
                                     level_constraints,
                                     QGauss<1>(fe.degree + 1),
                                     additional_data);
@@ -297,7 +295,7 @@ namespace Step37
     virtual ~PotentialBCFunction() = default;
 
     virtual double
-    value(const Point<dim> &p, const unsigned int) const
+    value(const Point<dim> &p, const unsigned int) const override
     {
       const double r = p.distance(x0);
       Assert(r > 0, ExcDivideByZero());
@@ -325,11 +323,10 @@ namespace Step37
       DoFTools::make_hanging_node_constraints(
         dof_handler, hanging_nodes_laplace_constraints);
 
-      std::set<types::boundary_id> dirichlet_boundary_ids;
+      const std::set<types::boundary_id> dirichlet_boundary_ids = {0};
       std::map<types::boundary_id, const Function<dim> *>
                                dirichlet_boundary_functions;
       PotentialBCFunction<dim> bc_func(240, Point<dim>());
-      dirichlet_boundary_ids.insert(0);
       dirichlet_boundary_functions[0] = &bc_func;
       VectorTools::interpolate_boundary_values(*mapping.get(),
                                                dof_handler,
@@ -480,7 +477,7 @@ namespace Step37
 
         std::string pvtu_filename =
           "solution-" + Utilities::to_string(cycle) + ".pvtu";
-        std::ofstream pvtu_output(pvtu_filename.c_str());
+        std::ofstream pvtu_output(pvtu_filename);
         data_out.write_pvtu_record(pvtu_output, filenames);
       }
 
@@ -496,7 +493,7 @@ namespace Step37
           "grid" + dealii::Utilities::int_to_string(dim) + "_" +
           dealii::Utilities::int_to_string(cycle);
         const std::string filename = base_filename + ".gp";
-        std::ofstream     f(filename.c_str());
+        std::ofstream     f(filename);
 
         f << "set terminal png size 400,410 enhanced font \"Helvetica,8\""
           << std::endl
@@ -580,7 +577,7 @@ main(int argc, char *argv[])
       LaplaceProblem<dimension> laplace_problem;
       laplace_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

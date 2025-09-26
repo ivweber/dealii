@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -64,6 +64,6 @@ main(int argc, char **argv)
     check_solver_within_range(solver.solve(A, u, f, preconditioner),
                               control.last_step(),
                               39,
-                              41);
+                              42);
   }
 }

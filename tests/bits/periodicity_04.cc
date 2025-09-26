@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2018 by the deal.II authors
+// Copyright (C) 2002 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -65,8 +65,8 @@ test()
   dof_handler.distribute_dofs(fe);
   DoFRenumbering::component_wise(dof_handler);
 
-  std::vector<bool> mask(2, true);
-  mask[1] = false;
+  ComponentMask mask(2, true);
+  mask.set(1, false);
   AffineConstraints<double> cm;
   DoFTools::make_periodicity_constraints(
     dof_handler.begin(0)->face(0),

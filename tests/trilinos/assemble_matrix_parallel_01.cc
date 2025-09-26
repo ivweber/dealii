@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -52,10 +52,6 @@
 
 #include "../tests.h"
 
-std::ofstream logfile("output");
-
-
-
 namespace Assembly
 {
   namespace Scratch
@@ -64,7 +60,7 @@ namespace Assembly
     struct Data
     {
       Data(const hp::FECollection<dim> &fe,
-           const hp::QCollection<dim> & quadrature)
+           const hp::QCollection<dim>  &quadrature)
         : hp_fe_values(fe,
                        quadrature,
                        update_values | update_gradients |
@@ -121,14 +117,14 @@ private:
 
   void
   local_assemble(const typename DoFHandler<dim>::active_cell_iterator &cell,
-                 Assembly::Scratch::Data<dim> &                        scratch,
-                 Assembly::Copy::Data &                                data);
+                 Assembly::Scratch::Data<dim>                         &scratch,
+                 Assembly::Copy::Data                                 &data);
   void
   copy_local_to_global(const Assembly::Copy::Data &data);
 
   std::vector<types::global_dof_index>
   get_conflict_indices(
-    typename DoFHandler<dim>::active_cell_iterator const &cell) const;
+    const typename DoFHandler<dim>::active_cell_iterator &cell) const;
 
   Triangulation<dim> triangulation;
 
@@ -236,7 +232,7 @@ LaplaceProblem<dim>::~LaplaceProblem()
 template <int dim>
 std::vector<types::global_dof_index>
 LaplaceProblem<dim>::get_conflict_indices(
-  typename DoFHandler<dim>::active_cell_iterator const &cell) const
+  const typename DoFHandler<dim>::active_cell_iterator &cell) const
 {
   std::vector<types::global_dof_index> local_dof_indices(
     cell->get_fe().dofs_per_cell);
@@ -275,7 +271,7 @@ LaplaceProblem<dim>::setup_system()
     dof_handler.begin_active(),
     dof_handler.end(),
     static_cast<std::function<std::vector<types::global_dof_index>(
-      typename DoFHandler<dim>::active_cell_iterator const &)>>(
+      const typename DoFHandler<dim>::active_cell_iterator &)>>(
       std::bind(&LaplaceProblem<dim>::get_conflict_indices,
                 this,
                 std::placeholders::_1)));
@@ -295,8 +291,8 @@ template <int dim>
 void
 LaplaceProblem<dim>::local_assemble(
   const typename DoFHandler<dim>::active_cell_iterator &cell,
-  Assembly::Scratch::Data<dim> &                        scratch,
-  Assembly::Copy::Data &                                data)
+  Assembly::Scratch::Data<dim>                         &scratch,
+  Assembly::Copy::Data                                 &data)
 {
   const unsigned int dofs_per_cell = cell->get_fe().dofs_per_cell;
 
@@ -464,12 +460,11 @@ LaplaceProblem<dim>::run()
 int
 main(int argc, char **argv)
 {
-  deallog << std::setprecision(2);
-  logfile << std::setprecision(2);
-  deallog.attach(logfile);
-
   Utilities::MPI::MPI_InitFinalize mpi_initialization(
     argc, argv, testing_max_num_threads());
+
+  mpi_initlog();
+  deallog << std::setprecision(2);
 
   {
     deallog.push("2d");

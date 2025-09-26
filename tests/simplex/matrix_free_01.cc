@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,6 +33,7 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
 
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
@@ -84,7 +85,7 @@ public:
             for (unsigned int q = 0; q < phi.n_q_points; ++q)
               phi.submit_value(1.0, q);
 
-            phi.integrate_scatter(true, false, dst);
+            phi.integrate_scatter(EvaluationFlags::values, dst);
           }
       },
       vec,
@@ -99,10 +100,14 @@ public:
     matrix_free.template cell_loop<VectorType, VectorType>(
       [&](const auto &, auto &dst, const auto &src, const auto cells) {
         FEEvaluation<dim, -1, 0, 1, double> phi(matrix_free);
+        EvaluationFlags::EvaluationFlags    fe_eval_flags =
+          EvaluationFlags::gradients;
+        if (do_helmholtz)
+          fe_eval_flags |= EvaluationFlags::values;
         for (unsigned int cell = cells.first; cell < cells.second; ++cell)
           {
             phi.reinit(cell);
-            phi.gather_evaluate(src, do_helmholtz, true);
+            phi.gather_evaluate(src, fe_eval_flags);
 
             for (unsigned int q = 0; q < phi.n_q_points; ++q)
               {
@@ -112,7 +117,7 @@ public:
                 phi.submit_gradient(phi.get_gradient(q), q);
               }
 
-            phi.integrate_scatter(do_helmholtz, true, dst);
+            phi.integrate_scatter(fe_eval_flags, dst);
           }
       },
       dst,
@@ -177,11 +182,10 @@ test(const unsigned int v, const unsigned int degree, const bool do_helmholtz)
 
   const auto solve_and_postprocess =
     [&](const auto &poisson_operator,
-        auto &      x,
-        auto &      b) -> std::pair<unsigned int, double> {
-    ReductionControl reduction_control;
-    SolverCG<typename std::remove_reference<decltype(x)>::type> solver(
-      reduction_control);
+        auto       &x,
+        auto       &b) -> std::pair<unsigned int, double> {
+    ReductionControl                               reduction_control;
+    SolverCG<std::remove_reference_t<decltype(x)>> solver(reduction_control);
     solver.solve(poisson_operator, x, b, PreconditionIdentity());
 
     if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)

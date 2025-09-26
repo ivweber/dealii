@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2018 by the deal.II authors
+// Copyright (C) 2013 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -50,9 +50,9 @@ const bool errors = false;
 template <int dim>
 void
 check(const unsigned int        level,
-      const Mapping<dim> &      mapping,
+      const Mapping<dim>       &mapping,
       const FiniteElement<dim> &element,
-      const Quadrature<dim> &   quadrature)
+      const Quadrature<dim>    &quadrature)
 {
   Triangulation<dim> tr;
 

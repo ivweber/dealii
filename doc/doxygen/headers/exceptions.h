@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2018 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -250,7 +250,7 @@
  *  happened: exceptions that can be triggered by <tt>throw</tt> statements
  *  and captured by <tt>catch</tt> clauses, see for example
  *  https://en.wikipedia.org/wiki/C%2B%2B#Exception_handling and
- *  http://www.cplusplus.com/doc/tutorial/exceptions/ .
+ *  https://www.cplusplus.com/doc/tutorial/exceptions/ .
  *
  *  At some fundamental level, a typical C++ exception is an object that
  *  is placed in some special place, and then the function exits the current
@@ -422,7 +422,4 @@
  *  it only checks the condition in debug mode -- but it is immune to the
  *  effect of deal_II_exceptions::disable_abort_on_exception(): It will
  *  only ever abort the program, and never throw an exception.
- *
- *
- * @author Wolfgang Bangerth, 1998-2017
  */

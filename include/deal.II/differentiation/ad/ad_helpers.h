@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,7 +40,6 @@
 #  include <iostream>
 #  include <iterator>
 #  include <numeric>
-#  include <set>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -186,8 +185,8 @@ namespace Differentiation
 
       /**
        * @name Constructor / destructor
+       * @{
        */
-      //@{
 
       /**
        * The constructor for the class.
@@ -211,12 +210,12 @@ namespace Differentiation
        */
       virtual ~HelperBase() = default;
 
-      //@}
+      /** @} */
 
       /**
        * @name Interrogation of internal information
+       * @{
        */
-      //@{
 
       /**
        * Return the number of independent variables that this object expects to
@@ -264,14 +263,14 @@ namespace Differentiation
        */
       void
       print_tape_stats(const typename Types<ad_type>::tape_index tape_index,
-                       std::ostream &                            stream) const;
+                       std::ostream                             &stream) const;
 
-      //@}
+      /** @} */
 
       /**
        * @name Operations specific to tapeless mode
+       * @{
        */
-      //@{
 
       /**
        * Pre-specify the number of @p independent_variables to be used in
@@ -295,12 +294,12 @@ namespace Differentiation
       configure_tapeless_mode(const unsigned int n_independent_variables,
                               const bool ensure_persistent_setting = true);
 
-      //@}
+      /** @} */
 
       /**
        * @name Operations specific to taped mode: Recording tapes
+       * @{
        */
-      //@{
 
       /**
        * Reset the state of the helper class.
@@ -575,13 +574,13 @@ namespace Differentiation
       void
       clear_active_tape();
 
-      //@}
+      /** @} */
 
     protected:
       /**
        * @name Drivers and taping
+       * @{
        */
-      //@{
 
       /**
        * An object used to help manage stored tapes.
@@ -619,12 +618,12 @@ namespace Differentiation
       activate_tape(const typename Types<ad_type>::tape_index tape_index,
                     const bool                                read_mode);
 
-      //@}
+      /** @} */
 
       /**
        * @name Independent variables
+       * @{
        */
-      //@{
 
       /**
        * A set of independent variables $\mathbf{X}$ that differentiation will
@@ -728,12 +727,12 @@ namespace Differentiation
       unsigned int
       n_registered_independent_variables() const;
 
-      //@}
+      /** @} */
 
       /**
        * @name Dependent variables
+       * @{
        */
-      //@{
 
       /**
        * The set of dependent variables $\mathbf{f}(\mathbf{X})$ of which the
@@ -782,9 +781,9 @@ namespace Differentiation
        */
       void
       register_dependent_variable(const unsigned int index,
-                                  const ad_type &    func);
+                                  const ad_type     &func);
 
-      //@}
+      /** @} */
 
     }; // class HelperBase
 
@@ -853,7 +852,7 @@ namespace Differentiation
       /**
        * @name Constructor / destructor
        */
-      //@{
+      /** @{ */
 
       /**
        * The constructor for the class.
@@ -877,12 +876,12 @@ namespace Differentiation
        */
       virtual ~CellLevelBase() = default;
 
-      //@}
+      /** @} */
 
       /**
        * @name Independent variables
        */
-      //@{
+      /** @{ */
 
       /**
        * Register the complete set of independent variables $\mathbf{X}$ that
@@ -925,7 +924,7 @@ namespace Differentiation
       template <typename VectorType>
       void
       register_dof_values(
-        const VectorType &                                  values,
+        const VectorType                                   &values,
         const std::vector<dealii::types::global_dof_index> &local_dof_indices);
 
       /**
@@ -951,12 +950,12 @@ namespace Differentiation
       const std::vector<ad_type> &
       get_sensitive_dof_values() const;
 
-      //@}
+      /** @} */
 
       /**
        * @name Operations specific to taped mode: Reusing tapes
        */
-      //@{
+      /** @{ */
 
       /**
        * Set the values for the independent variables $\mathbf{X}$, i.e., the
@@ -1000,15 +999,15 @@ namespace Differentiation
       template <typename VectorType>
       void
       set_dof_values(
-        const VectorType &                                  values,
+        const VectorType                                   &values,
         const std::vector<dealii::types::global_dof_index> &local_dof_indices);
 
-      //@}
+      /** @} */
 
       /**
        * @name Dependent variables
        */
-      //@{
+      /** @{ */
 
       /**
        * Compute the value of the residual vector field
@@ -1047,7 +1046,7 @@ namespace Differentiation
       virtual void
       compute_linearization(FullMatrix<scalar_type> &linearization) const = 0;
 
-      //@}
+      /** @} */
 
     }; // class CellLevelBase
 
@@ -1169,7 +1168,7 @@ namespace Differentiation
      *       // Add contribution from external energy:
      *       // Loop over faces and accumulate external energy into cell
      *       // total energy.
-     *       for (unsigned int face : ...)
+     *       for (const unsigned int face : ...)
      *         if (cell->face(face)->at_boundary())
      *           energy_ad += ...
      *
@@ -1235,7 +1234,7 @@ namespace Differentiation
       /**
        * @name Constructor / destructor
        */
-      //@{
+      /** @{ */
 
       /**
        * The constructor for the class.
@@ -1259,12 +1258,12 @@ namespace Differentiation
        */
       virtual ~EnergyFunctional() = default;
 
-      //@}
+      /** @} */
 
       /**
        * @name Dependent variables
        */
-      //@{
+      /** @{ */
 
       /**
        * Register the definition of the total cell energy
@@ -1344,7 +1343,7 @@ namespace Differentiation
       compute_linearization(
         FullMatrix<scalar_type> &linearization) const override;
 
-      //@}
+      /** @} */
 
     }; // class EnergyFunctional
 
@@ -1499,7 +1498,7 @@ namespace Differentiation
      *       // linearized.
      *       // Loop over faces and accumulate external contributions into the
      *       // cell total residual.
-     *       for (unsigned int face : ...)
+     *       for (const unsigned int face : ...)
      *         if (cell->face(face)->at_boundary())
      *           residual_ad[I] += ...
      *
@@ -1547,7 +1546,7 @@ namespace Differentiation
       /**
        * @name Constructor / destructor
        */
-      //@{
+      /** @{ */
 
       /**
        * The constructor for the class.
@@ -1571,12 +1570,12 @@ namespace Differentiation
        */
       virtual ~ResidualLinearization() = default;
 
-      //@}
+      /** @} */
 
       /**
        * @name Dependent variables
        */
-      //@{
+      /** @{ */
 
       /**
        * Register the definition of the cell residual vector
@@ -1634,7 +1633,7 @@ namespace Differentiation
       compute_linearization(
         FullMatrix<scalar_type> &linearization) const override;
 
-      //@}
+      /** @} */
 
     }; // class ResidualLinearization
 
@@ -2434,9 +2433,9 @@ namespace Differentiation
        */
       template <typename TensorType, typename NumberType>
       inline void
-      set_tensor_entry(TensorType &       t,
+      set_tensor_entry(TensorType        &t,
                        const unsigned int unrolled_index,
-                       const NumberType & value)
+                       const NumberType  &value)
       {
         // Where possible, set values using TableIndices
         AssertIndexRange(unrolled_index, t.n_independent_components);
@@ -2452,7 +2451,7 @@ namespace Differentiation
       inline void
       set_tensor_entry(Tensor<0, dim, NumberType> &t,
                        const unsigned int          unrolled_index,
-                       const NumberType &          value)
+                       const NumberType           &value)
       {
         AssertIndexRange(unrolled_index, 1);
         (void)unrolled_index;
@@ -2467,9 +2466,9 @@ namespace Differentiation
        */
       template <typename NumberType>
       inline void
-      set_tensor_entry(NumberType &       t,
+      set_tensor_entry(NumberType        &t,
                        const unsigned int unrolled_index,
-                       const NumberType & value)
+                       const NumberType  &value)
       {
         AssertIndexRange(unrolled_index, 1);
         (void)unrolled_index;
@@ -2487,7 +2486,7 @@ namespace Differentiation
       set_tensor_entry(SymmetricTensor<4, dim, NumberType> &t,
                        const unsigned int                   unrolled_index_row,
                        const unsigned int                   unrolled_index_col,
-                       const NumberType &                   value)
+                       const NumberType                    &value)
       {
         // Fourth order symmetric tensors require a specialized interface
         // to extract values.
@@ -2665,7 +2664,7 @@ namespace Differentiation
       /**
        * @name Constructor / destructor
        */
-      //@{
+      /** @{ */
 
       /**
        * The constructor for the class.
@@ -2689,15 +2688,47 @@ namespace Differentiation
        */
       virtual ~PointLevelFunctionsBase() = default;
 
-      //@}
+      /** @} */
 
       /**
        * @name Independent variables
        */
-      //@{
+      /** @{ */
 
       /**
-       * @copydoc HelperBase::reset()
+       * Reset the state of the class.
+       *
+       * When an instance of the class is stored as a class member object
+       * with the intention to reuse its instance, it may be necessary to reset
+       * the state of the object before use. This is because, internally, there
+       * is error checking performed to ensure that the correct
+       * auto-differentiable data is being tracked and used only when
+       * appropriate. This function clears all member data and, therefore,
+       * allows the state of all internal flags to be safely reset to their
+       * initial state.
+       *
+       * In the rare case that the number of independent or dependent variables
+       * has changed, this can also be reconfigured by passing in the
+       * appropriate arguments to the function.
+       *
+       * @param[in] n_independent_variables The number of independent variables
+       * that will be used in the definition of the functions that it is
+       * desired to compute the sensitivities of. In the computation of
+       * $\mathbf{f}(\mathbf{X})$, this will be the number of inputs
+       * $\mathbf{X}$, i.e., the dimension of the domain space.
+       * @param[in] n_dependent_variables The number of scalar functions to be
+       * defined that will have a sensitivity to the given independent
+       * variables. In the computation of $\mathbf{f}(\mathbf{X})$, this will
+       * be the number of outputs $\mathbf{f}$, i.e., the dimension of the
+       * image space.
+       * @param[in] clear_registered_tapes A flag that indicates the that
+       * list of @p registered_tapes must be cleared.
+       * If set to <tt>true</tt> then the data structure that tracks which
+       * tapes have been recorded is cleared as well. It is then expected that
+       * any preexisting tapes be re-recorded.
+       *
+       * @note This also resets the active tape number to an invalid number, and
+       * deactivates the recording mode for taped variables.
        */
       virtual void
       reset(const unsigned int n_independent_variables =
@@ -2754,7 +2785,7 @@ namespace Differentiation
        */
       template <typename ValueType, typename ExtractorType>
       void
-      register_independent_variable(const ValueType &    value,
+      register_independent_variable(const ValueType     &value,
                                     const ExtractorType &extractor);
 
       /**
@@ -2806,16 +2837,16 @@ namespace Differentiation
        * @note For taped AD numbers, this operation is only valid in recording mode.
        */
       template <typename ExtractorType>
-      typename internal::Extractor<dim,
-                                   ExtractorType>::template tensor_type<ad_type>
+      typename internal::Extractor<dim, ExtractorType>::template tensor_type<
+        typename HelperBase<ADNumberTypeCode, ScalarType>::ad_type>
       get_sensitive_variables(const ExtractorType &extractor) const;
 
-      //@}
+      /** @} */
 
       /**
        * @name Operations specific to taped mode: Reusing tapes
        */
-      //@{
+      /** @{ */
 
       /**
        * Set the values for the independent variables $\mathbf{X}$.
@@ -2865,16 +2896,16 @@ namespace Differentiation
        */
       template <typename ValueType, typename ExtractorType>
       void
-      set_independent_variable(const ValueType &    value,
+      set_independent_variable(const ValueType     &value,
                                const ExtractorType &extractor);
 
-      //@}
+      /** @} */
 
     protected:
       /**
        * @name Independent variables
        */
-      //@{
+      /** @{ */
 
       /**
        * Set the actual value of the independent variable $X_{i}$.
@@ -2906,13 +2937,13 @@ namespace Differentiation
       unsigned int
       n_symmetric_independent_variables() const;
 
-      //@}
+      /** @} */
 
     private:
       /**
        * @name Independent variables
        */
-      //@{
+      /** @{ */
 
       /**
        * The independent variables for which we must take into account symmetry
@@ -2920,7 +2951,7 @@ namespace Differentiation
        */
       std::vector<bool> symmetric_independent_variables;
 
-      //@}
+      /** @} */
 
     }; // class PointLevelFunctionsBase
 
@@ -3104,7 +3135,7 @@ namespace Differentiation
       /**
        * @name Constructor / destructor
        */
-      //@{
+      /** @{ */
 
       /**
        * The constructor for the class.
@@ -3122,12 +3153,12 @@ namespace Differentiation
        */
       virtual ~ScalarFunction() = default;
 
-      //@}
+      /** @} */
 
       /**
        * @name Dependent variables
        */
-      //@{
+      /** @{ */
 
       /**
        * Register the definition of the scalar field $\Psi(\mathbf{X})$.
@@ -3223,7 +3254,7 @@ namespace Differentiation
       static typename internal::
         ScalarFieldGradient<dim, scalar_type, ExtractorType_Row>::type
         extract_gradient_component(const Vector<scalar_type> &gradient,
-                                   const ExtractorType_Row &  extractor_row);
+                                   const ExtractorType_Row   &extractor_row);
 
       /**
        * Extract the function Hessian for a subset of independent variables
@@ -3269,8 +3300,8 @@ namespace Differentiation
                                                    ExtractorType_Row,
                                                    ExtractorType_Col>::type
       extract_hessian_component(const FullMatrix<scalar_type> &hessian,
-                                const ExtractorType_Row &      extractor_row,
-                                const ExtractorType_Col &      extractor_col);
+                                const ExtractorType_Row       &extractor_row,
+                                const ExtractorType_Col       &extractor_col);
 
       /**
        * Extract the function Hessian for a subset of independent variables
@@ -3287,7 +3318,7 @@ namespace Differentiation
        */
       static Tensor<0, dim, scalar_type>
       extract_hessian_component(
-        const FullMatrix<scalar_type> &   hessian,
+        const FullMatrix<scalar_type>    &hessian,
         const FEValuesExtractors::Scalar &extractor_row,
         const FEValuesExtractors::Scalar &extractor_col);
 
@@ -3304,11 +3335,11 @@ namespace Differentiation
        */
       static SymmetricTensor<4, dim, scalar_type>
       extract_hessian_component(
-        const FullMatrix<scalar_type> &               hessian,
+        const FullMatrix<scalar_type>                &hessian,
         const FEValuesExtractors::SymmetricTensor<2> &extractor_row,
         const FEValuesExtractors::SymmetricTensor<2> &extractor_col);
 
-      //@}
+      /** @} */
 
     }; // class ScalarFunction
 
@@ -3495,7 +3526,7 @@ namespace Differentiation
       /**
        * @name Constructor / destructor
        */
-      //@{
+      /** @{ */
 
       /**
        * The constructor for the class.
@@ -3519,12 +3550,12 @@ namespace Differentiation
        */
       virtual ~VectorFunction() = default;
 
-      //@}
+      /** @} */
 
       /**
        * @name Dependent variables
        */
-      //@{
+      /** @{ */
 
       /**
        * Register the definition of the vector field
@@ -3561,7 +3592,7 @@ namespace Differentiation
        */
       template <typename ValueType, typename ExtractorType>
       void
-      register_dependent_variable(const ValueType &    funcs,
+      register_dependent_variable(const ValueType     &funcs,
                                   const ExtractorType &extractor);
 
       /**
@@ -3609,7 +3640,7 @@ namespace Differentiation
       static typename internal::
         VectorFieldValue<dim, scalar_type, ExtractorType_Row>::type
         extract_value_component(const Vector<scalar_type> &values,
-                                const ExtractorType_Row &  extractor_row);
+                                const ExtractorType_Row   &extractor_row);
 
       /**
        * Extract the Jacobian of the subset of dependent functions
@@ -3664,8 +3695,8 @@ namespace Differentiation
                                                     ExtractorType_Row,
                                                     ExtractorType_Col>::type
       extract_jacobian_component(const FullMatrix<scalar_type> &jacobian,
-                                 const ExtractorType_Row &      extractor_row,
-                                 const ExtractorType_Col &      extractor_col);
+                                 const ExtractorType_Row       &extractor_row,
+                                 const ExtractorType_Col       &extractor_col);
 
       /**
        * Extract the Jacobian of the subset of dependent functions
@@ -3684,7 +3715,7 @@ namespace Differentiation
        */
       static Tensor<0, dim, scalar_type>
       extract_jacobian_component(
-        const FullMatrix<scalar_type> &   jacobian,
+        const FullMatrix<scalar_type>    &jacobian,
         const FEValuesExtractors::Scalar &extractor_row,
         const FEValuesExtractors::Scalar &extractor_col);
 
@@ -3703,11 +3734,11 @@ namespace Differentiation
        */
       static SymmetricTensor<4, dim, scalar_type>
       extract_jacobian_component(
-        const FullMatrix<scalar_type> &               jacobian,
+        const FullMatrix<scalar_type>                &jacobian,
         const FEValuesExtractors::SymmetricTensor<2> &extractor_row,
         const FEValuesExtractors::SymmetricTensor<2> &extractor_col);
 
-      //@}
+      /** @} */
 
     }; // class VectorFunction
 
@@ -3733,7 +3764,7 @@ namespace Differentiation
     template <typename VectorType>
     void
     CellLevelBase<ADNumberTypeCode, ScalarType>::register_dof_values(
-      const VectorType &                                  values,
+      const VectorType                                   &values,
       const std::vector<dealii::types::global_dof_index> &local_dof_indices)
     {
       // This is actually the same thing the set_dof_values() function,
@@ -3758,7 +3789,7 @@ namespace Differentiation
     template <typename VectorType>
     void
     CellLevelBase<ADNumberTypeCode, ScalarType>::set_dof_values(
-      const VectorType &                                  values,
+      const VectorType                                   &values,
       const std::vector<dealii::types::global_dof_index> &local_dof_indices)
     {
       Assert(local_dof_indices.size() == this->n_independent_variables(),
@@ -3781,7 +3812,7 @@ namespace Differentiation
     template <typename ValueType, typename ExtractorType>
     void
     PointLevelFunctionsBase<dim, ADNumberTypeCode, ScalarType>::
-      register_independent_variable(const ValueType &    value,
+      register_independent_variable(const ValueType     &value,
                                     const ExtractorType &extractor)
     {
       // This is actually the same thing as the set_independent_variable
@@ -3817,7 +3848,7 @@ namespace Differentiation
     template <typename ValueType, typename ExtractorType>
     void
     PointLevelFunctionsBase<dim, ADNumberTypeCode, ScalarType>::
-      set_independent_variable(const ValueType &    value,
+      set_independent_variable(const ValueType     &value,
                                const ExtractorType &extractor)
     {
       const std::vector<unsigned int> index_set(
@@ -3838,8 +3869,7 @@ namespace Differentiation
               typename ScalarType>
     template <typename ExtractorType>
     typename internal::Extractor<dim, ExtractorType>::template tensor_type<
-      typename PointLevelFunctionsBase<dim, ADNumberTypeCode, ScalarType>::
-        ad_type>
+      typename HelperBase<ADNumberTypeCode, ScalarType>::ad_type>
     PointLevelFunctionsBase<dim, ADNumberTypeCode, ScalarType>::
       get_sensitive_variables(const ExtractorType &extractor) const
     {
@@ -3893,7 +3923,7 @@ namespace Differentiation
       ExtractorType_Row>::type
     ScalarFunction<dim, ADNumberTypeCode, ScalarType>::
       extract_gradient_component(const Vector<scalar_type> &gradient,
-                                 const ExtractorType_Row &  extractor_row)
+                                 const ExtractorType_Row   &extractor_row)
     {
       // NOTE: The order of components must be consistently defined throughout
       // this class.
@@ -3925,8 +3955,8 @@ namespace Differentiation
       ExtractorType_Col>::type
     ScalarFunction<dim, ADNumberTypeCode, ScalarType>::
       extract_hessian_component(const FullMatrix<scalar_type> &hessian,
-                                const ExtractorType_Row &      extractor_row,
-                                const ExtractorType_Col &      extractor_col)
+                                const ExtractorType_Row       &extractor_row,
+                                const ExtractorType_Col       &extractor_col)
     {
       using InternalHessian      = internal::ScalarFieldHessian<dim,
                                                            scalar_type,
@@ -3988,7 +4018,7 @@ namespace Differentiation
     template <typename ValueType, typename ExtractorType>
     void
     VectorFunction<dim, ADNumberTypeCode, ScalarType>::
-      register_dependent_variable(const ValueType &    funcs,
+      register_dependent_variable(const ValueType     &funcs,
                                   const ExtractorType &extractor)
     {
       const std::vector<unsigned int> index_set(
@@ -4015,7 +4045,7 @@ namespace Differentiation
       ExtractorType_Row>::type
     VectorFunction<dim, ADNumberTypeCode, ScalarType>::extract_value_component(
       const Vector<scalar_type> &values,
-      const ExtractorType_Row &  extractor_row)
+      const ExtractorType_Row   &extractor_row)
     {
       // NOTE: The order of components must be consistently defined throughout
       // this class.
@@ -4047,8 +4077,8 @@ namespace Differentiation
       ExtractorType_Col>::type
     VectorFunction<dim, ADNumberTypeCode, ScalarType>::
       extract_jacobian_component(const FullMatrix<scalar_type> &jacobian,
-                                 const ExtractorType_Row &      extractor_row,
-                                 const ExtractorType_Col &      extractor_col)
+                                 const ExtractorType_Row       &extractor_row,
+                                 const ExtractorType_Col       &extractor_col)
     {
       using InternalJacobian     = internal::VectorFieldJacobian<dim,
                                                              scalar_type,

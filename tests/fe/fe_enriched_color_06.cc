@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -115,7 +115,8 @@ main(int argc, char **argv)
     {
       // constant function.
       Functions::ConstantFunction<dim> func(10 + i); // constant function
-      vec_enrichments.push_back(std::make_shared<ConstantFunction<dim>>(func));
+      vec_enrichments.push_back(
+        std::make_shared<Functions::ConstantFunction<dim>>(func));
     }
 
   // Construct helper class to construct FE collection
@@ -125,7 +126,7 @@ main(int argc, char **argv)
                                              fe_enriched,
                                              vec_predicates,
                                              vec_enrichments);
-  const hp::FECollection<dim> &     fe_collection(
+  const hp::FECollection<dim>      &fe_collection(
     fe_space.build_fe_collection(dof_handler));
 
   // check if fe_collection is correctly constructed by function

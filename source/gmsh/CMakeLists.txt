@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2018 by the deal.II authors
+## Copyright (C) 2012 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,19 +13,17 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
   utilities.cc
   )
 
-SET(_inst
+set(_inst
   utilities.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/gmsh/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_gmsh OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_gmsh "${_inst}")
+define_object_library(object_gmsh OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_gmsh "${_inst}")

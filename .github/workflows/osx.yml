@@ -1,10 +1,20 @@
 name: github-OSX
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+    types:
+    - opened
+    - reopened
+    - synchronize
+    - ready_for_review
 
 concurrency:
   group: ${ {github.event_name }}-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{github.event_name == 'pull_request'}}
+
+permissions:
+  contents: read
 
 jobs:
   osx-serial:
@@ -13,8 +23,16 @@ jobs:
     name: OSX serial
     runs-on: [macos-latest]
 
+    #
+    # The following condition only runs the workflow on 'push' or if the
+    # 'pull_request' is not a draft. This is only useful for hackathons or
+    # other situations when the CI is massively overburdened with pull
+    # requests.
+    #
+    # if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: info
       run: |
         g++ -v
@@ -22,24 +40,21 @@ jobs:
     - name: configure
       run: |
         cmake -D CMAKE_BUILD_TYPE=Debug -D DEAL_II_CXX_FLAGS='-Werror' -D DEAL_II_EARLY_DEPRECATIONS=ON .
-    - name: archive
-      uses: actions/upload-artifact@v1
-      with:
-        name: serial-detailed.log
-        path: detailed.log
+    - name: print detailed.log
+      run: cat detailed.log
     - name: build
       run: |
-        make -j 2
-        make -j 2 test # quicktests
+        make VERBOSE=1 -j2
+        make -j3 test # quicktests
     - name: archive error 1
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       if: always()
       continue-on-error: true
       with:
         name: osx-serial-CMakeOutput.log
         path: CMakeFiles/CMakeOutput.log
     - name: archive error 2
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       if: always()
       continue-on-error: true
       with:
@@ -52,8 +67,16 @@ jobs:
     name: OSX parallel 64bit
     runs-on: [macos-latest]
 
+    #
+    # The following condition only runs the workflow on 'push' or if the
+    # 'pull_request' is not a draft. This is only useful for hackathons or
+    # other situations when the CI is massively overburdened with pull
+    # requests.
+    #
+    # if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: setup
       run: |
         brew install openmpi
@@ -68,24 +91,21 @@ jobs:
     - name: configure
       run: |
         CC=mpicc CXX=mpic++ cmake -D CMAKE_BUILD_TYPE=Debug -D DEAL_II_WITH_64BIT_INDICES=ON -D DEAL_II_CXX_FLAGS='-Werror' -D DEAL_II_EARLY_DEPRECATIONS=ON -D DEAL_II_WITH_MPI=on .
-    - name: archive
-      uses: actions/upload-artifact@v1
-      with:
-        name: parallel-detailed.log
-        path: detailed.log
+    - name: print detailed.log
+      run: cat detailed.log
     - name: build
       run: |
-        make -j 2
-        make -j 2 test #quicktests
+        make VERBOSE=1 -j2
+        make -j3 test #quicktests
     - name: archive error 1
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       if: always()
       continue-on-error: true
       with:
         name: osx-parallel64-CMakeOutput.log
         path: CMakeFiles/CMakeOutput.log
     - name: archive error 2
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       if: always()
       continue-on-error: true
       with:

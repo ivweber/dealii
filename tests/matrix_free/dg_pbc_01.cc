@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,6 +24,7 @@
 #include <deal.II/distributed/tria.h>
 
 #include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_tools.h>
 
@@ -81,7 +82,7 @@ test()
     (update_gradients | update_JxW_values);
 
   MatrixFree<dim> mf_data;
-  mf_data.reinit(dof, constraints, quad, data);
+  mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
 
   LinearAlgebra::distributed::Vector<double> rhs, sol;
   mf_data.initialize_dof_vector(rhs);
@@ -101,8 +102,8 @@ test()
   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
     {
       Vector<double> solution_gather0(sol.size());
-      double *       sol_gather_ptr = solution_gather0.begin();
-      for (unsigned int i = 0; i < sol.local_size(); ++i)
+      double        *sol_gather_ptr = solution_gather0.begin();
+      for (unsigned int i = 0; i < sol.locally_owned_size(); ++i)
         *sol_gather_ptr++ = sol.local_element(i);
       for (unsigned int i = 1;
            i < Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
@@ -121,7 +122,7 @@ test()
     }
   else
     MPI_Send(sol.begin(),
-             sol.local_size(),
+             sol.locally_owned_size(),
              MPI_DOUBLE,
              0,
              Utilities::MPI::this_mpi_process(MPI_COMM_WORLD),

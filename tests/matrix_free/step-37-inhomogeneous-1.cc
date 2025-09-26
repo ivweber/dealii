@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2020 by the deal.II authors
+ * Copyright (C) 2009 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -131,7 +131,7 @@ namespace Step37
 
   template <int dim>
   double
-  Coefficient<dim>::value(const Point<dim> & p,
+  Coefficient<dim>::value(const Point<dim>  &p,
                           const unsigned int component) const
   {
     return value<double>(p, component);
@@ -166,20 +166,20 @@ namespace Step37
   private:
     virtual void
     apply_add(
-      LinearAlgebra::distributed::Vector<number> &      dst,
+      LinearAlgebra::distributed::Vector<number>       &dst,
       const LinearAlgebra::distributed::Vector<number> &src) const override;
 
     void
-    local_apply(const MatrixFree<dim, number> &                   data,
-                LinearAlgebra::distributed::Vector<number> &      dst,
+    local_apply(const MatrixFree<dim, number>                    &data,
+                LinearAlgebra::distributed::Vector<number>       &dst,
                 const LinearAlgebra::distributed::Vector<number> &src,
                 const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     void
     local_compute_diagonal(
-      const MatrixFree<dim, number> &              data,
-      LinearAlgebra::distributed::Vector<number> & dst,
-      const unsigned int &                         dummy,
+      const MatrixFree<dim, number>               &data,
+      LinearAlgebra::distributed::Vector<number>  &dst,
+      const unsigned int                          &dummy,
       const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     Table<2, VectorizedArray<number>> coefficient;
@@ -229,10 +229,10 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::local_apply(
-    const MatrixFree<dim, number> &                   data,
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    const MatrixFree<dim, number>                    &data,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src,
-    const std::pair<unsigned int, unsigned int> &     cell_range) const
+    const std::pair<unsigned int, unsigned int>      &cell_range) const
   {
     FEEvaluation<dim, fe_degree, fe_degree + 1, 1, number> phi(data);
 
@@ -256,7 +256,7 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::apply_add(
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src) const
   {
     this->data->cell_loop(&LaplaceOperator::local_apply, this, dst, src);
@@ -281,7 +281,7 @@ namespace Step37
 
     this->set_constrained_entries_to_one(inverse_diagonal);
 
-    for (unsigned int i = 0; i < inverse_diagonal.local_size(); ++i)
+    for (unsigned int i = 0; i < inverse_diagonal.locally_owned_size(); ++i)
       {
         Assert(inverse_diagonal.local_element(i) > 0.,
                ExcMessage("No diagonal entry in a positive definite operator "
@@ -296,7 +296,7 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::local_compute_diagonal(
-    const MatrixFree<dim, number> &             data,
+    const MatrixFree<dim, number>              &data,
     LinearAlgebra::distributed::Vector<number> &dst,
     const unsigned int &,
     const std::pair<unsigned int, unsigned int> &cell_range) const
@@ -399,8 +399,8 @@ namespace Step37
     pcout << "Number of degrees of freedom: " << dof_handler.n_dofs()
           << std::endl;
 
-    IndexSet locally_relevant_dofs;
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    const IndexSet locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     constraints.clear();
     constraints.reinit(locally_relevant_dofs);
@@ -419,7 +419,8 @@ namespace Step37
         (update_gradients | update_JxW_values | update_quadrature_points);
       std::shared_ptr<MatrixFree<dim, double>> system_mf_storage(
         new MatrixFree<dim, double>());
-      system_mf_storage->reinit(dof_handler,
+      system_mf_storage->reinit(MappingQ1<dim>{},
+                                dof_handler,
                                 constraints,
                                 QGauss<1>(fe.degree + 1),
                                 additional_data);
@@ -434,18 +435,15 @@ namespace Step37
     const unsigned int nlevels = triangulation.n_global_levels();
     mg_matrices.resize(0, nlevels - 1);
 
-    std::set<types::boundary_id> dirichlet_boundary;
-    dirichlet_boundary.insert(0);
+    const std::set<types::boundary_id> dirichlet_boundary = {0};
     mg_constrained_dofs.initialize(dof_handler);
     mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
                                                        dirichlet_boundary);
 
     for (unsigned int level = 0; level < nlevels; ++level)
       {
-        IndexSet relevant_dofs;
-        DoFTools::extract_locally_relevant_level_dofs(dof_handler,
-                                                      level,
-                                                      relevant_dofs);
+        const IndexSet relevant_dofs =
+          DoFTools::extract_locally_relevant_level_dofs(dof_handler, level);
         AffineConstraints<double> level_constraints;
         level_constraints.reinit(relevant_dofs);
         level_constraints.add_lines(
@@ -460,7 +458,8 @@ namespace Step37
         additional_data.mg_level = level;
         std::shared_ptr<MatrixFree<dim, float>> mg_mf_storage_level(
           new MatrixFree<dim, float>());
-        mg_mf_storage_level->reinit(dof_handler,
+        mg_mf_storage_level->reinit(MappingQ1<dim>{},
+                                    dof_handler,
                                     level_constraints,
                                     QGauss<1>(fe.degree + 1),
                                     additional_data);

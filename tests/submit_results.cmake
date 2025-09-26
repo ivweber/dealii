@@ -26,28 +26,37 @@
 # CTestConfig.cmake
 #
 
-IF("${CTEST_SOURCE_DIRECTORY}" STREQUAL "")
-  GET_FILENAME_COMPONENT(CTEST_SOURCE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}" PATH)
-  IF(NOT EXISTS ${CTEST_SOURCE_DIRECTORY}/CTestConfig.cmake)
-    SET(CTEST_SOURCE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  ENDIF()
-ENDIF()
+if("${CTEST_SOURCE_DIRECTORY}" STREQUAL "")
+  get_filename_component(CTEST_SOURCE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}" PATH)
+  if(NOT EXISTS ${CTEST_SOURCE_DIRECTORY}/CTestConfig.cmake)
+    set(CTEST_SOURCE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  endif()
+endif()
 
-MESSAGE("-- CTEST_SOURCE_DIRECTORY: ${CTEST_SOURCE_DIRECTORY}")
+message("-- CTEST_SOURCE_DIRECTORY: ${CTEST_SOURCE_DIRECTORY}")
 
-SET(CTEST_BINARY_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+set(CTEST_BINARY_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-MESSAGE("-- CTEST_BINARY_DIRECTORY: ${CTEST_BINARY_DIRECTORY}")
+message("-- CTEST_BINARY_DIRECTORY: ${CTEST_BINARY_DIRECTORY}")
 
-FILE(STRINGS ${CTEST_BINARY_DIRECTORY}/Testing/TAG _tag)
-LIST(GET _tag 1 _track)
+file(STRINGS ${CTEST_BINARY_DIRECTORY}/Testing/TAG _tag)
+list(GET _tag 0 _subdirectory)
+list(GET _tag 1 _track)
 
-IF("${_track}" STREQUAL "")
-  MESSAGE(FATAL_ERROR "
-No test results found. Bailing out.
-"
-    )
-ENDIF()
+if("${_track}" STREQUAL "")
+  message(FATAL_ERROR "\nNo test results found. Bailing out.\n")
+endif()
 
-CTEST_START(Experimental TRACK ${_track} APPEND)
-CTEST_SUBMIT()
+set(_file "${CTEST_BINARY_DIRECTORY}/Testing/${_subdirectory}/Update.xml")
+
+if(NOT EXISTS "${_file}")
+  message(FATAL_ERROR "\nNo test results found. Bailing out.\n")
+endif()
+
+file(STRINGS "${_file}" CTEST_SITE REGEX "<Site>")
+string(REGEX REPLACE ".*<Site>(.*)</Site>" "\\1" CTEST_SITE "${CTEST_SITE}")
+
+message("-- CTEST_SITE:             ${CTEST_SITE}")
+
+ctest_start(TRACK ${_track} APPEND)
+ctest_submit()

@@ -224,7 +224,7 @@ As explained during the generation of the sparsity pattern, it is
 important to have the numbering of degrees of freedom in mind when
 using preconditioners like incomplete LU decompositions. This is most
 conveniently visualized using the distribution of nonzero elements in
-the stiffness matrix.
+the @ref GlossStiffnessMatrix "stiffness matrix".
 
 If we don't do anything special to renumber degrees of freedom (i.e.,
 without using DoFRenumbering::Cuthill_McKee, but with using
@@ -357,14 +357,14 @@ complement, there is no other possibility.
 The alternative is to attack the block system at once and use an approximate
 Schur complement as efficient preconditioner. The idea is as
 follows: If we find a block preconditioner $P$ such that the matrix
-@f{eqnarray*}
+@f{eqnarray*}{
   P^{-1}\left(\begin{array}{cc}
     A & B^T \\ B & 0
   \end{array}\right)
 @f}
 is simple, then an iterative solver with that preconditioner will converge in a
 few iterations. Using the Schur complement $S = B A^{-1} B^T$, one finds that
-@f{eqnarray*}
+@f{eqnarray*}{
   P^{-1}
   =
   \left(\begin{array}{cc}
@@ -372,7 +372,7 @@ few iterations. Using the Schur complement $S = B A^{-1} B^T$, one finds that
   \end{array}\right)
 @f}
 would appear to be a good choice since
-@f{eqnarray*}
+@f{eqnarray*}{
   P^{-1}\left(\begin{array}{cc}
     A & B^T \\ B & 0
   \end{array}\right)

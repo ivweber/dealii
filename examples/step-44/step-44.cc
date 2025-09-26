@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2010 - 2020 by the deal.II authors and
+ * Copyright (C) 2010 - 2023 by the deal.II authors and
  *                              & Jean-Paul Pelteret and Andrew McBride
  *
  * This file is part of the deal.II library.
@@ -13,7 +13,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Jean-Paul Pelteret, University of Cape Town,
  *          Andrew McBride, University of Erlangen-Nuremberg, 2010
@@ -43,7 +42,7 @@
 #include <deal.II/grid/grid_in.h>
 #include <deal.II/grid/tria.h>
 
-#include <deal.II/fe/fe_dgp_monomial.h>
+#include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_tools.h>
@@ -73,7 +72,7 @@
 
 // Defined in these two headers are some operations that are pertinent to
 // finite strain elasticity. The first will help us compute some kinematic
-// quantities, and the second provides some stanard tensor definitions.
+// quantities, and the second provides some standard tensor definitions.
 #include <deal.II/physics/elasticity/kinematics.h>
 #include <deal.II/physics/elasticity/standard_tensors.h>
 
@@ -853,16 +852,16 @@ namespace Step44
 
     void assemble_system_one_cell(
       const typename DoFHandler<dim>::active_cell_iterator &cell,
-      ScratchData_ASM &                                     scratch,
-      PerTaskData_ASM &                                     data) const;
+      ScratchData_ASM                                      &scratch,
+      PerTaskData_ASM                                      &data) const;
 
     // And similar to perform global static condensation:
     void assemble_sc();
 
     void assemble_sc_one_cell(
       const typename DoFHandler<dim>::active_cell_iterator &cell,
-      ScratchData_SC &                                      scratch,
-      PerTaskData_SC &                                      data);
+      ScratchData_SC                                       &scratch,
+      PerTaskData_SC                                       &data);
 
     void copy_local_to_global_sc(const PerTaskData_SC &data);
 
@@ -875,8 +874,8 @@ namespace Step44
 
     void update_qph_incremental_one_cell(
       const typename DoFHandler<dim>::active_cell_iterator &cell,
-      ScratchData_UQPH &                                    scratch,
-      PerTaskData_UQPH &                                    data);
+      ScratchData_UQPH                                     &scratch,
+      PerTaskData_UQPH                                     &data);
 
     void copy_local_to_global_UQPH(const PerTaskData_UQPH & /*data*/)
     {}
@@ -1007,7 +1006,7 @@ namespace Step44
     void get_error_residual(Errors &error_residual);
 
     void get_error_update(const BlockVector<double> &newton_update,
-                          Errors &                   error_update);
+                          Errors                    &error_update);
 
     std::pair<double, double> get_error_dilation() const;
 
@@ -1037,19 +1036,15 @@ namespace Step44
     // The Finite Element System is composed of dim continuous displacement
     // DOFs, and discontinuous pressure and dilatation DOFs. In an attempt to
     // satisfy the Babuska-Brezzi or LBB stability conditions (see Hughes
-    // (2000)), we setup a $Q_n \times DGPM_{n-1} \times DGPM_{n-1}$
-    // system. $Q_2 \times DGPM_1 \times DGPM_1$ elements satisfy this
-    // condition, while $Q_1 \times DGPM_0 \times DGPM_0$ elements do
+    // (2000)), we set up a $Q_n \times DGP_{n-1} \times DGP_{n-1}$
+    // system. $Q_2 \times DGP_1 \times DGP_1$ elements satisfy this
+    // condition, while $Q_1 \times DGP_0 \times DGP_0$ elements do
     // not. However, it has been shown that the latter demonstrate good
     // convergence characteristics nonetheless.
-    fe(FE_Q<dim>(parameters.poly_degree),
-       dim, // displacement
-       FE_DGPMonomial<dim>(parameters.poly_degree - 1),
-       1, // pressure
-       FE_DGPMonomial<dim>(parameters.poly_degree - 1),
-       1)
-    , // dilatation
-    dof_handler(triangulation)
+    fe(FE_Q<dim>(parameters.poly_degree) ^ dim, // displacement
+       FE_DGP<dim>(parameters.poly_degree - 1), // pressure
+       FE_DGP<dim>(parameters.poly_degree - 1)) // dilatation
+    , dof_handler(triangulation)
     , dofs_per_cell(fe.n_dofs_per_cell())
     , u_fe(first_u_component)
     , p_fe(p_component)
@@ -1080,10 +1075,11 @@ namespace Step44
   // constraint $\widetilde{J}=1$ on the initial solution field. The constraint
   // corresponds to the determinant of the deformation gradient in the
   // undeformed configuration, which is the identity tensor. We use
-  // FE_DGPMonomial bases to interpolate the dilatation field, thus we can't
+  // FE_DGP bases to interpolate the dilatation field, thus we can't
   // simply set the corresponding dof to unity as they correspond to the
-  // monomial coefficients. Thus we use the VectorTools::project function to do
-  // the work for us. The VectorTools::project function requires an argument
+  // coefficients of a truncated Legendre polynomial.
+  // Thus we use the VectorTools::project function to do the work for us.
+  // The VectorTools::project function requires an argument
   // indicating the hanging node constraints. We have none in this program
   // So we have to create a constraint object. In its original state, constraint
   // objects are unsorted, and have to be sorted (using the
@@ -1185,9 +1181,9 @@ namespace Step44
     std::vector<std::vector<SymmetricTensor<2, dim>>> symm_grad_Nx;
 
     ScratchData_ASM(const FiniteElement<dim> &fe_cell,
-                    const QGauss<dim> &       qf_cell,
+                    const QGauss<dim>        &qf_cell,
                     const UpdateFlags         uf_cell,
-                    const QGauss<dim - 1> &   qf_face,
+                    const QGauss<dim - 1>    &qf_face,
                     const UpdateFlags         uf_face)
       : fe_values(fe_cell, qf_cell, uf_cell)
       , fe_face_values(fe_cell, qf_face, uf_face)
@@ -1237,7 +1233,7 @@ namespace Step44
   // matrix. Recall that we wish to solve for a displacement-based formulation.
   // We do the condensation at the element level as the $\widetilde{p}$ and
   // $\widetilde{J}$ fields are element-wise discontinuous.  As these operations
-  // are matrix-based, we need to setup a number of matrices to store the local
+  // are matrix-based, we need to set up a number of matrices to store the local
   // contributions from a number of the tangent matrix sub-blocks.  We place
   // these in the PerTaskData struct.
   //
@@ -1331,8 +1327,8 @@ namespace Step44
 
     FEValues<dim> fe_values;
 
-    ScratchData_UQPH(const FiniteElement<dim> & fe_cell,
-                     const QGauss<dim> &        qf_cell,
+    ScratchData_UQPH(const FiniteElement<dim>  &fe_cell,
+                     const QGauss<dim>         &qf_cell,
                      const UpdateFlags          uf_cell,
                      const BlockVector<double> &solution_total)
       : solution_total(solution_total)
@@ -1452,7 +1448,7 @@ namespace Step44
       BlockDynamicSparsityPattern dsp(dofs_per_block, dofs_per_block);
 
       // The global system matrix initially has the following structure
-      // @f{align*}
+      // @f{align*}{
       // \underbrace{\begin{bmatrix}
       //   \mathsf{\mathbf{K}}_{uu}  & \mathsf{\mathbf{K}}_{u\widetilde{p}} &
       //   \mathbf{0}
@@ -1551,7 +1547,7 @@ namespace Step44
                                         triangulation.end(),
                                         n_q_points);
 
-    // Next we setup the initial quadrature point data.
+    // Next we set up the initial quadrature point data.
     // Note that when the quadrature point data is retrieved,
     // it is returned as a vector of smart pointers.
     for (const auto &cell : triangulation.active_cell_iterators())
@@ -1605,7 +1601,7 @@ namespace Step44
   template <int dim>
   void Solid<dim>::update_qph_incremental_one_cell(
     const typename DoFHandler<dim>::active_cell_iterator &cell,
-    ScratchData_UQPH &                                    scratch,
+    ScratchData_UQPH                                     &scratch,
     PerTaskData_UQPH & /*data*/)
   {
     const std::vector<std::shared_ptr<PointHistory<dim>>> lqph =
@@ -1905,7 +1901,7 @@ namespace Step44
   // Determine the true Newton update error for the problem
   template <int dim>
   void Solid<dim>::get_error_update(const BlockVector<double> &newton_update,
-                                    Errors &                   error_update)
+                                    Errors                    &error_update)
   {
     BlockVector<double> error_ud(dofs_per_block);
     for (unsigned int i = 0; i < dof_handler.n_dofs(); ++i)
@@ -1966,8 +1962,8 @@ namespace Step44
     WorkStream::run(
       dof_handler.active_cell_iterators(),
       [this](const typename DoFHandler<dim>::active_cell_iterator &cell,
-             ScratchData_ASM &                                     scratch,
-             PerTaskData_ASM &                                     data) {
+             ScratchData_ASM                                      &scratch,
+             PerTaskData_ASM                                      &data) {
         this->assemble_system_one_cell(cell, scratch, data);
       },
       [this](const PerTaskData_ASM &data) {
@@ -1994,8 +1990,8 @@ namespace Step44
   template <int dim>
   void Solid<dim>::assemble_system_one_cell(
     const typename DoFHandler<dim>::active_cell_iterator &cell,
-    ScratchData_ASM &                                     scratch,
-    PerTaskData_ASM &                                     data) const
+    ScratchData_ASM                                      &scratch,
+    PerTaskData_ASM                                      &data) const
   {
     data.reset();
     scratch.reset();
@@ -2032,7 +2028,7 @@ namespace Step44
           }
       }
 
-    // Now we build the local cell stiffness matrix and RHS vector. Since the
+    // Now we build the local cell @ref GlossStiffnessMatrix "stiffness matrix" and RHS vector. Since the
     // global and local system matrices are symmetric, we can exploit this
     // property by building only the lower half of the local matrix and copying
     // the values to the upper half.  So we only assemble half of the
@@ -2066,7 +2062,7 @@ namespace Step44
 
         // Next we define some aliases to make the assembly process easier to
         // follow.
-        const std::vector<double> &                 N = scratch.Nx[q_point];
+        const std::vector<double>                  &N = scratch.Nx[q_point];
         const std::vector<SymmetricTensor<2, dim>> &symm_grad_Nx =
           scratch.symm_grad_Nx[q_point];
         const std::vector<Tensor<2, dim>> &grad_Nx = scratch.grad_Nx[q_point];
@@ -2272,7 +2268,7 @@ namespace Step44
         // in displacement is non-constant between each time step.
         constraints.clear();
 
-        // The boundary conditions for the indentation problem in 3D are as
+        // The boundary conditions for the indentation problem in 3d are as
         // follows: On the -x, -y and -z faces (IDs 0,2,4) we set up a symmetry
         // condition to allow only planar movement while the +x and +z faces
         // (IDs 1,5) are traction free. In this contrived problem, part of the
@@ -2479,8 +2475,8 @@ namespace Step44
   template <int dim>
   void Solid<dim>::assemble_sc_one_cell(
     const typename DoFHandler<dim>::active_cell_iterator &cell,
-    ScratchData_SC &                                      scratch,
-    PerTaskData_SC &                                      data)
+    ScratchData_SC                                       &scratch,
+    PerTaskData_SC                                       &data)
   {
     data.reset();
     scratch.reset();
@@ -2503,7 +2499,7 @@ namespace Step44
     // the dof associated with the current element
     // (denoted somewhat loosely as $\mathsf{\mathbf{k}}$)
     // is of the form:
-    // @f{align*}
+    // @f{align*}{
     //    \begin{bmatrix}
     //       \mathsf{\mathbf{k}}_{uu}  &  \mathsf{\mathbf{k}}_{u\widetilde{p}}
     //       & \mathbf{0}
@@ -2514,7 +2510,7 @@ namespace Step44
     // @f}
     //
     // We now need to modify it such that it appear as
-    // @f{align*}
+    // @f{align*}{
     //    \begin{bmatrix}
     //       \mathsf{\mathbf{k}}_{\textrm{con}}   &
     //       \mathsf{\mathbf{k}}_{u\widetilde{p}}    & \mathbf{0}
@@ -2684,7 +2680,7 @@ namespace Step44
       {
         // Firstly, here is the approach using the (permanent) augmentation of
         // the tangent matrix. For the following, recall that
-        // @f{align*}
+        // @f{align*}{
         //  \mathsf{\mathbf{K}}_{\textrm{store}}
         //\dealcoloneq
         //  \begin{bmatrix}
@@ -2697,7 +2693,7 @@ namespace Step44
         //  \mathsf{\mathbf{K}}_{\widetilde{J}\widetilde{J}} \end{bmatrix} \, .
         // @f}
         // and
-        //  @f{align*}
+        //  @f{align*}{
         //              d \widetilde{\mathsf{\mathbf{p}}}
         //              & =
         //              \mathsf{\mathbf{K}}_{\widetilde{J}\widetilde{p}}^{-1}
@@ -3179,6 +3175,13 @@ namespace Step44
   // Here we present how the results are written to file to be viewed
   // using ParaView or VisIt. The method is similar to that shown in previous
   // tutorials so will not be discussed in detail.
+  //
+  // @note As of 2023, Visit 3.3.3 can still not deal with higher-order cells.
+  //   Rather, it simply reports that there is no data to show. To view the
+  //   results of this program with Visit, you will want to comment out the
+  //   line that sets `output_flags.write_higher_order_cells = true;`. On the
+  //   other hand, Paraview is able to understand VTU files with higher order
+  //   cells just fine.
   template <int dim>
   void Solid<dim>::output_results() const
   {

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,7 +43,7 @@ DEAL_II_NAMESPACE_OPEN
  * corresponding two directions, yielding the polynomial spaces
  * <i>(Q<sub>k,k+1</sub>, Q<sub>k+1,k</sub>)</i> and
  * <i>(Q<sub>k,k+1,k+1</sub>, Q<sub>k+1,k,k+1</sub>,
- * Q<sub>k+1,k+1,k</sub>)</i> in 2D and 3D, resp.
+ * Q<sub>k+1,k+1,k</sub>)</i> in 2d and 3d, resp.
  *
  * @ingroup Polynomials
  */
@@ -66,14 +66,9 @@ public:
    *
    * The size of the vectors must either be zero or equal <tt>n()</tt>.  In
    * the first case, the function will not compute these values.
-   *
-   * If you need values or derivatives of all tensor product polynomials then
-   * use this function, rather than using any of the <tt>compute_value</tt>,
-   * <tt>compute_grad</tt> or <tt>compute_grad_grad</tt> functions, see below,
-   * in a loop over all tensor product polynomials.
    */
   void
-  evaluate(const Point<dim> &           unit_point,
+  evaluate(const Point<dim>            &unit_point,
            std::vector<Tensor<1, dim>> &values,
            std::vector<Tensor<2, dim>> &grads,
            std::vector<Tensor<3, dim>> &grad_grads,

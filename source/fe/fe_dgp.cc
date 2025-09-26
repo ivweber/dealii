@@ -40,7 +40,7 @@ FE_DGP<dim, spacedim>::FE_DGP(const unsigned int degree)
       std::vector<ComponentMask>(
         FiniteElementData<dim>(get_dpo_vector(degree), 1, degree)
           .n_dofs_per_cell(),
-        std::vector<bool>(1, true)))
+        ComponentMask(std::vector<bool>(1, true))))
 {
   // Reinit the vectors of restriction and prolongation matrices to the right
   // sizes
@@ -106,7 +106,7 @@ template <int dim, int spacedim>
 void
 FE_DGP<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int) const
 {
   // this is only implemented, if the source FE is also a DGP element. in that

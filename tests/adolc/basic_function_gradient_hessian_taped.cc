@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2018 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,7 +34,7 @@ main(void)
   const unsigned int n = 10;
   std::size_t        tape_stats[STAT_SIZE];
 
-  double * xp = new double[n];
+  double  *xp = new double[n];
   double   yp = 0.0;
   adouble *x  = new adouble[n];
   adouble  y  = 1.0;

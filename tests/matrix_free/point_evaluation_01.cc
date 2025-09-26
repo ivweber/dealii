@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -91,7 +91,7 @@ test(const unsigned int degree)
   // For float numbers that are sensitive to roundoff in the numdiff
   // tolerances (absolute 1e-8), we multiply by 1e-3 to ensure that the test
   // remains robust
-  const double factor_float = std::is_same<Number, float>::value ? 0.001 : 1.;
+  const double factor_float = std::is_same_v<Number, float> ? 0.001 : 1.;
 
   for (const auto &cell : dof_handler.active_cell_iterators())
     {
@@ -125,8 +125,9 @@ test(const unsigned int degree)
           evaluator.submit_gradient(evaluator.get_gradient(i), i);
         }
 
-      evaluator.integrate(solution_values,
-                          EvaluationFlags::values | EvaluationFlags::gradients);
+      evaluator.test_and_sum(solution_values,
+                             EvaluationFlags::values |
+                               EvaluationFlags::gradients);
 
       for (const auto i : solution_values)
         deallog << factor_float * i << ' ';

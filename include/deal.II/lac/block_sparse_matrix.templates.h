@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2018 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -173,11 +173,11 @@ BlockSparseMatrix<number>::get_sparsity_pattern() const
 
 template <typename number>
 void
-BlockSparseMatrix<number>::print_formatted(std::ostream &     out,
+BlockSparseMatrix<number>::print_formatted(std::ostream      &out,
                                            const unsigned int precision,
                                            const bool         scientific,
                                            const unsigned int width,
-                                           const char *       zero_string,
+                                           const char        *zero_string,
                                            const double       denominator) const
 {
   for (size_type r = 0; r < this->n_block_rows(); ++r)

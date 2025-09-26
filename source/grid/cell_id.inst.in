@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2018 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,17 +14,6 @@
 // ---------------------------------------------------------------------
 
 
-
-for (deal_II_dimension : DIMENSIONS; deal_II_space_dimension : SPACE_DIMENSIONS)
-  {
-#if deal_II_dimension <= deal_II_space_dimension
-    template Triangulation<deal_II_dimension,
-                           deal_II_space_dimension>::cell_iterator
-    CellId::to_cell(
-      const Triangulation<deal_II_dimension, deal_II_space_dimension> &tria)
-      const;
-#endif
-  }
 
 for (deal_II_dimension : DIMENSIONS)
   {

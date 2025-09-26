@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2021 by the deal.II authors
+ * Copyright (C) 2006 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Yan Li, Wolfgang Bangerth, Texas A&M University, 2006
  */
@@ -224,14 +223,14 @@ namespace Step21
       : Function<dim>(dim + 2)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override
     {
       return Functions::ZeroFunction<dim>(dim + 2).value(p, component);
     }
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  values) const override
+                              Vector<double>   &values) const override
     {
       Functions::ZeroFunction<dim>(dim + 2).vector_value(p, values);
     }
@@ -265,7 +264,7 @@ namespace Step21
 
       virtual void
       value_list(const std::vector<Point<dim>> &points,
-                 std::vector<Tensor<2, dim>> &  values) const override
+                 std::vector<Tensor<2, dim>>   &values) const override
       {
         AssertDimension(points.size(), values.size());
 
@@ -333,7 +332,7 @@ namespace Step21
 
       virtual void
       value_list(const std::vector<Point<dim>> &points,
-                 std::vector<Tensor<2, dim>> &  values) const override
+                 std::vector<Tensor<2, dim>>   &values) const override
       {
         AssertDimension(points.size(), values.size());
 
@@ -374,8 +373,8 @@ namespace Step21
 
 
     template <int dim>
-    std::vector<Point<dim>>
-      KInverse<dim>::centers = KInverse<dim>::get_centers();
+    std::vector<Point<dim>> KInverse<dim>::centers =
+      KInverse<dim>::get_centers();
   } // namespace RandomMedium
 
 
@@ -440,7 +439,7 @@ namespace Step21
   class SchurComplement : public Subscriptor
   {
   public:
-    SchurComplement(const BlockSparseMatrix<double> &          A,
+    SchurComplement(const BlockSparseMatrix<double>           &A,
                     const InverseMatrix<SparseMatrix<double>> &Minv)
       : system_matrix(&A)
       , m_inverse(&Minv)
@@ -509,11 +508,8 @@ namespace Step21
   TwoPhaseFlowProblem<dim>::TwoPhaseFlowProblem(const unsigned int degree)
     : degree(degree)
     , fe(FE_RaviartThomas<dim>(degree),
-         1,
          FE_DGQ<dim>(degree),
-         1,
-         FE_DGQ<dim>(degree),
-         1)
+         FE_DGQ<dim>(degree))
     , dof_handler(triangulation)
     , n_refinement_steps(5)
     , time(/*start time*/ 0., /*end time*/ 1.)
@@ -615,10 +611,8 @@ namespace Step21
     std::vector<double>         boundary_values(n_face_q_points);
     std::vector<Tensor<2, dim>> k_inverse_values(n_q_points);
 
-    std::vector<Vector<double>>              old_solution_values(n_q_points,
+    std::vector<Vector<double>> old_solution_values(n_q_points,
                                                     Vector<double>(dim + 2));
-    std::vector<std::vector<Tensor<1, dim>>> old_solution_grads(
-      n_q_points, std::vector<Tensor<1, dim>>(dim + 2));
 
     const FEValuesExtractors::Vector velocities(0);
     const FEValuesExtractors::Scalar pressure(dim);

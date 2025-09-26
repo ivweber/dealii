@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2013 - 2019 by the deal.II authors
+## Copyright (C) 2013 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,21 +13,19 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
   general_data_storage.cc
   operator.cc
   timestep_control.cc
   )
 
-SET(_inst
+set(_inst
   operator.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/algorithms/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_algorithms OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_algorithms "${_inst}")
+define_object_library(object_algorithms OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_algorithms "${_inst}")

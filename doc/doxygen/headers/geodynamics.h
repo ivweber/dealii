@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,7 +42,7 @@ Some of these programs were developed under contract from the California
 Institute of Technology with support by the National Science Foundation
 under Award No. EAR-0426271, the first of the grants that funded
 the <a target="_top"
-href="http://www.geodynamics.org">Computational Infrastructure in
+href="https://www.geodynamics.org">Computational Infrastructure in
 Geodynamics</a> initiative. The recipient, Wolfgang Bangerth, gratefully
 acknowledges this source of support.
 
@@ -92,7 +92,7 @@ problems. In particular, they are aimed at the following goals:
   infrastructure code supporting AMR.
 
   Supporting this point is the fact that although there are
-  <a href="https://www.dealii.org/publications.html">more than 1,000
+  <a href="https://www.dealii.org/publications.html">more than 2,000
   publications</a> presenting results obtained with deal.II, we are aware of
   only a relatively small number of applications that have been built with deal.II from
   scratch; all others have started as modifications of one of the tutorial

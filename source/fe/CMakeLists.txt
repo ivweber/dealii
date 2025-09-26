@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2021 by the deal.II authors
+## Copyright (C) 2012 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,9 +13,7 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_unity_include_src
+set(_unity_include_src
   block_mask.cc
   component_mask.cc
   fe_abf.cc
@@ -66,15 +64,14 @@ SET(_unity_include_src
   mapping_q.cc
   mapping_q_cache.cc
   mapping_manifold.cc
+  mapping_related_data.cc
   )
 
-SET(_separate_src
+set(_separate_src
   fe_values.cc
-  fe_values_inst2.cc
-  fe_values_inst3.cc
-  fe_values_inst4.cc
-  fe_values_inst5.cc
-  fe_values_inst6.cc
+  fe_values_base.cc
+  fe_values_views.cc
+  fe_values_views_internal.cc
   mapping_fe_field.cc
   mapping_fe_field_inst2.cc
   fe_tools.cc
@@ -85,15 +82,15 @@ SET(_separate_src
   )
 
 # determined by profiling
-SET(_n_includes_per_unity_file 10)
+set(_n_includes_per_unity_file 10)
 
-SETUP_SOURCE_LIST("${_unity_include_src}"
+setup_source_list("${_unity_include_src}"
   "${_separate_src}"
   ${_n_includes_per_unity_file}
   _src
   )
 
-SET(_inst
+set(_inst
   fe_abf.inst.in
   fe_bdm.inst.in
   fe_bernstein.inst.in
@@ -131,6 +128,9 @@ SET(_inst
   fe_tools_interpolate.inst.in
   fe_tools_extrapolate.inst.in
   fe_trace.inst.in
+  fe_values_base.inst.in
+  fe_values_views.inst.in
+  fe_values_views_internal.inst.in
   fe_values.inst.in
   fe_wedge_p.inst.in
   mapping_c1.inst.in
@@ -144,11 +144,12 @@ SET(_inst
   mapping_q_eulerian.inst.in
   mapping_q.inst.in
   mapping_manifold.inst.in
+  mapping_related_data.inst.in
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/fe/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_fe OBJECT ${_src} ${_header} ${_inst})
-EXPAND_INSTANTIATIONS(obj_fe "${_inst}")
+define_object_library(object_fe OBJECT ${_src} ${_header} ${_inst})
+expand_instantiations(object_fe "${_inst}")

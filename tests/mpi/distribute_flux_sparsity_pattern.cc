@@ -64,9 +64,9 @@ namespace LinearAdvectionTest
     void
     calculate_flux_terms(
       const TriaActiveIterator<DoFCellAccessor<dim, dim, false>> &current_cell,
-      FEFaceValues<dim> &                                   current_face_values,
+      FEFaceValues<dim>                                    &current_face_values,
       const TriaIterator<DoFCellAccessor<dim, dim, false>> &neighbor_cell,
-      FEFaceValues<dim> & neighbor_face_values,
+      FEFaceValues<dim>  &neighbor_face_values,
       FullMatrix<double> &current_to_current_flux,
       FullMatrix<double> &current_to_neighbor_flux,
       FullMatrix<double> &neighbor_to_current_flux,
@@ -108,7 +108,8 @@ namespace LinearAdvectionTest
   {
     dof_handler.distribute_dofs(fe);
     locally_owned_dofs = dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     DynamicSparsityPattern dynamic_sparsity_pattern(locally_relevant_dofs);
     Table<2, DoFTools::Coupling> cell_integral_mask(fe.n_components(),
@@ -145,9 +146,9 @@ namespace LinearAdvectionTest
   void
   AdvectionProblem<dim>::calculate_flux_terms(
     const TriaActiveIterator<DoFCellAccessor<dim, dim, false>> &current_cell,
-    FEFaceValues<dim> &                                   current_face_values,
+    FEFaceValues<dim>                                    &current_face_values,
     const TriaIterator<DoFCellAccessor<dim, dim, false>> &neighbor_cell,
-    FEFaceValues<dim> &                                   neighbor_face_values,
+    FEFaceValues<dim>                                    &neighbor_face_values,
     FullMatrix<double> &current_to_current_flux,
     FullMatrix<double> &current_to_neighbor_flux,
     FullMatrix<double> &neighbor_to_current_flux,
@@ -310,7 +311,8 @@ namespace LinearAdvectionTest
                       }
                   }
                 else // boundary face: skip for the purposes of this test
-                  {}
+                  {
+                  }
               }
           }
       }

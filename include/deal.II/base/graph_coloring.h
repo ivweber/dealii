@@ -1,7 +1,7 @@
 
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,8 +22,7 @@
 
 #  include <deal.II/base/thread_management.h>
 
-#  include <deal.II/lac/sparsity_tools.h>
-
+#  include <algorithm>
 #  include <functional>
 #  include <set>
 #  include <unordered_map>
@@ -32,6 +31,8 @@
 
 
 DEAL_II_NAMESPACE_OPEN
+
+class SparsityPattern;
 
 /**
  * A namespace containing functions that can color graphs.
@@ -107,10 +108,10 @@ namespace GraphColoring
     template <typename Iterator>
     std::vector<std::vector<Iterator>>
     create_partitioning(
-      const Iterator &                         begin,
-      const typename identity<Iterator>::type &end,
+      const Iterator                             &begin,
+      const std_cxx20::type_identity_t<Iterator> &end,
       const std::function<std::vector<types::global_dof_index>(
-        const Iterator &)> &                   get_conflict_indices)
+        const Iterator &)>                       &get_conflict_indices)
     {
       // Number of iterators.
       unsigned int n_iterators = 0;
@@ -220,9 +221,9 @@ namespace GraphColoring
     template <typename Iterator>
     void
     make_dsatur_coloring(
-      std::vector<Iterator> &             partition,
+      std::vector<Iterator>              &partition,
       const std::function<std::vector<types::global_dof_index>(
-        const Iterator &)> &              get_conflict_indices,
+        const Iterator &)>               &get_conflict_indices,
       std::vector<std::vector<Iterator>> &partition_coloring)
     {
       partition_coloring.clear();
@@ -538,10 +539,10 @@ namespace GraphColoring
   template <typename Iterator>
   std::vector<std::vector<Iterator>>
   make_graph_coloring(
-    const Iterator &                               begin,
-    const typename identity<Iterator>::type &      end,
+    const Iterator                                   &begin,
+    const std_cxx20::type_identity_t<Iterator>       &end,
     const std::function<std::vector<types::global_dof_index>(
-      const typename identity<Iterator>::type &)> &get_conflict_indices)
+      const std_cxx20::type_identity_t<Iterator> &)> &get_conflict_indices)
   {
     Assert(begin != end,
            ExcMessage(
@@ -576,7 +577,7 @@ namespace GraphColoring
    * For further details, refer to SparsityTools::color_sparsity_pattern.
    */
   unsigned int
-  color_sparsity_pattern(const SparsityPattern &    sparsity_pattern,
+  color_sparsity_pattern(const SparsityPattern     &sparsity_pattern,
                          std::vector<unsigned int> &color_indices);
 
 } // namespace GraphColoring

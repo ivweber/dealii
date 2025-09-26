@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2020 by the deal.II authors
+ * Copyright (C) 2018 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -13,8 +13,8 @@
  *
  * ---------------------------------------------------------------------
  *
- * Authors: Luca Heltai, Giovanni Alzetta,
- * International School for Advanced Studies, Trieste, 2018
+ * Authors: Luca Heltai, Giovanni Alzetta, International School for
+ *            Advanced Studies, Trieste, 2018
  */
 
 // @sect3{Include files}
@@ -299,7 +299,8 @@ namespace Step60
     void setup_embedded_dofs();
 
     // The only unconventional function we have here is the `setup_coupling()`
-    // method, used to generate the sparsity patter for the coupling matrix $C$.
+    // method, used to generate the sparsity pattern for the coupling matrix
+    // $C$.
 
     void setup_coupling();
 
@@ -638,15 +639,15 @@ namespace Step60
       std::make_unique<GridTools::Cache<spacedim, spacedim>>(*space_grid);
 
     // The same is done with the embedded grid. Since the embedded grid is
-    // deformed, we first need to setup the deformation mapping. We do so in the
-    // following few lines:
+    // deformed, we first need to set up the deformation mapping. We do so in
+    // the following few lines:
     embedded_grid = std::make_unique<Triangulation<dim, spacedim>>();
     GridGenerator::hyper_cube(*embedded_grid);
     embedded_grid->refine_global(parameters.initial_embedded_refinement);
 
     embedded_configuration_fe = std::make_unique<FESystem<dim, spacedim>>(
       FE_Q<dim, spacedim>(
-        parameters.embedded_configuration_finite_element_degree),
+        parameters.embedded_configuration_finite_element_degree) ^
       spacedim);
 
     embedded_configuration_dh =
@@ -708,7 +709,7 @@ namespace Step60
     //
     // With the mapping in place, it is now possible to query what is the
     // location of all support points associated with the `embedded_dh`, by
-    // calling the method DoFTools::map_dofs_to_support_points.
+    // calling the method DoFTools::map_dofs_to_support_points().
     //
     // This method has two variants. One that does *not* take a Mapping, and
     // one that takes a Mapping. If you use the second type, like we are doing
@@ -856,7 +857,7 @@ namespace Step60
     space_dh->distribute_dofs(*space_fe);
 
     DoFTools::make_hanging_node_constraints(*space_dh, constraints);
-    for (auto id : parameters.dirichlet_ids)
+    for (const types::boundary_id id : parameters.dirichlet_ids)
       {
         VectorTools::interpolate_boundary_values(
           *space_dh, id, embedding_dirichlet_boundary_function, constraints);

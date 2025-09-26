@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,8 +29,10 @@ DEAL_II_NAMESPACE_OPEN
 class ParameterHandler;
 #endif
 
-/*!@addtogroup Solvers */
-/*@{*/
+/**
+ * @addtogroup Solvers
+ * @{
+ */
 
 /**
  * Control class to determine convergence of iterative solvers.
@@ -437,7 +439,7 @@ public:
    * Initialize with a SolverControl object. The result will emulate
    * SolverControl by setting @p reduce to zero.
    */
-  ReductionControl(const SolverControl &c);
+  explicit ReductionControl(const SolverControl &c);
 
   /**
    * Assign a SolverControl object to ReductionControl. The result of the
@@ -523,7 +525,7 @@ public:
    * Initialize with a SolverControl object. The result will emulate
    * SolverControl by setting the reduction target to zero.
    */
-  IterationNumberControl(const SolverControl &c);
+  explicit IterationNumberControl(const SolverControl &c);
 
   /**
    * Assign a SolverControl object to ReductionControl. The result of the
@@ -579,7 +581,7 @@ public:
    * Initialize with a SolverControl object. The result will emulate
    * SolverControl by setting @p n_consecutive_iterations to one.
    */
-  ConsecutiveControl(const SolverControl &c);
+  explicit ConsecutiveControl(const SolverControl &c);
 
   /**
    * Assign a SolverControl object to ConsecutiveControl. The result of the
@@ -615,7 +617,7 @@ protected:
   unsigned int n_converged_iterations;
 };
 
-/*@}*/
+/** @} */
 //---------------------------------------------------------------------------
 
 #ifndef DOXYGEN

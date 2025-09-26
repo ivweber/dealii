@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,6 +17,7 @@
 
 #include <deal.II/dofs/dof_accessor.h>
 
+#include "deal.II/fe/fe_q_iso_q1.h"
 #include <deal.II/fe/fe_bernstein.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
@@ -24,7 +25,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_epetra_vector.h>
@@ -46,12 +46,22 @@ namespace NonMatching
   {
     namespace MeshClassifierImplementation
     {
+      DeclExceptionMsg(
+        ExcReclassifyNotCalled,
+        "The Triangulation has not been classified. You need to call the "
+        "reclassify()-function before using this function.");
+
+      DeclExceptionMsg(
+        ExcTriangulationMismatch,
+        "The incoming cell does not belong to the triangulation passed to "
+        "the constructor.");
+
       /**
        * Return LocationToLevelSet::inside/outside if all values in incoming
        * vector are negative/positive, otherwise return
        * LocationToLevelSet::intersected.
        */
-      template <class VectorType>
+      template <typename VectorType>
       LocationToLevelSet
       location_from_dof_signs(const VectorType &local_levelset_values)
       {
@@ -73,7 +83,7 @@ namespace NonMatching
        * The concrete LevelSetDescription used when the level set function is
        * described as a (DoFHandler, Vector)-pair.
        */
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       class DiscreteLevelSetDescription : public LevelSetDescription<dim>
       {
       public:
@@ -81,7 +91,7 @@ namespace NonMatching
          * Constructor.
          */
         DiscreteLevelSetDescription(const DoFHandler<dim> &dof_handler,
-                                    const VectorType &     level_set);
+                                    const VectorType      &level_set);
 
         /**
          * Return the FECollection of the DoFHandler passed to the constructor.
@@ -91,7 +101,7 @@ namespace NonMatching
 
         /**
          * Return the active FE index of the DoFCellAccessor associated with the
-         * DoFHandler and the the incoming cell in the triangulation.
+         * DoFHandler and the incoming cell in the triangulation.
          */
         unsigned int
         active_fe_index(const typename Triangulation<dim>::active_cell_iterator
@@ -122,17 +132,17 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       DiscreteLevelSetDescription<dim, VectorType>::DiscreteLevelSetDescription(
         const DoFHandler<dim> &dof_handler,
-        const VectorType &     level_set)
+        const VectorType      &level_set)
         : dof_handler(&dof_handler)
         , level_set(&level_set)
       {}
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       const hp::FECollection<dim> &
       DiscreteLevelSetDescription<dim, VectorType>::get_fe_collection() const
       {
@@ -141,18 +151,14 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       void
       DiscreteLevelSetDescription<dim, VectorType>::get_local_level_set_values(
         const typename Triangulation<dim>::active_cell_iterator &cell,
         const unsigned int                                       face_index,
         Vector<double> &local_levelset_values)
       {
-        typename DoFHandler<dim>::active_cell_iterator cell_with_dofs(
-          &dof_handler->get_triangulation(),
-          cell->level(),
-          cell->index(),
-          dof_handler);
+        const auto cell_with_dofs = cell->as_dof_handler_iterator(*dof_handler);
 
         const unsigned int n_dofs_per_face =
           dof_handler->get_fe().n_dofs_per_face();
@@ -169,16 +175,12 @@ namespace NonMatching
 
 
 
-      template <int dim, class VectorType>
+      template <int dim, typename VectorType>
       unsigned int
       DiscreteLevelSetDescription<dim, VectorType>::active_fe_index(
         const typename Triangulation<dim>::active_cell_iterator &cell) const
       {
-        typename DoFHandler<dim>::active_cell_iterator cell_with_dofs(
-          &dof_handler->get_triangulation(),
-          cell->level(),
-          cell->index(),
-          dof_handler);
+        const auto cell_with_dofs = cell->as_dof_handler_iterator(*dof_handler);
 
         return cell_with_dofs->active_fe_index();
       }
@@ -196,7 +198,7 @@ namespace NonMatching
          * Constructor. Takes the Function that describes the geometry and the
          * element that this function should be interpolated to.
          */
-        AnalyticLevelSetDescription(const Function<dim> &     level_set,
+        AnalyticLevelSetDescription(const Function<dim>      &level_set,
                                     const FiniteElement<dim> &element);
 
         /**
@@ -247,7 +249,7 @@ namespace NonMatching
 
       template <int dim>
       AnalyticLevelSetDescription<dim>::AnalyticLevelSetDescription(
-        const Function<dim> &     level_set,
+        const Function<dim>      &level_set,
         const FiniteElement<dim> &element)
         : level_set(&level_set)
         , fe_collection(element)
@@ -301,9 +303,9 @@ namespace NonMatching
 
 
   template <int dim>
-  template <class VectorType>
+  template <typename VectorType>
   MeshClassifier<dim>::MeshClassifier(const DoFHandler<dim> &dof_handler,
-                                      const VectorType &     level_set)
+                                      const VectorType      &level_set)
     : triangulation(&dof_handler.get_triangulation())
     , level_set_description(
         std::make_unique<internal::MeshClassifierImplementation::
@@ -311,6 +313,7 @@ namespace NonMatching
           dof_handler,
           level_set))
   {
+#ifdef DEAL_II_WITH_LAPACK
     const hp::FECollection<dim> &fe_collection =
       dof_handler.get_fe_collection();
     for (unsigned int i = 0; i < fe_collection.size(); i++)
@@ -320,16 +323,19 @@ namespace NonMatching
 
         Assert(fe_collection[i].has_face_support_points(),
                ExcMessage(
-                 "The elements in the FECollection of the incoming DoFHandler"
+                 "The elements in the FECollection of the incoming DoFHandler "
                  "must have face support points."));
       }
+#else
+    AssertThrow(false, ExcNeedsLAPACK());
+#endif
   }
 
 
 
   template <int dim>
   MeshClassifier<dim>::MeshClassifier(const Triangulation<dim> &triangulation,
-                                      const Function<dim> &     level_set,
+                                      const Function<dim>      &level_set,
                                       const FiniteElement<dim> &element)
     : triangulation(&triangulation)
     , level_set_description(
@@ -405,6 +411,24 @@ namespace NonMatching
                                                       face_index,
                                                       local_levelset_values);
 
+    const FiniteElement<dim> &fe =
+      level_set_description->get_fe_collection()[fe_index];
+
+    const FE_Q_iso_Q1<dim> *fe_q_iso_q1 =
+      dynamic_cast<const FE_Q_iso_Q1<dim> *>(&fe);
+
+    const FE_Poly<dim> *fe_poly = dynamic_cast<const FE_Poly<dim> *>(&fe);
+
+    const bool is_linear = fe_q_iso_q1 != nullptr ||
+                           (fe_poly != nullptr && fe_poly->get_degree() == 1);
+
+    // shortcut for linear elements
+    if (is_linear)
+      {
+        return internal::MeshClassifierImplementation::location_from_dof_signs(
+          local_levelset_values);
+      }
+
     lagrange_to_bernstein_face[fe_index][face_index].solve(
       local_levelset_values);
 
@@ -419,6 +443,11 @@ namespace NonMatching
   MeshClassifier<dim>::location_to_level_set(
     const typename Triangulation<dim>::cell_iterator &cell) const
   {
+    Assert(cell_locations.size() == triangulation->n_active_cells(),
+           internal::MeshClassifierImplementation::ExcReclassifyNotCalled());
+    Assert(&cell->get_triangulation() == triangulation,
+           internal::MeshClassifierImplementation::ExcTriangulationMismatch());
+
     return cell_locations.at(cell->active_cell_index());
   }
 
@@ -431,6 +460,10 @@ namespace NonMatching
     const unsigned int                                face_index) const
   {
     AssertIndexRange(face_index, GeometryInfo<dim>::faces_per_cell);
+    Assert(face_locations.size() == triangulation->n_raw_faces(),
+           internal::MeshClassifierImplementation::ExcReclassifyNotCalled());
+    Assert(&cell->get_triangulation() == triangulation,
+           internal::MeshClassifierImplementation::ExcTriangulationMismatch());
 
     return face_locations.at(cell->face(face_index)->index());
   }
@@ -452,7 +485,8 @@ namespace NonMatching
     for (unsigned int i = 0; i < fe_collection.size(); i++)
       {
         const FiniteElement<dim> &element = fe_collection[i];
-        const FE_Q<dim> *fe_q = dynamic_cast<const FE_Q<dim> *>(&element);
+        const FE_Q_Base<dim>     *fe_q =
+          dynamic_cast<const FE_Q_Base<dim> *>(&element);
         Assert(fe_q != nullptr, ExcNotImplemented());
 
         const FE_Bernstein<dim> fe_bernstein(fe_q->get_degree());

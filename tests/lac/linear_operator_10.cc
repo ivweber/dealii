@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2021 by the deal.II authors
+// Copyright (C) 2015 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,10 +46,20 @@ template <class PRECONDITIONER,
           class VECTOR,
           class ADDITIONAL_DATA = typename PRECONDITIONER::AdditionalData>
 void
-test_preconditioner(const MATRIX &         A,
-                    const VECTOR &         b,
+test_preconditioner(const MATRIX          &A,
+                    const VECTOR          &b,
                     const ADDITIONAL_DATA &data = ADDITIONAL_DATA())
 {
+  // This test might trigger spurious floating point exceptions in Trilinos
+  // despite functioning properly. Simply disable floating point exceptions
+  // again (after they had been enabled int tests.h).
+#if defined(DEBUG) && defined(DEAL_II_HAVE_FP_EXCEPTIONS)
+  {
+    const int current_fe_except = fegetexcept();
+    fedisableexcept(current_fe_except);
+  }
+#endif
+
   const auto lo_A = linear_operator<VECTOR>(A);
   // Note: The above should be equivalent to the following:
   //

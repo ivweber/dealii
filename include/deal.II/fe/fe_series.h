@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,8 +42,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup feall */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 
 /**
@@ -60,7 +62,7 @@ namespace FESeries
    * The exponential form of the Fourier series is  based on completeness
    * and Hermitian orthogonality of the set of exponential
    * functions $ \phi_{\bf k}({\bf x}) = \exp(2 \pi i\, {\bf k} \cdot {\bf x})$.
-   * For example in 1D the L2-orthogonality condition reads
+   * For example in 1d the L2-orthogonality condition reads
    * @f[
    *   \int_0^1 \phi_k(x) \phi_l^\ast(x) dx=\delta_{kl}.
    * @f]
@@ -108,9 +110,9 @@ namespace FESeries
      * case it indicates that the sole component is to be decomposed. For
      * vector-valued FEs, a non-default value must be explicitly provided.
      */
-    Fourier(const std::vector<unsigned int> &      n_coefficients_per_direction,
+    Fourier(const std::vector<unsigned int>       &n_coefficients_per_direction,
             const hp::FECollection<dim, spacedim> &fe_collection,
-            const hp::QCollection<dim> &           q_collection,
+            const hp::QCollection<dim>            &q_collection,
             const unsigned int component = numbers::invalid_unsigned_int);
 
     /**
@@ -122,7 +124,7 @@ namespace FESeries
     void
     calculate(const dealii::Vector<Number> &local_dof_values,
               const unsigned int            cell_active_fe_index,
-              Table<dim, CoefficientType> & fourier_coefficients);
+              Table<dim, CoefficientType>  &fourier_coefficients);
 
     /**
      * Return the number of coefficients in each coordinate direction for the
@@ -280,7 +282,7 @@ namespace FESeries
      */
     Legendre(const std::vector<unsigned int> &n_coefficients_per_direction,
              const hp::FECollection<dim, spacedim> &fe_collection,
-             const hp::QCollection<dim> &           q_collection,
+             const hp::QCollection<dim>            &q_collection,
              const unsigned int component = numbers::invalid_unsigned_int);
 
     /**
@@ -292,7 +294,7 @@ namespace FESeries
     void
     calculate(const dealii::Vector<Number> &local_dof_values,
               const unsigned int            cell_active_fe_index,
-              Table<dim, CoefficientType> & legendre_coefficients);
+              Table<dim, CoefficientType>  &legendre_coefficients);
 
     /**
      * Return the number of coefficients in each coordinate direction for the
@@ -398,7 +400,7 @@ namespace FESeries
   std::pair<std::vector<unsigned int>, std::vector<double>>
   process_coefficients(const Table<dim, CoefficientType> &coefficients,
                        const std::function<std::pair<bool, unsigned int>(
-                         const TableIndices<dim> &)> &    predicate,
+                         const TableIndices<dim> &)>     &predicate,
                        const VectorTools::NormType        norm_type,
                        const double smallest_abs_coefficient = 1e-10);
 
@@ -412,7 +414,7 @@ namespace FESeries
 
 } // namespace FESeries
 
-/*@}*/
+/** @} */
 
 
 
@@ -428,7 +430,7 @@ namespace internal
     void
     fill_map_index(
       const Table<dim, CoefficientType> &coefficients,
-      const TableIndices<dim> &          ind,
+      const TableIndices<dim>           &ind,
       const std::function<
         std::pair<bool, unsigned int>(const TableIndices<dim> &)> &predicate,
       std::map<unsigned int, std::vector<CoefficientType>> &pred_to_values)
@@ -453,7 +455,7 @@ namespace internal
       const Table<1, CoefficientType> &coefficients,
       const std::function<
         std::pair<bool, unsigned int>(const TableIndices<1> &)> &predicate,
-      std::map<unsigned int, std::vector<CoefficientType>> &     pred_to_values)
+      std::map<unsigned int, std::vector<CoefficientType>>      &pred_to_values)
     {
       for (unsigned int i = 0; i < coefficients.size(0); ++i)
         {
@@ -470,7 +472,7 @@ namespace internal
       const Table<2, CoefficientType> &coefficients,
       const std::function<
         std::pair<bool, unsigned int>(const TableIndices<2> &)> &predicate,
-      std::map<unsigned int, std::vector<CoefficientType>> &     pred_to_values)
+      std::map<unsigned int, std::vector<CoefficientType>>      &pred_to_values)
     {
       for (unsigned int i = 0; i < coefficients.size(0); ++i)
         for (unsigned int j = 0; j < coefficients.size(1); ++j)
@@ -488,7 +490,7 @@ namespace internal
       const Table<3, CoefficientType> &coefficients,
       const std::function<
         std::pair<bool, unsigned int>(const TableIndices<3> &)> &predicate,
-      std::map<unsigned int, std::vector<CoefficientType>> &     pred_to_values)
+      std::map<unsigned int, std::vector<CoefficientType>>      &pred_to_values)
     {
       for (unsigned int i = 0; i < coefficients.size(0); ++i)
         for (unsigned int j = 0; j < coefficients.size(1); ++j)
@@ -530,7 +532,7 @@ std::pair<std::vector<unsigned int>, std::vector<double>>
 FESeries::process_coefficients(
   const Table<dim, CoefficientType> &coefficients,
   const std::function<std::pair<bool, unsigned int>(const TableIndices<dim> &)>
-    &                         predicate,
+                             &predicate,
   const VectorTools::NormType norm_type,
   const double                smallest_abs_coefficient)
 {
@@ -541,7 +543,7 @@ FESeries::process_coefficients(
   std::vector<double>       norm_values;
 
   // first, parse all table elements into a map of predicate values and
-  // coefficients. We could have stored (predicate values ->TableIndicies) map,
+  // coefficients. We could have stored (predicate values ->TableIndices) map,
   // but its processing would have been much harder later on.
   std::map<unsigned int, std::vector<CoefficientType>> pred_to_values;
   internal::FESeriesImplementation::fill_map(coefficients,
@@ -610,7 +612,7 @@ FESeries::Fourier<dim, spacedim>::save_transformation_matrices(
 
   // finite element collection
   unsigned int size = fe_collection->size();
-  ar &         size;
+  ar          &size;
   for (unsigned int i = 0; i < size; ++i)
     ar &(*fe_collection)[i].get_name();
 
@@ -637,7 +639,7 @@ FESeries::Fourier<dim, spacedim>::load_transformation_matrices(
   // the transformation matrices to load.
   // mode vector
   std::vector<unsigned int> compare_coefficients;
-  ar &                      compare_coefficients;
+  ar                       &compare_coefficients;
   Assert(compare_coefficients == n_coefficients_per_direction,
          ExcMessage("A different number of coefficients vector has been used "
                     "to generate the transformation matrices you are about "
@@ -645,7 +647,7 @@ FESeries::Fourier<dim, spacedim>::load_transformation_matrices(
 
   // finite element collection
   unsigned int size;
-  ar &         size;
+  ar          &size;
   AssertDimension(size, fe_collection->size());
   std::string name;
   for (unsigned int i = 0; i < size; ++i)
@@ -688,7 +690,7 @@ FESeries::Legendre<dim, spacedim>::save_transformation_matrices(
 
   // finite element collection
   unsigned int size = fe_collection->size();
-  ar &         size;
+  ar          &size;
   for (unsigned int i = 0; i < size; ++i)
     ar &(*fe_collection)[i].get_name();
 
@@ -715,7 +717,7 @@ FESeries::Legendre<dim, spacedim>::load_transformation_matrices(
   // the transformation matrices to load.
   // mode vector
   std::vector<unsigned int> compare_coefficients;
-  ar &                      compare_coefficients;
+  ar                       &compare_coefficients;
   Assert(compare_coefficients == n_coefficients_per_direction,
          ExcMessage("A different number of coefficients vector has been used "
                     "to generate the transformation matrices you are about "
@@ -723,7 +725,7 @@ FESeries::Legendre<dim, spacedim>::load_transformation_matrices(
 
   // finite element collection
   unsigned int size;
-  ar &         size;
+  ar          &size;
   AssertDimension(size, fe_collection->size());
   std::string name;
   for (unsigned int i = 0; i < size; ++i)

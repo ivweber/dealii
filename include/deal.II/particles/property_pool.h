@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,7 +40,7 @@ namespace types
    *
    * The data type always indicates an unsigned integer type.
    */
-  using particle_index = uint64_t;
+  using particle_index = std::uint64_t;
 
 #  ifdef DEAL_II_WITH_MPI
   /**

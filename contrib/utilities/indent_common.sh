@@ -1,7 +1,7 @@
 #!/bin/bash
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2018 - 2021 by the deal.II authors
+## Copyright (C) 2018 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -39,11 +39,11 @@ checks() {
 
   # Add the location 'download_clang_format' or 'compile_clang_format'
   # installs clang-format to the local PATH.
-  CLANG_FORMAT_PATH="$(cd "$(dirname "$0")" && pwd)/programs/clang-11/bin"
+  CLANG_FORMAT_PATH="$(cd "$(dirname "$0")" && pwd)/programs/clang-16/bin"
   export PATH="${CLANG_FORMAT_PATH}:${PATH}"
 
   if ! [ -x "$(command -v "${DEAL_II_CLANG_FORMAT}")" ]; then
-    echo "***   No clang-format program found."
+    echo "***   No clang-format program found, or found with the wrong version."
     echo "***"
     echo "***   You can run the './contrib/utilities/download_clang_format'"
     echo "***   script, or the './contrib/utilities/compile_clang_format' script "
@@ -56,8 +56,8 @@ checks() {
   CLANG_FORMAT_MAJOR_VERSION=$(echo "${CLANG_FORMAT_VERSION}" | sed 's/^[^0-9]*\([0-9]*\).*$/\1/g')
   CLANG_FORMAT_MINOR_VERSION=$(echo "${CLANG_FORMAT_VERSION}" | sed 's/^[^0-9]*[0-9]*\.\([0-9]*\).*$/\1/g')
 
-  if [ "${CLANG_FORMAT_MAJOR_VERSION}" -ne 11 ] || [ "${CLANG_FORMAT_MINOR_VERSION}" -ne 1 ]; then
-    echo "***   This indent script requires clang-format version 11.1,"
+  if [ "${CLANG_FORMAT_MAJOR_VERSION}" -ne 16 ] || [ "${CLANG_FORMAT_MINOR_VERSION}" -ne 0 ]; then
+    echo "***   This indent script requires clang-format version 16.0,"
     echo "***   but version ${CLANG_FORMAT_MAJOR_VERSION}.${CLANG_FORMAT_MINOR_VERSION} was found instead."
     echo "***"
     echo "***   You can run the './contrib/utilities/download_clang_format'"
@@ -83,11 +83,11 @@ checks() {
   # first user names:
   git log --since "2019-01-01" --format="%aN" --no-merges | sort -u | while read name ; do
       words=($name)
-      if [ "${#words[@]}" -lt "2" ]; then
+      if [ "${#words[@]}" -lt "2" -a "$name" != "dependabot[bot]" ]; then
 	  echo "invalid author '$name' without firstname and lastname"
 	  echo ""
 	  echo "hint: for possible solutions, consult the webpage:"
-	  echo "      https://github.com/dealii/dealii/wiki/Indentation#commit-authorship"
+	  echo "      https://github.com/dealii/dealii/wiki/Commit-authorship"
 	  exit 2
       fi
   done || exit 2
@@ -99,14 +99,14 @@ checks() {
 	  echo "invalid email '$email'"
           echo ""
           echo "hint: for possible solutions, consult the webpage:"
-          echo "      https://github.com/dealii/dealii/wiki/Indentation#commit-authorship"
+          echo "      https://github.com/dealii/dealii/wiki/Commit-authorship"
 	  exit 3
       fi
       if ! echo "$email" | grep -q -v -e "\.local$"; then
 	  echo "invalid email '$email'"
           echo ""
           echo "hint: for possible solutions, consult the webpage:"
-          echo "      https://github.com/dealii/dealii/wiki/Indentation#commit-authorship"
+          echo "      https://github.com/dealii/dealii/wiki/Commit-authorship"
 	  exit 3
       fi
   done || exit 3
@@ -144,7 +144,7 @@ fix_or_report()
 export -f fix_or_report
 
 #
-# In order to format .cc and .h files we have to make sure that we override
+# In order to format .cc and .h files we have to make sure that we overwrite
 # the source/header file only if the actual contents changed.
 # Unfortunately, clang-format isn't exactly helpful there. Thus, use a
 # temporary file and diff as a workaround.

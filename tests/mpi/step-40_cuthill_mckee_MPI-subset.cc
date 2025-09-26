@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -136,7 +136,8 @@ namespace Step40
   {
     dof_handler.distribute_dofs(fe);
     locally_owned_dofs = dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     {
       std::vector<types::global_dof_index> starting_indices;
@@ -192,8 +193,8 @@ namespace Step40
       DoFRenumbering::Cuthill_McKee(dof_handler, false, true, starting_indices);
 
       locally_owned_dofs = dof_handler.locally_owned_dofs();
-      DoFTools::extract_locally_relevant_dofs(dof_handler,
-                                              locally_relevant_dofs);
+      locally_relevant_dofs =
+        DoFTools::extract_locally_relevant_dofs(dof_handler);
     }
 
     locally_relevant_solution.reinit(locally_owned_dofs,
@@ -309,7 +310,7 @@ namespace Step40
 
     SolverControl solver_control(dof_handler.n_dofs(), 1e-12);
 
-    PETScWrappers::SolverCG solver(solver_control, mpi_communicator);
+    PETScWrappers::SolverCG solver(solver_control);
 
 #ifndef PETSC_USE_COMPLEX
     PETScWrappers::PreconditionBoomerAMG preconditioner(
@@ -420,7 +421,7 @@ test_mpi(MPI_Comm comm)
         laplace_problem_2d.run();
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

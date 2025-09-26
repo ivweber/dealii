@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2021 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,6 +42,7 @@
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_nedelec_sz.h>
 #include <deal.II/fe/fe_nothing.h>
+#include <deal.II/fe/fe_pyramid_p.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_q_bubbles.h>
 #include <deal.II/fe/fe_q_dg0.h>
@@ -50,17 +51,17 @@
 #include <deal.II/fe/fe_rannacher_turek.h>
 #include <deal.II/fe/fe_raviart_thomas.h>
 #include <deal.II/fe/fe_rt_bubbles.h>
+#include <deal.II/fe/fe_simplex_p.h>
+#include <deal.II/fe/fe_simplex_p_bubbles.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/fe_wedge_p.h>
 #include <deal.II/fe/mapping_cartesian.h>
-#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
-
-#include <deal.II/hp/dof_handler.h>
 
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/householder.h>
@@ -80,15 +81,10 @@ namespace FETools
     FiniteElementData<dim>
     multiply_dof_numbers(
       const std::vector<const FiniteElement<dim, spacedim> *> &fes,
-      const std::vector<unsigned int> &                        multiplicities,
+      const std::vector<unsigned int>                         &multiplicities,
       const bool do_tensor_product)
     {
       AssertDimension(fes.size(), multiplicities.size());
-
-      unsigned int multiplied_dofs_per_vertex = 0;
-      unsigned int multiplied_dofs_per_line   = 0;
-      unsigned int multiplied_dofs_per_quad   = 0;
-      unsigned int multiplied_dofs_per_hex    = 0;
 
       unsigned int multiplied_n_components = 0;
 
@@ -103,23 +99,69 @@ namespace FETools
             break;
           }
 
+      dealii::internal::GenericDoFsPerObject dpo;
+
+      std::vector<dealii::internal::GenericDoFsPerObject> dpos_in(fes.size());
+
+      for (unsigned int i = 0; i < fes.size(); ++i)
+        if (multiplicities[i] > 0)
+          dpos_in[i] =
+            dealii::internal::GenericDoFsPerObject::generate(*fes[i]);
+
+      // helper function to fill a vector of GenericDoFsPerObject
+      // according to multiplicities
+      const auto fill_dpo_vector =
+        [&](const std::function<std::vector<std::vector<unsigned int>> &(
+              dealii::internal::GenericDoFsPerObject &)> &get_vector) {
+          auto &vector_dst = get_vector(dpo);
+
+          // allocate memory
+          for (unsigned int i = 0; i < fes.size(); ++i)
+            if (multiplicities[i] > 0)
+              {
+                const auto &vector_src = get_vector(dpos_in[i]);
+
+                vector_dst.resize(vector_src.size());
+
+                for (unsigned int j = 0; j < vector_src.size(); ++j)
+                  vector_dst[j].assign(vector_src[j].size(), 0);
+
+                break;
+              }
+
+          // fill vector according to multiplicities
+          for (unsigned int i = 0; i < fes.size(); ++i)
+            if (multiplicities[i] > 0)
+              {
+                const auto &vector_src = get_vector(dpos_in[i]);
+
+                for (unsigned int j = 0; j < vector_src.size(); ++j)
+                  for (unsigned int k = 0; k < vector_src[j].size(); ++k)
+                    vector_dst[j][k] += vector_src[j][k] * multiplicities[i];
+              }
+        };
+
+      // go through each field of GenericDoFsPerObject
+      fill_dpo_vector(
+        [](auto &dpo) -> std::vector<std::vector<unsigned int>> & {
+          return dpo.dofs_per_object_exclusive;
+        });
+      fill_dpo_vector(
+        [](auto &dpo) -> std::vector<std::vector<unsigned int>> & {
+          return dpo.dofs_per_object_inclusive;
+        });
+      fill_dpo_vector(
+        [](auto &dpo) -> std::vector<std::vector<unsigned int>> & {
+          return dpo.object_index;
+        });
+      fill_dpo_vector(
+        [](auto &dpo) -> std::vector<std::vector<unsigned int>> & {
+          return dpo.first_object_index_on_face;
+        });
+
       for (unsigned int i = 0; i < fes.size(); ++i)
         if (multiplicities[i] > 0)
           {
-            // TODO: the implementation makes the assumption that all faces have
-            // the same number of dofs -> don't construct DPO but
-            // PrecomputedFiniteElementData
-            AssertDimension(fes[i]->n_unique_quads(), 1);
-
-            multiplied_dofs_per_vertex +=
-              fes[i]->n_dofs_per_vertex() * multiplicities[i];
-            multiplied_dofs_per_line +=
-              fes[i]->n_dofs_per_line() * multiplicities[i];
-            multiplied_dofs_per_quad +=
-              fes[i]->n_dofs_per_quad(0) * multiplicities[i];
-            multiplied_dofs_per_hex +=
-              fes[i]->n_dofs_per_hex() * multiplicities[i];
-
             multiplied_n_components +=
               fes[i]->n_components() * multiplicities[i];
 
@@ -149,14 +191,6 @@ namespace FETools
             total_conformity = typename FiniteElementData<dim>::Conformity(
               total_conformity & fes[index]->conforming_space);
       }
-
-      std::vector<unsigned int> dpo;
-      dpo.push_back(multiplied_dofs_per_vertex);
-      dpo.push_back(multiplied_dofs_per_line);
-      if (dim > 1)
-        dpo.push_back(multiplied_dofs_per_quad);
-      if (dim > 2)
-        dpo.push_back(multiplied_dofs_per_hex);
 
       BlockIndices block_indices(0, 0);
 
@@ -211,7 +245,7 @@ namespace FETools
     std::vector<bool>
     compute_restriction_is_additive_flags(
       const std::vector<const FiniteElement<dim, spacedim> *> &fes,
-      const std::vector<unsigned int> &                        multiplicities)
+      const std::vector<unsigned int>                         &multiplicities)
     {
       AssertDimension(fes.size(), multiplicities.size());
 
@@ -371,7 +405,7 @@ namespace FETools
     std::vector<ComponentMask>
     compute_nonzero_components(
       const std::vector<const FiniteElement<dim, spacedim> *> &fes,
-      const std::vector<unsigned int> &                        multiplicities,
+      const std::vector<unsigned int>                         &multiplicities,
       const bool do_tensor_product)
     {
       AssertDimension(fes.size(), multiplicities.size());
@@ -618,10 +652,10 @@ namespace FETools
       std::vector<std::pair<std::pair<unsigned int, unsigned int>,
                             unsigned int>> &system_to_base_table,
       std::vector<std::pair<unsigned int, unsigned int>>
-        &                                   system_to_component_table,
+                                           &system_to_component_table,
       std::vector<std::pair<std::pair<unsigned int, unsigned int>,
                             unsigned int>> &component_to_base_table,
-      const FiniteElement<dim, spacedim> &  fe,
+      const FiniteElement<dim, spacedim>   &fe,
       const bool                            do_tensor_product)
     {
       unsigned int total_index = 0;
@@ -840,7 +874,7 @@ namespace FETools
       std::vector<std::pair<std::pair<unsigned int, unsigned int>,
                             unsigned int>> &face_system_to_base_table,
       std::vector<std::pair<unsigned int, unsigned int>>
-        &                                 face_system_to_component_table,
+                                         &face_system_to_component_table,
       const FiniteElement<dim, spacedim> &fe,
       const bool                          do_tensor_product,
       const unsigned int                  face_no)
@@ -1095,6 +1129,25 @@ namespace FETools
           std::make_unique<FETools::FEFactory<FE_Nothing<dim>>>();
         result["FE_RannacherTurek"] =
           std::make_unique<FETools::FEFactory<FE_RannacherTurek<dim>>>();
+        // Simplex finite elements
+        result["FE_SimplexP"] =
+          std::make_unique<FETools::FEFactory<FE_SimplexP<dim>>>();
+        result["FE_SimplexDGP"] =
+          std::make_unique<FETools::FEFactory<FE_SimplexDGP<dim>>>();
+        result["FE_SimplexP_Bubbles"] =
+          std::make_unique<FETools::FEFactory<FE_SimplexP_Bubbles<dim>>>();
+        // Mixed grids finite elements -- only valid in 3d
+        if constexpr (dim == 3)
+          {
+            result["FE_PyramidP"] =
+              std::make_unique<FETools::FEFactory<FE_PyramidP<dim>>>();
+            result["FE_PyramidDGP"] =
+              std::make_unique<FETools::FEFactory<FE_PyramidDGP<dim>>>();
+            result["FE_WedgeP"] =
+              std::make_unique<FETools::FEFactory<FE_WedgeP<dim>>>();
+            result["FE_WedgeDGP"] =
+              std::make_unique<FETools::FEFactory<FE_WedgeDGP<dim>>>();
+          }
       }
 
 
@@ -1131,6 +1184,12 @@ namespace FETools
           std::make_unique<FETools::FEFactory<FE_Q<dim, spacedim>>>();
         result["FE_Bernstein"] =
           std::make_unique<FETools::FEFactory<FE_Bernstein<dim, spacedim>>>();
+        result["FE_SimplexP"] =
+          std::make_unique<FETools::FEFactory<FE_SimplexP<dim, spacedim>>>();
+        result["FE_SimplexDGP"] =
+          std::make_unique<FETools::FEFactory<FE_SimplexDGP<dim, spacedim>>>();
+        result["FE_SimplexP_Bubbles"] = std::make_unique<
+          FETools::FEFactory<FE_SimplexP_Bubbles<dim, spacedim>>>();
       }
 
       // The function filling the vector fe_name_map below. It iterates
@@ -1223,7 +1282,7 @@ namespace FETools
       inline void
       gim_forwarder(const FiniteElement<dim, spacedim> &fe1,
                     const FiniteElement<dim, spacedim> &fe2,
-                    FullMatrix<double> &                interpolation_matrix)
+                    FullMatrix<double>                 &interpolation_matrix)
       {
         fe2.get_interpolation_matrix(fe1, interpolation_matrix);
       }
@@ -1234,7 +1293,7 @@ namespace FETools
       inline void
       gim_forwarder(const FiniteElement<dim, spacedim> &fe1,
                     const FiniteElement<dim, spacedim> &fe2,
-                    FullMatrix<number> &                interpolation_matrix)
+                    FullMatrix<number>                 &interpolation_matrix)
       {
         FullMatrix<double> tmp(interpolation_matrix.m(),
                                interpolation_matrix.n());
@@ -1248,8 +1307,8 @@ namespace FETools
 
   template <int dim, int spacedim>
   void
-  compute_component_wise(const FiniteElement<dim, spacedim> &    element,
-                         std::vector<unsigned int> &             renumbering,
+  compute_component_wise(const FiniteElement<dim, spacedim>     &element,
+                         std::vector<unsigned int>              &renumbering,
                          std::vector<std::vector<unsigned int>> &comp_start)
   {
     Assert(renumbering.size() == element.n_dofs_per_cell(),
@@ -1289,7 +1348,7 @@ namespace FETools
 
   template <int dim, int spacedim>
   void
-  compute_block_renumbering(const FiniteElement<dim, spacedim> &  element,
+  compute_block_renumbering(const FiniteElement<dim, spacedim>   &element,
                             std::vector<types::global_dof_index> &renumbering,
                             std::vector<types::global_dof_index> &block_data,
                             bool return_start_indices)
@@ -1452,7 +1511,7 @@ namespace FETools
   void
   get_projection_matrix(const FiniteElement<dim, spacedim> &fe1,
                         const FiniteElement<dim, spacedim> &fe2,
-                        FullMatrix<number> &                matrix)
+                        FullMatrix<number>                 &matrix)
   {
     Assert(matrix.m() == fe2.n_dofs_per_cell() &&
              matrix.n() == fe1.n_dofs_per_cell(),
@@ -1599,9 +1658,9 @@ namespace FETools
       compute_embedding_for_shape_function(
         const unsigned int                  i,
         const FiniteElement<dim, spacedim> &fe,
-        const FEValues<dim, spacedim> &     coarse,
-        const Householder<double> &         H,
-        FullMatrix<number> &                this_matrix,
+        const FEValues<dim, spacedim>      &coarse,
+        const Householder<double>          &H,
+        FullMatrix<number>                 &this_matrix,
         const double                        threshold)
       {
         const unsigned int n  = fe.n_dofs_per_cell();
@@ -1620,7 +1679,7 @@ namespace FETools
         if (fe.is_primitive())
           {
             const unsigned int d     = fe.system_to_component_index(i).first;
-            const double *     phi_i = &coarse.shape_value(i, 0);
+            const double      *phi_i = &coarse.shape_value(i, 0);
 
             for (unsigned int k = 0; k < nq; ++k)
               v_coarse(k * nd + d) = phi_i[k];
@@ -1655,7 +1714,7 @@ namespace FETools
       void
       compute_embedding_matrices_for_refinement_case(
         const FiniteElement<dim, spacedim> &fe,
-        std::vector<FullMatrix<number>> &   matrices,
+        std::vector<FullMatrix<number>>    &matrices,
         const unsigned int                  ref_case,
         const double                        threshold)
       {
@@ -1798,7 +1857,7 @@ namespace FETools
   template <int dim, typename number, int spacedim>
   void
   compute_embedding_matrices(
-    const FiniteElement<dim, spacedim> &          fe,
+    const FiniteElement<dim, spacedim>           &fe,
     std::vector<std::vector<FullMatrix<number>>> &matrices,
     const bool                                    isotropic_only,
     const double                                  threshold)
@@ -2045,7 +2104,7 @@ namespace FETools
   template <int dim, typename number, int spacedim>
   void
   compute_projection_matrices(
-    const FiniteElement<dim, spacedim> &          fe,
+    const FiniteElement<dim, spacedim>           &fe,
     std::vector<std::vector<FullMatrix<number>>> &matrices,
     const bool                                    isotropic_only)
   {
@@ -2110,7 +2169,7 @@ namespace FETools
     const auto compute_one_case =
       [&reference_cell, &mapping, &fe, &q_fine, n, nd, nq](
         const unsigned int               ref_case,
-        const FullMatrix<double> &       inverse_mass_matrix,
+        const FullMatrix<double>        &inverse_mass_matrix,
         std::vector<FullMatrix<double>> &matrices) {
         const unsigned int nc =
           GeometryInfo<dim>::n_children(RefinementCase<dim>(ref_case));
@@ -2225,7 +2284,7 @@ namespace FETools
 
   template <int dim, int spacedim>
   void
-  add_fe_name(const std::string &                 parameter_name,
+  add_fe_name(const std::string                  &parameter_name,
               const FEFactoryBase<dim, spacedim> *factory)
   {
     // Erase everything after the
@@ -2305,7 +2364,7 @@ namespace FETools
 
             // Now, just the [...]
             // part should be left.
-            if (name.size() == 0 || name[0] != '[')
+            if (name.empty() || name[0] != '[')
               throw std::string("Invalid first character in ") + name;
             do
               {
@@ -2359,7 +2418,7 @@ namespace FETools
             // list. make sure that
             // we actually had a ']'
             // there
-            if (name.size() == 0 || name[0] != ']')
+            if (name.empty() || name[0] != ']')
               throw std::string("Invalid first character in ") + name;
             name.erase(0, 1);
             // just one more sanity check
@@ -2407,7 +2466,7 @@ namespace FETools
             // Now, just the (degree)
             // or (Quadrature<1>(degree+1))
             // part should be left.
-            if (name.size() == 0 || name[0] != '(')
+            if (name.empty() || name[0] != '(')
               throw std::string("Invalid first character in ") + name;
             name.erase(0, 1);
             if (name[0] != 'Q')
@@ -2458,8 +2517,7 @@ namespace FETools
                     // find sub-quadrature
                     position = name.find('(');
                     const std::string subquadrature_name(name, 0, position);
-                    AssertThrow(subquadrature_name == "QTrapez" ||
-                                  subquadrature_name == "QTrapezoid",
+                    AssertThrow(subquadrature_name == "QTrapezoid",
                                 ExcNotImplemented(
                                   "Could not detect quadrature of name " +
                                   subquadrature_name));
@@ -2488,7 +2546,7 @@ namespace FETools
         // didn't know what to do with the
         // string we got. so do as the docs
         // say: raise an exception
-        AssertThrow(false, FETools::ExcInvalidFEName(name));
+        AssertThrow(false, FETools::ExcInvalidFEName(name_part));
 
         // make some compilers happy that
         // do not realize that we can't get
@@ -2580,7 +2638,7 @@ namespace FETools
 
         // Make sure the auxiliary function
         // ate up all characters of the name.
-        AssertThrow(name.size() == 0,
+        AssertThrow(name.empty(),
                     ExcInvalidFEName(parameter_name +
                                      std::string(" extra characters after "
                                                  "end of name")));
@@ -2601,9 +2659,9 @@ namespace FETools
   void
   compute_projection_from_quadrature_points_matrix(
     const FiniteElement<dim, spacedim> &fe,
-    const Quadrature<dim> &             lhs_quadrature,
-    const Quadrature<dim> &             rhs_quadrature,
-    FullMatrix<double> &                X)
+    const Quadrature<dim>              &lhs_quadrature,
+    const Quadrature<dim>              &rhs_quadrature,
+    FullMatrix<double>                 &X)
   {
     Assert(fe.n_components() == 1, ExcNotImplemented());
 
@@ -2642,8 +2700,8 @@ namespace FETools
   void
   compute_interpolation_to_quadrature_points_matrix(
     const FiniteElement<dim, spacedim> &fe,
-    const Quadrature<dim> &             quadrature,
-    FullMatrix<double> &                I_q)
+    const Quadrature<dim>              &quadrature,
+    FullMatrix<double>                 &I_q)
   {
     Assert(fe.n_components() == 1, ExcNotImplemented());
     Assert(I_q.m() == quadrature.size(), ExcMessage("Wrong matrix size"));
@@ -2659,9 +2717,9 @@ namespace FETools
   template <int dim>
   void
   compute_projection_from_quadrature_points(
-    const FullMatrix<double> &         projection_matrix,
+    const FullMatrix<double>          &projection_matrix,
     const std::vector<Tensor<1, dim>> &vector_of_tensors_at_qp,
-    std::vector<Tensor<1, dim>> &      vector_of_tensors_at_nodes)
+    std::vector<Tensor<1, dim>>       &vector_of_tensors_at_nodes)
   {
     // check that the number columns of the projection_matrix
     // matches the size of the vector_of_tensors_at_qp
@@ -2718,9 +2776,9 @@ namespace FETools
   template <int dim>
   void
   compute_projection_from_quadrature_points(
-    const FullMatrix<double> &                  projection_matrix,
+    const FullMatrix<double>                   &projection_matrix,
     const std::vector<SymmetricTensor<2, dim>> &vector_of_tensors_at_qp,
-    std::vector<SymmetricTensor<2, dim>> &      vector_of_tensors_at_nodes)
+    std::vector<SymmetricTensor<2, dim>>       &vector_of_tensors_at_nodes)
   {
     // check that the number columns of the projection_matrix
     // matches the size of the vector_of_tensors_at_qp
@@ -2790,11 +2848,11 @@ namespace FETools
   void
   compute_projection_from_face_quadrature_points_matrix(
     const FiniteElement<dim, spacedim> &fe,
-    const Quadrature<dim - 1> &         lhs_quadrature,
-    const Quadrature<dim - 1> &         rhs_quadrature,
+    const Quadrature<dim - 1>          &lhs_quadrature,
+    const Quadrature<dim - 1>          &rhs_quadrature,
     const typename DoFHandler<dim, spacedim>::active_cell_iterator &cell,
     const unsigned int                                              face,
-    FullMatrix<double> &                                            X)
+    FullMatrix<double>                                             &X)
   {
     Assert(fe.n_components() == 1, ExcNotImplemented());
     Assert(lhs_quadrature.size() > fe.degree,
@@ -2858,8 +2916,8 @@ namespace FETools
       template <int dim, int spacedim, typename number>
       static void
       convert_helper(const FiniteElement<dim, spacedim> &finite_element,
-                     const std::vector<Vector<number>> & support_point_values,
-                     std::vector<number> &               dof_values)
+                     const std::vector<Vector<number>>  &support_point_values,
+                     std::vector<number>                &dof_values)
       {
         static Threads::ThreadLocalStorage<std::vector<Vector<double>>>
           double_support_point_values;
@@ -2890,9 +2948,9 @@ namespace FETools
       template <int dim, int spacedim, typename number>
       static void
       convert_helper(
-        const FiniteElement<dim, spacedim> &             finite_element,
+        const FiniteElement<dim, spacedim>              &finite_element,
         const std::vector<Vector<std::complex<number>>> &support_point_values,
-        std::vector<std::complex<number>> &              dof_values)
+        std::vector<std::complex<number>>               &dof_values)
       {
         static Threads::ThreadLocalStorage<std::vector<Vector<double>>>
           double_support_point_values_real;
@@ -2948,8 +3006,8 @@ namespace FETools
       template <int dim, int spacedim>
       static void
       convert_helper(const FiniteElement<dim, spacedim> &finite_element,
-                     const std::vector<Vector<double>> & support_point_values,
-                     std::vector<double> &               dof_values)
+                     const std::vector<Vector<double>>  &support_point_values,
+                     std::vector<double>                &dof_values)
       {
         finite_element.convert_generalized_support_point_values_to_dof_values(
           support_point_values, dof_values);
@@ -2964,8 +3022,8 @@ namespace FETools
   void
   convert_generalized_support_point_values_to_dof_values(
     const FiniteElement<dim, spacedim> &finite_element,
-    const std::vector<Vector<number>> & support_point_values,
-    std::vector<number> &               dof_values)
+    const std::vector<Vector<number>>  &support_point_values,
+    std::vector<number>                &dof_values)
   {
     AssertDimension(support_point_values.size(),
                     finite_element.get_generalized_support_points().size());

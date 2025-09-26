@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -73,17 +73,14 @@ test(const unsigned int n_refinements, const unsigned int fe_degree_fine)
       dof_handler.distribute_mg_dofs();
 
       // set up constraints
-      std::set<types::boundary_id> dirichlet_boundary;
-      dirichlet_boundary.insert(0);
-      MGConstrainedDoFs mg_constrained_dofs;
+      const std::set<types::boundary_id> dirichlet_boundary = {0};
+      MGConstrainedDoFs                  mg_constrained_dofs;
       mg_constrained_dofs.initialize(dof_handler);
       mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
                                                          dirichlet_boundary);
 
-      IndexSet relevant_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof_handler,
-                                                    0 /*level*/,
-                                                    relevant_dofs);
+      const IndexSet relevant_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof_handler, 0 /*level*/);
       constraint.reinit(relevant_dofs);
       constraint.add_lines(
         mg_constrained_dofs.get_boundary_indices(0 /*level*/));

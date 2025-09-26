@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,7 +43,9 @@ template <int dim, typename NumberType>
 NumberType
 J(const SymmetricTensor<2, dim, NumberType> &C)
 {
-  return std::sqrt(determinant(C));
+  // Make things work with AD types
+  using std::sqrt;
+  return sqrt(determinant(C));
 }
 
 template <int dim, typename NumberType>
@@ -53,7 +55,9 @@ struct IncompressibleNeoHookean
   static NumberType
   psi(const SymmetricTensor<2, dim, NumberType> &C)
   {
-    return 0.5 * mu() * (trace(C) - dim) - mu() * std::log(J(C));
+    // Make things work with AD types
+    using std::log;
+    return 0.5 * mu() * (trace(C) - dim) - mu() * log(J(C));
   }
 
   static SymmetricTensor<2, dim, NumberType>
@@ -108,7 +112,7 @@ struct IncompressibleNeoHookeanPrincipalStretches
     SymmetricTensor<2, dim, NumberType> C_inv;
     for (unsigned int d = 0; d < dim; ++d)
       {
-        const NumberType &                lambda_squared = eig_C[d].first;
+        const NumberType                 &lambda_squared = eig_C[d].first;
         const Tensor<1, dim, NumberType> &N              = eig_C[d].second;
         C_inv +=
           NumberType(1.0 / lambda_squared) * symmetrize(outer_product(N, N));

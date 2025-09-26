@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2021 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -89,10 +89,9 @@ namespace parallel
      * process):
      * @code
      * // Create initial indexsets pertaining to the grid before refinement
-     * IndexSet locally_owned_dofs, locally_relevant_dofs;
-     * locally_owned_dofs = dof_handler.locally_owned_dofs();
-     * DoFTools::extract_locally_relevant_dofs(dof_handler,
-     *                                         locally_relevant_dofs);
+     * const IndexSet &locally_owned_dofs    = dof_handler.locally_owned_dofs();
+     * const IndexSet  locally_relevant_dofs =
+     *   DoFTools::extract_locally_relevant_dofs(dof_handler);
      *
      * // The solution vector only knows about locally owned DoFs
      * TrilinosWrappers::MPI::Vector solution;
@@ -228,12 +227,17 @@ namespace parallel
       /**
        * Constructor.
        *
-       * @param[in] dof The DoFHandler on which all operations will happen.
-       *   At the time when this constructor is called, the DoFHandler still
-       *   points to the Triangulation before the refinement in question
+       * @param[in] dof_handler The DoFHandler on which all operations will
+       * happen. At the time when this constructor is called, the DoFHandler
+       * still points to the Triangulation before the refinement in question
        *   happens.
+       * @param[in] average_values Average the contribututions to the same
+       *   DoF coming from different cells. Note: averaging requires an
+       * additional communication step, since the valence of the DoF has to be
+       * determined.
        */
-      SolutionTransfer(const DoFHandler<dim, spacedim> &dof);
+      SolutionTransfer(const DoFHandler<dim, spacedim> &dof_handler,
+                       const bool                       average_values = false);
 
       /**
        * Destructor.
@@ -320,6 +324,11 @@ namespace parallel
         dof_handler;
 
       /**
+       * Flag indicating if averaging should be performed.
+       */
+      const bool average_values;
+
+      /**
        * A vector that stores pointers to all the vectors we are supposed to
        * copy over from the old to the new mesh.
        */
@@ -339,7 +348,7 @@ namespace parallel
       std::vector<char>
       pack_callback(
         const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-        const typename Triangulation<dim, spacedim>::CellStatus     status);
+        const CellStatus                                            status);
 
       /**
        * A callback function used to unpack the data on the current mesh that
@@ -349,10 +358,11 @@ namespace parallel
       void
       unpack_callback(
         const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-        const typename Triangulation<dim, spacedim>::CellStatus     status,
+        const CellStatus                                            status,
         const boost::iterator_range<std::vector<char>::const_iterator>
-          &                        data_range,
-        std::vector<VectorType *> &all_out);
+                                  &data_range,
+        std::vector<VectorType *> &all_out,
+        VectorType                &valence);
 
 
       /**
@@ -365,26 +375,6 @@ namespace parallel
     };
   } // namespace distributed
 } // namespace parallel
-
-namespace Legacy
-{
-  namespace parallel
-  {
-    namespace distributed
-    {
-      /**
-       * @deprecated Use dealii::parallel::distributed::SolutionTransfer
-       * without the DoFHandlerType template instead.
-       */
-      template <int dim,
-                typename VectorType,
-                typename DoFHandlerType = DoFHandler<dim>>
-      using SolutionTransfer DEAL_II_DEPRECATED =
-        dealii::parallel::distributed::
-          SolutionTransfer<dim, VectorType, DoFHandlerType::space_dimension>;
-    } // namespace distributed
-  }   // namespace parallel
-} // namespace Legacy
 
 
 DEAL_II_NAMESPACE_CLOSE

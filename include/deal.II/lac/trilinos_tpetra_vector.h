@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,11 +22,12 @@
 #ifdef DEAL_II_TRILINOS_WITH_TPETRA
 
 #  include <deal.II/base/index_set.h>
+#  include <deal.II/base/mpi_stub.h>
 #  include <deal.II/base/subscriptor.h>
 
+#  include <deal.II/lac/read_vector.h>
 #  include <deal.II/lac/trilinos_tpetra_communication_pattern.h>
 #  include <deal.II/lac/vector_operation.h>
-#  include <deal.II/lac/vector_space_vector.h>
 #  include <deal.II/lac/vector_type_traits.h>
 
 #  include <Teuchos_Comm.hpp>
@@ -34,11 +35,45 @@
 #  include <Tpetra_Core.hpp>
 #  include <Tpetra_Vector.hpp>
 #  include <Tpetra_Version.hpp>
-#  include <mpi.h>
 
 #  include <memory>
 
 DEAL_II_NAMESPACE_OPEN
+
+/**
+ * Type trait indicating if a certain number type has been explicitly
+ * instantiated in Tpetra. deal.II only supports those number types in Tpetra
+ * wrapper classes.
+ */
+template <typename Number>
+struct is_tpetra_type : std::false_type
+{};
+
+#  ifdef HAVE_TPETRA_INST_FLOAT
+template <>
+struct is_tpetra_type<float> : std::true_type
+{};
+#  endif
+
+#  ifdef HAVE_TPETRA_INST_DOUBLE
+template <>
+struct is_tpetra_type<double> : std::true_type
+{};
+#  endif
+
+#  ifdef DEAL_II_WITH_COMPLEX_VALUES
+#    ifdef HAVE_TPETRA_INST_COMPLEX_FLOAT
+template <>
+struct is_tpetra_type<std::complex<float>> : std::true_type
+{};
+#    endif
+
+#    ifdef HAVE_TPETRA_INST_COMPLEX_DOUBLE
+template <>
+struct is_tpetra_type<std::complex<double>> : std::true_type
+{};
+#    endif
+#  endif
 
 namespace LinearAlgebra
 {
@@ -59,33 +94,30 @@ namespace LinearAlgebra
   {
     /**
      * This class implements a wrapper to the Trilinos distributed vector
-     * class Tpetra::Vector. This class is derived from the
-     * LinearAlgebra::VectorSpaceVector class and requires Trilinos to be
+     * class Tpetra::Vector. This class requires Trilinos to be
      * compiled with MPI support.
      *
      * Tpetra uses Kokkos for thread-parallelism and chooses the execution and
      * memory space automatically depending on Kokkos configuration. The
      * priority is ranked from highest to lowest:
-     * - Kokkos::Cuda
-     * - Kokkos::OpenMP
-     * - Kokkos::Threads
+     * - GPU backend
+     * - host parallel backend
      * - Kokkos::Serial
      *
-     * In case Kokkos was configured with CUDA support, this class stores the
-     * values in unified virtual memory space and performs its action on the
-     * GPU. In particular, there is no need for manually synchronizing memory
-     * between host and device.
+     * In case Kokkos was configured with GPU support, this class performs its
+     * actions on the GPU. In particular, there is no need for manually
+     * synchronizing memory between host and @ref GlossDevice "device".
      *
      * @ingroup TrilinosWrappers
      * @ingroup Vectors
      */
     template <typename Number>
-    class Vector : public VectorSpaceVector<Number>, public Subscriptor
+    class Vector : public ReadVector<Number>, public Subscriptor
     {
     public:
       using value_type = Number;
-
-      using size_type = typename VectorSpaceVector<Number>::size_type;
+      using real_type  = typename numbers::NumberTraits<Number>::real_type;
+      using size_type  = types::global_dof_index;
 
       /**
        * Constructor. Create a vector of dimension zero.
@@ -105,7 +137,7 @@ namespace LinearAlgebra
        * need to generate a %parallel vector.
        */
       explicit Vector(const IndexSet &parallel_partitioner,
-                      const MPI_Comm &communicator);
+                      const MPI_Comm  communicator);
 
       /**
        * Reinit functionality. This function destroys the old vector content
@@ -115,16 +147,23 @@ namespace LinearAlgebra
        */
       void
       reinit(const IndexSet &parallel_partitioner,
-             const MPI_Comm &communicator,
+             const MPI_Comm  communicator,
              const bool      omit_zeroing_entries = false);
 
       /**
        * Change the dimension to that of the vector @p V. The elements of @p V are not
        * copied.
        */
+      void
+      reinit(const Vector<Number> &V, const bool omit_zeroing_entries = false);
+
+      /**
+       * Extract a range of elements all at once.
+       */
       virtual void
-      reinit(const VectorSpaceVector<Number> &V,
-             const bool omit_zeroing_entries = false) override;
+      extract_subvector_to(
+        const ArrayView<const types::global_dof_index> &indices,
+        ArrayView<Number> &elements) const override;
 
       /**
        * Copy function. This function takes a Vector and copies all the
@@ -138,8 +177,8 @@ namespace LinearAlgebra
        * Sets all elements of the vector to the scalar @p s. This operation is
        * only allowed if @p s is equal to zero.
        */
-      virtual Vector &
-      operator=(const Number s) override;
+      Vector &
+      operator=(const Number s);
 
       /**
        * Imports all the elements present in the vector's IndexSet from the
@@ -149,74 +188,86 @@ namespace LinearAlgebra
        * communication pattern is used multiple times. This can be used to
        * improve performance.
        */
-      virtual void
+      void
+      import_elements(
+        const ReadWriteVector<Number> &V,
+        VectorOperation::values        operation,
+        const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
+          &communication_pattern = {});
+
+      /**
+       * @deprecated Use import_elements() instead.
+       */
+      DEAL_II_DEPRECATED
+      void
       import(const ReadWriteVector<Number> &V,
              VectorOperation::values        operation,
              std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-               communication_pattern = {}) override;
+               communication_pattern = {})
+      {
+        import_elements(V, operation, communication_pattern);
+      }
 
       /**
        * Multiply the entire vector by a fixed factor.
        */
-      virtual Vector &
-      operator*=(const Number factor) override;
+      Vector &
+      operator*=(const Number factor);
 
       /**
        * Divide the entire vector by a fixed factor.
        */
-      virtual Vector &
-      operator/=(const Number factor) override;
+      Vector &
+      operator/=(const Number factor);
 
       /**
        * Add the vector @p V to the present one.
        */
-      virtual Vector &
-      operator+=(const VectorSpaceVector<Number> &V) override;
+      Vector &
+      operator+=(const Vector<Number> &V);
 
       /**
        * Subtract the vector @p V from the present one.
        */
-      virtual Vector &
-      operator-=(const VectorSpaceVector<Number> &V) override;
+      Vector &
+      operator-=(const Vector<Number> &V);
 
       /**
        * Return the scalar product of two vectors. The vectors need to have the
        * same layout.
        */
-      virtual Number
-      operator*(const VectorSpaceVector<Number> &V) const override;
+      Number
+      operator*(const Vector<Number> &V) const;
 
       /**
        * Add @p a to all components. Note that @p is a scalar not a vector.
        */
-      virtual void
-      add(const Number a) override;
+      void
+      add(const Number a);
 
       /**
        * Simple addition of a multiple of a vector, i.e. <tt>*this +=
        * a*V</tt>. The vectors need to have the same layout.
        */
-      virtual void
-      add(const Number a, const VectorSpaceVector<Number> &V) override;
+      void
+      add(const Number a, const Vector<Number> &V);
 
       /**
        * Multiple addition of multiple of a vector, i.e. <tt>*this> +=
        * a*V+b*W</tt>. The vectors need to have the same layout.
        */
-      virtual void
-      add(const Number                     a,
-          const VectorSpaceVector<Number> &V,
-          const Number                     b,
-          const VectorSpaceVector<Number> &W) override;
+      void
+      add(const Number          a,
+          const Vector<Number> &V,
+          const Number          b,
+          const Vector<Number> &W);
 
       /**
        * Scaling and simple addition of a multiple of a vector, i.e. <tt>*this
        * = s*(*this)+a*V</tt>.
        */
-      virtual void
-      sadd(const Number                     s,
-           const Number                     a,
-           const VectorSpaceVector<Number> &V) override;
+      void
+      sadd(const Number s, const Number a, const Vector<Number> &V);
 
       /**
        * Scale each element of this vector by the corresponding element in the
@@ -224,47 +275,47 @@ namespace LinearAlgebra
        * (and immediate re-assignment) by a diagonal scaling matrix. The
        * vectors need to have the same layout.
        */
-      virtual void
-      scale(const VectorSpaceVector<Number> &scaling_factors) override;
+      void
+      scale(const Vector<Number> &scaling_factors);
 
       /**
        * Assignment <tt>*this = a*V</tt>.
        */
-      virtual void
-      equ(const Number a, const VectorSpaceVector<Number> &V) override;
+      void
+      equ(const Number a, const Vector<Number> &V);
 
       /**
        * Return whether the vector contains only elements with value zero.
        */
-      virtual bool
-      all_zero() const override;
+      bool
+      all_zero() const;
 
       /**
        * Return the mean value of the element of this vector.
        */
-      virtual Number
-      mean_value() const override;
+      Number
+      mean_value() const;
 
       /**
        * Return the l<sub>1</sub> norm of the vector (i.e., the sum of the
        * absolute values of all entries among all processors).
        */
-      virtual typename LinearAlgebra::VectorSpaceVector<Number>::real_type
-      l1_norm() const override;
+      real_type
+      l1_norm() const;
 
       /**
        * Return the l<sub>2</sub> norm of the vector (i.e., the square root of
        * the sum of the square of all entries among all processors).
        */
-      virtual typename LinearAlgebra::VectorSpaceVector<Number>::real_type
-      l2_norm() const override;
+      real_type
+      l2_norm() const;
 
       /**
        * Return the maximum norm of the vector (i.e., the maximum absolute value
        * among all entries and among all processors).
        */
-      virtual typename LinearAlgebra::VectorSpaceVector<Number>::real_type
-      linfty_norm() const override;
+      real_type
+      linfty_norm() const;
 
       /**
        * Performs a combined operation of a vector addition and a subsequent
@@ -288,10 +339,10 @@ namespace LinearAlgebra
        * implemented as
        * $\left<v,w\right>=\sum_i v_i \bar{w_i}$.
        */
-      virtual Number
-      add_and_dot(const Number                     a,
-                  const VectorSpaceVector<Number> &V,
-                  const VectorSpaceVector<Number> &W) override;
+      Number
+      add_and_dot(const Number          a,
+                  const Vector<Number> &V,
+                  const Vector<Number> &W);
       /**
        * This function always returns false and is present only for backward
        * compatibility.
@@ -314,7 +365,7 @@ namespace LinearAlgebra
       locally_owned_size() const;
 
       /**
-       * Return the MPI communicator object in use with this object.
+       * Return the underlying MPI communicator.
        */
       MPI_Comm
       get_mpi_communicator() const;
@@ -330,37 +381,49 @@ namespace LinearAlgebra
        *  vec.locally_owned_elements() == complete_index_set(vec.size())
        * @endcode
        */
-      virtual ::dealii::IndexSet
-      locally_owned_elements() const override;
+      ::dealii::IndexSet
+      locally_owned_elements() const;
 
+      /**
+       * Compress the underlying representation of the Trilinos object, i.e.
+       * flush the buffers of the vector object if it has any. This function is
+       * necessary after writing into a vector element-by-element and before
+       * anything else can be done on it.
+       *
+       * See
+       * @ref GlossCompress "Compressing distributed objects"
+       * for more information.
+       */
+      void
+      compress(const VectorOperation::values operation);
       /**
        * Return a const reference to the underlying Trilinos
        * Tpetra::Vector class.
        */
-      const Tpetra::Vector<Number, int, types::global_dof_index> &
+      const Tpetra::Vector<Number, int, types::signed_global_dof_index> &
       trilinos_vector() const;
 
       /**
        * Return a (modifiable) reference to the underlying Trilinos
        * Tpetra::Vector class.
        */
-      Tpetra::Vector<Number, int, types::global_dof_index> &
+      Tpetra::Vector<Number, int, types::signed_global_dof_index> &
       trilinos_vector();
 
       /**
        * Prints the vector to the output stream @p out.
        */
-      virtual void
-      print(std::ostream &     out,
+      void
+      print(std::ostream      &out,
             const unsigned int precision  = 3,
             const bool         scientific = true,
-            const bool         across     = true) const override;
+            const bool         across     = true) const;
 
       /**
        * Return the memory consumption of this class in bytes.
        */
-      virtual std::size_t
-      memory_consumption() const override;
+      std::size_t
+      memory_consumption() const;
 
       /**
        * The vectors have different partitioning, i.e. their IndexSet objects
@@ -393,12 +456,13 @@ namespace LinearAlgebra
        */
       void
       create_tpetra_comm_pattern(const IndexSet &source_index_set,
-                                 const MPI_Comm &mpi_comm);
+                                 const MPI_Comm  mpi_comm);
 
       /**
        * Pointer to the actual Tpetra vector object.
        */
-      std::unique_ptr<Tpetra::Vector<Number, int, types::global_dof_index>>
+      std::unique_ptr<
+        Tpetra::Vector<Number, int, types::signed_global_dof_index>>
         vector;
 
       /**

@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2020 by the deal.II authors
+ * Copyright (C) 2020 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -148,7 +148,7 @@ namespace Step19
     move_particles();
     void
     track_lost_particle(
-      const typename Particles::ParticleIterator<dim> &        particle,
+      const typename Particles::ParticleIterator<dim>         &particle,
       const typename Triangulation<dim>::active_cell_iterator &cell);
 
 
@@ -223,7 +223,7 @@ namespace Step19
     , time(0, 1e-4)
   {
     particle_handler.signals.particle_lost.connect(
-      [this](const typename Particles::ParticleIterator<dim> &        particle,
+      [this](const typename Particles::ParticleIterator<dim>         &particle,
              const typename Triangulation<dim>::active_cell_iterator &cell) {
         this->track_lost_particle(particle, cell);
       });
@@ -562,7 +562,7 @@ namespace Step19
 
   // Let us now turn to the functions that deal with particles. The first one
   // is about the creation of particles. As mentioned in the introduction,
-  // we want to create a particle at points of the cathode if the the electric
+  // we want to create a particle at points of the cathode if the electric
   // field $\mathbf E=\nabla V$ exceeds a certain threshold, i.e., if
   // $|\mathbf E| \ge E_\text{threshold}$, and if furthermore the electric field
   // points into the domain (i.e., if $\mathbf E \cdot \mathbf n < 0$). As is
@@ -801,7 +801,7 @@ namespace Step19
   template <int dim>
   void
   CathodeRaySimulator<dim>::track_lost_particle(
-    const typename Particles::ParticleIterator<dim> &        particle,
+    const typename Particles::ParticleIterator<dim>         &particle,
     const typename Triangulation<dim>::active_cell_iterator &cell)
   {
     ++n_recently_lost_particles;
@@ -1124,7 +1124,7 @@ main()
       Step19::CathodeRaySimulator<2> cathode_ray_simulator_2d;
       cathode_ray_simulator_2d.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

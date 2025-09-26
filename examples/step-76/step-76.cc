@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2020 - 2021 by the deal.II authors
+ * Copyright (C) 2020 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,9 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Martin Kronbichler, Peter Munch, David Schneider, 2020
+ * Authors: Martin Kronbichler, Peter Munch, David Schneider, 2020
  */
 
 // @sect3{Parameters and utility functions}
@@ -149,9 +148,9 @@ namespace Euler_DG
     void perform_time_step(const Operator &pde_operator,
                            const double    current_time,
                            const double    time_step,
-                           VectorType &    solution,
-                           VectorType &    vec_ri,
-                           VectorType &    vec_ki) const
+                           VectorType     &solution,
+                           VectorType     &vec_ri,
+                           VectorType     &vec_ki) const
     {
       AssertDimension(ai.size() + 1, bi.size());
 
@@ -201,14 +200,14 @@ namespace Euler_DG
       : Function<dim>(dim + 2, time)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
 
 
   template <int dim>
-  double ExactSolution<dim>::value(const Point<dim> & x,
+  double ExactSolution<dim>::value(const Point<dim>  &x,
                                    const unsigned int component) const
   {
     const double t = this->get_time();
@@ -323,7 +322,7 @@ namespace Euler_DG
   inline DEAL_II_ALWAYS_INLINE //
     Tensor<1, n_components, Number>
     operator*(const Tensor<1, n_components, Tensor<1, dim, Number>> &matrix,
-              const Tensor<1, dim, Number> &                         vector)
+              const Tensor<1, dim, Number>                          &vector)
   {
     Tensor<1, n_components, Number> result;
     for (unsigned int d = 0; d < n_components; ++d)
@@ -336,7 +335,7 @@ namespace Euler_DG
     Tensor<1, dim + 2, Number>
     euler_numerical_flux(const Tensor<1, dim + 2, Number> &u_m,
                          const Tensor<1, dim + 2, Number> &u_p,
-                         const Tensor<1, dim, Number> &    normal)
+                         const Tensor<1, dim, Number>     &normal)
   {
     const auto velocity_m = euler_velocity<dim>(u_m);
     const auto velocity_p = euler_velocity<dim>(u_p);
@@ -392,7 +391,7 @@ namespace Euler_DG
   // General-purpose utility functions from step-67:
   template <int dim, typename VectorizedArrayType>
   VectorizedArrayType
-  evaluate_function(const Function<dim> &                  function,
+  evaluate_function(const Function<dim>                   &function,
                     const Point<dim, VectorizedArrayType> &p_vectorized,
                     const unsigned int                     component)
   {
@@ -410,7 +409,7 @@ namespace Euler_DG
 
   template <int dim, typename VectorizedArrayType, int n_components = dim + 2>
   Tensor<1, n_components, VectorizedArrayType>
-  evaluate_function(const Function<dim> &                  function,
+  evaluate_function(const Function<dim>                   &function,
                     const Point<dim, VectorizedArrayType> &p_vectorized)
   {
     AssertDimension(function.n_components, n_components);
@@ -440,7 +439,7 @@ namespace Euler_DG
 
     ~EulerOperator();
 
-    void reinit(const Mapping<dim> &   mapping,
+    void reinit(const Mapping<dim>    &mapping,
                 const DoFHandler<dim> &dof_handler);
 
     void set_inflow_boundary(const types::boundary_id       boundary_id,
@@ -460,14 +459,14 @@ namespace Euler_DG
                   const Number                                      bi,
                   const Number                                      ai,
                   const LinearAlgebra::distributed::Vector<Number> &current_ri,
-                  LinearAlgebra::distributed::Vector<Number> &      vec_ki,
+                  LinearAlgebra::distributed::Vector<Number>       &vec_ki,
                   LinearAlgebra::distributed::Vector<Number> &solution) const;
 
-    void project(const Function<dim> &                       function,
+    void project(const Function<dim>                        &function,
                  LinearAlgebra::distributed::Vector<Number> &solution) const;
 
     std::array<double, 3> compute_errors(
-      const Function<dim> &                             function,
+      const Function<dim>                              &function,
       const LinearAlgebra::distributed::Vector<Number> &solution) const;
 
     double compute_cell_transport_speed(
@@ -548,12 +547,12 @@ namespace Euler_DG
   }
 
 
-  // Modified reinit() function to setup the internal data structures in
+  // Modified reinit() function to set up the internal data structures in
   // MatrixFree in a way that it is usable by the cell-centric loops and
   // the MPI-3.0 shared-memory capabilities are used:
   template <int dim, int degree, int n_points_1d>
   void EulerOperator<dim, degree, n_points_1d>::reinit(
-    const Mapping<dim> &   mapping,
+    const Mapping<dim>    &mapping,
     const DoFHandler<dim> &dof_handler)
   {
     const std::vector<const DoFHandler<dim> *> dof_handlers = {&dof_handler};
@@ -593,8 +592,8 @@ namespace Euler_DG
   }
 
 
-  // The following function does an entire stage of a Runge--Kutta update and is
-  // - alongside the slightly modified setup - the heart of this tutorial
+  // The following function does an entire stage of a Runge--Kutta update
+  // and is, alongside the slightly modified setup, the heart of this tutorial
   // compared to step-67.
   //
   // In contrast to step-67, we are not executing the advection step
@@ -619,8 +618,8 @@ namespace Euler_DG
     const Number                                      bi,
     const Number                                      ai,
     const LinearAlgebra::distributed::Vector<Number> &current_ri,
-    LinearAlgebra::distributed::Vector<Number> &      vec_ki,
-    LinearAlgebra::distributed::Vector<Number> &      solution) const
+    LinearAlgebra::distributed::Vector<Number>       &vec_ki,
+    LinearAlgebra::distributed::Vector<Number>       &solution) const
   {
     for (auto &i : inflow_boundaries)
       i.second->set_time(current_time);
@@ -660,8 +659,8 @@ namespace Euler_DG
             evaluate_function<dim, VectorizedArrayType, dim>(
               *constant_function, Point<dim, VectorizedArrayType>());
 
-        const dealii::internal::EvaluatorTensorProduct<
-          dealii::internal::EvaluatorVariant::evaluate_evenodd,
+        const internal::EvaluatorTensorProduct<
+          internal::EvaluatorVariant::evaluate_evenodd,
           dim,
           n_points_1d,
           n_points_1d,
@@ -709,7 +708,7 @@ namespace Euler_DG
             // Apply the cell integral at the cell quadrature points. See also
             // the function <code>EulerOperator::local_apply_cell()</code> from
             // step-67:
-            for (unsigned int q = 0; q < phi.n_q_points; ++q)
+            for (const unsigned int q : phi.quadrature_point_indices())
               {
                 const auto w_q = phi.get_value(q);
                 phi.submit_gradient(euler_flux<dim>(w_q), q);
@@ -783,7 +782,7 @@ namespace Euler_DG
                 phi_m.reinit(cell, face);
 
                 // Interpolate the values from the cell quadrature points to the
-                // quadrature points of the current face via a simple 1D
+                // quadrature points of the current face via a simple 1d
                 // interpolation:
                 internal::FEFaceNormalEvaluationImpl<dim,
                                                      n_points_1d - 1,
@@ -807,12 +806,13 @@ namespace Euler_DG
                     phi_p.reinit(cell, face);
                     phi_p.gather_evaluate(src, EvaluationFlags::values);
 
-                    for (unsigned int q = 0; q < phi_m.n_q_points; ++q)
+                    for (const unsigned int q :
+                         phi_m.quadrature_point_indices())
                       {
                         const auto numerical_flux =
                           euler_numerical_flux<dim>(phi_m.get_value(q),
                                                     phi_p.get_value(q),
-                                                    phi_m.get_normal_vector(q));
+                                                    phi_m.normal_vector(q));
                         phi_m.submit_value(-numerical_flux, q);
                       }
                   }
@@ -822,10 +822,11 @@ namespace Euler_DG
                     // are a copy of the function
                     // <code>EulerDG::EulerOperator::local_apply_boundary_face</code>
                     // from step-67:
-                    for (unsigned int q = 0; q < phi_m.n_q_points; ++q)
+                    for (const unsigned int q :
+                         phi_m.quadrature_point_indices())
                       {
                         const auto w_m    = phi_m.get_value(q);
-                        const auto normal = phi_m.get_normal_vector(q);
+                        const auto normal = phi_m.normal_vector(q);
 
                         auto rho_u_dot_n = w_m[1] * normal[0];
                         for (unsigned int d = 1; d < dim; ++d)
@@ -886,7 +887,7 @@ namespace Euler_DG
                   }
 
                 // Evaluate local integrals related to cell by quadrature and
-                // add into cell contribution via a simple 1D interpolation:
+                // add into cell contribution via a simple 1d interpolation:
                 internal::FEFaceNormalEvaluationImpl<dim,
                                                      n_points_1d - 1,
                                                      VectorizedArrayType>::
@@ -914,19 +915,17 @@ namespace Euler_DG
             // Transform values from collocation space to the original
             // Gauss-Lobatto space:
             internal::FEEvaluationImplBasisChange<
-              dealii::internal::EvaluatorVariant::evaluate_evenodd,
+              internal::EvaluatorVariant::evaluate_evenodd,
               internal::EvaluatorQuantity::hessian,
               dim,
               degree + 1,
-              n_points_1d,
-              VectorizedArrayType,
-              VectorizedArrayType>::do_backward(dim + 2,
-                                                data.get_shape_info()
-                                                  .data[0]
-                                                  .inverse_shape_values_eo,
-                                                false,
-                                                phi.begin_values(),
-                                                phi.begin_dof_values());
+              n_points_1d>::do_backward(dim + 2,
+                                        data.get_shape_info()
+                                          .data[0]
+                                          .inverse_shape_values_eo,
+                                        false,
+                                        phi.begin_values(),
+                                        phi.begin_dof_values());
 
             // Perform Runge-Kutta update and write results back to global
             // vectors:
@@ -1044,7 +1043,7 @@ namespace Euler_DG
 
   template <int dim, int degree, int n_points_1d>
   void EulerOperator<dim, degree, n_points_1d>::project(
-    const Function<dim> &                       function,
+    const Function<dim>                        &function,
     LinearAlgebra::distributed::Vector<Number> &solution) const
   {
     FEEvaluation<dim, degree, degree + 1, dim + 2, Number, VectorizedArrayType>
@@ -1059,7 +1058,7 @@ namespace Euler_DG
     for (unsigned int cell = 0; cell < data.n_cell_batches(); ++cell)
       {
         phi.reinit(cell);
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           phi.submit_dof_value(evaluate_function(function,
                                                  phi.quadrature_point(q)),
                                q);
@@ -1074,7 +1073,7 @@ namespace Euler_DG
 
   template <int dim, int degree, int n_points_1d>
   std::array<double, 3> EulerOperator<dim, degree, n_points_1d>::compute_errors(
-    const Function<dim> &                             function,
+    const Function<dim>                              &function,
     const LinearAlgebra::distributed::Vector<Number> &solution) const
   {
     TimerOutput::Scope t(timer, "compute errors");
@@ -1087,7 +1086,7 @@ namespace Euler_DG
         phi.reinit(cell);
         phi.gather_evaluate(solution, EvaluationFlags::values);
         VectorizedArrayType local_errors_squared[3] = {};
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           {
             const auto error =
               evaluate_function(function, phi.quadrature_point(q)) -
@@ -1130,7 +1129,7 @@ namespace Euler_DG
         phi.reinit(cell);
         phi.gather_evaluate(solution, EvaluationFlags::values);
         VectorizedArrayType local_max = 0.;
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           {
             const auto solution = phi.get_value(q);
             const auto velocity = euler_velocity<dim>(solution);
@@ -1247,7 +1246,7 @@ namespace Euler_DG
   template <int dim>
   void EulerProblem<dim>::Postprocessor::evaluate_vector_field(
     const DataPostprocessorInputs::Vector<dim> &inputs,
-    std::vector<Vector<double>> &               computed_quantities) const
+    std::vector<Vector<double>>                &computed_quantities) const
   {
     const unsigned int n_evaluation_points = inputs.solution_values.size();
 
@@ -1262,24 +1261,24 @@ namespace Euler_DG
              dim + 2 + (do_schlieren_plot == true ? 1 : 0),
            ExcInternalError());
 
-    for (unsigned int q = 0; q < n_evaluation_points; ++q)
+    for (unsigned int p = 0; p < n_evaluation_points; ++p)
       {
         Tensor<1, dim + 2> solution;
         for (unsigned int d = 0; d < dim + 2; ++d)
-          solution[d] = inputs.solution_values[q](d);
+          solution[d] = inputs.solution_values[p](d);
 
         const double         density  = solution[0];
         const Tensor<1, dim> velocity = euler_velocity<dim>(solution);
         const double         pressure = euler_pressure<dim>(solution);
 
         for (unsigned int d = 0; d < dim; ++d)
-          computed_quantities[q](d) = velocity[d];
-        computed_quantities[q](dim)     = pressure;
-        computed_quantities[q](dim + 1) = std::sqrt(gamma * pressure / density);
+          computed_quantities[p](d) = velocity[d];
+        computed_quantities[p](dim)     = pressure;
+        computed_quantities[p](dim + 1) = std::sqrt(gamma * pressure / density);
 
         if (do_schlieren_plot == true)
-          computed_quantities[q](dim + 2) =
-            inputs.solution_gradients[q][0] * inputs.solution_gradients[q][0];
+          computed_quantities[p](dim + 2) =
+            inputs.solution_gradients[p][0] * inputs.solution_gradients[p][0];
       }
   }
 
@@ -1523,8 +1522,8 @@ namespace Euler_DG
             << Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD)
             << " MPI processes" << std::endl;
       pcout << "Vectorization over " << n_vect_number << ' '
-            << (std::is_same<Number, double>::value ? "doubles" : "floats")
-            << " = " << n_vect_bits << " bits ("
+            << (std::is_same_v<Number, double> ? "doubles" : "floats") << " = "
+            << n_vect_bits << " bits ("
             << Utilities::System::get_current_vectorization_level() << ')'
             << std::endl;
     }

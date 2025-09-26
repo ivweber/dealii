@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2021 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,6 +24,7 @@
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/lac/exceptions.h>
+#include <deal.II/lac/sparsity_pattern_base.h>
 
 #include <algorithm>
 #include <iostream>
@@ -36,8 +37,9 @@ DEAL_II_NAMESPACE_OPEN
 class DynamicSparsityPattern;
 #endif
 
-/*! @addtogroup Sparsity
- *@{
+/**
+ * @addtogroup Sparsity
+ * @{
  */
 
 
@@ -317,7 +319,7 @@ namespace DynamicSparsityPatternIterators
  * sp.copy_from (dynamic_pattern);
  * @endcode
  */
-class DynamicSparsityPattern : public Subscriptor
+class DynamicSparsityPattern : public SparsityPatternBase
 {
 public:
   /**
@@ -438,6 +440,13 @@ public:
               ForwardIterator end,
               const bool      indices_are_unique_and_sorted = false);
 
+  virtual void
+  add_row_entries(const size_type                  &row,
+                  const ArrayView<const size_type> &columns,
+                  const bool indices_are_sorted = false) override;
+
+  using SparsityPatternBase::add_entries;
+
   /**
    * Check if a value at a certain position may be non-zero.
    */
@@ -469,7 +478,7 @@ public:
    */
   template <typename SparsityPatternTypeLeft, typename SparsityPatternTypeRight>
   void
-  compute_mmult_pattern(const SparsityPatternTypeLeft & left,
+  compute_mmult_pattern(const SparsityPatternTypeLeft  &left,
                         const SparsityPatternTypeRight &right);
 
   /**
@@ -478,7 +487,7 @@ public:
    */
   template <typename SparsityPatternTypeLeft, typename SparsityPatternTypeRight>
   void
-  compute_Tmmult_pattern(const SparsityPatternTypeLeft & left,
+  compute_Tmmult_pattern(const SparsityPatternTypeLeft  &left,
                          const SparsityPatternTypeRight &right);
 
   /**
@@ -504,19 +513,6 @@ public:
    */
   void
   print_gnuplot(std::ostream &out) const;
-
-  /**
-   * Return the number of rows, which equals the dimension of the image space.
-   */
-  size_type
-  n_rows() const;
-
-  /**
-   * Return the number of columns, which equals the dimension of the range
-   * space.
-   */
-  size_type
-  n_cols() const;
 
   /**
    * Number of entries in a specific row. This function can only be called if
@@ -548,8 +544,8 @@ public:
 
   /**
    * @name Iterators
+   * @{
    */
-  // @{
 
   /**
    * Iterator starting at the first entry of the matrix. The resulting
@@ -603,7 +599,9 @@ public:
   iterator
   end(const size_type r) const;
 
-  // @}
+  /**
+   * @}
+   */
 
   /**
    * Compute the bandwidth of the matrix represented by this structure. The
@@ -673,16 +671,6 @@ private:
   bool have_entries;
 
   /**
-   * Number of rows that this sparsity structure shall represent.
-   */
-  size_type rows;
-
-  /**
-   * Number of columns that this sparsity structure shall represent.
-   */
-  size_type cols;
-
-  /**
    * A set that contains the valid rows.
    */
 
@@ -736,7 +724,7 @@ private:
   friend class DynamicSparsityPatternIterators::Accessor;
 };
 
-/*@}*/
+/** @} */
 /*---------------------- Inline functions -----------------------------------*/
 
 
@@ -990,7 +978,7 @@ inline void
 DynamicSparsityPattern::Line::add(const size_type j)
 {
   // first check the last element (or if line is still empty)
-  if ((entries.size() == 0) || (entries.back() < j))
+  if ((entries.empty()) || (entries.back() < j))
     {
       entries.push_back(j);
       return;
@@ -1011,27 +999,11 @@ DynamicSparsityPattern::Line::add(const size_type j)
 
 
 
-inline DynamicSparsityPattern::size_type
-DynamicSparsityPattern::n_rows() const
-{
-  return rows;
-}
-
-
-
-inline types::global_dof_index
-DynamicSparsityPattern::n_cols() const
-{
-  return cols;
-}
-
-
-
 inline void
 DynamicSparsityPattern::add(const size_type i, const size_type j)
 {
-  AssertIndexRange(i, rows);
-  AssertIndexRange(j, cols);
+  AssertIndexRange(i, n_rows());
+  AssertIndexRange(j, n_cols());
 
   if (rowset.size() > 0 && !rowset.is_element(i))
     return;
@@ -1146,7 +1118,7 @@ DynamicSparsityPattern::begin(const size_type r) const
       // walking over this vector entry by entry anyways.
       size_type rowindex = rowset.index_within_set(*it);
 
-      while (it != rowset.end() && lines[rowindex].entries.size() == 0)
+      while (it != rowset.end() && lines[rowindex].entries.empty())
         {
           ++it;
           ++rowindex;
@@ -1163,7 +1135,7 @@ DynamicSparsityPattern::begin(const size_type r) const
   // directly instead of going through the slower row_length() function
   size_type row = r;
 
-  while (row < n_rows() && lines[row].entries.size() == 0)
+  while (row < n_rows() && lines[row].entries.empty())
     {
       ++row;
     }

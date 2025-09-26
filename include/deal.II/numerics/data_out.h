@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -47,7 +47,7 @@ namespace internal
         const dealii::hp::MappingCollection<dim, spacedim> &mapping,
         const std::vector<
           std::shared_ptr<dealii::hp::FECollection<dim, spacedim>>>
-          &                                           finite_elements,
+                                                     &finite_elements,
         const UpdateFlags                             update_flags,
         const std::vector<std::vector<unsigned int>> &cell_to_patch_index_map);
 
@@ -118,7 +118,7 @@ namespace internal
  * small to be seen individually) or because you only want to see a certain
  * region of the domain (for example only in the fluid part of the domain in
  * step-46), or for some other reason.
-
+ *
  * For this, internally build_patches() does not generate the sequence of cells
  * to be converted into patches itself, but relies on the two private
  * std::function objects first_cell_function() and next_cell_function(). By
@@ -366,7 +366,7 @@ public:
   void
   set_cell_selection(
     const std::function<cell_iterator(const Triangulation<dim, spacedim> &)>
-      &                                                        first_cell,
+                                                              &first_cell,
     const std::function<cell_iterator(const Triangulation<dim, spacedim> &,
                                       const cell_iterator &)> &next_cell);
 
@@ -413,7 +413,7 @@ public:
    * Return the two function objects that are in use for determining the first
    * and the next cell as set by set_cell_selection().
    */
-  const std::pair<FirstCellFunctionType, NextCellFunctionType>
+  std::pair<FirstCellFunctionType, NextCellFunctionType>
   get_cell_selection() const;
 
 private:
@@ -450,17 +450,6 @@ private:
     const unsigned int     n_subdivisions,
     const CurvedCellRegion curved_cell_region);
 };
-
-namespace Legacy
-{
-  /**
-   * @deprecated Use dealii::DataOut without the DoFHandlerType template
-   * instead.
-   */
-  template <int dim, typename DoFHandlerType = DoFHandler<dim>>
-  using DataOut DEAL_II_DEPRECATED =
-    dealii::DataOut<dim, DoFHandlerType::space_dimension>;
-} // namespace Legacy
 
 
 DEAL_II_NAMESPACE_CLOSE

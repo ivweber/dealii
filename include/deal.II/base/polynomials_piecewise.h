@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2021 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -41,7 +41,7 @@ DEAL_II_NAMESPACE_OPEN
 namespace Polynomials
 {
   /**
-   * Definition of piecewise 1D polynomials for the unit interval. This space
+   * Definition of piecewise 1d polynomials for the unit interval. This space
    * allows the description of interpolating polynomials on parts of the unit
    * interval, similarly to the definition of finite element basis functions
    * on subdivided elements. The primary purpose of this class is to
@@ -133,7 +133,7 @@ namespace Polynomials
     void
     value(const number       x,
           const unsigned int n_derivatives,
-          number *           values) const;
+          number            *values) const;
 
     /**
      * Degree of the polynomial. This is the degree of the underlying base

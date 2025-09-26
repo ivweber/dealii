@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2018 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,13 +15,14 @@
 
 #include <deal.II/base/graph_coloring.h>
 
+#include <deal.II/lac/sparsity_tools.h>
 
 DEAL_II_NAMESPACE_OPEN
 
 namespace GraphColoring
 {
   unsigned int
-  color_sparsity_pattern(const SparsityPattern &    sparsity_pattern,
+  color_sparsity_pattern(const SparsityPattern     &sparsity_pattern,
                          std::vector<unsigned int> &color_indices)
   {
     return SparsityTools::color_sparsity_pattern(sparsity_pattern,

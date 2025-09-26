@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,7 @@
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/exceptions.h>
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
 #  include <cusolverDn.h>
 #  include <cusolverSp.h>
 #  include <cusparse.h>
@@ -51,7 +51,7 @@ namespace Utilities
       /**
        * Copy constructor is deleted.
        */
-      Handle(Handle const &) = delete;
+      Handle(const Handle &) = delete;
 
       /**
        * Destructor. Destroy the handles.
@@ -78,7 +78,7 @@ namespace Utilities
     };
 
     /**
-     * Allocate @p n_elements on the device.
+     * Allocate @p n_elements on the @ref GlossDevice "device".
      */
     template <typename T>
     inline void
@@ -90,7 +90,7 @@ namespace Utilities
     }
 
     /**
-     * Free memory on the device.
+     * Free memory on the @ref GlossDevice "device".
      */
     template <typename T>
     inline void
@@ -102,7 +102,7 @@ namespace Utilities
     }
 
     /**
-     * Allocator to be used for `std::unique_ptr` pointing to device memory.
+     * Allocator to be used for `std::unique_ptr` pointing to @ref GlossDevice "device" memory.
      */
     template <typename Number>
     Number *
@@ -114,7 +114,7 @@ namespace Utilities
     }
 
     /**
-     * Deleter to be used for `std::unique_ptr` pointing to device memory.
+     * Deleter to be used for `std::unique_ptr` pointing to @ref GlossDevice "device" memory.
      */
     template <typename Number>
     void
@@ -125,12 +125,12 @@ namespace Utilities
     }
 
     /**
-     * Copy the device ArrayView @p in to the host ArrayView @p out.
+     * Copy the @ref GlossDevice "device" ArrayView @p in to the host ArrayView @p out.
      */
     template <typename T>
     inline void
     copy_to_host(const ArrayView<const T, MemorySpace::CUDA> &in,
-                 ArrayView<T, MemorySpace::Host> &            out)
+                 ArrayView<T, MemorySpace::Host>             &out)
     {
       AssertDimension(in.size(), out.size());
       cudaError_t cuda_error_code = cudaMemcpy(out.data(),
@@ -141,12 +141,12 @@ namespace Utilities
     }
 
     /**
-     * Copy the host ArrayView @p in to the device ArrayView @p out.
+     * Copy the host ArrayView @p in to the @ref GlossDevice "device" ArrayView @p out.
      */
     template <typename T>
     inline void
     copy_to_dev(const ArrayView<const T, MemorySpace::Host> &in,
-                ArrayView<T, MemorySpace::CUDA> &            out)
+                ArrayView<T, MemorySpace::CUDA>             &out)
     {
       AssertDimension(in.size(), out.size());
       cudaError_t cuda_error_code = cudaMemcpy(out.data(),
@@ -169,8 +169,8 @@ namespace Utilities
     }
 
     /**
-     * Copy the elements in @p vector_host to the device in @p pointer_dev. The
-     * memory needs to be allocate on the device before this function is called.
+     * Copy the elements in @p vector_host to the @ref GlossDevice "device" in @p pointer_dev. The
+     * memory needs to be allocate on the @ref GlossDevice "device" before this function is called.
      */
     template <typename T>
     inline void

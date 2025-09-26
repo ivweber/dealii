@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,7 +46,7 @@
 template <int dim>
 void
 test_hessians(const unsigned int                             degree,
-              const dealii::FE_Poly<dim> &                   fe,
+              const dealii::FE_Poly<dim>                    &fe,
               const dealii::EvaluationFlags::EvaluationFlags evaluation_flags)
 {
   using namespace dealii;

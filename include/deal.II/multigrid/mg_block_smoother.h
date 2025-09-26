@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,8 +36,10 @@ DEAL_II_NAMESPACE_OPEN
  * MGSmootherBase is defined in mg_base.h
  */
 
-/*!@addtogroup mg */
-/*@{*/
+/**
+ * @addtogroup mg
+ * @{
+ */
 
 /**
  * General smoother class for block vectors. This class gives complete freedom
@@ -45,7 +47,7 @@ DEAL_II_NAMESPACE_OPEN
  * smoother object. Therefore, the smoother object for each level must be
  * constructed by hand.
  */
-template <typename MatrixType, class RelaxationType, typename number>
+template <typename MatrixType, typename RelaxationType, typename number>
 class MGSmootherBlock : public MGSmoother<BlockVector<number>>
 {
 public:
@@ -71,7 +73,7 @@ public:
    * This function stores pointers to the level matrices and smoothing
    * operator for each level.
    */
-  template <class MGMatrixType, class MGRelaxationType>
+  template <typename MGMatrixType, typename MGRelaxationType>
   void
   initialize(const MGMatrixType &matrices, const MGRelaxationType &smoothers);
 
@@ -94,7 +96,7 @@ public:
    */
   virtual void
   smooth(const unsigned int         level,
-         BlockVector<number> &      u,
+         BlockVector<number>       &u,
          const BlockVector<number> &rhs) const;
 
   /**
@@ -127,13 +129,13 @@ private:
     mem;
 };
 
-/**@}*/
+/** @} */
 
 //---------------------------------------------------------------------------
 
 #ifndef DOXYGEN
 
-template <typename MatrixType, class RelaxationType, typename number>
+template <typename MatrixType, typename RelaxationType, typename number>
 inline MGSmootherBlock<MatrixType, RelaxationType, number>::MGSmootherBlock(
   const unsigned int steps,
   const bool         variable,
@@ -146,7 +148,7 @@ inline MGSmootherBlock<MatrixType, RelaxationType, number>::MGSmootherBlock(
 {}
 
 
-template <typename MatrixType, class RelaxationType, typename number>
+template <typename MatrixType, typename RelaxationType, typename number>
 inline void
 MGSmootherBlock<MatrixType, RelaxationType, number>::clear()
 {
@@ -159,11 +161,11 @@ MGSmootherBlock<MatrixType, RelaxationType, number>::clear()
 }
 
 
-template <typename MatrixType, class RelaxationType, typename number>
-template <class MGMatrixType, class MGRelaxationType>
+template <typename MatrixType, typename RelaxationType, typename number>
+template <typename MGMatrixType, typename MGRelaxationType>
 inline void
 MGSmootherBlock<MatrixType, RelaxationType, number>::initialize(
-  const MGMatrixType &    m,
+  const MGMatrixType     &m,
   const MGRelaxationType &s)
 {
   const unsigned int min = m.min_level();
@@ -184,7 +186,7 @@ MGSmootherBlock<MatrixType, RelaxationType, number>::initialize(
 }
 
 
-template <typename MatrixType, class RelaxationType, typename number>
+template <typename MatrixType, typename RelaxationType, typename number>
 inline void
 MGSmootherBlock<MatrixType, RelaxationType, number>::set_reverse(
   const bool flag)
@@ -193,7 +195,7 @@ MGSmootherBlock<MatrixType, RelaxationType, number>::set_reverse(
 }
 
 
-template <typename MatrixType, class RelaxationType, typename number>
+template <typename MatrixType, typename RelaxationType, typename number>
 inline std::size_t
 MGSmootherBlock<MatrixType, RelaxationType, number>::memory_consumption() const
 {
@@ -203,11 +205,11 @@ MGSmootherBlock<MatrixType, RelaxationType, number>::memory_consumption() const
 }
 
 
-template <typename MatrixType, class RelaxationType, typename number>
+template <typename MatrixType, typename RelaxationType, typename number>
 inline void
 MGSmootherBlock<MatrixType, RelaxationType, number>::smooth(
   const unsigned int         level,
-  BlockVector<number> &      u,
+  BlockVector<number>       &u,
   const BlockVector<number> &rhs) const
 {
   LogStream::Prefix prefix("Smooth");

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,7 +23,7 @@
  * quadratures.
  */
 
-#include <deal.II/base/function_level_set.h>
+#include <deal.II/base/function_signed_distance.h>
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/base/quadrature_lib.h>
 
@@ -81,11 +81,11 @@ test_plane_cuts_through_center()
   for (int d = 0; d < dim; ++d)
     center(d) = .5;
 
-  // For each coordinate direction set up a plane throught the center.
+  // For each coordinate direction set up a plane through the center.
   for (int plane_direction = 0; plane_direction < dim; ++plane_direction)
     {
       const Tensor<1, dim> normal = Point<dim>::unit_vector(plane_direction);
-      const Functions::LevelSet::Plane<dim> levelset(center, normal);
+      const Functions::SignedDistance::Plane<dim> levelset(center, normal);
 
       // Test all faces that are intersected by the plane.
       for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f)
@@ -105,11 +105,40 @@ test_plane_cuts_through_center()
 
 
 
+/*
+ * Test the 1D-specialization of the FaceQuadratureGenerator class.
+ * Set up a 1D-box [0,1] and a level set function: psi(x) = x - 0.5,
+ * so that the level set function is negative at the left face and positive at
+ * the right. Generate quadrature rules at both faces and check that a single
+ * quadrature point at the inside/outside quadrature at the left/right face is
+ * generated.
+ */
+void
+test_1D()
+{
+  deallog << "test_1D" << std::endl;
+
+  const int            dim = 1;
+  Point<dim>           center(.5);
+  const Tensor<1, dim> normal = Point<dim>::unit_vector(0);
+  const Functions::SignedDistance::Plane<dim> levelset(center, normal);
+
+  for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f)
+    {
+      deallog << "face = " << f << std::endl;
+      create_and_print_quadratures(levelset, f);
+      deallog << std::endl;
+    }
+}
+
+
+
 int
 main()
 {
   initlog();
 
+  test_1D();
   test_plane_cuts_through_center<2>();
   test_plane_cuts_through_center<3>();
 }

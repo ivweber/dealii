@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2013 - 2021 by the deal.II authors
+ * Copyright (C) 2013 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,9 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Martin Kronbichler, Technische Universität München,
+ * Author: Martin Kronbichler, Technical University of Munich,
  *         Scott T. Miller, The Pennsylvania State University, 2013
  */
 
@@ -177,7 +176,7 @@ namespace Step51
     {}
 
     virtual void vector_value(const Point<dim> &p,
-                              Vector<double> &  v) const override
+                              Vector<double>   &v) const override
     {
       AssertDimension(v.size(), dim + 1);
       Solution<dim>  solution;
@@ -191,8 +190,8 @@ namespace Step51
 
 
   // Next comes the implementation of the convection velocity. As described in
-  // the introduction, we choose a velocity field that is $(y, -x)$ in 2D and
-  // $(y, -x, 1)$ in 3D. This gives a divergence-free velocity field.
+  // the introduction, we choose a velocity field that is $(y, -x)$ in 2d and
+  // $(y, -x, 1)$ in 3d. This gives a divergence-free velocity field.
   template <int dim>
   class ConvectionVelocity : public TensorFunction<1, dim>
   {
@@ -307,15 +306,15 @@ namespace Step51
     // work of the program.
     void assemble_system_one_cell(
       const typename DoFHandler<dim>::active_cell_iterator &cell,
-      ScratchData &                                         scratch,
-      PerTaskData &                                         task_data);
+      ScratchData                                          &scratch,
+      PerTaskData                                          &task_data);
 
     void copy_local_to_global(const PerTaskData &data);
 
     void postprocess_one_cell(
       const typename DoFHandler<dim>::active_cell_iterator &cell,
-      PostProcessScratchData &                              scratch,
-      unsigned int &                                        empty_data);
+      PostProcessScratchData                               &scratch,
+      unsigned int                                         &empty_data);
 
 
     Triangulation<dim> triangulation;
@@ -383,7 +382,7 @@ namespace Step51
   // gradient/flux part and the scalar part.
   template <int dim>
   HDG<dim>::HDG(const unsigned int degree, const RefinementMode refinement_mode)
-    : fe_local(FE_DGQ<dim>(degree), dim, FE_DGQ<dim>(degree), 1)
+    : fe_local(FE_DGQ<dim>(degree) ^ dim, FE_DGQ<dim>(degree))
     , dof_handler_local(triangulation)
     , fe(degree)
     , dof_handler(triangulation)
@@ -518,8 +517,8 @@ namespace Step51
 
     ScratchData(const FiniteElement<dim> &fe,
                 const FiniteElement<dim> &fe_local,
-                const QGauss<dim> &       quadrature_formula,
-                const QGauss<dim - 1> &   face_quadrature_formula,
+                const QGauss<dim>        &quadrature_formula,
+                const QGauss<dim - 1>    &face_quadrature_formula,
                 const UpdateFlags         local_flags,
                 const UpdateFlags         local_face_flags,
                 const UpdateFlags         flags)
@@ -544,14 +543,14 @@ namespace Step51
       , fe_support_on_face(GeometryInfo<dim>::faces_per_cell)
       , exact_solution()
     {
-      for (unsigned int face_no : GeometryInfo<dim>::face_indices())
+      for (const unsigned int face_no : GeometryInfo<dim>::face_indices())
         for (unsigned int i = 0; i < fe_local.n_dofs_per_cell(); ++i)
           {
             if (fe_local.has_support_on_face(i, face_no))
               fe_local_support_on_face[face_no].push_back(i);
           }
 
-      for (unsigned int face_no : GeometryInfo<dim>::face_indices())
+      for (const unsigned int face_no : GeometryInfo<dim>::face_indices())
         for (unsigned int i = 0; i < fe.n_dofs_per_cell(); ++i)
           {
             if (fe.has_support_on_face(i, face_no))
@@ -608,7 +607,7 @@ namespace Step51
 
     PostProcessScratchData(const FiniteElement<dim> &fe,
                            const FiniteElement<dim> &fe_local,
-                           const QGauss<dim> &       quadrature_formula,
+                           const QGauss<dim>        &quadrature_formula,
                            const UpdateFlags         local_flags,
                            const UpdateFlags         flags)
       : fe_values_local(fe_local, quadrature_formula, local_flags)
@@ -694,14 +693,12 @@ namespace Step51
   template <int dim>
   void HDG<dim>::assemble_system_one_cell(
     const typename DoFHandler<dim>::active_cell_iterator &cell,
-    ScratchData &                                         scratch,
-    PerTaskData &                                         task_data)
+    ScratchData                                          &scratch,
+    PerTaskData                                          &task_data)
   {
     // Construct iterator for dof_handler_local for FEValues reinit function.
-    typename DoFHandler<dim>::active_cell_iterator loc_cell(&triangulation,
-                                                            cell->level(),
-                                                            cell->index(),
-                                                            &dof_handler_local);
+    const typename DoFHandler<dim>::active_cell_iterator loc_cell =
+      cell->as_dof_handler_iterator(dof_handler_local);
 
     const unsigned int n_q_points =
       scratch.fe_values_local.get_quadrature().size();
@@ -1036,8 +1033,8 @@ namespace Step51
         dof_handler_u_post.begin_active(),
         dof_handler_u_post.end(),
         [this](const typename DoFHandler<dim>::active_cell_iterator &cell,
-               PostProcessScratchData &                              scratch,
-               unsigned int &                                        data) {
+               PostProcessScratchData                               &scratch,
+               unsigned int                                         &data) {
           this->postprocess_one_cell(cell, scratch, data);
         },
         std::function<void(const unsigned int &)>(),
@@ -1125,13 +1122,11 @@ namespace Step51
   template <int dim>
   void HDG<dim>::postprocess_one_cell(
     const typename DoFHandler<dim>::active_cell_iterator &cell,
-    PostProcessScratchData &                              scratch,
+    PostProcessScratchData                               &scratch,
     unsigned int &)
   {
-    typename DoFHandler<dim>::active_cell_iterator loc_cell(&triangulation,
-                                                            cell->level(),
-                                                            cell->index(),
-                                                            &dof_handler_local);
+    const typename DoFHandler<dim>::active_cell_iterator loc_cell =
+      cell->as_dof_handler_iterator(dof_handler_local);
 
     scratch.fe_values_local.reinit(loc_cell);
     scratch.fe_values.reinit(cell);

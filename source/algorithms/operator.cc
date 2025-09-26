@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2018 by the deal.II authors
+// Copyright (C) 2010 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,12 +19,10 @@
 #include <deal.II/algorithms/theta_timestepping.templates.h>
 
 #include <deal.II/base/logstream.h>
-#include <deal.II/base/parameter_handler.h>
 
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>

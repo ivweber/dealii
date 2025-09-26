@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -52,7 +52,7 @@ namespace Utilities
      * A shared pointer to this class is provided to ScaLAPACKMatrix matrices to
      * perform block-cyclic distribution.
      *
-     * Note that this class allows to setup a process grid which has fewer
+     * Note that this class allows to set up a process grid which has fewer
      * MPI cores than the total number of cores in the communicator.
      *
      * Currently the only place where one would use a ProcessGrid object is
@@ -71,7 +71,7 @@ namespace Utilities
        * number of cores
        * in the @p mpi_communicator.
        */
-      ProcessGrid(const MPI_Comm &   mpi_communicator,
+      ProcessGrid(const MPI_Comm     mpi_communicator,
                   const unsigned int n_rows,
                   const unsigned int n_columns);
 
@@ -84,7 +84,7 @@ namespace Utilities
        * The maximum number of MPI cores one can utilize is
        * $\min\{\frac{M}{MB}\frac{N}{NB}, Np\}$, where $M,N$ are the matrix
        * dimension and $MB,NB$ are the block sizes and $Np$ is the number of
-       * processes in the @p mpi_communicator. This function then creates a 2D processor grid
+       * processes in the @p mpi_communicator. This function then creates a 2d processor grid
        * assuming the ratio between number of process row $p$ and columns $q$ to
        * be equal the ratio between matrix dimensions $M$ and $N$.
        *
@@ -92,7 +92,7 @@ namespace Utilities
        * and the @p mpi_communicator with 11 cores will result in the $3x3$
        * process grid.
        */
-      ProcessGrid(const MPI_Comm &   mpi_communicator,
+      ProcessGrid(const MPI_Comm     mpi_communicator,
                   const unsigned int n_rows_matrix,
                   const unsigned int n_columns_matrix,
                   const unsigned int row_block_size,
@@ -151,7 +151,7 @@ namespace Utilities
        * A private constructor which takes grid dimensions as an
        * <code>std::pair</code>.
        */
-      ProcessGrid(const MPI_Comm &                             mpi_communicator,
+      ProcessGrid(const MPI_Comm                               mpi_communicator,
                   const std::pair<unsigned int, unsigned int> &grid_dimensions);
 
       /**
@@ -206,7 +206,7 @@ namespace Utilities
       int this_process_column;
 
       /**
-       * A flag which is true for processes within the 2D process grid.
+       * A flag which is true for processes within the 2d process grid.
        */
       bool mpi_process_is_active;
     };

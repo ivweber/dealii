@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,8 +24,9 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*! @addtogroup Preconditioners
- *@{
+/**
+ * @addtogroup Preconditioners
+ * @{
  */
 
 /**
@@ -143,10 +144,10 @@ public:
     /**
      * Constructor. For the parameters' description, see below.
      */
-    AdditionalData(const double           strengthen_diagonal   = 0,
-                   const unsigned int     extra_off_diagonals   = 0,
-                   const bool             use_previous_sparsity = false,
-                   const SparsityPattern *use_this_sparsity     = nullptr);
+    explicit AdditionalData(const double       strengthen_diagonal   = 0.,
+                            const unsigned int extra_off_diagonals   = 0,
+                            const bool         use_previous_sparsity = false,
+                            const SparsityPattern *use_this_sparsity = nullptr);
 
     /**
      * <code>strengthen_diag</code> times the sum of absolute row entries is
@@ -274,7 +275,7 @@ public:
                  double,
                  << "The strengthening parameter " << arg1
                  << " is not greater or equal than zero!");
-  //@}
+  /** @} */
 protected:
   /**
    * Copies the passed SparseMatrix onto this object. This object's sparsity
@@ -336,7 +337,7 @@ private:
   SparsityPattern *own_sparsity;
 };
 
-/*@}*/
+/** @} */
 //---------------------------------------------------------------------------
 
 #ifndef DOXYGEN
@@ -382,7 +383,7 @@ SparseLUDecomposition<number>::n() const
 template <typename number>
 template <class OutVector, class InVector>
 inline void
-SparseLUDecomposition<number>::vmult_add(OutVector &     dst,
+SparseLUDecomposition<number>::vmult_add(OutVector      &dst,
                                          const InVector &src) const
 {
   OutVector tmp;
@@ -398,7 +399,7 @@ SparseLUDecomposition<number>::vmult_add(OutVector &     dst,
 template <typename number>
 template <class OutVector, class InVector>
 inline void
-SparseLUDecomposition<number>::Tvmult_add(OutVector &     dst,
+SparseLUDecomposition<number>::Tvmult_add(OutVector      &dst,
                                           const InVector &src) const
 {
   OutVector tmp;

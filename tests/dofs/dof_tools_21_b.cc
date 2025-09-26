@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,9 +31,6 @@
 #include <utility>
 
 #include "../tests.h"
-
-std::ofstream logfile("output");
-
 
 //
 // Test
@@ -172,21 +169,21 @@ void
 generate_grid(Triangulation<3> &triangulation, int orientation)
 {
   Point<3>              vertices_1[] = {Point<3>(-1., -1., -3.),
-                           Point<3>(+1., -1., -3.),
-                           Point<3>(-1., +1., -3.),
-                           Point<3>(+1., +1., -3.),
-                           Point<3>(-1., -1., -1.),
-                           Point<3>(+1., -1., -1.),
-                           Point<3>(-1., +1., -1.),
-                           Point<3>(+1., +1., -1.),
-                           Point<3>(-1., -1., +1.),
-                           Point<3>(+1., -1., +1.),
-                           Point<3>(-1., +1., +1.),
-                           Point<3>(+1., +1., +1.),
-                           Point<3>(-1., -1., +3.),
-                           Point<3>(+1., -1., +3.),
-                           Point<3>(-1., +1., +3.),
-                           Point<3>(+1., +1., +3.)};
+                                        Point<3>(+1., -1., -3.),
+                                        Point<3>(-1., +1., -3.),
+                                        Point<3>(+1., +1., -3.),
+                                        Point<3>(-1., -1., -1.),
+                                        Point<3>(+1., -1., -1.),
+                                        Point<3>(-1., +1., -1.),
+                                        Point<3>(+1., +1., -1.),
+                                        Point<3>(-1., -1., +1.),
+                                        Point<3>(+1., -1., +1.),
+                                        Point<3>(-1., +1., +1.),
+                                        Point<3>(+1., +1., +1.),
+                                        Point<3>(-1., -1., +3.),
+                                        Point<3>(+1., -1., +3.),
+                                        Point<3>(-1., +1., +3.),
+                                        Point<3>(+1., +1., +3.)};
   std::vector<Point<3>> vertices(&vertices_1[0], &vertices_1[16]);
 
   std::vector<CellData<3>> cells(2, CellData<3>());
@@ -361,9 +358,9 @@ print_matching(DoFHandler<dim, spacedim> &dof_handler,
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(4);
-  logfile << std::setprecision(4);
-  deallog.attach(logfile);
+  deallog.get_file_stream() << std::setprecision(4);
 
   deallog << "Test for 2D, Q1:" << std::endl << std::endl;
 

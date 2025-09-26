@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,13 +20,13 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/exceptions.h>
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/point.h>
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/polynomial_space.h>
 #include <deal.II/base/tensor.h>
 #include <deal.II/base/tensor_polynomials_base.h>
 #include <deal.II/base/tensor_product_polynomials.h>
-#include <deal.II/base/thread_management.h>
 
 #include <memory>
 #include <vector>
@@ -45,7 +45,7 @@ DEAL_II_NAMESPACE_OPEN
  * polynomial order of each component must be two orders higher in the
  * corresponding direction, yielding the polynomial spaces
  * <i>(Q<sub>k+2,k</sub>, Q<sub>k,k+2</sub>)</i> and <i>(Q<sub>k+2,k,k</sub>,
- * Q<sub>k,k+2,k</sub>, Q<sub>k,k,k+2</sub>)</i> in 2D and 3D, resp.
+ * Q<sub>k,k+2,k</sub>, Q<sub>k,k,k+2</sub>)</i> in 2d and 3d, resp.
  *
  * @ingroup Polynomials
  */
@@ -69,14 +69,9 @@ public:
    *
    * The size of the vectors must either be zero or equal <tt>n()</tt>.  In
    * the first case, the function will not compute these values.
-   *
-   * If you need values or derivatives of all tensor product polynomials then
-   * use this function, rather than using any of the <tt>compute_value</tt>,
-   * <tt>compute_grad</tt> or <tt>compute_grad_grad</tt> functions, see below,
-   * in a loop over all tensor product polynomials.
    */
   void
-  evaluate(const Point<dim> &           unit_point,
+  evaluate(const Point<dim>            &unit_point,
            std::vector<Tensor<1, dim>> &values,
            std::vector<Tensor<2, dim>> &grads,
            std::vector<Tensor<3, dim>> &grad_grads,

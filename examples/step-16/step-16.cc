@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2003 - 2021 by the deal.II authors
+ * Copyright (C) 2003 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -44,6 +44,7 @@
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>
@@ -89,7 +90,7 @@ namespace Step16
   template <int dim>
   struct ScratchData
   {
-    ScratchData(const Mapping<dim> &      mapping,
+    ScratchData(const Mapping<dim>       &mapping,
                 const FiniteElement<dim> &fe,
                 const unsigned int        quadrature_degree,
                 const UpdateFlags         update_flags)
@@ -142,9 +143,9 @@ namespace Step16
 
   private:
     template <class Iterator>
-    void cell_worker(const Iterator &  cell,
+    void cell_worker(const Iterator   &cell,
                      ScratchData<dim> &scratch_data,
-                     CopyData &        copy_data);
+                     CopyData         &copy_data);
 
     void setup_system();
     void assemble_system();
@@ -272,7 +273,7 @@ namespace Step16
     // complete, inclusive range here (not a starting index and size), so the
     // finest level is <code>n_levels-1</code>. We first have to resize the
     // container holding the SparseMatrix classes, since they have to release
-    // their SparsityPattern before the can be destroyed upon resizing.
+    // their SparsityPattern before they can be destroyed upon resizing.
     const unsigned int n_levels = triangulation.n_levels();
 
     mg_interface_matrices.resize(0, n_levels - 1);
@@ -328,9 +329,9 @@ namespace Step16
   // assemble_multigrid() even though it is not used.
   template <int dim>
   template <class Iterator>
-  void LaplaceProblem<dim>::cell_worker(const Iterator &  cell,
+  void LaplaceProblem<dim>::cell_worker(const Iterator   &cell,
                                         ScratchData<dim> &scratch_data,
-                                        CopyData &        copy_data)
+                                        CopyData         &copy_data)
   {
     FEValues<dim> &fe_values = scratch_data.fe_values;
     fe_values.reinit(cell);
@@ -378,8 +379,8 @@ namespace Step16
 
     auto cell_worker =
       [&](const typename DoFHandler<dim>::active_cell_iterator &cell,
-          ScratchData<dim> &                                    scratch_data,
-          CopyData &                                            copy_data) {
+          ScratchData<dim>                                     &scratch_data,
+          CopyData                                             &copy_data) {
         this->cell_worker(cell, scratch_data, copy_data);
       };
 
@@ -444,8 +445,8 @@ namespace Step16
 
     auto cell_worker =
       [&](const typename DoFHandler<dim>::level_cell_iterator &cell,
-          ScratchData<dim> &                                   scratch_data,
-          CopyData &                                           copy_data) {
+          ScratchData<dim>                                    &scratch_data,
+          CopyData                                            &copy_data) {
         this->cell_worker(cell, scratch_data, copy_data);
       };
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -59,7 +59,8 @@ test()
   AffineConstraints<double>                dummy;
   typename MatrixFree<dim>::AdditionalData additional_data;
   additional_data.mapping_update_flags |= update_quadrature_points;
-  matrix_free.reinit(dof, dummy, QGauss<1>(degree + 1), additional_data);
+  matrix_free.reinit(
+    MappingQ1<dim>{}, dof, dummy, QGauss<1>(degree + 1), additional_data);
 
   FEEvaluation<dim, degree> fe_eval(matrix_free);
   FEEvaluation<dim, degree> fe_eval_default(matrix_free);

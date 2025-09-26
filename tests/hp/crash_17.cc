@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2020 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -506,7 +506,8 @@ LaplaceProblem<dim>::refine_grid()
         {
           cell->clear_refine_flag();
           cell->set_active_fe_index(
-            std::min(cell->active_fe_index() + 1, fe_collection.size() - 1));
+            std::min<types::fe_index>(cell->active_fe_index() + 1,
+                                      fe_collection.size() - 1));
         }
   }
 
@@ -524,7 +525,7 @@ LaplaceProblem<dim>::output_results(const unsigned int cycle) const
   {
     const std::string filename =
       "grid-" + Utilities::int_to_string(cycle, 2) + ".eps";
-    std::ofstream output(filename.c_str());
+    std::ofstream output(filename);
 
     GridOut grid_out;
     grid_out.write_eps(triangulation, output);
@@ -562,7 +563,7 @@ LaplaceProblem<dim>::output_results(const unsigned int cycle) const
     data_out.add_data_vector(fe_indices, "fe_index");
     data_out.build_patches();
 
-    std::ofstream output(filename.c_str());
+    std::ofstream output(filename);
     data_out.write_vtk(output);
   }
 }
@@ -679,7 +680,7 @@ main()
       LaplaceProblem<3> laplace_problem_2d;
       laplace_problem_2d.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

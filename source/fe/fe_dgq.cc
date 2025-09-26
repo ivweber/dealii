@@ -79,7 +79,7 @@ FE_DGQ<dim, spacedim>::FE_DGQ(const unsigned int degree)
       std::vector<ComponentMask>(
         FiniteElementData<dim>(get_dpo_vector(degree), 1, degree)
           .n_dofs_per_cell(),
-        std::vector<bool>(1, true)))
+        ComponentMask(std::vector<bool>(1, true))))
 {
   // Compute support points, which are the tensor product of the Lagrange
   // interpolation points in the constructor.
@@ -116,7 +116,7 @@ FE_DGQ<dim, spacedim>::FE_DGQ(
                                1,
                                polynomials.size() - 1)
           .n_dofs_per_cell(),
-        std::vector<bool>(1, true)))
+        ComponentMask(std::vector<bool>(1, true))))
 {
   // No support points can be defined in general. Derived classes might define
   // support points like the class FE_DGQArbitraryNodes
@@ -148,7 +148,7 @@ template <int dim, int spacedim>
 void
 FE_DGQ<dim, spacedim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   AssertDimension(support_point_values.size(),
                   this->get_unit_support_points().size());
@@ -272,7 +272,7 @@ template <int dim, int spacedim>
 void
 FE_DGQ<dim, spacedim>::get_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
-  FullMatrix<double> &                interpolation_matrix) const
+  FullMatrix<double>                 &interpolation_matrix) const
 {
   // this is only implemented, if the
   // source FE is also a
@@ -354,7 +354,7 @@ template <int dim, int spacedim>
 void
 FE_DGQ<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int) const
 {
   // this is only implemented, if the source
@@ -950,7 +950,7 @@ void
 FE_DGQArbitraryNodes<dim, spacedim>::
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const
+    std::vector<double>               &nodal_values) const
 {
   AssertDimension(support_point_values.size(),
                   this->get_unit_support_points().size());

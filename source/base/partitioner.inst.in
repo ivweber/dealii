@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2019 by the deal.II authors
+// Copyright (C) 2017 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,5 +43,39 @@ for (SCALAR : MPI_SCALARS)
                          const ArrayView<SCALAR, MemorySpace::Host> &,
                          const ArrayView<SCALAR, MemorySpace::Host> &,
                          std::vector<MPI_Request> &) const;
+#endif
+  }
+
+for (SCALAR : MPI_DEVICE_SCALARS)
+  {
+#ifdef DEAL_II_WITH_MPI
+    template void Utilities::MPI::Partitioner::
+      export_to_ghosted_array_start<SCALAR, dealii::MemorySpace::Default>(
+        const unsigned int,
+        const ArrayView<const SCALAR, MemorySpace::Default> &,
+        const ArrayView<SCALAR, MemorySpace::Default> &,
+        const ArrayView<SCALAR, MemorySpace::Default> &,
+        std::vector<MPI_Request> &) const;
+
+    template void Utilities::MPI::Partitioner::export_to_ghosted_array_finish<
+      SCALAR,
+      MemorySpace::Default>(const ArrayView<SCALAR, MemorySpace::Default> &,
+                            std::vector<MPI_Request> &) const;
+
+    template void Utilities::MPI::Partitioner::import_from_ghosted_array_start<
+      SCALAR,
+      MemorySpace::Default>(const VectorOperation::values,
+                            const unsigned int,
+                            const ArrayView<SCALAR, MemorySpace::Default> &,
+                            const ArrayView<SCALAR, MemorySpace::Default> &,
+                            std::vector<MPI_Request> &) const;
+
+    template void Utilities::MPI::Partitioner::
+      import_from_ghosted_array_finish<SCALAR, MemorySpace::Default>(
+        const VectorOperation::values,
+        const ArrayView<const SCALAR, MemorySpace::Default> &,
+        const ArrayView<SCALAR, MemorySpace::Default> &,
+        const ArrayView<SCALAR, MemorySpace::Default> &,
+        std::vector<MPI_Request> &) const;
 #endif
   }

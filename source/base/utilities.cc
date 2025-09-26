@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,7 +28,6 @@
 #include <deal.II/base/thread_local_storage.h>
 #include <deal.II/base/utilities.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/binary_from_base64.hpp>
@@ -37,7 +36,6 @@ DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <boost/lexical_cast.hpp>
 #include <boost/random.hpp>
 #undef BOOST_BIND_GLOBAL_PLACEHOLDERS
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #include <algorithm>
 #include <bitset>
@@ -110,9 +108,9 @@ namespace Utilities
     std::vector<std::array<std::uint64_t, effective_dim>>
     inverse_Hilbert_space_filling_curve_effective(
       const std::vector<Point<dim, Number>> &points,
-      const Point<dim, Number> &             bl,
-      const std::array<LongDouble, dim> &    extents,
-      const std::bitset<dim> &               valid_extents,
+      const Point<dim, Number>              &bl,
+      const std::array<LongDouble, dim>     &extents,
+      const std::bitset<dim>                &valid_extents,
       const int                              min_bits,
       const Integer                          max_int)
     {
@@ -154,7 +152,7 @@ namespace Utilities
     using LongDouble = long double;
 
     // return if there is nothing to do
-    if (points.size() == 0)
+    if (points.empty())
       return std::vector<std::array<std::uint64_t, dim>>();
 
     // get bounding box:
@@ -273,7 +271,7 @@ namespace Utilities
     // (Zoltan_HSFC_InvHilbertXd)
     // https://github.com/aditi137/Hilbert/blob/master/Hilbert/hilbert.cpp
 
-    // now we can map to 1D coordinate stored in Transpose format
+    // now we can map to 1d coordinate stored in Transpose format
     // adopt AxestoTranspose function from the paper, that
     // transforms in-place between geometrical axes and Hilbert transpose.
     // Example:   b=5 bits for each of n=3 coordinates.
@@ -489,9 +487,9 @@ namespace Utilities
     // https://en.cppreference.com/w/cpp/string/basic_string/to_string). So
     // resort to boost::lexical_cast for all other types (in
     // particular for floating point types.
-    std::string lc_string = (std::is_integral<number>::value ?
-                               std::to_string(value) :
-                               boost::lexical_cast<std::string>(value));
+    std::string lc_string =
+      (std::is_integral_v<number> ? std::to_string(value) :
+                                    boost::lexical_cast<std::string>(value));
 
     if ((digits != numbers::invalid_unsigned_int) &&
         (lc_string.size() < digits))
@@ -632,7 +630,7 @@ namespace Utilities
     //   first part to something useful, but stopped converting short
     //   of the terminating '\0' character. This happens, for example,
     //   if the given string is "1234 abc".
-    AssertThrow(!((errno != 0) || (s.size() == 0) ||
+    AssertThrow(!((errno != 0) || (s.empty()) ||
                   ((s.size() > 0) && (*p != '\0'))),
                 ExcMessage("Can't convert <" + s + "> to an integer."));
 
@@ -680,7 +678,7 @@ namespace Utilities
     //   first part to something useful, but stopped converting short
     //   of the terminating '\0' character. This happens, for example,
     //   if the given string is "1.234 abc".
-    AssertThrow(!((errno != 0) || (s.size() == 0) ||
+    AssertThrow(!((errno != 0) || (s.empty()) ||
                   ((s.size() > 0) && (*p != '\0'))),
                 ExcMessage("Can't convert <" + s + "> to a double."));
 
@@ -937,7 +935,7 @@ namespace Utilities
 
 #endif
 
-    const std::string
+    std::string
     get_current_vectorization_level()
     {
       switch (DEAL_II_VECTORIZATION_WIDTH_IN_BITS)
@@ -1016,7 +1014,7 @@ namespace Utilities
     get_time()
     {
       std::time_t time1 = std::time(nullptr);
-      std::tm *   time  = std::localtime(&time1);
+      std::tm    *time  = std::localtime(&time1);
 
       std::ostringstream o;
       o << time->tm_hour << ":" << (time->tm_min < 10 ? "0" : "")
@@ -1032,7 +1030,7 @@ namespace Utilities
     get_date()
     {
       std::time_t time1 = std::time(nullptr);
-      std::tm *   time  = std::localtime(&time1);
+      std::tm    *time  = std::localtime(&time1);
 
       std::ostringstream o;
       o << time->tm_year + 1900 << "/" << time->tm_mon + 1 << "/"
@@ -1068,150 +1066,6 @@ namespace Utilities
       return Utilities::MPI::job_supports_mpi();
     }
   } // namespace System
-
-
-#ifdef DEAL_II_WITH_TRILINOS
-
-  namespace Trilinos
-  {
-    const Epetra_Comm &
-    comm_world()
-    {
-#  ifdef DEAL_II_WITH_MPI
-      static Teuchos::RCP<Epetra_MpiComm> communicator =
-        Teuchos::rcp(new Epetra_MpiComm(MPI_COMM_WORLD), true);
-#  else
-      static Teuchos::RCP<Epetra_SerialComm> communicator =
-        Teuchos::rcp(new Epetra_SerialComm(), true);
-#  endif
-
-      return *communicator;
-    }
-
-
-
-    const Teuchos::RCP<const Teuchos::Comm<int>> &
-    tpetra_comm_self()
-    {
-#  ifdef DEAL_II_WITH_MPI
-      static auto communicator = Teuchos::RCP<const Teuchos::Comm<int>>(
-        new Teuchos::MpiComm<int>(MPI_COMM_SELF));
-#  else
-      static auto communicator =
-        Teuchos::RCP<const Teuchos::Comm<int>>(new Teuchos::Comm<int>());
-#  endif
-
-      return communicator;
-    }
-
-
-
-    const Epetra_Comm &
-    comm_self()
-    {
-#  ifdef DEAL_II_WITH_MPI
-      static Teuchos::RCP<Epetra_MpiComm> communicator =
-        Teuchos::rcp(new Epetra_MpiComm(MPI_COMM_SELF), true);
-#  else
-      static Teuchos::RCP<Epetra_SerialComm> communicator =
-        Teuchos::rcp(new Epetra_SerialComm(), true);
-#  endif
-
-      return *communicator;
-    }
-
-
-
-    Epetra_Comm *
-    duplicate_communicator(const Epetra_Comm &communicator)
-    {
-#  ifdef DEAL_II_WITH_MPI
-
-      // see if the communicator is in fact a
-      // parallel MPI communicator; if so,
-      // return a duplicate of it
-      const Epetra_MpiComm *mpi_comm =
-        dynamic_cast<const Epetra_MpiComm *>(&communicator);
-      if (mpi_comm != nullptr)
-        return new Epetra_MpiComm(
-          Utilities::MPI::duplicate_communicator(mpi_comm->GetMpiComm()));
-#  endif
-
-      // if we don't support MPI, or if the
-      // communicator in question was in fact
-      // not an MPI communicator, return a
-      // copy of the same object again
-      Assert(dynamic_cast<const Epetra_SerialComm *>(&communicator) != nullptr,
-             ExcInternalError());
-      return new Epetra_SerialComm(
-        dynamic_cast<const Epetra_SerialComm &>(communicator));
-    }
-
-
-
-    void
-    destroy_communicator(Epetra_Comm &communicator)
-    {
-      // save the communicator, reset the map, and delete the communicator if
-      // this whole thing was created as an MPI communicator
-#  ifdef DEAL_II_WITH_MPI
-      Epetra_MpiComm *mpi_comm = dynamic_cast<Epetra_MpiComm *>(&communicator);
-      if (mpi_comm != nullptr)
-        {
-          MPI_Comm comm = mpi_comm->GetMpiComm();
-          *mpi_comm     = Epetra_MpiComm(MPI_COMM_SELF);
-
-          Utilities::MPI::free_communicator(comm);
-        }
-#  endif
-    }
-
-
-
-    unsigned int
-    get_n_mpi_processes(const Epetra_Comm &mpi_communicator)
-    {
-      return mpi_communicator.NumProc();
-    }
-
-
-    unsigned int
-    get_this_mpi_process(const Epetra_Comm &mpi_communicator)
-    {
-      return static_cast<unsigned int>(mpi_communicator.MyPID());
-    }
-
-
-
-    Epetra_Map
-    duplicate_map(const Epetra_BlockMap &map, const Epetra_Comm &comm)
-    {
-      if (map.LinearMap() == true)
-        {
-          // each processor stores a
-          // contiguous range of
-          // elements in the
-          // following constructor
-          // call
-          return Epetra_Map(map.NumGlobalElements(),
-                            map.NumMyElements(),
-                            map.IndexBase(),
-                            comm);
-        }
-      else
-        {
-          // the range is not
-          // contiguous
-          return Epetra_Map(map.NumGlobalElements(),
-                            map.NumMyElements(),
-                            map.MyGlobalElements(),
-                            0,
-                            comm);
-        }
-    }
-  } // namespace Trilinos
-
-#endif
 
 #ifndef DOXYGEN
   template std::string

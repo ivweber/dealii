@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2005 - 2021 by the deal.II authors
+ * Copyright (C) 2005 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -136,7 +136,7 @@ namespace Step20
         : Function<dim>(1)
       {}
 
-      virtual double value(const Point<dim> & p,
+      virtual double value(const Point<dim>  &p,
                            const unsigned int component = 0) const override;
     };
 
@@ -150,7 +150,7 @@ namespace Step20
         : Function<dim>(1)
       {}
 
-      virtual double value(const Point<dim> & p,
+      virtual double value(const Point<dim>  &p,
                            const unsigned int component = 0) const override;
     };
 
@@ -164,7 +164,7 @@ namespace Step20
       {}
 
       virtual void vector_value(const Point<dim> &p,
-                                Vector<double> &  value) const override;
+                                Vector<double>   &value) const override;
     };
 
 
@@ -193,7 +193,7 @@ namespace Step20
 
     template <int dim>
     void ExactSolution<dim>::vector_value(const Point<dim> &p,
-                                          Vector<double> &  values) const
+                                          Vector<double>   &values) const
     {
       AssertDimension(values.size(), dim + 1);
 
@@ -241,7 +241,7 @@ namespace Step20
 
       virtual void
       value_list(const std::vector<Point<dim>> &points,
-                 std::vector<Tensor<2, dim>> &  values) const override;
+                 std::vector<Tensor<2, dim>>   &values) const override;
     };
 
 
@@ -274,7 +274,7 @@ namespace Step20
     // necessary in debug mode.)
     template <int dim>
     void KInverse<dim>::value_list(const std::vector<Point<dim>> &points,
-                                   std::vector<Tensor<2, dim>> &  values) const
+                                   std::vector<Tensor<2, dim>>   &values) const
     {
       (void)points;
       AssertDimension(points.size(), values.size());
@@ -320,7 +320,7 @@ namespace Step20
   template <int dim>
   MixedLaplaceProblem<dim>::MixedLaplaceProblem(const unsigned int degree)
     : degree(degree)
-    , fe(FE_RaviartThomas<dim>(degree), 1, FE_DGQ<dim>(degree), 1)
+    , fe(FE_RaviartThomas<dim>(degree), FE_DGQ<dim>(degree))
     , dof_handler(triangulation)
   {}
 
@@ -634,7 +634,7 @@ namespace Step20
     // After we have the pressure, we can compute the velocity. The equation
     // reads $MU=-BP+F$, and we solve it by first computing the right hand
     // side, and then multiplying it with the object that represents the
-    // inverse of the mass matrix:
+    // inverse of the @ref GlossMassMatrix "mass matrix":
     U = op_M_inv * (F - op_B * P);
   }
 

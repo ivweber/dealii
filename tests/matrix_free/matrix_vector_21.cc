@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -52,8 +52,8 @@
 
 template <int dim, int fe_degree, typename Number>
 void
-helmholtz_operator(const MatrixFree<dim, Number> &                        data,
-                   LinearAlgebra::distributed::BlockVector<Number> &      dst,
+helmholtz_operator(const MatrixFree<dim, Number>                         &data,
+                   LinearAlgebra::distributed::BlockVector<Number>       &dst,
                    const LinearAlgebra::distributed::BlockVector<Number> &src,
                    const std::pair<unsigned int, unsigned int> &cell_range)
 {
@@ -91,7 +91,7 @@ public:
     : data(data_in){};
 
   void
-  vmult(LinearAlgebra::distributed::BlockVector<Number> &      dst,
+  vmult(LinearAlgebra::distributed::BlockVector<Number>       &dst,
         const LinearAlgebra::distributed::BlockVector<Number> &src) const
   {
     for (unsigned int i = 0; i < dst.size(); ++i)
@@ -170,7 +170,7 @@ test()
     data.tasks_parallel_scheme =
       MatrixFree<dim, number>::AdditionalData::partition_color;
     data.tasks_block_size = 7;
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   MatrixFreeTest<dim, fe_degree, number>          mf(mf_data);
@@ -185,7 +185,7 @@ test()
   out.collect_sizes();
   mf_data.initialize_dof_vector(ref);
 
-  for (unsigned int i = 0; i < in.block(0).local_size(); ++i)
+  for (unsigned int i = 0; i < in.block(0).locally_owned_size(); ++i)
     {
       if (constraints.is_constrained(
             dof.locally_owned_dofs().index_within_set(i)))

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2021 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,8 +31,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup threads */
-/*@{*/
+/**
+ * @addtogroup threads
+ * @{
+ */
 
 #  ifndef DOXYGEN
 class LogStream;
@@ -104,7 +106,7 @@ namespace Threads
     static_assert(
       std::is_copy_constructible<
         typename internal::unpack_container<T>::type>::value ||
-        std::is_default_constructible<T>::value,
+        std::is_default_constructible_v<T>,
       "The stored type must be either copyable, or default constructible");
 
   public:
@@ -249,11 +251,7 @@ namespace Threads
      * readers-writer lock
      * (https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock).
      */
-#  ifdef DEAL_II_HAVE_CXX17
     mutable std::shared_mutex insertion_mutex;
-#  else
-    mutable std::shared_timed_mutex insertion_mutex;
-#  endif
 
     /**
      * An exemplar for creating a new (thread specific) copy.
@@ -374,11 +372,11 @@ namespace Threads
      * "if constexpr".
      */
     template <typename T>
-    typename std::enable_if_t<
-      std::is_copy_constructible<typename unpack_container<T>::type>::value,
+    std::enable_if_t<
+      std::is_copy_constructible_v<typename unpack_container<T>::type>,
       T &>
-    construct_element(std::map<std::thread::id, T> &  data,
-                      const std::thread::id &         id,
+    construct_element(std::map<std::thread::id, T>   &data,
+                      const std::thread::id          &id,
                       const std::shared_ptr<const T> &exemplar)
     {
       if (exemplar)
@@ -390,11 +388,11 @@ namespace Threads
     }
 
     template <typename T>
-    typename std::enable_if_t<
-      !std::is_copy_constructible<typename unpack_container<T>::type>::value,
+    std::enable_if_t<
+      !std::is_copy_constructible_v<typename unpack_container<T>::type>,
       T &>
     construct_element(std::map<std::thread::id, T> &data,
-                      const std::thread::id &       id,
+                      const std::thread::id        &id,
                       const std::shared_ptr<const T> &)
     {
       return data[id];
@@ -435,7 +433,7 @@ namespace Threads
 
     {
       // Take a unique ("writer") lock for manipulating the std::map. This
-      // lock ensures that no other threat does a lookup at the same time.
+      // lock ensures that no other thread does a lookup at the same time.
       std::unique_lock<decltype(insertion_mutex)> lock(insertion_mutex);
 
       return internal::construct_element(data, my_id, exemplar);

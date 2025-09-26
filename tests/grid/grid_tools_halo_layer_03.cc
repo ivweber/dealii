@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2021 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -80,7 +80,7 @@ test()
   {
     const std::string filename =
       "grid_no_halo_" + Utilities::int_to_string(dim) + "d.vtk";
-    std::ofstream f(filename.c_str());
+    std::ofstream f(filename);
     GridOut().write_vtk(tria, f);
   }
 
@@ -108,7 +108,7 @@ test()
   {
     const std::string filename =
       "grid_with_halo_" + Utilities::int_to_string(dim) + "d.vtk";
-    std::ofstream f(filename.c_str());
+    std::ofstream f(filename);
     GridOut().write_vtk(tria, f);
   }
 }

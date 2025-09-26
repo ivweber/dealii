@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2021 by the deal.II authors
+// Copyright (C) 2015 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,28 +42,44 @@ namespace LinearAlgebra
     {
     public:
       /**
-       * Initialize the communication pattern. The first argument @p
-       * vector_space_vector_index_set is the index set associated to a
-       * VectorSpaceVector object. The second argument @p
-       * read_write_vector_index_set is the index set associated to a
-       * ReadWriteVector object.
+       * Initialize the communication pattern.
+       *
+       * @param[in] locally_owned_indices The set of indices of elements
+       *   in the array mentioned in the class documentation that are
+       *   stored on the current process.
+       * @param[in] ghost_indices The set of indices of elements in the
+       *   array mentioned in the class documentation that the current
+       *   process will need to be able to import.
+       * @param[in] communicator The MPI communicator used to describe the
+       *   entire set of processes that participate in the storage and
+       *   access to elements of the array.
        */
-      CommunicationPattern(const IndexSet &vector_space_vector_index_set,
-                           const IndexSet &read_write_vector_index_set,
-                           const MPI_Comm &communicator);
+      CommunicationPattern(const IndexSet &locally_owned_indices,
+                           const IndexSet &ghost_indices,
+                           const MPI_Comm  communicator);
 
       /**
-       * Reinitialize the object.
+       * Reinitialize the communication pattern.
+       *
+       * @param[in] locally_owned_indices The set of indices of elements
+       *   in the array mentioned in the class documentation that are
+       *   stored on the current process.
+       * @param[in] ghost_indices The set of indices of elements in the
+       *   array mentioned in the class documentation that the current
+       *   process will need to be able to import.
+       * @param[in] communicator The MPI communicator used to describe the
+       *   entire set of processes that participate in the storage and
+       *   access to elements of the array.
        */
       virtual void
-      reinit(const IndexSet &vector_space_vector_index_set,
-             const IndexSet &read_write_vector_index_set,
-             const MPI_Comm &communicator) override;
+      reinit(const IndexSet &locally_owned_indices,
+             const IndexSet &ghost_indices,
+             const MPI_Comm  communicator) override;
 
       /**
        * Return the underlying MPI communicator.
        */
-      virtual const MPI_Comm &
+      virtual MPI_Comm
       get_mpi_communicator() const override;
 
       /**

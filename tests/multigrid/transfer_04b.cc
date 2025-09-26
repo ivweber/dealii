@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2021 by the deal.II authors
+// Copyright (C) 2006 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,7 +46,7 @@
 
 #include "../tests.h"
 
-using namespace std;
+
 
 template <int dim>
 void
@@ -115,7 +115,7 @@ check_fe(FiniteElement<dim> &fe)
       const std::string filename =
         ("solution." +
          Utilities::int_to_string(tr.locally_owned_subdomain(), 4) + ".vtu");
-      std::ofstream output(filename.c_str());
+      std::ofstream output(filename);
       data_out.write_vtu(output);
     }
 

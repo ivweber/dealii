@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,6 +14,9 @@
 // ---------------------------------------------------------------------
 
 #include <deal.II/base/config.h>
+
+#define PRECISION 8
+
 
 #include <deal.II/base/function.h>
 #include <deal.II/base/quadrature_lib.h>
@@ -41,7 +44,6 @@
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
 
-#include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 
@@ -54,11 +56,12 @@
 
 
 
-/*
- * Test case for Hermite on an irregular 1D grid.
- * <code>FE_Hermite<dim>(reg)<\code> should be able to perfectly represent any
- * polynomial function up to degree $2 \times reg+1$, including on the
- * boundaries. If all basis functions are correctly scaled according to
+/**
+ * Test of Hermite finite elements with the Laplace equation on a regular grid
+ * in 1,2,3D. <code>FE_Hermite<dim>(poly_degree)<\code> should be able to
+ * perfectly
+ * represent any polynomial function up to degree @p poly_degree, including
+ * on the boundaries. If all basis functions are correctly scaled according to
  * element size, then solving the Laplace equation with a polynomial solution
  * in the Hermite FE space will produce negligible pointwise errors for
  * non-homogeneous Dirichlet boundary conditions.
@@ -140,7 +143,10 @@ test_fe_on_domain(const unsigned int regularity)
   char fname[50];
   sprintf(fname, "Cell-%dd-Hermite-%d", dim, regularity);
   deallog.push(fname);
+
   deallog.depth_file(2);
+
+  deallog << "Test polynomial:" << std::endl;
 
   Triangulation<dim> tr;
   DoFHandler<dim>    dof(tr);
@@ -148,7 +154,7 @@ test_fe_on_domain(const unsigned int regularity)
   double left = -1.0, right = 1.0;
   GridGenerator::subdivided_hyper_cube(tr, 4, left, right);
 
-  FE_Hermite<dim> herm(regularity);
+  FE_Hermite<dim> herm(2 * regularity + 1);
   dof.distribute_dofs(herm);
 
   MappingCartesian<dim> mapping;
@@ -160,6 +166,9 @@ test_fe_on_domain(const unsigned int regularity)
 
   Solution<dim>    sol_object;
   RHSFunction<dim> rhs_object;
+
+  deallog << sol_object.get_function_string() << std::endl;
+  deallog << std::endl;
 
   AffineConstraints<double> constraints;
   constraints.close();
@@ -205,13 +214,13 @@ test_fe_on_domain(const unsigned int regularity)
     bound_map.emplace(std::make_pair(1U, &sol_object));
 
   // The following is the main function being tested here
-  VectorTools::project_hermite_boundary_values(
-    mapping,
-    dof,
-    bound_map,
-    QGauss<dim - 1>(2 * regularity + 2),
-    VectorTools::HermiteBoundaryType::hermite_dirichlet,
-    bound_vals);
+  VectorTools::project_hermite_boundary_values(mapping,
+                                               dof,
+                                               bound_map,
+                                               QGauss<dim - 1>(2 * regularity +
+                                                               2),
+                                               0,
+                                               bound_vals);
 
   MatrixTools::apply_boundary_values(bound_vals, stiffness_matrix, sol, rhs);
 
@@ -238,11 +247,8 @@ test_fe_on_domain(const unsigned int regularity)
     }
 
   err_sq = std::sqrt(err_sq);
-  deallog.depth_file(2);
 
-  deallog << "Test polynomial:" << std::endl;
-  deallog << sol_object.get_function_string() << std::endl;
-  deallog << std::endl;
+  deallog.depth_file(2);
 
   deallog << "Interpolation error:" << std::endl;
   deallog << err_sq << "\n\n" << std::endl;
@@ -255,7 +261,7 @@ int
 main()
 {
   std::ofstream logfile("output");
-  deallog << std::setprecision(8) << std::fixed;
+  deallog << std::setprecision(PRECISION) << std::fixed;
   deallog.attach(logfile);
 
   test_fe_on_domain<1>(0);

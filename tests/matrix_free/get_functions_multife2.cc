@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -71,7 +71,7 @@ public:
   void
   operator()(const MatrixFree<dim, Number> &data,
              VectorType &,
-             const VectorType &                           src,
+             const VectorType                            &src,
              const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, 0, 1, 1, Number>                     fe_eval0(data, 0, 0);
@@ -107,7 +107,8 @@ public:
 
         // compare values with the ones the FEValues
         // gives us. Those are seen as reference
-        for (unsigned int j = 0; j < data.n_components_filled(cell); ++j)
+        for (unsigned int j = 0; j < data.n_active_entries_per_cell_batch(cell);
+             ++j)
           {
             // FE 0
             fe_val0.reinit(data.get_cell_iterator(cell, j, 0));
@@ -199,7 +200,7 @@ public:
     // for floats for the relative error size
     for (unsigned int i = 0; i < 3; ++i)
       {
-        if (std::is_same<Number, double>::value == true)
+        if (std::is_same_v<Number, double> == true)
           {
             deallog << "Error function values FE " << i << ": "
                     << errors[i * 3 + 0] / total[i * 3 + 0] << std::endl;
@@ -219,7 +220,7 @@ public:
             deallog << "Error function Laplacians FE " << i << ": " << output2
                     << std::endl;
           }
-        else if (std::is_same<Number, float>::value == true)
+        else if (std::is_same_v<Number, float> == true)
           {
             deallog << "Error function values FE " << i << ": "
                     << errors[i * 3 + 0] / total[i * 3 + 0] << std::endl;
@@ -327,7 +328,8 @@ test()
     std::vector<Quadrature<1>> quad;
     quad.push_back(QGauss<1>(1));
     quad.push_back(QGauss<1>(fe_degree + 1));
-    mf_data.reinit(dof,
+    mf_data.reinit(MappingQ1<dim>{},
+                   dof,
                    constraints,
                    quad,
                    typename MatrixFree<dim, number>::AdditionalData(

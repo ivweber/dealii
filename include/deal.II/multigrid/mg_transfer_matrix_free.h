@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,8 +35,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup mg */
-/*@{*/
+/**
+ * @addtogroup mg
+ * @{
+ */
 
 /**
  * Implementation of the MGTransferBase interface for which the transfer
@@ -100,7 +102,7 @@ public:
    * ignored and internal variants are used instead.
    */
   void
-  build(const DoFHandler<dim, dim> &dof_handler,
+  build(const DoFHandler<dim> &dof_handler,
         const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
           &external_partitioners =
             std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>());
@@ -110,7 +112,7 @@ public:
    * partitioners.
    */
   void
-  build(const DoFHandler<dim, dim> &dof_handler,
+  build(const DoFHandler<dim> &dof_handler,
         const std::function<void(const unsigned int,
                                  LinearAlgebra::distributed::Vector<Number> &)>
           &initialize_dof_vector);
@@ -132,13 +134,13 @@ public:
   virtual void
   prolongate(
     const unsigned int                                to_level,
-    LinearAlgebra::distributed::Vector<Number> &      dst,
+    LinearAlgebra::distributed::Vector<Number>       &dst,
     const LinearAlgebra::distributed::Vector<Number> &src) const override;
 
   virtual void
   prolongate_and_add(
     const unsigned int                                to_level,
-    LinearAlgebra::distributed::Vector<Number> &      dst,
+    LinearAlgebra::distributed::Vector<Number>       &dst,
     const LinearAlgebra::distributed::Vector<Number> &src) const override;
 
   /**
@@ -162,7 +164,7 @@ public:
   virtual void
   restrict_and_add(
     const unsigned int                                from_level,
-    LinearAlgebra::distributed::Vector<Number> &      dst,
+    LinearAlgebra::distributed::Vector<Number>       &dst,
     const LinearAlgebra::distributed::Vector<Number> &src) const override;
 
   /**
@@ -179,17 +181,12 @@ public:
    *
    * The use of this function is demonstrated in step-66.
    */
-  template <typename Number2, int spacedim>
+  template <typename BlockVectorType2>
   void
   interpolate_to_mg(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
+    const DoFHandler<dim>                                     &dof_handler,
     MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &dst,
-    const LinearAlgebra::distributed::Vector<Number2> &        src) const;
-
-  /**
-   * Finite element does not provide prolongation matrices.
-   */
-  DeclException0(ExcNoProlongation);
+    const BlockVectorType2                                    &src) const;
 
   /**
    * Memory used by this object.
@@ -207,7 +204,7 @@ private:
 
   /**
    * A variable storing whether the element is continuous and there is a joint
-   * degree of freedom in the center of the 1D line.
+   * degree of freedom in the center of the 1d line.
    */
   bool element_is_continuous;
 
@@ -296,7 +293,7 @@ private:
   void
   do_prolongate_add(
     const unsigned int                                to_level,
-    LinearAlgebra::distributed::Vector<Number> &      dst,
+    LinearAlgebra::distributed::Vector<Number>       &dst,
     const LinearAlgebra::distributed::Vector<Number> &src) const;
 
   /**
@@ -305,9 +302,146 @@ private:
   template <int degree>
   void
   do_restrict_add(const unsigned int                                from_level,
-                  LinearAlgebra::distributed::Vector<Number> &      dst,
+                  LinearAlgebra::distributed::Vector<Number>       &dst,
                   const LinearAlgebra::distributed::Vector<Number> &src) const;
 };
+
+
+
+/**
+ * Base class of MGTransferBlockMatrixFree. While MGTransferBlockMatrixFree
+ * contains all the setup routines of the transfer operators for the blocks,
+ * this class simply applies them, e.g., for restricting and prolongating.
+ */
+template <int dim, typename Number, typename TransferType>
+class MGTransferBlockMatrixFreeBase
+  : public MGTransferBase<LinearAlgebra::distributed::BlockVector<Number>>
+{
+public:
+  MGTransferBlockMatrixFreeBase(const bool same_for_all)
+    : same_for_all(same_for_all)
+  {}
+
+  /**
+   * Prolongate a vector from level <tt>to_level-1</tt> to level
+   * <tt>to_level</tt> using the embedding matrices of the underlying finite
+   * element. The previous content of <tt>dst</tt> is overwritten.
+   *
+   * @param to_level The index of the level to prolongate to, which is the
+   * level of @p dst.
+   *
+   * @param src is a vector with as many elements as there are degrees of
+   * freedom on the coarser level involved.
+   *
+   * @param dst has as many elements as there are degrees of freedom on the
+   * finer level.
+   */
+  virtual void
+  prolongate(
+    const unsigned int                                     to_level,
+    LinearAlgebra::distributed::BlockVector<Number>       &dst,
+    const LinearAlgebra::distributed::BlockVector<Number> &src) const override;
+
+  virtual void
+  prolongate_and_add(
+    const unsigned int                                     to_level,
+    LinearAlgebra::distributed::BlockVector<Number>       &dst,
+    const LinearAlgebra::distributed::BlockVector<Number> &src) const override;
+
+  /**
+   * Restrict a vector from level <tt>from_level</tt> to level
+   * <tt>from_level-1</tt> using the transpose operation of the prolongate()
+   * method. If the region covered by cells on level <tt>from_level</tt> is
+   * smaller than that of level <tt>from_level-1</tt> (local refinement), then
+   * some degrees of freedom in <tt>dst</tt> are active and will not be
+   * altered. For the other degrees of freedom, the result of the restriction
+   * is added.
+   *
+   * @param from_level The index of the level to restrict from, which is the
+   * level of @p src.
+   *
+   * @param src is a vector with as many elements as there are degrees of
+   * freedom on the finer level involved.
+   *
+   * @param dst has as many elements as there are degrees of freedom on the
+   * coarser level.
+   */
+  virtual void
+  restrict_and_add(
+    const unsigned int                                     from_level,
+    LinearAlgebra::distributed::BlockVector<Number>       &dst,
+    const LinearAlgebra::distributed::BlockVector<Number> &src) const override;
+
+  /**
+   * Transfer from a block-vector on the global grid to block-vectors defined
+   * on each of the levels separately for active degrees of freedom.
+   * In particular, for a globally refined mesh only the finest level in @p dst
+   * is filled as a plain copy of @p src. All the other level objects are left
+   * untouched.
+   *
+   * This function will initialize @p dst accordingly if needed as required by
+   * the Multigrid class.
+   */
+  template <typename BlockVectorType2>
+  void
+  copy_to_mg(
+    const DoFHandler<dim>                                          &dof_handler,
+    MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &dst,
+    const BlockVectorType2                                         &src) const;
+
+  /**
+   * Same as above for the case that each block has its own DoFHandler.
+   */
+  template <typename BlockVectorType2>
+  void
+  copy_to_mg(
+    const std::vector<const DoFHandler<dim> *>                     &dof_handler,
+    MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &dst,
+    const BlockVectorType2                                         &src) const;
+
+  /**
+   * Transfer from multi-level block-vector to normal vector.
+   */
+  template <typename BlockVectorType2>
+  void
+  copy_from_mg(
+    const DoFHandler<dim> &dof_handler,
+    BlockVectorType2      &dst,
+    const MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &src)
+    const;
+
+  /**
+   * Same as above for the case that each block has its own DoFHandler.
+   */
+  template <typename BlockVectorType2>
+  void
+  copy_from_mg(
+    const std::vector<const DoFHandler<dim> *> &dof_handler,
+    BlockVectorType2                           &dst,
+    const MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &src)
+    const;
+
+  /**
+   * This class can both be used with a single DoFHandler
+   * or a separate DoFHandler for each block.
+   */
+  static const bool supports_dof_handler_vector = true;
+
+protected:
+  /**
+   * Return the right non-block transfer operator. Has to be implemented by
+   * the derived class.
+   */
+  virtual const TransferType &
+  get_matrix_free_transfer(const unsigned int b) const = 0;
+
+  /**
+   * A flag to indicate whether the same DoFHandler is used for all
+   * the components or if each block has its own DoFHandler.
+   */
+  const bool same_for_all;
+};
+
 
 
 /**
@@ -325,7 +459,9 @@ private:
  */
 template <int dim, typename Number>
 class MGTransferBlockMatrixFree
-  : public MGTransferBase<LinearAlgebra::distributed::BlockVector<Number>>
+  : public MGTransferBlockMatrixFreeBase<dim,
+                                         Number,
+                                         MGTransferMatrixFree<dim, Number>>
 {
 public:
   /**
@@ -374,112 +510,13 @@ public:
    * Actually build the information for the prolongation for each level.
    */
   void
-  build(const DoFHandler<dim, dim> &dof_handler);
+  build(const DoFHandler<dim> &dof_handler);
 
   /**
    * Same as above for the case that each block has its own DoFHandler.
    */
   void
-  build(const std::vector<const DoFHandler<dim, dim> *> &dof_handler);
-
-  /**
-   * Prolongate a vector from level <tt>to_level-1</tt> to level
-   * <tt>to_level</tt> using the embedding matrices of the underlying finite
-   * element. The previous content of <tt>dst</tt> is overwritten.
-   *
-   * @param to_level The index of the level to prolongate to, which is the
-   * level of @p dst.
-   *
-   * @param src is a vector with as many elements as there are degrees of
-   * freedom on the coarser level involved.
-   *
-   * @param dst has as many elements as there are degrees of freedom on the
-   * finer level.
-   */
-  virtual void
-  prolongate(
-    const unsigned int                                     to_level,
-    LinearAlgebra::distributed::BlockVector<Number> &      dst,
-    const LinearAlgebra::distributed::BlockVector<Number> &src) const override;
-
-  virtual void
-  prolongate_and_add(
-    const unsigned int                                     to_level,
-    LinearAlgebra::distributed::BlockVector<Number> &      dst,
-    const LinearAlgebra::distributed::BlockVector<Number> &src) const override;
-
-  /**
-   * Restrict a vector from level <tt>from_level</tt> to level
-   * <tt>from_level-1</tt> using the transpose operation of the prolongate()
-   * method. If the region covered by cells on level <tt>from_level</tt> is
-   * smaller than that of level <tt>from_level-1</tt> (local refinement), then
-   * some degrees of freedom in <tt>dst</tt> are active and will not be
-   * altered. For the other degrees of freedom, the result of the restriction
-   * is added.
-   *
-   * @param from_level The index of the level to restrict from, which is the
-   * level of @p src.
-   *
-   * @param src is a vector with as many elements as there are degrees of
-   * freedom on the finer level involved.
-   *
-   * @param dst has as many elements as there are degrees of freedom on the
-   * coarser level.
-   */
-  virtual void
-  restrict_and_add(
-    const unsigned int                                     from_level,
-    LinearAlgebra::distributed::BlockVector<Number> &      dst,
-    const LinearAlgebra::distributed::BlockVector<Number> &src) const override;
-
-  /**
-   * Transfer from a block-vector on the global grid to block-vectors defined
-   * on each of the levels separately for active degrees of freedom.
-   * In particular, for a globally refined mesh only the finest level in @p dst
-   * is filled as a plain copy of @p src. All the other level objects are left
-   * untouched.
-   *
-   * This function will initialize @p dst accordingly if needed as required by
-   * the Multigrid class.
-   */
-  template <typename Number2, int spacedim>
-  void
-  copy_to_mg(
-    const DoFHandler<dim, spacedim> &                               dof_handler,
-    MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &dst,
-    const LinearAlgebra::distributed::BlockVector<Number2> &        src) const;
-
-  /**
-   * Same as above for the case that each block has its own DoFHandler.
-   */
-  template <typename Number2, int spacedim>
-  void
-  copy_to_mg(
-    const std::vector<const DoFHandler<dim, spacedim> *> &          dof_handler,
-    MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &dst,
-    const LinearAlgebra::distributed::BlockVector<Number2> &        src) const;
-
-  /**
-   * Transfer from multi-level block-vector to normal vector.
-   */
-  template <typename Number2, int spacedim>
-  void
-  copy_from_mg(
-    const DoFHandler<dim, spacedim> &                 dof_handler,
-    LinearAlgebra::distributed::BlockVector<Number2> &dst,
-    const MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &src)
-    const;
-
-  /**
-   * Same as above for the case that each block has its own DoFHandler.
-   */
-  template <typename Number2, int spacedim>
-  void
-  copy_from_mg(
-    const std::vector<const DoFHandler<dim, spacedim> *> &dof_handler,
-    LinearAlgebra::distributed::BlockVector<Number2> &    dst,
-    const MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &src)
-    const;
+  build(const std::vector<const DoFHandler<dim> *> &dof_handler);
 
   /**
    * Memory used by this object.
@@ -487,27 +524,19 @@ public:
   std::size_t
   memory_consumption() const;
 
-  /**
-   * This class can both be used with a single DoFHandler
-   * or a separate DoFHandler for each block.
-   */
-  static const bool supports_dof_handler_vector = true;
+protected:
+  const MGTransferMatrixFree<dim, Number> &
+  get_matrix_free_transfer(const unsigned int b) const override;
 
 private:
   /**
    * Non-block matrix-free versions of transfer operation.
    */
   std::vector<MGTransferMatrixFree<dim, Number>> matrix_free_transfer_vector;
-
-  /**
-   * A flag to indicate whether the same DoFHandler is used for all
-   * the components or if each block has its own DoFHandler.
-   */
-  const bool same_for_all;
 };
 
 
-/*@}*/
+/** @} */
 
 
 //------------------------ templated functions -------------------------
@@ -515,12 +544,12 @@ private:
 
 
 template <int dim, typename Number>
-template <typename Number2, int spacedim>
+template <typename BlockVectorType2>
 void
 MGTransferMatrixFree<dim, Number>::interpolate_to_mg(
-  const DoFHandler<dim, spacedim> &                          dof_handler,
+  const DoFHandler<dim>                                     &dof_handler,
   MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &dst,
-  const LinearAlgebra::distributed::Vector<Number2> &        src) const
+  const BlockVectorType2                                    &src) const
 {
   const unsigned int min_level = dst.min_level();
   const unsigned int max_level = dst.max_level();
@@ -529,7 +558,7 @@ MGTransferMatrixFree<dim, Number>::interpolate_to_mg(
          ExcDimensionMismatch(
            max_level, dof_handler.get_triangulation().n_global_levels() - 1));
 
-  const FiniteElement<dim, spacedim> &fe = dof_handler.get_fe();
+  const auto &fe = dof_handler.get_fe();
 
   for (unsigned int level = min_level; level <= max_level; ++level)
     if (dst[level].size() != dof_handler.n_dofs(level) ||
@@ -603,39 +632,41 @@ MGTransferMatrixFree<dim, Number>::interpolate_to_mg(
 
       dst[level - 1].update_ghost_values();
     }
+
+  for (unsigned int level = min_level; level <= max_level; ++level)
+    dst[level].zero_out_ghost_values();
 }
 
 
 
-template <int dim, typename Number>
-template <typename Number2, int spacedim>
+template <int dim, typename Number, typename TransferType>
+template <typename BlockVectorType2>
 void
-MGTransferBlockMatrixFree<dim, Number>::copy_to_mg(
-  const DoFHandler<dim, spacedim> &                               dof_handler,
+MGTransferBlockMatrixFreeBase<dim, Number, TransferType>::copy_to_mg(
+  const DoFHandler<dim>                                          &dof_handler,
   MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &dst,
-  const LinearAlgebra::distributed::BlockVector<Number2> &        src) const
+  const BlockVectorType2                                         &src) const
 {
-  AssertDimension(matrix_free_transfer_vector.size(), 1);
   Assert(same_for_all,
          ExcMessage(
            "This object was initialized with support for usage with one "
            "DoFHandler for each block, but this method assumes that "
            "the same DoFHandler is used for all the blocks!"));
-  const std::vector<const DoFHandler<dim, spacedim> *> mg_dofs(src.n_blocks(),
-                                                               &dof_handler);
+  const std::vector<const DoFHandler<dim> *> mg_dofs(src.n_blocks(),
+                                                     &dof_handler);
 
   copy_to_mg(mg_dofs, dst, src);
 }
 
 
 
-template <int dim, typename Number>
-template <typename Number2, int spacedim>
+template <int dim, typename Number, typename TransferType>
+template <typename BlockVectorType2>
 void
-MGTransferBlockMatrixFree<dim, Number>::copy_to_mg(
-  const std::vector<const DoFHandler<dim, spacedim> *> &          dof_handler,
+MGTransferBlockMatrixFreeBase<dim, Number, TransferType>::copy_to_mg(
+  const std::vector<const DoFHandler<dim> *>                     &dof_handler,
   MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &dst,
-  const LinearAlgebra::distributed::BlockVector<Number2> &        src) const
+  const BlockVectorType2                                         &src) const
 {
   const unsigned int n_blocks = src.n_blocks();
   AssertDimension(dof_handler.size(), n_blocks);
@@ -646,61 +677,9 @@ MGTransferBlockMatrixFree<dim, Number>::copy_to_mg(
   const unsigned int min_level = dst.min_level();
   const unsigned int max_level = dst.max_level();
 
-  // this function is normally called within the Multigrid class with
-  // dst == defect level block vector. At first run this vector is not
-  // initialized. Do this below:
-  {
-    const parallel::TriangulationBase<dim, spacedim> *tria =
-      (dynamic_cast<const parallel::TriangulationBase<dim, spacedim> *>(
-        &(dof_handler[0]->get_triangulation())));
-    for (unsigned int i = 1; i < n_blocks; ++i)
-      AssertThrow(
-        (dynamic_cast<const parallel::TriangulationBase<dim, spacedim> *>(
-           &(dof_handler[0]->get_triangulation())) == tria),
-        ExcMessage("The DoFHandler use different Triangulations!"));
-
-    MGLevelObject<bool> do_reinit;
-    do_reinit.resize(min_level, max_level);
-    for (unsigned int level = min_level; level <= max_level; ++level)
-      {
-        do_reinit[level] = false;
-        if (dst[level].n_blocks() != n_blocks)
-          {
-            do_reinit[level] = true;
-            continue; // level
-          }
-        for (unsigned int b = 0; b < n_blocks; ++b)
-          {
-            LinearAlgebra::distributed::Vector<Number> &v = dst[level].block(b);
-            if (v.size() !=
-                  dof_handler[b]->locally_owned_mg_dofs(level).size() ||
-                v.locally_owned_size() !=
-                  dof_handler[b]->locally_owned_mg_dofs(level).n_elements())
-              {
-                do_reinit[level] = true;
-                break; // b
-              }
-          }
-      }
-
-    for (unsigned int level = min_level; level <= max_level; ++level)
-      {
-        if (do_reinit[level])
-          {
-            dst[level].reinit(n_blocks);
-            for (unsigned int b = 0; b < n_blocks; ++b)
-              {
-                LinearAlgebra::distributed::Vector<Number> &v =
-                  dst[level].block(b);
-                v.reinit(dof_handler[b]->locally_owned_mg_dofs(level),
-                         dof_handler[b]->get_communicator());
-              }
-            dst[level].collect_sizes();
-          }
-        else
-          dst[level] = 0;
-      }
-  }
+  for (unsigned int level = min_level; level <= max_level; ++level)
+    if (dst[level].n_blocks() != n_blocks)
+      dst[level].reinit(n_blocks);
 
   // FIXME: this a quite ugly as we need a temporary object:
   MGLevelObject<LinearAlgebra::distributed::Vector<Number>> dst_non_block(
@@ -708,40 +687,44 @@ MGTransferBlockMatrixFree<dim, Number>::copy_to_mg(
 
   for (unsigned int b = 0; b < n_blocks; ++b)
     {
-      for (unsigned int l = min_level; l <= max_level; ++l)
-        dst_non_block[l].reinit(dst[l].block(b));
       const unsigned int data_block = same_for_all ? 0 : b;
-      matrix_free_transfer_vector[data_block].copy_to_mg(*dof_handler[b],
-                                                         dst_non_block,
-                                                         src.block(b));
+      get_matrix_free_transfer(data_block)
+        .copy_to_mg(*dof_handler[b], dst_non_block, src.block(b));
 
       for (unsigned int l = min_level; l <= max_level; ++l)
         dst[l].block(b) = dst_non_block[l];
     }
+
+  for (unsigned int level = min_level; level <= max_level; ++level)
+    dst[level].collect_sizes();
 }
 
-template <int dim, typename Number>
-template <typename Number2, int spacedim>
+template <int dim, typename Number, typename TransferType>
+template <typename BlockVectorType2>
 void
-MGTransferBlockMatrixFree<dim, Number>::copy_from_mg(
-  const DoFHandler<dim, spacedim> &                 dof_handler,
-  LinearAlgebra::distributed::BlockVector<Number2> &dst,
+MGTransferBlockMatrixFreeBase<dim, Number, TransferType>::copy_from_mg(
+  const DoFHandler<dim> &dof_handler,
+  BlockVectorType2      &dst,
   const MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &src)
   const
 {
-  AssertDimension(matrix_free_transfer_vector.size(), 1);
-  const std::vector<const DoFHandler<dim, spacedim> *> mg_dofs(dst.n_blocks(),
-                                                               &dof_handler);
+  Assert(same_for_all,
+         ExcMessage(
+           "This object was initialized with support for usage with one "
+           "DoFHandler for each block, but this method assumes that "
+           "the same DoFHandler is used for all the blocks!"));
+  const std::vector<const DoFHandler<dim> *> mg_dofs(dst.n_blocks(),
+                                                     &dof_handler);
 
   copy_from_mg(mg_dofs, dst, src);
 }
 
-template <int dim, typename Number>
-template <typename Number2, int spacedim>
+template <int dim, typename Number, typename TransferType>
+template <typename BlockVectorType2>
 void
-MGTransferBlockMatrixFree<dim, Number>::copy_from_mg(
-  const std::vector<const DoFHandler<dim, spacedim> *> &dof_handler,
-  LinearAlgebra::distributed::BlockVector<Number2> &    dst,
+MGTransferBlockMatrixFreeBase<dim, Number, TransferType>::copy_from_mg(
+  const std::vector<const DoFHandler<dim> *> &dof_handler,
+  BlockVectorType2                           &dst,
   const MGLevelObject<LinearAlgebra::distributed::BlockVector<Number>> &src)
   const
 {
@@ -769,9 +752,8 @@ MGTransferBlockMatrixFree<dim, Number>::copy_from_mg(
           src_non_block[l] = src[l].block(b);
         }
       const unsigned int data_block = same_for_all ? 0 : b;
-      matrix_free_transfer_vector[data_block].copy_from_mg(*dof_handler[b],
-                                                           dst.block(b),
-                                                           src_non_block);
+      get_matrix_free_transfer(data_block)
+        .copy_from_mg(*dof_handler[b], dst.block(b), src_non_block);
     }
 }
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,12 +21,11 @@
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/hp/dof_handler.h>
 #include <deal.II/hp/fe_values.h>
 
 #include <deal.II/numerics/data_out.h>
@@ -48,7 +47,7 @@ namespace internal
       const dealii::hp::MappingCollection<dim, spacedim> &mapping,
       const std::vector<
         std::shared_ptr<dealii::hp::FECollection<dim, spacedim>>>
-        &                                           finite_elements,
+                                                   &finite_elements,
       const UpdateFlags                             update_flags,
       const std::vector<std::vector<unsigned int>> &cell_to_patch_index_map)
       : ParallelDataBase<dim, spacedim>(n_datasets,
@@ -95,7 +94,7 @@ DataOut<dim, spacedim>::DataOut()
 template <int dim, int spacedim>
 void
 DataOut<dim, spacedim>::build_one_patch(
-  const std::pair<cell_iterator, unsigned int> *                cell_and_index,
+  const std::pair<cell_iterator, unsigned int>                 *cell_and_index,
   internal::DataOutImplementation::ParallelData<dim, spacedim> &scratch_data,
   const unsigned int                                            n_subdivisions,
   const CurvedCellRegion curved_cell_region)
@@ -204,21 +203,21 @@ DataOut<dim, spacedim>::build_one_patch(
                   // we do not need to worry about getting any imaginary
                   // components to the postprocessor, and we can safely
                   // call the function that evaluates a scalar field
-                  if ((update_flags & update_values) != 0u)
+                  if (update_flags & update_values)
                     dataset->get_function_values(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       scratch_data.patch_values_scalar.solution_values);
 
-                  if ((update_flags & update_gradients) != 0u)
+                  if (update_flags & update_gradients)
                     dataset->get_function_gradients(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       scratch_data.patch_values_scalar.solution_gradients);
 
-                  if ((update_flags & update_hessians) != 0u)
+                  if (update_flags & update_hessians)
                     dataset->get_function_hessians(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
@@ -227,7 +226,7 @@ DataOut<dim, spacedim>::build_one_patch(
 
                   // Also fill some of the other fields postprocessors may
                   // want to access.
-                  if ((update_flags & update_quadrature_points) != 0u)
+                  if (update_flags & update_quadrature_points)
                     scratch_data.patch_values_scalar.evaluation_points =
                       this_fe_patch_values.get_quadrature_points();
 
@@ -260,21 +259,21 @@ DataOut<dim, spacedim>::build_one_patch(
                     {
                       scratch_data.resize_system_vectors(n_components);
 
-                      if ((update_flags & update_values) != 0u)
+                      if (update_flags & update_values)
                         dataset->get_function_values(
                           this_fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
                             real_part,
                           scratch_data.patch_values_system.solution_values);
 
-                      if ((update_flags & update_gradients) != 0u)
+                      if (update_flags & update_gradients)
                         dataset->get_function_gradients(
                           this_fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
                             real_part,
                           scratch_data.patch_values_system.solution_gradients);
 
-                      if ((update_flags & update_hessians) != 0u)
+                      if (update_flags & update_hessians)
                         dataset->get_function_hessians(
                           this_fe_patch_values,
                           internal::DataOutImplementation::ComponentExtractor::
@@ -294,7 +293,7 @@ DataOut<dim, spacedim>::build_one_patch(
                           // First get the real component of the scalar solution
                           // and copy the data into the
                           // scratch_data.patch_values_system output fields
-                          if ((update_flags & update_values) != 0u)
+                          if (update_flags & update_values)
                             {
                               dataset->get_function_values(
                                 this_fe_patch_values,
@@ -320,7 +319,7 @@ DataOut<dim, spacedim>::build_one_patch(
                                 }
                             }
 
-                          if ((update_flags & update_gradients) != 0u)
+                          if (update_flags & update_gradients)
                             {
                               dataset->get_function_gradients(
                                 this_fe_patch_values,
@@ -346,7 +345,7 @@ DataOut<dim, spacedim>::build_one_patch(
                                 }
                             }
 
-                          if ((update_flags & update_hessians) != 0u)
+                          if (update_flags & update_hessians)
                             {
                               dataset->get_function_hessians(
                                 this_fe_patch_values,
@@ -377,7 +376,7 @@ DataOut<dim, spacedim>::build_one_patch(
                           // and copy the data into the
                           // scratch_data.patch_values_system output fields
                           // that follow the real one
-                          if ((update_flags & update_values) != 0u)
+                          if (update_flags & update_values)
                             {
                               dataset->get_function_values(
                                 this_fe_patch_values,
@@ -403,7 +402,7 @@ DataOut<dim, spacedim>::build_one_patch(
                                 }
                             }
 
-                          if ((update_flags & update_gradients) != 0u)
+                          if (update_flags & update_gradients)
                             {
                               dataset->get_function_gradients(
                                 this_fe_patch_values,
@@ -429,7 +428,7 @@ DataOut<dim, spacedim>::build_one_patch(
                                 }
                             }
 
-                          if ((update_flags & update_hessians) != 0u)
+                          if (update_flags & update_hessians)
                             {
                               dataset->get_function_hessians(
                                 this_fe_patch_values,
@@ -484,7 +483,7 @@ DataOut<dim, spacedim>::build_one_patch(
                           // values, then the real and imaginary parts of the
                           // gradients, etc. This allows us to scope the
                           // temporary objects better
-                          if ((update_flags & update_values) != 0u)
+                          if (update_flags & update_values)
                             {
                               std::vector<Vector<double>> tmp(
                                 scratch_data.patch_values_system.solution_values
@@ -539,7 +538,7 @@ DataOut<dim, spacedim>::build_one_patch(
                             }
 
                           // Now do the exact same thing for the gradients
-                          if ((update_flags & update_gradients) != 0u)
+                          if (update_flags & update_gradients)
                             {
                               std::vector<std::vector<Tensor<1, spacedim>>> tmp(
                                 scratch_data.patch_values_system
@@ -590,7 +589,7 @@ DataOut<dim, spacedim>::build_one_patch(
                             }
 
                           // And finally the Hessians. Same scheme as above.
-                          if ((update_flags & update_hessians) != 0u)
+                          if (update_flags & update_hessians)
                             {
                               std::vector<std::vector<Tensor<2, spacedim>>> tmp(
                                 scratch_data.patch_values_system
@@ -643,7 +642,7 @@ DataOut<dim, spacedim>::build_one_patch(
                     }
 
                   // Now set other fields we may need
-                  if ((update_flags & update_quadrature_points) != 0u)
+                  if (update_flags & update_quadrature_points)
                     scratch_data.patch_values_system.evaluation_points =
                       this_fe_patch_values.get_quadrature_points();
 
@@ -1274,7 +1273,7 @@ template <int dim, int spacedim>
 void
 DataOut<dim, spacedim>::set_cell_selection(
   const std::function<cell_iterator(const Triangulation<dim, spacedim> &)>
-    &                                                        first_cell,
+                                                            &first_cell,
   const std::function<cell_iterator(const Triangulation<dim, spacedim> &,
                                     const cell_iterator &)> &next_cell)
 {
@@ -1326,8 +1325,8 @@ DataOut<dim, spacedim>::set_cell_selection(
 
 
 template <int dim, int spacedim>
-const std::pair<typename DataOut<dim, spacedim>::FirstCellFunctionType,
-                typename DataOut<dim, spacedim>::NextCellFunctionType>
+std::pair<typename DataOut<dim, spacedim>::FirstCellFunctionType,
+          typename DataOut<dim, spacedim>::NextCellFunctionType>
 DataOut<dim, spacedim>::get_cell_selection() const
 {
   return std::make_pair(first_cell_function, next_cell_function);

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -98,6 +98,12 @@ public:
   operator[](const unsigned int level) const;
 
   /**
+   * Return object on level max.
+   */
+  const Object &
+  back() const;
+
+  /**
    * Delete all previous contents of this object and reset its size according
    * to the values of @p new_minlevel and @p new_maxlevel.
    *
@@ -124,6 +130,13 @@ public:
    */
   MGLevelObject<Object> &
   operator=(const double d);
+
+  /**
+   * Clear all data fields and brings the class into a condition similar
+   * to after having called the default constructor.
+   */
+  void
+  clear();
 
   /**
    * Call @p clear on all objects stored by this object. This function
@@ -231,6 +244,14 @@ MGLevelObject<Object>::operator[](const unsigned int i) const
 
 
 template <class Object>
+const Object &
+MGLevelObject<Object>::back() const
+{
+  return this->operator[](this->max_level());
+}
+
+
+template <class Object>
 template <class... Args>
 void
 MGLevelObject<Object>::resize(const unsigned int new_minlevel,
@@ -258,6 +279,15 @@ MGLevelObject<Object>::operator=(const double d)
   for (v = objects.begin(); v != objects.end(); ++v)
     **v = d;
   return *this;
+}
+
+
+template <class Object>
+void
+MGLevelObject<Object>::clear()
+{
+  minlevel = 0;
+  objects.clear();
 }
 
 

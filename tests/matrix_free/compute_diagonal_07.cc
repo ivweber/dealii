@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,7 +15,7 @@
 
 
 
-// Similar to compute_diagonal_02 but testing block vectorss.
+// Similar to compute_diagonal_02 but testing block vectors.
 
 #include <deal.II/lac/la_parallel_block_vector.h>
 
@@ -82,12 +82,12 @@ test()
                                       n_components,
                                       Number,
                                       VectorizedArrayType> &phi) {
-    phi.evaluate(false, true, false);
+    phi.evaluate(EvaluationFlags::gradients);
     for (unsigned int q = 0; q < phi.n_q_points; ++q)
       {
         phi.submit_symmetric_gradient(2.0 * phi.get_symmetric_gradient(q), q);
       }
-    phi.integrate(false, true);
+    phi.integrate(EvaluationFlags::gradients);
   };
 
   LinearAlgebra::distributed::Vector<Number> diagonal_global;

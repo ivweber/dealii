@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2019 by the deal.II authors
+// Copyright (C) 2007 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,10 +13,9 @@
 //
 // ---------------------------------------------------------------------
 
+#include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/parsed_function.h>
 #include <deal.II/base/utilities.h>
-
-#include <cstdio>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -33,7 +32,7 @@ namespace Functions
 
   template <int dim>
   void
-  ParsedFunction<dim>::declare_parameters(ParameterHandler & prm,
+  ParsedFunction<dim>::declare_parameters(ParameterHandler  &prm,
                                           const unsigned int n_components)
   {
     Assert(n_components > 0, ExcZero());
@@ -165,7 +164,7 @@ namespace Functions
   template <int dim>
   void
   ParsedFunction<dim>::vector_value(const Point<dim> &p,
-                                    Vector<double> &  values) const
+                                    Vector<double>   &values) const
   {
     function_object.vector_value(p, values);
   }

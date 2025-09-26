@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,7 +18,7 @@
 
 #include <deal.II/base/config.h>
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
 #  include <deal.II/base/cuda.h>
 
 #  include <deal.II/lac/cuda_sparse_matrix.h>
@@ -54,7 +54,7 @@ namespace CUDAWrappers
       /**
        * Set the solver type. Possibilities are:
        * <ul>
-       * <li> "Cholesky" which performs a Cholesky decomposition on the device
+       * <li> "Cholesky" which performs a Cholesky decomposition on the @ref GlossDevice "device"
        * </li>
        * <li> "LU_dense" which converts the sparse matrix to a dense
        * matrix and uses LU factorization </li>
@@ -68,8 +68,8 @@ namespace CUDAWrappers
      * Constructor. Takes the solver control object and creates the solver.
      */
     SolverDirect(const Utilities::CUDA::Handle &handle,
-                 SolverControl &                cn,
-                 const AdditionalData &         data = AdditionalData());
+                 SolverControl                 &cn,
+                 const AdditionalData          &data = AdditionalData());
 
     /**
      * Destructor.
@@ -80,8 +80,8 @@ namespace CUDAWrappers
      * Solve the linear system <tt>Ax=b</tt>.
      */
     void
-    solve(const SparseMatrix<Number> &                       A,
-          LinearAlgebra::CUDAWrappers::Vector<Number> &      x,
+    solve(const SparseMatrix<Number>                        &A,
+          LinearAlgebra::CUDAWrappers::Vector<Number>       &x,
           const LinearAlgebra::CUDAWrappers::Vector<Number> &b);
 
     /**

@@ -144,7 +144,7 @@ public:
   }
 
   void
-  precondition_Jacobi(BlockVectorType &      dst,
+  precondition_Jacobi(BlockVectorType       &dst,
                       const BlockVectorType &src,
                       const value_type       omega) const
   {
@@ -200,7 +200,7 @@ public:
 
   virtual void
   operator()(const unsigned int                                     level,
-             LinearAlgebra::distributed::BlockVector<Number> &      dst,
+             LinearAlgebra::distributed::BlockVector<Number>       &dst,
              const LinearAlgebra::distributed::BlockVector<Number> &src) const
   {
     ReductionControl solver_control(1e4, 1e-50, 1e-10);
@@ -223,12 +223,13 @@ void
 do_test(const std::vector<const DoFHandler<dim> *> &dof)
 {
   const unsigned int nb = 2;
-  if (std::is_same<number, float>::value == true)
+  if (std::is_same_v<number, float> == true)
     {
       deallog.push("float");
     }
   else
-    {}
+    {
+    }
 
   for (unsigned int i = 0; i < dof.size(); ++i)
     {
@@ -240,7 +241,7 @@ do_test(const std::vector<const DoFHandler<dim> *> &dof)
 
   std::vector<IndexSet> locally_relevant_dofs(dof.size());
   for (unsigned int i = 0; i < dof.size(); ++i)
-    DoFTools::extract_locally_relevant_dofs(*dof[i], locally_relevant_dofs[i]);
+    locally_relevant_dofs[i] = DoFTools::extract_locally_relevant_dofs(*dof[i]);
 
   // Dirichlet BC
   Functions::ZeroFunction<dim>                        zero_function;
@@ -306,7 +307,7 @@ do_test(const std::vector<const DoFHandler<dim> *> &dof)
                                                 hanging_node_constraints);
         hanging_node_constraints.close();
 
-        for (unsigned int i = 0; i < in.block(b).local_size(); ++i)
+        for (unsigned int i = 0; i < in.block(b).locally_owned_size(); ++i)
           if (!hanging_node_constraints.is_constrained(
                 in.block(b).get_partitioner()->local_to_global(i)))
             in.block(b).local_element(i) = 1.;
@@ -348,10 +349,8 @@ do_test(const std::vector<const DoFHandler<dim> *> &dof)
         dof.size());
       for (unsigned int i = 0; i < dof.size(); ++i)
         {
-          IndexSet relevant_dofs;
-          DoFTools::extract_locally_relevant_level_dofs(*dof[i],
-                                                        level,
-                                                        relevant_dofs);
+          const IndexSet relevant_dofs =
+            DoFTools::extract_locally_relevant_level_dofs(*dof[i], level);
           level_constraints[i].reinit(relevant_dofs);
           level_constraints[i].add_lines(
             mg_constrained_dofs[i].get_boundary_indices(level));
@@ -413,7 +412,7 @@ do_test(const std::vector<const DoFHandler<dim> *> &dof)
     solver.solve(fine_matrix, sol, in, preconditioner);
   }
 
-  if (std::is_same<number, float>::value == true)
+  if (std::is_same_v<number, float> == true)
     deallog.pop();
 
   fine_matrix.clear();

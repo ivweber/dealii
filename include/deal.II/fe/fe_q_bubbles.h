@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2021 by the deal.II authors
+// Copyright (C) 2012 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,8 +26,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Implementation of a scalar Lagrange finite element $Q_p^+$ that yields the
@@ -52,7 +54,7 @@ DEAL_II_NAMESPACE_OPEN
  * the documentation of the FiniteElement class, or the one of Triangulation.
  *
  * Due to the fact that the enrichments are small almost everywhere for large
- * $p$, the condition number for the mass and stiffness matrix quickly
+ * $p$, the condition number for the mass and @ref GlossStiffnessMatrix "stiffness matrix" quickly
  * increaseses with increasing $p$. Below you see a comparison with
  * FE_Q(QGaussLobatto(p+1)) for dim=1.
  *
@@ -123,7 +125,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 
   /**
    * Return the matrix interpolating from the given finite element to the
@@ -195,7 +197,7 @@ private:
 
 
 
-/*@}*/
+/** @} */
 
 
 DEAL_II_NAMESPACE_CLOSE

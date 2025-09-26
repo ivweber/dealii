@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2014 - 2015 by the deal.II authors
+## Copyright (C) 2014 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,8 +13,8 @@
 ##
 ## ---------------------------------------------------------------------
 
-MACRO(VERBOSE_INCLUDE _file)
-  MESSAGE(STATUS "")
-  MESSAGE(STATUS "Include ${_file}")
-  INCLUDE(${_file})
-ENDMACRO()
+macro(verbose_include _file)
+  message(STATUS "")
+  message(STATUS "Include ${_file}")
+  include(${_file})
+endmacro()

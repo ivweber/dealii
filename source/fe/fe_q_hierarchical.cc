@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -70,7 +70,7 @@ FE_Q_Hierarchical<dim>::FE_Q_Hierarchical(const unsigned int degree)
                  std::vector<ComponentMask>(
                    FiniteElementData<dim>(get_dpo_vector(degree), 1, degree)
                      .n_dofs_per_cell(),
-                   std::vector<bool>(1, true)))
+                   ComponentMask(std::vector<bool>(1, true))))
   , face_renumber(face_fe_q_hierarchical_to_hierarchic_numbering(degree))
 {
   TensorProductPolynomials<dim> *poly_space_derived_ptr =
@@ -152,7 +152,7 @@ template <int dim>
 void
 FE_Q_Hierarchical<dim>::get_interpolation_matrix(
   const FiniteElement<dim> &source,
-  FullMatrix<double> &      matrix) const
+  FullMatrix<double>       &matrix) const
 {
   // support interpolation between FE_Q_Hierarchical only.
   if (const FE_Q_Hierarchical<dim> *source_fe =
@@ -931,7 +931,7 @@ template <int dim>
 void
 FE_Q_Hierarchical<dim>::get_face_interpolation_matrix(
   const FiniteElement<dim> &x_source_fe,
-  FullMatrix<double> &      interpolation_matrix,
+  FullMatrix<double>       &interpolation_matrix,
   const unsigned int        face_no) const
 {
   // this is only implemented, if the
@@ -1020,7 +1020,7 @@ void
 FE_Q_Hierarchical<dim>::get_subface_interpolation_matrix(
   const FiniteElement<dim> &x_source_fe,
   const unsigned int        subface,
-  FullMatrix<double> &      interpolation_matrix,
+  FullMatrix<double>       &interpolation_matrix,
   const unsigned int        face_no) const
 {
   // this is only implemented, if the
@@ -2046,7 +2046,7 @@ FE_Q_Hierarchical<dim>::hierarchic_to_fe_q_hierarchical_numbering(
           for (unsigned int i = 0; i < fe.n_dofs_per_line(); ++i)
             h2l[next_index++] = n + 2 + i;
           // inside quad
-          Assert(fe.n_dofs_per_quad(0 /*only one quad in 2D*/) ==
+          Assert(fe.n_dofs_per_quad(0 /*only one quad in 2d*/) ==
                    fe.n_dofs_per_line() * fe.n_dofs_per_line(),
                  ExcInternalError());
           for (unsigned int i = 0; i < fe.n_dofs_per_line(); ++i)
@@ -2216,7 +2216,7 @@ FE_Q_Hierarchical<dim>::has_support_on_face(const unsigned int shape_index,
   // have no support no-where on
   // the boundary
   if (((dim == 2) && (shape_index >=
-                      this->get_first_quad_index(0 /*only one quad in 2D*/))) ||
+                      this->get_first_quad_index(0 /*only one quad in 2d*/))) ||
       ((dim == 3) && (shape_index >= this->get_first_hex_index())))
     return false;
 

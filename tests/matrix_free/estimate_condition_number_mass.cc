@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -47,9 +47,9 @@ output_double_number(double input, const std::string &text)
 
 template <int dim, int fe_degree, typename Number>
 void
-mass_operator(const MatrixFree<dim, Number> &              data,
-              Vector<Number> &                             dst,
-              const Vector<Number> &                       src,
+mass_operator(const MatrixFree<dim, Number>               &data,
+              Vector<Number>                              &dst,
+              const Vector<Number>                        &src,
               const std::pair<unsigned int, unsigned int> &cell_range)
 {
   FEEvaluation<dim, fe_degree, fe_degree + 1, 1, Number> fe_eval(data);
@@ -120,7 +120,7 @@ test(const FiniteElement<dim> &fe, const unsigned int n_iterations)
     const QGauss<1>                                  quad(fe_degree + 1);
     typename MatrixFree<dim, number>::AdditionalData data;
     data.tasks_block_size = 8 / VectorizedArray<number>::size();
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   MatrixFreeTest<dim, fe_degree, number> mf(mf_data);

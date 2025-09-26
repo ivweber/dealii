@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,6 +33,7 @@ DEAL_II_NAMESPACE_OPEN
 // Forward declaration
 #ifndef DOXYGEN
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
 #endif
 
@@ -75,7 +76,7 @@ public:
   template <int dim, int spacedim>
   void
   initialize(const DoFHandler<dim, spacedim> &dof,
-             const MGLevelObject<IndexSet> &  level_relevant_dofs =
+             const MGLevelObject<IndexSet>   &level_relevant_dofs =
                MGLevelObject<IndexSet>());
 
   /**
@@ -91,9 +92,21 @@ public:
   template <int dim, int spacedim>
   void
   make_zero_boundary_constraints(
-    const DoFHandler<dim, spacedim> &   dof,
+    const DoFHandler<dim, spacedim>    &dof,
     const std::set<types::boundary_id> &boundary_ids,
-    const ComponentMask &               component_mask = ComponentMask());
+    const ComponentMask                &component_mask = {});
+
+  /**
+   * Add Dirichlet boundary dofs to the internal data structures
+   * on level @p level.
+   * The indices are restricted to the set of locally relevant
+   * level dofs.
+   */
+  template <int dim, int spacedim>
+  void
+  add_boundary_indices(const DoFHandler<dim, spacedim> &dof,
+                       const unsigned int               level,
+                       const IndexSet                  &boundary_indices);
 
   /**
    * Add user defined constraints to be used on level @p level.
@@ -132,6 +145,12 @@ public:
   make_no_normal_flux_constraints(const DoFHandler<dim, spacedim> &dof,
                                   const types::boundary_id         bid,
                                   const unsigned int first_vector_component);
+
+  /**
+   * Clear the user constraints on all levels.
+   */
+  void
+  clear_user_constraints();
 
   /**
    * Reset the data structures.
@@ -206,6 +225,27 @@ public:
   const AffineConstraints<double> &
   get_user_constraint_matrix(const unsigned int level) const;
 
+  /**
+   * Merge selected constraints of a specifiedlevel into a given single
+   * AffineConstraints object.
+   *
+   * @param constraints AffineConstraints object to be filled.
+   * @param level Refinement to be considered.
+   * @param add_boundary_indices Add boundary indices.
+   * @param add_refinement_edge_indices Add refinement-edge indices.
+   * @param add_level_constraints Add level constraints including the one passed
+   *   during initialize() and periodicy constraints.
+   * @param add_user_constraints Add user constraints.
+   */
+  template <typename Number>
+  void
+  merge_constraints(AffineConstraints<Number> &constraints,
+                    const unsigned int         level,
+                    const bool                 add_boundary_indices,
+                    const bool                 add_refinement_edge_indices,
+                    const bool                 add_level_constraints,
+                    const bool                 add_user_constraints) const;
+
 private:
   /**
    * The indices of boundary dofs for each level.
@@ -235,7 +275,7 @@ template <int dim, int spacedim>
 inline void
 MGConstrainedDoFs::initialize(
   const DoFHandler<dim, spacedim> &dof,
-  const MGLevelObject<IndexSet> &  level_relevant_dofs)
+  const MGLevelObject<IndexSet>   &level_relevant_dofs)
 {
   boundary_indices.clear();
   refinement_edge_indices.clear();
@@ -336,14 +376,14 @@ MGConstrainedDoFs::initialize(
 template <int dim, int spacedim>
 inline void
 MGConstrainedDoFs::make_zero_boundary_constraints(
-  const DoFHandler<dim, spacedim> &   dof,
+  const DoFHandler<dim, spacedim>    &dof,
   const std::set<types::boundary_id> &boundary_ids,
-  const ComponentMask &               component_mask)
+  const ComponentMask                &component_mask)
 {
   // allocate an IndexSet for each global level. Contents will be
   // overwritten inside make_boundary_list.
   const unsigned int n_levels = dof.get_triangulation().n_global_levels();
-  Assert(boundary_indices.size() == 0 || boundary_indices.size() == n_levels,
+  Assert(boundary_indices.empty() || boundary_indices.size() == n_levels,
          ExcInternalError());
   boundary_indices.resize(n_levels);
 
@@ -351,6 +391,25 @@ MGConstrainedDoFs::make_zero_boundary_constraints(
                               boundary_ids,
                               boundary_indices,
                               component_mask);
+}
+
+
+
+template <int dim, int spacedim>
+inline void
+MGConstrainedDoFs::add_boundary_indices(const DoFHandler<dim, spacedim> &dof,
+                                        const unsigned int               level,
+                                        const IndexSet &level_boundary_indices)
+{
+  const unsigned int n_levels = dof.get_triangulation().n_global_levels();
+  if (boundary_indices.empty())
+    {
+      boundary_indices.resize(n_levels);
+      for (unsigned int i = 0; i < n_levels; ++i)
+        boundary_indices[i] = IndexSet(dof.n_dofs(i));
+    }
+  AssertDimension(boundary_indices.size(), n_levels);
+  boundary_indices[level].add_indices(level_boundary_indices);
 }
 
 
@@ -428,6 +487,16 @@ MGConstrainedDoFs::add_user_constraints(
 }
 
 
+
+inline void
+MGConstrainedDoFs::clear_user_constraints()
+{
+  for (auto &constraint : user_constraints)
+    constraint.clear();
+}
+
+
+
 inline void
 MGConstrainedDoFs::clear()
 {
@@ -441,7 +510,7 @@ inline bool
 MGConstrainedDoFs::is_boundary_index(const unsigned int            level,
                                      const types::global_dof_index index) const
 {
-  if (boundary_indices.size() == 0)
+  if (boundary_indices.empty())
     return false;
 
   AssertIndexRange(level, boundary_indices.size());
@@ -514,6 +583,57 @@ MGConstrainedDoFs::get_user_constraint_matrix(const unsigned int level) const
 {
   AssertIndexRange(level, user_constraints.size());
   return user_constraints[level];
+}
+
+
+template <typename Number>
+inline void
+MGConstrainedDoFs::merge_constraints(AffineConstraints<Number> &constraints,
+                                     const unsigned int         level,
+                                     const bool add_boundary_indices,
+                                     const bool add_refinement_edge_indices,
+                                     const bool add_level_constraints,
+                                     const bool add_user_constraints) const
+{
+  constraints.clear();
+
+  // determine local lines
+  IndexSet index_set(this->get_refinement_edge_indices(level).size());
+
+  if (add_boundary_indices && this->have_boundary_indices())
+    index_set.add_indices(this->get_boundary_indices(level));
+
+  if (add_refinement_edge_indices)
+    index_set.add_indices(this->get_refinement_edge_indices(level));
+
+  if (add_level_constraints)
+    index_set.add_indices(this->get_level_constraints(level).get_local_lines());
+
+  if (add_user_constraints)
+    index_set.add_indices(
+      this->get_user_constraint_matrix(level).get_local_lines());
+
+  constraints.reinit(index_set);
+
+  // merge constraints
+  if (add_boundary_indices && this->have_boundary_indices())
+    constraints.add_lines(this->get_boundary_indices(level));
+
+  if (add_refinement_edge_indices)
+    constraints.add_lines(this->get_refinement_edge_indices(level));
+
+  if (add_level_constraints)
+    constraints.merge(this->get_level_constraints(level),
+                      AffineConstraints<Number>::left_object_wins,
+                      true);
+
+  if (add_user_constraints)
+    constraints.merge(this->get_user_constraint_matrix(level),
+                      AffineConstraints<Number>::left_object_wins,
+                      true);
+
+  // finalize setup
+  constraints.close();
 }
 
 

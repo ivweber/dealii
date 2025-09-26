@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,13 +22,18 @@
 DEAL_II_NAMESPACE_OPEN
 
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
+
 template <int dim, typename Number>
 class Function;
 template <int dim, int spacedim>
 class Mapping;
+
 template <int dim, typename Number>
+DEAL_II_CXX20_REQUIRES(dim >= 0)
 class Point;
+
 template <typename Number>
 class Vector;
 namespace hp
@@ -42,7 +47,7 @@ namespace VectorTools
   /**
    * @name Assembling of right hand sides
    */
-  //@{
+  /** @{ */
 
   /**
    * Create a right hand side vector for a point source at point @p p. In
@@ -130,10 +135,10 @@ namespace VectorTools
    */
   template <int dim, int spacedim>
   void
-  create_point_source_vector(const Mapping<dim, spacedim> &   mapping,
+  create_point_source_vector(const Mapping<dim, spacedim>    &mapping,
                              const DoFHandler<dim, spacedim> &dof_handler,
-                             const Point<spacedim, double> &  p,
-                             Vector<double> &                 rhs_vector);
+                             const Point<spacedim, double>   &p,
+                             Vector<double>                  &rhs_vector);
 
   /**
    * Like the previous function, but for hp-objects.
@@ -142,9 +147,9 @@ namespace VectorTools
   void
   create_point_source_vector(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof_handler,
-    const Point<spacedim, double> &             p,
-    Vector<double> &                            rhs_vector);
+    const DoFHandler<dim, spacedim>            &dof_handler,
+    const Point<spacedim, double>              &p,
+    Vector<double>                             &rhs_vector);
 
   /**
    * Call the create_point_source_vector() function, see above, with
@@ -157,8 +162,8 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   create_point_source_vector(const DoFHandler<dim, spacedim> &dof_handler,
-                             const Point<spacedim, double> &  p,
-                             Vector<double> &                 rhs_vector);
+                             const Point<spacedim, double>   &p,
+                             Vector<double>                  &rhs_vector);
 
   /**
    * Create a right hand side vector for a point source at point @p p. This
@@ -180,11 +185,11 @@ namespace VectorTools
    */
   template <int dim, int spacedim>
   void
-  create_point_source_vector(const Mapping<dim, spacedim> &   mapping,
+  create_point_source_vector(const Mapping<dim, spacedim>    &mapping,
                              const DoFHandler<dim, spacedim> &dof_handler,
-                             const Point<spacedim, double> &  p,
-                             const Point<dim, double> &       direction,
-                             Vector<double> &                 rhs_vector);
+                             const Point<spacedim, double>   &p,
+                             const Point<dim, double>        &direction,
+                             Vector<double>                  &rhs_vector);
 
   /**
    * Like the previous function, but for hp-objects.
@@ -193,10 +198,10 @@ namespace VectorTools
   void
   create_point_source_vector(
     const hp::MappingCollection<dim, spacedim> &mapping,
-    const DoFHandler<dim, spacedim> &           dof_handler,
-    const Point<spacedim, double> &             p,
-    const Point<dim, double> &                  direction,
-    Vector<double> &                            rhs_vector);
+    const DoFHandler<dim, spacedim>            &dof_handler,
+    const Point<spacedim, double>              &p,
+    const Point<dim, double>                   &direction,
+    Vector<double>                             &rhs_vector);
 
   /**
    * Call the create_point_source_vector() function for vector-valued finite
@@ -209,15 +214,15 @@ namespace VectorTools
   template <int dim, int spacedim>
   void
   create_point_source_vector(const DoFHandler<dim, spacedim> &dof_handler,
-                             const Point<spacedim, double> &  p,
-                             const Point<dim, double> &       direction,
-                             Vector<double> &                 rhs_vector);
-  // @}
+                             const Point<spacedim, double>   &p,
+                             const Point<dim, double>        &direction,
+                             Vector<double>                  &rhs_vector);
+  /** @} */
 
   /**
    * @name Evaluation of functions and errors
    */
-  //@{
+  /** @{ */
 
   /**
    * Point error evaluation. Find the first cell containing the given point
@@ -230,15 +235,17 @@ namespace VectorTools
    *
    * @note If the cell in which the point is found is not locally owned, an
    * exception of type VectorTools::ExcPointNotAvailableHere is thrown.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_difference(
-    const DoFHandler<dim, spacedim> &                          dof,
-    const VectorType &                                         fe_function,
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_difference(
+    const DoFHandler<dim, spacedim>                           &dof,
+    const VectorType                                          &fe_function,
     const Function<spacedim, typename VectorType::value_type> &exact_solution,
-    Vector<typename VectorType::value_type> &                  difference,
-    const Point<spacedim, double> &                            point);
+    Vector<typename VectorType::value_type>                   &difference,
+    const Point<spacedim, double>                             &point);
 
   /**
    * Point error evaluation. Find the first cell containing the given point
@@ -251,16 +258,18 @@ namespace VectorTools
    *
    * @note If the cell in which the point is found is not locally owned, an
    * exception of type VectorTools::ExcPointNotAvailableHere is thrown.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_difference(
-    const Mapping<dim, spacedim> &                             mapping,
-    const DoFHandler<dim, spacedim> &                          dof,
-    const VectorType &                                         fe_function,
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_difference(
+    const Mapping<dim, spacedim>                              &mapping,
+    const DoFHandler<dim, spacedim>                           &dof,
+    const VectorType                                          &fe_function,
     const Function<spacedim, typename VectorType::value_type> &exact_solution,
-    Vector<typename VectorType::value_type> &                  difference,
-    const Point<spacedim, double> &                            point);
+    Vector<typename VectorType::value_type>                   &difference,
+    const Point<spacedim, double>                             &point);
 
   /**
    * Evaluate a possibly vector-valued finite element function defined by the
@@ -297,13 +306,15 @@ namespace VectorTools
    *   is <i>not</i> continuous, then you will get unpredictable values for
    *   points on or close to the boundary of the cell, as one would expect
    *   when trying to evaluate point values of discontinuous functions.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_value(const DoFHandler<dim, spacedim> &        dof,
-              const VectorType &                       fe_function,
-              const Point<spacedim, double> &          point,
-              Vector<typename VectorType::value_type> &value);
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_value(const DoFHandler<dim, spacedim>         &dof,
+                   const VectorType                        &fe_function,
+                   const Point<spacedim, double>           &point,
+                   Vector<typename VectorType::value_type> &value);
 
   /**
    * Same as above for hp.
@@ -321,13 +332,15 @@ namespace VectorTools
    *   is <i>not</i> continuous, then you will get unpredictable values for
    *   points on or close to the boundary of the cell, as one would expect
    *   when trying to evaluate point values of discontinuous functions.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_value(const DoFHandler<dim, spacedim> &        dof,
-              const VectorType &                       fe_function,
-              const Point<spacedim, double> &          point,
-              Vector<typename VectorType::value_type> &value);
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_value(const DoFHandler<dim, spacedim>         &dof,
+                   const VectorType                        &fe_function,
+                   const Point<spacedim, double>           &point,
+                   Vector<typename VectorType::value_type> &value);
 
   /**
    * Evaluate a scalar finite element function defined by the given DoFHandler
@@ -367,12 +380,15 @@ namespace VectorTools
    *   is <i>not</i> continuous, then you will get unpredictable values for
    *   points on or close to the boundary of the cell, as one would expect
    *   when trying to evaluate point values of discontinuous functions.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
-  point_value(const DoFHandler<dim, spacedim> &dof,
-              const VectorType &               fe_function,
-              const Point<spacedim, double> &  point);
+    point_value(const DoFHandler<dim, spacedim> &dof,
+                const VectorType                &fe_function,
+                const Point<spacedim, double>   &point);
 
   /**
    * Same as above for hp.
@@ -390,12 +406,15 @@ namespace VectorTools
    *   is <i>not</i> continuous, then you will get unpredictable values for
    *   points on or close to the boundary of the cell, as one would expect
    *   when trying to evaluate point values of discontinuous functions.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
-  point_value(const DoFHandler<dim, spacedim> &dof,
-              const VectorType &               fe_function,
-              const Point<spacedim, double> &  point);
+    point_value(const DoFHandler<dim, spacedim> &dof,
+                const VectorType                &fe_function,
+                const Point<spacedim, double>   &point);
 
   /**
    * Evaluate a possibly vector-valued finite element function defined by the
@@ -430,14 +449,16 @@ namespace VectorTools
    *   is <i>not</i> continuous, then you will get unpredictable values for
    *   points on or close to the boundary of the cell, as one would expect
    *   when trying to evaluate point values of discontinuous functions.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_value(const Mapping<dim, spacedim> &           mapping,
-              const DoFHandler<dim, spacedim> &        dof,
-              const VectorType &                       fe_function,
-              const Point<spacedim, double> &          point,
-              Vector<typename VectorType::value_type> &value);
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_value(const Mapping<dim, spacedim>            &mapping,
+                   const DoFHandler<dim, spacedim>         &dof,
+                   const VectorType                        &fe_function,
+                   const Point<spacedim, double>           &point,
+                   Vector<typename VectorType::value_type> &value);
 
   /**
    * Same as above for hp.
@@ -455,14 +476,16 @@ namespace VectorTools
    *   is <i>not</i> continuous, then you will get unpredictable values for
    *   points on or close to the boundary of the cell, as one would expect
    *   when trying to evaluate point values of discontinuous functions.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
-  void
-  point_value(const hp::MappingCollection<dim, spacedim> &mapping,
-              const DoFHandler<dim, spacedim> &           dof,
-              const VectorType &                          fe_function,
-              const Point<spacedim, double> &             point,
-              Vector<typename VectorType::value_type> &   value);
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
+  void point_value(const hp::MappingCollection<dim, spacedim> &mapping,
+                   const DoFHandler<dim, spacedim>            &dof,
+                   const VectorType                           &fe_function,
+                   const Point<spacedim, double>              &point,
+                   Vector<typename VectorType::value_type>    &value);
 
   /**
    * Evaluate a scalar finite element function defined by the given DoFHandler
@@ -496,13 +519,16 @@ namespace VectorTools
    *   is <i>not</i> continuous, then you will get unpredictable values for
    *   points on or close to the boundary of the cell, as one would expect
    *   when trying to evaluate point values of discontinuous functions.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
-  point_value(const Mapping<dim, spacedim> &   mapping,
-              const DoFHandler<dim, spacedim> &dof,
-              const VectorType &               fe_function,
-              const Point<spacedim, double> &  point);
+    point_value(const Mapping<dim, spacedim>    &mapping,
+                const DoFHandler<dim, spacedim> &dof,
+                const VectorType                &fe_function,
+                const Point<spacedim, double>   &point);
 
   /**
    * Same as above for hp.
@@ -520,14 +546,17 @@ namespace VectorTools
    *   is <i>not</i> continuous, then you will get unpredictable values for
    *   points on or close to the boundary of the cell, as one would expect
    *   when trying to evaluate point values of discontinuous functions.
+   *
+   * @dealiiConceptRequires{concepts::is_dealii_vector_type<VectorType>}
    */
   template <int dim, typename VectorType, int spacedim>
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<VectorType>)
   typename VectorType::value_type
-  point_value(const hp::MappingCollection<dim, spacedim> &mapping,
-              const DoFHandler<dim, spacedim> &           dof,
-              const VectorType &                          fe_function,
-              const Point<spacedim, double> &             point);
-  //@}
+    point_value(const hp::MappingCollection<dim, spacedim> &mapping,
+                const DoFHandler<dim, spacedim>            &dof,
+                const VectorType                           &fe_function,
+                const Point<spacedim, double>              &point);
+  /** @} */
 } // namespace VectorTools
 
 DEAL_II_NAMESPACE_CLOSE

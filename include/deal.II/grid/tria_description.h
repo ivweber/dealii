@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,16 +18,25 @@
 
 #include <deal.II/base/config.h>
 
-#include <deal.II/base/mpi.h>
+#include <deal.II/base/memory_space.h>
+#include <deal.II/base/mpi_stub.h>
 
 #include <deal.II/grid/cell_id.h>
 #include <deal.II/grid/reference_cell.h>
 #include <deal.II/grid/tria.h>
 
-#include <deal.II/lac/la_parallel_vector.h>
-
 
 DEAL_II_NAMESPACE_OPEN
+#ifndef DOXYGEN
+namespace LinearAlgebra
+{
+  namespace distributed
+  {
+    template <typename Number, typename MemorySpace>
+    class Vector;
+  }
+} // namespace LinearAlgebra
+#endif
 
 /*------------------------------------------------------------------------*/
 
@@ -354,7 +363,7 @@ namespace TriangulationDescription
     /**
      * Manifold id of all lines of the cell.
      *
-     * @note Only used for 2D and 3D.
+     * @note Only used for 2d and 3d.
      */
     std::array<types::manifold_id, GeometryInfo<dim>::lines_per_cell>
       manifold_line_ids;
@@ -362,7 +371,7 @@ namespace TriangulationDescription
     /**
      * Manifold id of all face quads of the cell.
      *
-     * @note Only used for 3D.
+     * @note Only used for 3d.
      */
     std::array<types::manifold_id,
                dim == 1 ? 1 : GeometryInfo<3>::quads_per_cell>
@@ -513,13 +522,13 @@ namespace TriangulationDescription
      * @return Description to be used to set up a Triangulation.
      *
      * @note If construct_multigrid_hierarchy is set in the settings, the source
-     *   triangulation has to be setup with limit_level_difference_at_vertices.
+     *   triangulation has to be set up with limit_level_difference_at_vertices.
      */
     template <int dim, int spacedim = dim>
     Description<dim, spacedim>
     create_description_from_triangulation(
       const dealii::Triangulation<dim, spacedim> &tria,
-      const MPI_Comm &                            comm,
+      const MPI_Comm                              comm,
       const TriangulationDescription::Settings    settings =
         TriangulationDescription::Settings::default_setting,
       const unsigned int my_rank_in = numbers::invalid_unsigned_int);
@@ -547,9 +556,10 @@ namespace TriangulationDescription
     template <int dim, int spacedim>
     Description<dim, spacedim>
     create_description_from_triangulation(
-      const Triangulation<dim, spacedim> &              tria,
-      const LinearAlgebra::distributed::Vector<double> &partition,
-      const TriangulationDescription::Settings          settings =
+      const Triangulation<dim, spacedim> &tria,
+      const LinearAlgebra::distributed::Vector<double, MemorySpace::Host>
+                                              &partition,
+      const TriangulationDescription::Settings settings =
         TriangulationDescription::Settings::default_setting);
 
     /**
@@ -559,10 +569,12 @@ namespace TriangulationDescription
     template <int dim, int spacedim>
     Description<dim, spacedim>
     create_description_from_triangulation(
-      const Triangulation<dim, spacedim> &              tria,
-      const LinearAlgebra::distributed::Vector<double> &partition,
-      const std::vector<LinearAlgebra::distributed::Vector<double>>
-        &                                      mg_partitions,
+      const Triangulation<dim, spacedim> &tria,
+      const LinearAlgebra::distributed::Vector<double, MemorySpace::Host>
+        &partition,
+      const std::vector<
+        LinearAlgebra::distributed::Vector<double, MemorySpace::Host>>
+                                              &mg_partitions,
       const TriangulationDescription::Settings settings =
         TriangulationDescription::Settings::default_setting);
 
@@ -627,11 +639,11 @@ namespace TriangulationDescription
     Description<dim, spacedim>
     create_description_from_triangulation_in_groups(
       const std::function<void(dealii::Triangulation<dim, spacedim> &)>
-        &                                            serial_grid_generator,
+                                                    &serial_grid_generator,
       const std::function<void(dealii::Triangulation<dim, spacedim> &,
-                               const MPI_Comm &,
+                               const MPI_Comm,
                                const unsigned int)> &serial_grid_partitioner,
-      const MPI_Comm &                               comm,
+      const MPI_Comm                                 comm,
       const int                                      group_size = 1,
       const typename Triangulation<dim, spacedim>::MeshSmoothing smoothing =
         dealii::Triangulation<dim, spacedim>::none,

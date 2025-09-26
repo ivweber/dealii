@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,14 +27,14 @@ namespace Particles
 {
   namespace Utilities
   {
-    template <int dim, int spacedim, typename SparsityType, typename number>
+    template <int dim, int spacedim, typename number>
     void
     create_interpolation_sparsity_pattern(
-      const DoFHandler<dim, spacedim> &                space_dh,
+      const DoFHandler<dim, spacedim>                 &space_dh,
       const Particles::ParticleHandler<dim, spacedim> &particle_handler,
-      SparsityType &                                   sparsity,
-      const AffineConstraints<number> &                constraints,
-      const ComponentMask &                            space_comps)
+      SparsityPatternBase                             &sparsity,
+      const AffineConstraints<number>                 &constraints,
+      const ComponentMask                             &space_comps)
     {
       if (particle_handler.n_locally_owned_particles() == 0)
         return; // nothing to do here
@@ -112,11 +112,11 @@ namespace Particles
     template <int dim, int spacedim, typename MatrixType>
     void
     create_interpolation_matrix(
-      const DoFHandler<dim, spacedim> &                space_dh,
+      const DoFHandler<dim, spacedim>                 &space_dh,
       const Particles::ParticleHandler<dim, spacedim> &particle_handler,
-      MatrixType &                                     matrix,
+      MatrixType                                      &matrix,
       const AffineConstraints<typename MatrixType::value_type> &constraints,
-      const ComponentMask &                                     space_comps)
+      const ComponentMask                                      &space_comps)
     {
       if (particle_handler.n_locally_owned_particles() == 0)
         {

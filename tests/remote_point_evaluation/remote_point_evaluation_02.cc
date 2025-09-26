@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -103,9 +103,8 @@ template <int dim, int spacedim>
 std::shared_ptr<const Utilities::MPI::Partitioner>
 create_partitioner(const DoFHandler<dim, spacedim> &dof_handler)
 {
-  IndexSet locally_relevant_dofs;
-
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   return std::make_shared<const Utilities::MPI::Partitioner>(
     dof_handler.locally_owned_dofs(),
@@ -120,7 +119,7 @@ namespace dealii
     template <int dim, int spacedim, typename VectorType>
     void
     get_position_vector(const DoFHandler<dim, spacedim> &dof_handler_dim,
-                        VectorType &                  euler_coordinates_vector,
+                        VectorType                   &euler_coordinates_vector,
                         const Mapping<dim, spacedim> &mapping)
     {
       FEValues<dim, spacedim> fe_eval(
@@ -164,15 +163,15 @@ template <int dim, int spacedim, typename VectorType>
 void
 compute_force_vector_sharp_interface(
   const Triangulation<dim, spacedim> &surface_mesh,
-  const Mapping<dim, spacedim> &      surface_mapping,
-  const Quadrature<dim> &             surface_quadrature,
-  const Mapping<spacedim> &           mapping,
-  const DoFHandler<spacedim> &        dof_handler,
-  const DoFHandler<spacedim> &        dof_handler_dim,
+  const Mapping<dim, spacedim>       &surface_mapping,
+  const Quadrature<dim>              &surface_quadrature,
+  const Mapping<spacedim>            &mapping,
+  const DoFHandler<spacedim>         &dof_handler,
+  const DoFHandler<spacedim>         &dof_handler_dim,
   const double                        surface_tension,
-  const VectorType &                  normal_solution,
-  const VectorType &                  curvature_solution,
-  VectorType &                        force_vector)
+  const VectorType                   &normal_solution,
+  const VectorType                   &curvature_solution,
+  VectorType                         &force_vector)
 {
   using T = double;
 
@@ -313,7 +312,7 @@ compute_force_vector_sharp_interface(
 
         // integrate_scatter force
         {
-          phi_force.integrate(buffer_dim, EvaluationFlags::values);
+          phi_force.test_and_sum(buffer_dim, EvaluationFlags::values);
 
           constraints.distribute_local_to_global(buffer_dim,
                                                  local_dof_indices_dim,

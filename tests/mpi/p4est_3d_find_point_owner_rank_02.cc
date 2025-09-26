@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,7 +31,7 @@ main(int argc, char *argv[])
 
 
   /*
-   * We craete a distrubuted mesh with three cells (tree roots), e.g., a
+   * We create a distributed mesh with three cells (tree roots), e.g., a
    * hyper_L. We want to find the mpi rank of a set of fixed points. On all
    * processes we must find the same owner ranks.
    */

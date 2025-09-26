@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2021 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,8 +19,8 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/smartpointer.h>
-#include <deal.II/base/thread_management.h>
 
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -37,8 +37,10 @@ template <typename>
 class Vector;
 
 
-/*!@addtogroup mapping */
-/*@{*/
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * This class is an extension of the MappingQ1Eulerian class to higher order
@@ -111,7 +113,7 @@ public:
    */
   MappingQEulerian(const unsigned int               degree,
                    const DoFHandler<dim, spacedim> &euler_dof_handler,
-                   const VectorType &               euler_vector,
+                   const VectorType                &euler_vector,
                    const unsigned int level = numbers::invalid_unsigned_int);
 
   /**
@@ -165,8 +167,8 @@ protected:
   fill_fe_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const CellSimilarity::Similarity                            cell_similarity,
-    const Quadrature<dim> &                                     quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
+    const Quadrature<dim>                                      &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
     internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
@@ -223,7 +225,7 @@ private:
   mutable Threads::Mutex fe_values_mutex;
 };
 
-/*@}*/
+/** @} */
 
 
 /*----------------------------------------------------------------------*/

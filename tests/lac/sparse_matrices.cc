@@ -49,8 +49,8 @@
 template <typename MatrixType>
 void
 check_vmult_quadratic(std::vector<double> &residuals,
-                      const MatrixType &   A,
-                      const char *         prefix)
+                      const MatrixType    &A,
+                      const char          *prefix)
 {
   deallog.push(prefix);
 
@@ -126,7 +126,7 @@ check_vmult_quadratic(std::vector<double> &residuals,
 
   // vanka needs to match the type
   using value_type = typename MatrixType::value_type;
-  if (std::is_same<MatrixType, SparseMatrix<value_type>>::value)
+  if (std::is_same_v<MatrixType, SparseMatrix<value_type>>)
     {
       deallog << "Vanka" << std::endl;
       const SparseMatrix<value_type> &B =
@@ -168,9 +168,9 @@ check_vmult_quadratic(std::vector<double> &residuals,
 
 
 void
-check_vmult_quadratic(std::vector<double> &            residuals,
+check_vmult_quadratic(std::vector<double>             &residuals,
                       const BlockSparseMatrix<double> &A,
-                      const char *                     prefix)
+                      const char                      *prefix)
 {
   deallog.push(prefix);
 

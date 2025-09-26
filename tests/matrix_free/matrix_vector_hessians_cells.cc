@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,8 +44,8 @@
 
 template <int dim>
 void
-test_hessians(const dealii::FE_Poly<dim> &                   fe,
-              const dealii::Quadrature<dim> &                quad,
+test_hessians(const dealii::FE_Poly<dim>                    &fe,
+              const dealii::Quadrature<dim>                 &quad,
               const dealii::EvaluationFlags::EvaluationFlags evaluation_flags)
 {
   using namespace dealii;
@@ -218,13 +218,13 @@ test_hessians(const dealii::FE_Poly<dim> &                   fe,
 
   // compare solutions of matrix vector product
   {
-    dst2 -= dst;
+    dst -= dst2;
 
     double error = 0.;
-    if (dst.l2_norm() > 0)
-      error = dst2.l2_norm() / dst.l2_norm();
+    if (dst2.l2_norm() > 0)
+      error = dst.l2_norm() / dst2.l2_norm();
     else
-      error = dst2.l2_norm();
+      error = dst.l2_norm();
 
     if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
       deallog << "FEValues verification: " << error << std::endl << std::endl;

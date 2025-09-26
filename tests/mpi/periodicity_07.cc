@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2020 by the deal.II authors
+ * Copyright (C) 2018 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -132,11 +132,10 @@ test(const unsigned numRefinementLevels = 2)
   data_out.write_vtu_in_parallel(std::string("mesh.vtu").c_str(),
                                  mpi_communicator);
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
-
-  IndexSet locally_active_dofs;
-  DoFTools::extract_locally_active_dofs(dof_handler, locally_active_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
+  const IndexSet locally_active_dofs =
+    DoFTools::extract_locally_active_dofs(dof_handler);
 
   const std::vector<IndexSet> locally_owned_dofs =
     Utilities::MPI::all_gather(MPI_COMM_WORLD,
@@ -162,8 +161,8 @@ test(const unsigned numRefinementLevels = 2)
                                       /*direction*/ d,
                                       periodicity_vectorDof);
 
-  DoFTools::make_periodicity_constraints<DoFHandler<dim>>(periodicity_vectorDof,
-                                                          constraints);
+  DoFTools::make_periodicity_constraints<dim, dim>(periodicity_vectorDof,
+                                                   constraints);
 
   const bool consistent =
     constraints.is_consistent_in_parallel(locally_owned_dofs,

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,8 +26,9 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*! @addtogroup Preconditioners
- *@{
+/**
+ * @addtogroup Preconditioners
+ * @{
  */
 
 /**
@@ -98,7 +99,7 @@ public:
   template <typename somenumber>
   void
   initialize(const SparseMatrix<somenumber> &matrix,
-             const AdditionalData &          parameters = AdditionalData());
+             const AdditionalData           &parameters = AdditionalData());
 
   /**
    * Apply the incomplete decomposition, i.e. do one forward-backward step
@@ -152,10 +153,10 @@ public:
                  << ". This must stop the ILU algorithm because it means "
                     "that the matrix for which you try to compute a "
                     "decomposition is singular.");
-  //@}
+  /** @} */
 };
 
-/*@}*/
+/** @} */
 //---------------------------------------------------------------------------
 
 

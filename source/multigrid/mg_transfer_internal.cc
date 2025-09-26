@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,8 @@
 #include <deal.II/matrix_free/shape_info.h>
 
 #include <deal.II/multigrid/mg_transfer_internal.h>
+
+#include <memory>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -57,8 +59,8 @@ namespace internal
     template <int dim, int spacedim>
     void
     fill_copy_indices(
-      const dealii::DoFHandler<dim, spacedim> &dof_handler,
-      const MGConstrainedDoFs *                mg_constrained_dofs,
+      const DoFHandler<dim, spacedim> &dof_handler,
+      const MGConstrainedDoFs         *mg_constrained_dofs,
       std::vector<std::vector<
         std::pair<types::global_dof_index, types::global_dof_index>>>
         &copy_indices,
@@ -67,7 +69,7 @@ namespace internal
         &copy_indices_global_mine,
       std::vector<std::vector<
         std::pair<types::global_dof_index, types::global_dof_index>>>
-        &        copy_indices_level_mine,
+                &copy_indices_level_mine,
       const bool skip_interface_dofs)
     {
       // Now we are filling the variables copy_indices*, which are essentially
@@ -88,8 +90,7 @@ namespace internal
       copy_indices.resize(n_levels);
       copy_indices_global_mine.resize(n_levels);
       copy_indices_level_mine.resize(n_levels);
-      IndexSet globally_relevant;
-      DoFTools::extract_locally_relevant_dofs(dof_handler, globally_relevant);
+      const IndexSet &owned_dofs = dof_handler.locally_owned_dofs();
 
       const unsigned int dofs_per_cell = dof_handler.get_fe().n_dofs_per_cell();
       std::vector<types::global_dof_index> global_dof_indices(dofs_per_cell);
@@ -97,7 +98,9 @@ namespace internal
 
       for (unsigned int level = 0; level < n_levels; ++level)
         {
-          std::vector<bool> dof_touched(globally_relevant.n_elements(), false);
+          std::vector<bool> dof_touched(owned_dofs.n_elements(), false);
+          const IndexSet   &owned_level_dofs =
+            dof_handler.locally_owned_mg_dofs(level);
 
           // for the most common case where copy_indices are locally owned
           // both globally and on the level, we want to skip collecting pairs
@@ -119,9 +122,8 @@ namespace internal
                      numbers::artificial_subdomain_id))
                 continue;
 
-              unrolled_copy_indices.resize(
-                dof_handler.locally_owned_dofs().n_elements(),
-                numbers::invalid_dof_index);
+              unrolled_copy_indices.resize(owned_dofs.n_elements(),
+                                           numbers::invalid_dof_index);
 
               // get the dof numbers of this cell for the global and the
               // level-wise numbering
@@ -141,53 +143,36 @@ namespace internal
                   // and the level one. This check involves locally owned
                   // indices which often consist only of a single range, so
                   // they are cheap to look up.
+                  const types::global_dof_index global_index_in_set =
+                    owned_dofs.index_within_set(global_dof_indices[i]);
                   bool global_mine =
-                    dof_handler.locally_owned_dofs().is_element(
-                      global_dof_indices[i]);
+                    global_index_in_set != numbers::invalid_dof_index;
                   bool level_mine =
-                    dof_handler.locally_owned_mg_dofs(level).is_element(
-                      level_dof_indices[i]);
+                    owned_level_dofs.is_element(level_dof_indices[i]);
 
                   if (global_mine && level_mine)
                     {
                       // we own both the active dof index and the level one ->
                       // set them into the vector, indexed by the local index
                       // range of the active dof
-                      unrolled_copy_indices[dof_handler.locally_owned_dofs()
-                                              .index_within_set(
-                                                global_dof_indices[i])] =
+                      unrolled_copy_indices[global_index_in_set] =
                         level_dof_indices[i];
+                    }
+                  else if (global_mine &&
+                           dof_touched[global_index_in_set] == false)
+                    {
+                      copy_indices_global_mine[level].emplace_back(
+                        global_dof_indices[i], level_dof_indices[i]);
+
+                      // send this to the owner of the level_dof:
+                      send_data_temp.emplace_back(level,
+                                                  global_dof_indices[i],
+                                                  level_dof_indices[i]);
+                      dof_touched[global_index_in_set] = true;
                     }
                   else
                     {
-                      // Get the relevant dofs index - this might be more
-                      // expensive to look up than the active indices, so we
-                      // only do it for the local-remote case within this loop.
-                      const types::global_dof_index relevant_idx =
-                        globally_relevant.index_within_set(
-                          global_dof_indices[i]);
-
-                      // Work on this dof if we haven't already (on this or a
-                      // coarser level)
-                      if (dof_touched[relevant_idx] == false)
-                        {
-                          if (global_mine)
-                            {
-                              copy_indices_global_mine[level].emplace_back(
-                                global_dof_indices[i], level_dof_indices[i]);
-
-                              // send this to the owner of the level_dof:
-                              send_data_temp.emplace_back(level,
-                                                          global_dof_indices[i],
-                                                          level_dof_indices[i]);
-                            }
-                          else
-                            {
-                              // somebody will send those to me
-                            }
-
-                          dof_touched[relevant_idx] = true;
-                        }
+                      // somebody will send those to me
                     }
                 }
             }
@@ -203,14 +188,13 @@ namespace internal
               if (copy_indices_global_mine[level].empty())
                 copy_indices[level].reserve(unrolled_copy_indices.size());
 
-              // locally_owned_dofs().nth_index_in_set(i) in this query is
+              // owned_dofs.nth_index_in_set(i) in this query is
               // usually cheap to look up as there are few ranges in
-              // dof_handler.locally_owned_dofs()
+              // the locally owned part
               for (unsigned int i = 0; i < unrolled_copy_indices.size(); ++i)
                 if (unrolled_copy_indices[i] != numbers::invalid_dof_index)
                   copy_indices[level].emplace_back(
-                    dof_handler.locally_owned_dofs().nth_index_in_set(i),
-                    unrolled_copy_indices[i]);
+                    owned_dofs.nth_index_in_set(i), unrolled_copy_indices[i]);
             }
         }
 
@@ -218,7 +202,7 @@ namespace internal
         (dynamic_cast<const dealii::parallel::TriangulationBase<dim, spacedim>
                         *>(&dof_handler.get_triangulation()));
       AssertThrow(
-        send_data_temp.size() == 0 || tria != nullptr,
+        send_data_temp.empty() || tria != nullptr,
         ExcMessage(
           "We should only be sending information with a parallel Triangulation!"));
 
@@ -260,7 +244,7 @@ namespace internal
 
           for (unsigned int level = 0; level < n_levels; ++level)
             {
-              const IndexSet &is_local =
+              const IndexSet &owned_level_dofs =
                 dof_handler.locally_owned_mg_dofs(level);
 
               std::vector<types::global_dof_index> level_dof_indices;
@@ -272,7 +256,7 @@ namespace internal
                     global_dof_indices.push_back(dofpair.global_dof_index);
                   }
 
-              IndexSet is_ghost(is_local.size());
+              IndexSet is_ghost(owned_level_dofs.size());
               is_ghost.add_indices(level_dof_indices.begin(),
                                    level_dof_indices.end());
 
@@ -280,7 +264,7 @@ namespace internal
                           ExcMessage("Size does not match!"));
 
               const auto index_owner =
-                Utilities::MPI::compute_index_owner(is_local,
+                Utilities::MPI::compute_index_owner(owned_level_dofs,
                                                     is_ghost,
                                                     tria->get_communicator());
 
@@ -309,31 +293,16 @@ namespace internal
               {
                 requests.push_back(MPI_Request());
                 std::vector<DoFPair> &data = send_data[dest];
-                // If there is nothing to send, we still need to send a message,
-                // because the receiving end will be waitng. In that case we
-                // just send an empty message.
-                if (data.size())
-                  {
-                    const int ierr = MPI_Isend(data.data(),
-                                               data.size() * sizeof(data[0]),
-                                               MPI_BYTE,
-                                               dest,
-                                               mpi_tag,
-                                               tria->get_communicator(),
-                                               &*requests.rbegin());
-                    AssertThrowMPI(ierr);
-                  }
-                else
-                  {
-                    const int ierr = MPI_Isend(nullptr,
-                                               0,
-                                               MPI_BYTE,
-                                               dest,
-                                               mpi_tag,
-                                               tria->get_communicator(),
-                                               &*requests.rbegin());
-                    AssertThrowMPI(ierr);
-                  }
+
+                const int ierr =
+                  MPI_Isend(data.data(),
+                            data.size() * sizeof(decltype(*data.data())),
+                            MPI_BYTE,
+                            dest,
+                            mpi_tag,
+                            tria->get_communicator(),
+                            &*requests.rbegin());
+                AssertThrowMPI(ierr);
               }
           }
 
@@ -427,19 +396,18 @@ namespace internal
     // content in copy_indices_global_mine)
     void
     reinit_level_partitioner(
-      const IndexSet &                      locally_owned,
+      const IndexSet                       &locally_owned,
       std::vector<types::global_dof_index> &ghosted_level_dofs,
       const std::shared_ptr<const Utilities::MPI::Partitioner>
-        &                                                 external_partitioner,
-      const MPI_Comm &                                    communicator,
+                                                         &external_partitioner,
+      const MPI_Comm                                      communicator,
       std::shared_ptr<const Utilities::MPI::Partitioner> &target_partitioner,
       Table<2, unsigned int> &copy_indices_global_mine)
     {
       std::sort(ghosted_level_dofs.begin(), ghosted_level_dofs.end());
       IndexSet ghosted_dofs(locally_owned.size());
       ghosted_dofs.add_indices(ghosted_level_dofs.begin(),
-                               std::unique(ghosted_level_dofs.begin(),
-                                           ghosted_level_dofs.end()));
+                               ghosted_level_dofs.end());
       ghosted_dofs.compress();
 
       // Add possible ghosts from the previous content in the vector
@@ -482,8 +450,10 @@ namespace internal
                 ghosted_dofs.index_within_set(
                   target_partitioner->local_to_global(
                     copy_indices_global_mine(1, i)));
-          target_partitioner.reset(new Utilities::MPI::Partitioner(
-            locally_owned, ghosted_dofs, communicator));
+          target_partitioner =
+            std::make_shared<Utilities::MPI::Partitioner>(locally_owned,
+                                                          ghosted_dofs,
+                                                          communicator);
         }
     }
 
@@ -492,10 +462,10 @@ namespace internal
     // Transform the ghost indices to local index space for the vector
     inline void
     copy_indices_to_mpi_local_numbers(
-      const Utilities::MPI::Partitioner &         part,
+      const Utilities::MPI::Partitioner          &part,
       const std::vector<types::global_dof_index> &mine,
       const std::vector<types::global_dof_index> &remote,
-      std::vector<unsigned int> &                 localized_indices)
+      std::vector<unsigned int>                  &localized_indices)
     {
       localized_indices.resize(mine.size() + remote.size(),
                                numbers::invalid_unsigned_int);
@@ -548,9 +518,9 @@ namespace internal
       const unsigned int                          child,
       const unsigned int                          fe_shift_1d,
       const unsigned int                          fe_degree,
-      const std::vector<unsigned int> &           lexicographic_numbering,
+      const std::vector<unsigned int>            &lexicographic_numbering,
       const std::vector<types::global_dof_index> &local_dof_indices,
-      types::global_dof_index *                   target_indices)
+      types::global_dof_index                    *target_indices)
     {
       const unsigned int n_child_dofs_1d = fe_degree + 1 + fe_shift_1d;
       const unsigned int shift =
@@ -581,9 +551,9 @@ namespace internal
 
     template <int dim, typename Number>
     void
-    setup_element_info(ElementInfo<Number> &          elem_info,
-                       const FiniteElement<1> &       fe,
-                       const dealii::DoFHandler<dim> &dof_handler)
+    setup_element_info(ElementInfo<Number>    &elem_info,
+                       const FiniteElement<1> &fe,
+                       const DoFHandler<dim>  &dof_handler)
     {
       // currently, we have only FE_Q and FE_DGQ type elements implemented
       elem_info.n_components = dof_handler.get_fe().element_multiplicity(0);
@@ -595,7 +565,7 @@ namespace internal
       elem_info.element_is_continuous = fe.n_dofs_per_vertex() > 0;
       Assert(fe.n_dofs_per_vertex() < 2, ExcNotImplemented());
 
-      // step 1.2: get renumbering of 1D basis functions to lexicographic
+      // step 1.2: get renumbering of 1d basis functions to lexicographic
       // numbers. The distinction according to fe.n_dofs_per_vertex() is to
       // support both continuous and discontinuous bases.
       std::vector<unsigned int> renumbering(fe.n_dofs_per_cell());
@@ -610,7 +580,7 @@ namespace internal
             fe.n_dofs_per_vertex();
       }
 
-      // step 1.3: create a dummy 1D quadrature formula to extract the
+      // step 1.3: create a dummy 1d quadrature formula to extract the
       // lexicographic numbering for the elements
       Assert(fe.n_dofs_per_vertex() == 0 || fe.n_dofs_per_vertex() == 1,
              ExcNotImplemented());
@@ -646,17 +616,17 @@ namespace internal
     template <int dim, typename Number>
     void
     setup_transfer(
-      const dealii::DoFHandler<dim> &dof_handler,
-      const MGConstrainedDoFs *      mg_constrained_dofs,
+      const DoFHandler<dim>   &dof_handler,
+      const MGConstrainedDoFs *mg_constrained_dofs,
       const std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>>
-        &                                     external_partitioners,
-      ElementInfo<Number> &                   elem_info,
+                                             &external_partitioners,
+      ElementInfo<Number>                    &elem_info,
       std::vector<std::vector<unsigned int>> &level_dof_indices,
       std::vector<std::vector<std::pair<unsigned int, unsigned int>>>
-        &                        parent_child_connect,
+                                &parent_child_connect,
       std::vector<unsigned int> &n_owned_level_cells,
       std::vector<std::vector<std::vector<unsigned short>>> &dirichlet_indices,
-      std::vector<std::vector<Number>> &                     weights_on_refined,
+      std::vector<std::vector<Number>>                      &weights_on_refined,
       std::vector<Table<2, unsigned int>> &copy_indices_global_mine,
       MGLevelObject<std::shared_ptr<const Utilities::MPI::Partitioner>>
         &target_partitioners)
@@ -673,8 +643,8 @@ namespace internal
 
       const dealii::Triangulation<dim> &tria = dof_handler.get_triangulation();
 
-      // ---------------------------- 1. Extract 1D info about the finite
-      // element step 1.1: create a 1D copy of the finite element from FETools
+      // ---------------------------- 1. Extract 1d info about the finite
+      // element step 1.1: create a 1d copy of the finite element from FETools
       // where we substitute the template argument
       AssertDimension(dof_handler.get_fe().n_base_elements(), 1);
       std::string fe_name = dof_handler.get_fe().base_element(0).get_name();
@@ -691,8 +661,7 @@ namespace internal
       setup_element_info(elem_info, *fe, dof_handler);
 
 
-      // -------------- 2. Extract and match dof indices between child and
-      // parent
+      // ---------- 2. Extract and match dof indices between child and parent
       const unsigned int n_levels = tria.n_global_levels();
       level_dof_indices.resize(n_levels);
       parent_child_connect.resize(n_levels - 1);
@@ -722,7 +691,7 @@ namespace internal
           std::vector<types::global_dof_index> ghosted_level_dofs_l0;
 
           // step 2.1: loop over the cells on the coarse side
-          typename dealii::DoFHandler<dim>::cell_iterator cell,
+          typename DoFHandler<dim>::cell_iterator cell,
             endc = dof_handler.end(level - 1);
           for (cell = dof_handler.begin(level - 1); cell != endc; ++cell)
             {
@@ -1005,7 +974,7 @@ namespace internal
 
     void
     resolve_identity_constraints(
-      const MGConstrainedDoFs *             mg_constrained_dofs,
+      const MGConstrainedDoFs              *mg_constrained_dofs,
       const unsigned int                    level,
       std::vector<types::global_dof_index> &dof_indices)
     {

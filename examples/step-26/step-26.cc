@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, Texas A&M University, 2013
  */
@@ -128,7 +127,7 @@ namespace Step26
       , period(0.2)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
   private:
@@ -138,7 +137,7 @@ namespace Step26
 
 
   template <int dim>
-  double RightHandSide<dim>::value(const Point<dim> & p,
+  double RightHandSide<dim>::value(const Point<dim>  &p,
                                    const unsigned int component) const
   {
     (void)component;
@@ -173,7 +172,7 @@ namespace Step26
   class BoundaryValues : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -472,7 +471,8 @@ namespace Step26
     // Recall that it contains the term $MU^{n-1}-(1-\theta)k_n AU^{n-1}$.
     // We put these terms into the variable system_rhs, with the
     // help of a temporary vector:
-    while (time <= 0.5)
+    const double end_time = 0.5;
+    while (time <= end_time)
       {
         time += time_step;
         ++timestep_number;
@@ -566,9 +566,6 @@ namespace Step26
                         initial_global_refinement +
                           n_adaptive_pre_refinement_steps);
             ++pre_refinement_step;
-
-            tmp.reinit(solution.size());
-            forcing_terms.reinit(solution.size());
 
             std::cout << std::endl;
 

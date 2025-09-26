@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,6 +26,7 @@
 
 #include <deal.II/lac/block_indices.h>
 #include <deal.II/lac/exceptions.h>
+#include <deal.II/lac/read_vector.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/vector_operation.h>
 
@@ -38,15 +39,29 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*! @addtogroup Vectors
- *@{
+/**
+ * @addtogroup Vectors
+ * @{
  */
 
-// Forward declaration
-#ifndef DOXYGEN
-template <typename>
-class BlockVectorBase;
-#endif
+namespace internal
+{
+  template <typename T>
+  using has_block_t = decltype(std::declval<const T>().block(0));
+
+  template <typename T>
+  constexpr bool has_block = internal::is_supported_operation<has_block_t, T>;
+
+  template <typename T>
+  using has_n_blocks_t = decltype(std::declval<const T>().n_blocks());
+
+  template <typename T>
+  constexpr bool has_n_blocks =
+    internal::is_supported_operation<has_n_blocks_t, T>;
+
+  template <typename T>
+  constexpr bool is_block_vector = has_block<T> && has_n_blocks<T>;
+} // namespace internal
 
 /**
  * A class that can be used to determine whether a given type is a block
@@ -65,31 +80,13 @@ class BlockVectorBase;
 template <typename VectorType>
 struct IsBlockVector
 {
-private:
-  /**
-   * Overload returning true if the class is derived from BlockVectorBase,
-   * which is what block vectors do.
-   */
-  template <typename T>
-  static std::true_type
-  check_for_block_vector(const BlockVectorBase<T> *);
-
-  /**
-   * Catch all for all other potential vector types that are not block
-   * vectors.
-   */
-  static std::false_type
-  check_for_block_vector(...);
-
 public:
   /**
    * A statically computable value that indicates whether the template
-   * argument to this class is a block vector (in fact whether the type is
-   * derived from BlockVectorBase<T>).
+   * argument to this class is a block vector (in fact whether the type has
+   * the functions `block()` and `n_blocks()`).
    */
-  static const bool value =
-    std::is_same<decltype(check_for_block_vector(std::declval<VectorType *>())),
-                 std::true_type>::value;
+  static const bool value = internal::is_block_vector<VectorType>;
 };
 
 
@@ -121,7 +118,7 @@ namespace internal
      * constant and we again have that the iterator satisfies the requirements
      * of a random access iterator.
      */
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     class Iterator
     {
     public:
@@ -145,6 +142,13 @@ namespace internal
        * by algorithms to enquire about the specifics of the iterators they
        * work on. (Example: `std::next()`, which needs to know about a local
        * type named `difference_type`.)
+       *
+       * As for the iterator_category, C++20 has a more specialized
+       * contiguous_iterator_tag, but the elements of block vectors are
+       * not stored in a contiguous manner. They can be accessed in a
+       * random access order, though, with O(1) effort as long as we
+       * assume that the number of blocks of a vector is a constant
+       * (even though the *size* of the vector is not).
        */
       using iterator_category = std::random_access_iterator_tag;
       using difference_type   = std::ptrdiff_t;
@@ -193,7 +197,7 @@ namespace internal
        * Constructor used internally in this class. The arguments match
        * exactly the values of the respective member variables.
        */
-      Iterator(BlockVector &   parent,
+      Iterator(BlockVector    &parent,
                const size_type global_index,
                const size_type current_block,
                const size_type index_within_block,
@@ -347,7 +351,7 @@ namespace internal
                        "different block vectors. There is no reasonable way "
                        "to do this.");
 
-      //@}
+      /** @} */
     private:
       /**
        * Pointer to the block vector object to which this iterator points.
@@ -434,8 +438,9 @@ namespace internal
  * @see
  * @ref GlossBlockLA "Block (linear algebra)"
  */
-template <class VectorType>
-class BlockVectorBase : public Subscriptor
+template <typename VectorType>
+class BlockVectorBase : public Subscriptor,
+                        public ReadVector<typename VectorType::value_type>
 {
 public:
   /**
@@ -502,7 +507,7 @@ public:
   collect_sizes();
 
   /**
-   * Call the compress() function on all the subblocks of the matrix.
+   * Call the compress() function on all the subblocks of the vector.
    *
    * This functionality only needs to be called if using MPI based vectors and
    * exists in other objects for compatibility.
@@ -512,7 +517,7 @@ public:
    * for more information.
    */
   void
-  compress(::dealii::VectorOperation::values operation);
+  compress(VectorOperation::values operation);
 
   /**
    * Access to a single block.
@@ -544,8 +549,8 @@ public:
    * Return dimension of the vector. This is the sum of the dimensions of all
    * components.
    */
-  std::size_t
-  size() const;
+  virtual size_type
+  size() const override;
 
   /**
    * Return local dimension of the vector. This is the sum of the local
@@ -646,7 +651,11 @@ public:
   template <typename OtherNumber>
   void
   extract_subvector_to(const std::vector<size_type> &indices,
-                       std::vector<OtherNumber> &    values) const;
+                       std::vector<OtherNumber>     &values) const;
+
+  virtual void
+  extract_subvector_to(const ArrayView<const types::global_dof_index> &indices,
+                       ArrayView<value_type> &entries) const override;
 
   /**
    * Instead of getting individual elements of a vector via operator(),
@@ -705,7 +714,7 @@ public:
   /**
    * Copy operator for template arguments of different types.
    */
-  template <class VectorType2>
+  template <typename VectorType2>
   BlockVectorBase &
   operator=(const BlockVectorBase<VectorType2> &V);
 
@@ -719,7 +728,7 @@ public:
    * Check for equality of two block vector types. This operation is only
    * allowed if the two vectors already have the same block structure.
    */
-  template <class VectorType2>
+  template <typename VectorType2>
   bool
   operator==(const BlockVectorBase<VectorType2> &v) const;
 
@@ -849,7 +858,7 @@ public:
   void
   add(const size_type  n_elements,
       const size_type *indices,
-      const Number *   values);
+      const Number    *values);
 
   /**
    * $U(0-DIM)+=s$.  Addition of <tt>s</tt> to all components. Note that
@@ -969,7 +978,7 @@ protected:
 };
 
 
-/*@}*/
+/** @} */
 
 /*----------------------- Inline functions ----------------------------------*/
 
@@ -979,7 +988,7 @@ namespace internal
 {
   namespace BlockVectorIterators
   {
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness>::Iterator(
       const Iterator<BlockVectorType, Constness> &c)
       : parent(c.parent)
@@ -992,7 +1001,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness>::Iterator(
       const Iterator<BlockVectorType, !Constness> &c)
       : parent(c.parent)
@@ -1012,9 +1021,9 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness>::Iterator(
-      BlockVector &   parent,
+      BlockVector    &parent,
       const size_type global_index,
       const size_type current_block,
       const size_type index_within_block,
@@ -1030,7 +1039,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness> &
     Iterator<BlockVectorType, Constness>::operator=(const Iterator &c)
     {
@@ -1046,7 +1055,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline typename Iterator<BlockVectorType, Constness>::dereference_type
     Iterator<BlockVectorType, Constness>::operator*() const
     {
@@ -1055,7 +1064,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline typename Iterator<BlockVectorType, Constness>::dereference_type
     Iterator<BlockVectorType, Constness>::operator[](
       const difference_type d) const
@@ -1081,7 +1090,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness> &
     Iterator<BlockVectorType, Constness>::operator++()
     {
@@ -1091,7 +1100,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness>
     Iterator<BlockVectorType, Constness>::operator++(int)
     {
@@ -1102,7 +1111,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness> &
     Iterator<BlockVectorType, Constness>::operator--()
     {
@@ -1112,7 +1121,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness>
     Iterator<BlockVectorType, Constness>::operator--(int)
     {
@@ -1123,7 +1132,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     template <bool OtherConstness>
     inline bool
     Iterator<BlockVectorType, Constness>::operator==(
@@ -1136,7 +1145,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     template <bool OtherConstness>
     inline bool
     Iterator<BlockVectorType, Constness>::operator!=(
@@ -1149,7 +1158,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     template <bool OtherConstness>
     inline bool
     Iterator<BlockVectorType, Constness>::operator<(
@@ -1162,7 +1171,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     template <bool OtherConstness>
     inline bool
     Iterator<BlockVectorType, Constness>::operator<=(
@@ -1175,7 +1184,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     template <bool OtherConstness>
     inline bool
     Iterator<BlockVectorType, Constness>::operator>(
@@ -1188,7 +1197,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     template <bool OtherConstness>
     inline bool
     Iterator<BlockVectorType, Constness>::operator>=(
@@ -1201,7 +1210,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     template <bool OtherConstness>
     inline typename Iterator<BlockVectorType, Constness>::difference_type
     Iterator<BlockVectorType, Constness>::operator-(
@@ -1215,7 +1224,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness>
     Iterator<BlockVectorType, Constness>::operator+(
       const difference_type &d) const
@@ -1242,7 +1251,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness>
     Iterator<BlockVectorType, Constness>::operator-(
       const difference_type &d) const
@@ -1269,7 +1278,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness> &
     Iterator<BlockVectorType, Constness>::operator+=(const difference_type &d)
     {
@@ -1295,7 +1304,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     inline Iterator<BlockVectorType, Constness> &
     Iterator<BlockVectorType, Constness>::operator-=(const difference_type &d)
     {
@@ -1320,8 +1329,8 @@ namespace internal
     }
 
 
-    template <class BlockVectorType, bool Constness>
-    Iterator<BlockVectorType, Constness>::Iterator(BlockVector &   parent,
+    template <typename BlockVectorType, bool Constness>
+    Iterator<BlockVectorType, Constness>::Iterator(BlockVector    &parent,
                                                    const size_type global_index)
       : parent(&parent)
       , global_index(global_index)
@@ -1359,7 +1368,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     void
     Iterator<BlockVectorType, Constness>::move_forward()
     {
@@ -1393,7 +1402,7 @@ namespace internal
 
 
 
-    template <class BlockVectorType, bool Constness>
+    template <typename BlockVectorType, bool Constness>
     void
     Iterator<BlockVectorType, Constness>::move_backward()
     {
@@ -1435,8 +1444,8 @@ namespace internal
 
 
 
-template <class VectorType>
-inline std::size_t
+template <typename VectorType>
+inline typename BlockVectorBase<VectorType>::size_type
 BlockVectorBase<VectorType>::size() const
 {
   return block_indices.total_size();
@@ -1444,7 +1453,7 @@ BlockVectorBase<VectorType>::size() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline std::size_t
 BlockVectorBase<VectorType>::locally_owned_size() const
 {
@@ -1456,7 +1465,7 @@ BlockVectorBase<VectorType>::locally_owned_size() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline IndexSet
 BlockVectorBase<VectorType>::locally_owned_elements() const
 {
@@ -1477,7 +1486,7 @@ BlockVectorBase<VectorType>::locally_owned_elements() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline unsigned int
 BlockVectorBase<VectorType>::n_blocks() const
 {
@@ -1485,7 +1494,7 @@ BlockVectorBase<VectorType>::n_blocks() const
 }
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::BlockType &
 BlockVectorBase<VectorType>::block(const unsigned int i)
 {
@@ -1496,7 +1505,7 @@ BlockVectorBase<VectorType>::block(const unsigned int i)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline const typename BlockVectorBase<VectorType>::BlockType &
 BlockVectorBase<VectorType>::block(const unsigned int i) const
 {
@@ -1507,7 +1516,7 @@ BlockVectorBase<VectorType>::block(const unsigned int i) const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline const BlockIndices &
 BlockVectorBase<VectorType>::get_block_indices() const
 {
@@ -1515,7 +1524,7 @@ BlockVectorBase<VectorType>::get_block_indices() const
 }
 
 
-template <class VectorType>
+template <typename VectorType>
 inline void
 BlockVectorBase<VectorType>::collect_sizes()
 {
@@ -1529,10 +1538,9 @@ BlockVectorBase<VectorType>::collect_sizes()
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline void
-BlockVectorBase<VectorType>::compress(
-  ::dealii::VectorOperation::values operation)
+BlockVectorBase<VectorType>::compress(VectorOperation::values operation)
 {
   for (unsigned int i = 0; i < n_blocks(); ++i)
     block(i).compress(operation);
@@ -1540,7 +1548,7 @@ BlockVectorBase<VectorType>::compress(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::iterator
 BlockVectorBase<VectorType>::begin()
 {
@@ -1549,7 +1557,7 @@ BlockVectorBase<VectorType>::begin()
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::const_iterator
 BlockVectorBase<VectorType>::begin() const
 {
@@ -1557,7 +1565,7 @@ BlockVectorBase<VectorType>::begin() const
 }
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::iterator
 BlockVectorBase<VectorType>::end()
 {
@@ -1566,7 +1574,7 @@ BlockVectorBase<VectorType>::end()
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::const_iterator
 BlockVectorBase<VectorType>::end() const
 {
@@ -1574,7 +1582,7 @@ BlockVectorBase<VectorType>::end() const
 }
 
 
-template <class VectorType>
+template <typename VectorType>
 inline bool
 BlockVectorBase<VectorType>::in_local_range(const size_type global_index) const
 {
@@ -1585,7 +1593,7 @@ BlockVectorBase<VectorType>::in_local_range(const size_type global_index) const
 }
 
 
-template <class VectorType>
+template <typename VectorType>
 bool
 BlockVectorBase<VectorType>::all_zero() const
 {
@@ -1598,7 +1606,7 @@ BlockVectorBase<VectorType>::all_zero() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 bool
 BlockVectorBase<VectorType>::is_non_negative() const
 {
@@ -1611,7 +1619,7 @@ BlockVectorBase<VectorType>::is_non_negative() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 typename BlockVectorBase<VectorType>::value_type
 BlockVectorBase<VectorType>::operator*(
   const BlockVectorBase<VectorType> &v) const
@@ -1627,7 +1635,7 @@ BlockVectorBase<VectorType>::operator*(
 }
 
 
-template <class VectorType>
+template <typename VectorType>
 typename BlockVectorBase<VectorType>::real_type
 BlockVectorBase<VectorType>::norm_sqr() const
 {
@@ -1640,7 +1648,7 @@ BlockVectorBase<VectorType>::norm_sqr() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 typename BlockVectorBase<VectorType>::value_type
 BlockVectorBase<VectorType>::mean_value() const
 {
@@ -1657,7 +1665,7 @@ BlockVectorBase<VectorType>::mean_value() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 typename BlockVectorBase<VectorType>::real_type
 BlockVectorBase<VectorType>::l1_norm() const
 {
@@ -1670,7 +1678,7 @@ BlockVectorBase<VectorType>::l1_norm() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 typename BlockVectorBase<VectorType>::real_type
 BlockVectorBase<VectorType>::l2_norm() const
 {
@@ -1679,7 +1687,7 @@ BlockVectorBase<VectorType>::l2_norm() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 typename BlockVectorBase<VectorType>::real_type
 BlockVectorBase<VectorType>::linfty_norm() const
 {
@@ -1695,12 +1703,12 @@ BlockVectorBase<VectorType>::linfty_norm() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 typename BlockVectorBase<VectorType>::value_type
 BlockVectorBase<VectorType>::add_and_dot(
   const typename BlockVectorBase<VectorType>::value_type a,
-  const BlockVectorBase<VectorType> &                    V,
-  const BlockVectorBase<VectorType> &                    W)
+  const BlockVectorBase<VectorType>                     &V,
+  const BlockVectorBase<VectorType>                     &W)
 {
   AssertDimension(n_blocks(), V.n_blocks());
   AssertDimension(n_blocks(), W.n_blocks());
@@ -1714,7 +1722,7 @@ BlockVectorBase<VectorType>::add_and_dot(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 BlockVectorBase<VectorType> &
 BlockVectorBase<VectorType>::operator+=(const BlockVectorBase<VectorType> &v)
 {
@@ -1731,7 +1739,7 @@ BlockVectorBase<VectorType>::operator+=(const BlockVectorBase<VectorType> &v)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 BlockVectorBase<VectorType> &
 BlockVectorBase<VectorType>::operator-=(const BlockVectorBase<VectorType> &v)
 {
@@ -1747,11 +1755,11 @@ BlockVectorBase<VectorType>::operator-=(const BlockVectorBase<VectorType> &v)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 template <typename Number>
 inline void
 BlockVectorBase<VectorType>::add(const std::vector<size_type> &indices,
-                                 const std::vector<Number> &   values)
+                                 const std::vector<Number>    &values)
 {
   Assert(indices.size() == values.size(),
          ExcDimensionMismatch(indices.size(), values.size()));
@@ -1760,11 +1768,11 @@ BlockVectorBase<VectorType>::add(const std::vector<size_type> &indices,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 template <typename Number>
 inline void
 BlockVectorBase<VectorType>::add(const std::vector<size_type> &indices,
-                                 const Vector<Number> &        values)
+                                 const Vector<Number>         &values)
 {
   Assert(indices.size() == values.size(),
          ExcDimensionMismatch(indices.size(), values.size()));
@@ -1775,12 +1783,12 @@ BlockVectorBase<VectorType>::add(const std::vector<size_type> &indices,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 template <typename Number>
 inline void
 BlockVectorBase<VectorType>::add(const size_type  n_indices,
                                  const size_type *indices,
-                                 const Number *   values)
+                                 const Number    *values)
 {
   for (size_type i = 0; i < n_indices; ++i)
     (*this)(indices[i]) += values[i];
@@ -1788,7 +1796,7 @@ BlockVectorBase<VectorType>::add(const size_type  n_indices,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 BlockVectorBase<VectorType>::add(const value_type a)
 {
@@ -1802,7 +1810,7 @@ BlockVectorBase<VectorType>::add(const value_type a)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 BlockVectorBase<VectorType>::add(const value_type                   a,
                                  const BlockVectorBase<VectorType> &v)
@@ -1820,7 +1828,7 @@ BlockVectorBase<VectorType>::add(const value_type                   a,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 BlockVectorBase<VectorType>::add(const value_type                   a,
                                  const BlockVectorBase<VectorType> &v,
@@ -1844,7 +1852,7 @@ BlockVectorBase<VectorType>::add(const value_type                   a,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 BlockVectorBase<VectorType>::sadd(const value_type                   x,
                                   const BlockVectorBase<VectorType> &v)
@@ -1862,7 +1870,7 @@ BlockVectorBase<VectorType>::sadd(const value_type                   x,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 BlockVectorBase<VectorType>::sadd(const value_type                   x,
                                   const value_type                   a,
@@ -1882,7 +1890,7 @@ BlockVectorBase<VectorType>::sadd(const value_type                   x,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 BlockVectorBase<VectorType>::sadd(const value_type                   x,
                                   const value_type                   a,
@@ -1907,7 +1915,7 @@ BlockVectorBase<VectorType>::sadd(const value_type                   x,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 BlockVectorBase<VectorType>::sadd(const value_type                   x,
                                   const value_type                   a,
@@ -1938,7 +1946,7 @@ BlockVectorBase<VectorType>::sadd(const value_type                   x,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 template <class BlockVector2>
 void
 BlockVectorBase<VectorType>::scale(const BlockVector2 &v)
@@ -1951,7 +1959,7 @@ BlockVectorBase<VectorType>::scale(const BlockVector2 &v)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 std::size_t
 BlockVectorBase<VectorType>::memory_consumption() const
 {
@@ -1961,7 +1969,7 @@ BlockVectorBase<VectorType>::memory_consumption() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 template <class BlockVector2>
 void
 BlockVectorBase<VectorType>::equ(const value_type a, const BlockVector2 &v)
@@ -1977,7 +1985,7 @@ BlockVectorBase<VectorType>::equ(const value_type a, const BlockVector2 &v)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 void
 BlockVectorBase<VectorType>::update_ghost_values() const
 {
@@ -1987,7 +1995,7 @@ BlockVectorBase<VectorType>::update_ghost_values() const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 BlockVectorBase<VectorType> &
 BlockVectorBase<VectorType>::operator=(const value_type s)
 {
@@ -2000,7 +2008,7 @@ BlockVectorBase<VectorType>::operator=(const value_type s)
 }
 
 
-template <class VectorType>
+template <typename VectorType>
 BlockVectorBase<VectorType> &
 BlockVectorBase<VectorType>::operator=(const BlockVectorBase<VectorType> &v)
 {
@@ -2013,8 +2021,8 @@ BlockVectorBase<VectorType>::operator=(const BlockVectorBase<VectorType> &v)
 }
 
 
-template <class VectorType>
-template <class VectorType2>
+template <typename VectorType>
+template <typename VectorType2>
 BlockVectorBase<VectorType> &
 BlockVectorBase<VectorType>::operator=(const BlockVectorBase<VectorType2> &v)
 {
@@ -2028,7 +2036,7 @@ BlockVectorBase<VectorType>::operator=(const BlockVectorBase<VectorType2> &v)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 BlockVectorBase<VectorType> &
 BlockVectorBase<VectorType>::operator=(const VectorType &v)
 {
@@ -2044,8 +2052,8 @@ BlockVectorBase<VectorType>::operator=(const VectorType &v)
 
 
 
-template <class VectorType>
-template <class VectorType2>
+template <typename VectorType>
+template <typename VectorType2>
 inline bool
 BlockVectorBase<VectorType>::operator==(
   const BlockVectorBase<VectorType2> &v) const
@@ -2061,7 +2069,7 @@ BlockVectorBase<VectorType>::operator==(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline BlockVectorBase<VectorType> &
 BlockVectorBase<VectorType>::operator*=(const value_type factor)
 {
@@ -2075,7 +2083,7 @@ BlockVectorBase<VectorType>::operator*=(const value_type factor)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline BlockVectorBase<VectorType> &
 BlockVectorBase<VectorType>::operator/=(const value_type factor)
 {
@@ -2091,7 +2099,7 @@ BlockVectorBase<VectorType>::operator/=(const value_type factor)
 }
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::value_type
 BlockVectorBase<VectorType>::operator()(const size_type i) const
 {
@@ -2102,7 +2110,7 @@ BlockVectorBase<VectorType>::operator()(const size_type i) const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::reference
 BlockVectorBase<VectorType>::operator()(const size_type i)
 {
@@ -2113,7 +2121,7 @@ BlockVectorBase<VectorType>::operator()(const size_type i)
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::value_type
 BlockVectorBase<VectorType>::operator[](const size_type i) const
 {
@@ -2122,7 +2130,7 @@ BlockVectorBase<VectorType>::operator[](const size_type i) const
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline typename BlockVectorBase<VectorType>::reference
 BlockVectorBase<VectorType>::operator[](const size_type i)
 {
@@ -2136,10 +2144,26 @@ template <typename OtherNumber>
 inline void
 BlockVectorBase<VectorType>::extract_subvector_to(
   const std::vector<size_type> &indices,
-  std::vector<OtherNumber> &    values) const
+  std::vector<OtherNumber>     &values) const
 {
   for (size_type i = 0; i < indices.size(); ++i)
     values[i] = operator()(indices[i]);
+}
+
+
+
+template <typename VectorType>
+inline void
+BlockVectorBase<VectorType>::extract_subvector_to(
+  const ArrayView<const types::global_dof_index> &indices,
+  ArrayView<value_type>                          &entries) const
+{
+  AssertDimension(indices.size(), entries.size());
+  for (unsigned int i = 0; i < indices.size(); ++i)
+    {
+      AssertIndexRange(indices[i], size());
+      entries[i] = (*this)[indices[i]];
+    }
 }
 
 

@@ -61,7 +61,7 @@ collect_lines(const AffineConstraints<Number> &constraints,
 template <int dim, int spacedim>
 void
 test(const DoFHandler<dim, spacedim> &dof_handler,
-     const IndexSet &                 locally_relevant_dofs)
+     const IndexSet                  &locally_relevant_dofs)
 {
   AffineConstraints<double> constraints;
 
@@ -111,11 +111,11 @@ main(int argc, char **argv)
     if (cell->center()[0] > 0.5 && cell->center()[1] > 0.5)
       cell->set_material_id(1);
 
-  IndexSet locally_active_dofs;
-  DoFTools::extract_locally_active_dofs(dof_handler, locally_active_dofs);
+  const IndexSet locally_active_dofs =
+    DoFTools::extract_locally_active_dofs(dof_handler);
   test(dof_handler, locally_active_dofs);
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
   test(dof_handler, locally_relevant_dofs);
 }

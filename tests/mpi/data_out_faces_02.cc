@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2018 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,7 @@
 // experiencing was the mesh I was testing on was too coarse for
 // larger number of processors. This test case shows that as
 // well. For 4 processors the code produces output without error
-// for both the 12 repitions and the 2 repititions. For 6 and 12
+// for both the 12 repetitions and the 2 repetitions. For 6 and 12
 // processors only the 12 repetition case produces the proper
 // output. Fortunately it does show as long as the mesh is
 // adequately refined DataOutFaces produces the output for each
@@ -80,7 +80,8 @@ main(int argc, char *argv[])
     IndexSet                           locally_relevant_dofs;
 
     locally_owned_dofs = dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
     locally_relevant_sol.reinit(locally_owned_dofs,
                                 locally_relevant_dofs,
                                 mpi_communicator);

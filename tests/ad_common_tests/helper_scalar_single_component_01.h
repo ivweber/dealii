@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,19 +40,19 @@ struct FunctionsTestScalar
   static NumberType
   psi(const NumberType &s)
   {
-    return 4.0 * std::pow(s, 4);
+    return 4.0 * pow(s, 4);
   }
 
   static NumberType
   dpsi_ds(const NumberType &s)
   {
-    return 16.0 * std::pow(s, 3);
+    return 16.0 * pow(s, 3);
   }
 
   static NumberType
   d2psi_ds_ds(const NumberType &s)
   {
-    return 48.0 * std::pow(s, 2);
+    return 48.0 * pow(s, 2);
   }
 };
 

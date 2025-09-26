@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,11 +28,11 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-template <class PolynomialType, int dim, int spacedim>
+template <typename PolynomialType, int dim, int spacedim>
 FE_PolyFace<PolynomialType, dim, spacedim>::FE_PolyFace(
-  const PolynomialType &        poly_space,
+  const PolynomialType         &poly_space,
   const FiniteElementData<dim> &fe_data,
-  const std::vector<bool> &     restriction_is_additive_flags)
+  const std::vector<bool>      &restriction_is_additive_flags)
   : FiniteElement<dim, spacedim>(
       fe_data,
       restriction_is_additive_flags,
@@ -43,7 +43,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::FE_PolyFace(
 }
 
 
-template <class PolynomialType, int dim, int spacedim>
+template <typename PolynomialType, int dim, int spacedim>
 unsigned int
 FE_PolyFace<PolynomialType, dim, spacedim>::get_degree() const
 {
@@ -56,17 +56,17 @@ FE_PolyFace<PolynomialType, dim, spacedim>::get_degree() const
 //---------------------------------------------------------------------------
 
 
-template <class PolynomialType, int dim, int spacedim>
+template <typename PolynomialType, int dim, int spacedim>
 UpdateFlags
 FE_PolyFace<PolynomialType, dim, spacedim>::requires_update_flags(
   const UpdateFlags flags) const
 {
   UpdateFlags out = flags & update_values;
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     out |= update_gradients | update_covariant_transformation;
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     out |= update_hessians | update_covariant_transformation;
-  if ((flags & update_normal_vectors) != 0u)
+  if (flags & update_normal_vectors)
     out |= update_normal_vectors | update_JxW_values;
 
   return out;
@@ -76,7 +76,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::requires_update_flags(
 //---------------------------------------------------------------------------
 // Fill data of FEValues
 //---------------------------------------------------------------------------
-template <class PolynomialType, int dim, int spacedim>
+template <typename PolynomialType, int dim, int spacedim>
 void
 FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &,
@@ -84,9 +84,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_values(
   const Quadrature<dim> &,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim> &,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -107,7 +105,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_values(
 
 
 
-template <class PolynomialType, int dim, int spacedim>
+template <typename PolynomialType, int dim, int spacedim>
 void
 FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &,
@@ -115,9 +113,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &quadrature,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim> &,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -202,7 +198,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_face_values(
 }
 
 
-template <class PolynomialType, int dim, int spacedim>
+template <typename PolynomialType, int dim, int spacedim>
 void
 FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_subface_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &,
@@ -211,9 +207,7 @@ FE_PolyFace<PolynomialType, dim, spacedim>::fill_fe_subface_values(
   const Quadrature<dim - 1> &quadrature,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim> &,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>

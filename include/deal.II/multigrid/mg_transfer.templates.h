@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -39,7 +39,7 @@
 #include <algorithm>
 
 // Here you can turn on some cout statements and MPI Barriers for debugging:
-//#define DEBUG_OUTPUT
+// #define DEBUG_OUTPUT
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -56,7 +56,7 @@ namespace internal
      */
     template <int dim, typename number, int spacedim>
     void
-    reinit_vector(const dealii::DoFHandler<dim, spacedim> &dof_handler,
+    reinit_vector(const DoFHandler<dim, spacedim> &dof_handler,
                   const std::vector<unsigned int> &,
                   MGLevelObject<dealii::Vector<number>> &v)
     {
@@ -75,12 +75,12 @@ namespace internal
      */
     template <int dim, typename number, int spacedim>
     void
-    reinit_vector(const dealii::DoFHandler<dim, spacedim> &dof_handler,
-                  std::vector<unsigned int>                target_component,
-                  MGLevelObject<BlockVector<number>> &     v)
+    reinit_vector(const DoFHandler<dim, spacedim>    &dof_handler,
+                  std::vector<unsigned int>           target_component,
+                  MGLevelObject<BlockVector<number>> &v)
     {
       const unsigned int n_blocks = dof_handler.get_fe().n_blocks();
-      if (target_component.size() == 0)
+      if (target_component.empty())
         {
           target_component.resize(n_blocks);
           for (unsigned int i = 0; i < n_blocks; ++i)
@@ -115,7 +115,7 @@ namespace internal
      */
     template <int dim, int spacedim>
     void
-    reinit_vector(const dealii::DoFHandler<dim, spacedim> &dof_handler,
+    reinit_vector(const DoFHandler<dim, spacedim> &dof_handler,
                   const std::vector<unsigned int> &,
                   MGLevelObject<TrilinosWrappers::MPI::Vector> &v)
     {
@@ -143,7 +143,7 @@ namespace internal
      */
     template <int dim, int spacedim>
     void
-    reinit_vector(const dealii::DoFHandler<dim, spacedim> &dof_handler,
+    reinit_vector(const DoFHandler<dim, spacedim> &dof_handler,
                   const std::vector<unsigned int> &,
                   MGLevelObject<PETScWrappers::MPI::Vector> &v)
     {
@@ -178,9 +178,9 @@ namespace internal
   void
   copy_vector(const std::vector<
                 std::pair<types::global_dof_index, types::global_dof_index>>
-                &      copy_indices,
+                      &copy_indices,
               const T &src,
-              V &      dst)
+              V       &dst)
   {
     // we should have copy_index.second == copy_index.first, therefore we can
     // use the same function for both copying to mg as well as copying from mg
@@ -195,7 +195,7 @@ namespace internal
   copy_vector(const std::vector<
                 std::pair<types::global_dof_index, types::global_dof_index>> &,
               const T &src,
-              T &      dst)
+              T       &dst)
   {
     dst = src;
   }
@@ -207,8 +207,8 @@ template <int dim, class InVector, int spacedim>
 void
 MGLevelGlobalTransfer<VectorType>::copy_to_mg(
   const DoFHandler<dim, spacedim> &dof_handler,
-  MGLevelObject<VectorType> &      dst,
-  const InVector &                 src) const
+  MGLevelObject<VectorType>       &dst,
+  const InVector                  &src) const
 {
   assert_built(dof_handler);
   AssertIndexRange(dst.max_level(),
@@ -217,7 +217,7 @@ MGLevelGlobalTransfer<VectorType>::copy_to_mg(
   internal::MGTransfer::reinit_vector(dof_handler, component_to_block_map, dst);
 #ifdef DEBUG_OUTPUT
   std::cout << "copy_to_mg src " << src.l2_norm() << std::endl;
-  int ierr = MPI_Barrier(MPI_COMM_WORLD);
+  int ierr = MPI_Barrier(dof_handler.get_communicator());
   AssertThrowMPI(ierr);
 #endif
 
@@ -237,7 +237,7 @@ MGLevelGlobalTransfer<VectorType>::copy_to_mg(
     {
       --level;
 #ifdef DEBUG_OUTPUT
-      ierr = MPI_Barrier(MPI_COMM_WORLD);
+      ierr = MPI_Barrier(dof_handler.get_communicator());
       AssertThrowMPI(ierr);
 #endif
 
@@ -258,7 +258,7 @@ MGLevelGlobalTransfer<VectorType>::copy_to_mg(
       dst_level.compress(VectorOperation::insert);
 
 #ifdef DEBUG_OUTPUT
-      ierr = MPI_Barrier(MPI_COMM_WORLD);
+      ierr = MPI_Barrier(dof_handler.get_communicator());
       AssertThrowMPI(ierr);
       std::cout << "copy_to_mg dst " << level << ' ' << dst_level.l2_norm()
                 << std::endl;
@@ -273,7 +273,7 @@ template <int dim, class OutVector, int spacedim>
 void
 MGLevelGlobalTransfer<VectorType>::copy_from_mg(
   const DoFHandler<dim, spacedim> &dof_handler,
-  OutVector &                      dst,
+  OutVector                       &dst,
   const MGLevelObject<VectorType> &src) const
 {
   assert_built(dof_handler);
@@ -296,11 +296,11 @@ MGLevelGlobalTransfer<VectorType>::copy_from_mg(
   for (unsigned int level = src.min_level(); level <= src.max_level(); ++level)
     {
 #ifdef DEBUG_OUTPUT
-      int ierr = MPI_Barrier(MPI_COMM_WORLD);
+      int ierr = MPI_Barrier(dof_handler.get_communicator());
       AssertThrowMPI(ierr);
       std::cout << "copy_from_mg src " << level << ' ' << src[level].l2_norm()
                 << std::endl;
-      ierr = MPI_Barrier(MPI_COMM_WORLD);
+      ierr = MPI_Barrier(dof_handler.get_communicator());
       AssertThrowMPI(ierr);
 #endif
 
@@ -321,7 +321,7 @@ MGLevelGlobalTransfer<VectorType>::copy_from_mg(
 #ifdef DEBUG_OUTPUT
       {
         dst.compress(VectorOperation::insert);
-        ierr = MPI_Barrier(MPI_COMM_WORLD);
+        ierr = MPI_Barrier(dof_handler.get_communicator());
         AssertThrowMPI(ierr);
         std::cout << "copy_from_mg level=" << level << ' ' << dst.l2_norm()
                   << std::endl;
@@ -330,7 +330,7 @@ MGLevelGlobalTransfer<VectorType>::copy_from_mg(
     }
   dst.compress(VectorOperation::insert);
 #ifdef DEBUG_OUTPUT
-  const int ierr = MPI_Barrier(MPI_COMM_WORLD);
+  const int ierr = MPI_Barrier(dof_handler.get_communicator());
   AssertThrowMPI(ierr);
   std::cout << "copy_from_mg " << dst.l2_norm() << std::endl;
 #endif
@@ -343,7 +343,7 @@ template <int dim, class OutVector, int spacedim>
 void
 MGLevelGlobalTransfer<VectorType>::copy_from_mg_add(
   const DoFHandler<dim, spacedim> &dof_handler,
-  OutVector &                      dst,
+  OutVector                       &dst,
   const MGLevelObject<VectorType> &src) const
 {
   assert_built(dof_handler);
@@ -399,9 +399,9 @@ template <typename Number>
 template <int dim, typename Number2, int spacedim>
 void
 MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::copy_to_mg(
-  const DoFHandler<dim, spacedim> &                          dof_handler,
+  const DoFHandler<dim, spacedim>                           &dof_handler,
   MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &dst,
-  const LinearAlgebra::distributed::Vector<Number2> &        src) const
+  const LinearAlgebra::distributed::Vector<Number2>         &src) const
 {
   assert_built(dof_handler);
   copy_to_mg(dof_handler, dst, src, false);
@@ -412,9 +412,9 @@ template <typename Number>
 template <int dim, typename Number2, int spacedim>
 void
 MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::copy_to_mg(
-  const DoFHandler<dim, spacedim> &                          dof_handler,
+  const DoFHandler<dim, spacedim>                           &dof_handler,
   MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &dst,
-  const LinearAlgebra::distributed::Vector<Number2> &        src,
+  const LinearAlgebra::distributed::Vector<Number2>         &src,
   const bool solution_transfer) const
 {
   assert_built(dof_handler);
@@ -518,8 +518,8 @@ template <typename Number>
 template <int dim, typename Number2, int spacedim>
 void
 MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::copy_from_mg(
-  const DoFHandler<dim, spacedim> &                                dof_handler,
-  LinearAlgebra::distributed::Vector<Number2> &                    dst,
+  const DoFHandler<dim, spacedim>                                 &dof_handler,
+  LinearAlgebra::distributed::Vector<Number2>                     &dst,
   const MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &src) const
 {
   assert_built(dof_handler);
@@ -574,9 +574,9 @@ MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::copy_from_mg(
       if (ghosted_level_vector[level].size() > 0)
         ghosted_vector = src[level];
 
-      const auto ghosted_vector_ptr = (ghosted_level_vector[level].size() > 0) ?
-                                        &ghosted_vector :
-                                        &src[level];
+      const auto *const ghosted_vector_ptr =
+        (ghosted_level_vector[level].size() > 0) ? &ghosted_vector :
+                                                   &src[level];
 
       ghosted_vector_ptr->update_ghost_values();
 
@@ -604,7 +604,7 @@ template <int dim, typename Number2, int spacedim>
 void
 MGLevelGlobalTransfer<LinearAlgebra::distributed::Vector<Number>>::
   copy_from_mg_add(
-    const DoFHandler<dim, spacedim> &            dof_handler,
+    const DoFHandler<dim, spacedim>             &dof_handler,
     LinearAlgebra::distributed::Vector<Number2> &dst,
     const MGLevelObject<LinearAlgebra::distributed::Vector<Number>> &src) const
 {

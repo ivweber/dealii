@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -41,7 +41,7 @@ namespace LocalIntegrators
   namespace L2
   {
     /**
-     * The mass matrix for scalar or vector values finite elements. \f[ \int_Z
+     * The @ref GlossMassMatrix "mass matrix" for scalar or vector values finite elements. \f[ \int_Z
      * uv\,dx \quad \text{or} \quad \int_Z \mathbf u\cdot \mathbf v\,dx \f]
      *
      * Likewise, this term can be used on faces, where it computes  the
@@ -55,7 +55,7 @@ namespace LocalIntegrators
      */
     template <int dim>
     void
-    mass_matrix(FullMatrix<double> &     M,
+    mass_matrix(FullMatrix<double>      &M,
                 const FEValuesBase<dim> &fe,
                 const double             factor = 1.)
     {
@@ -89,7 +89,7 @@ namespace LocalIntegrators
     }
 
     /**
-     * The weighted mass matrix for scalar or vector values finite elements.
+     * The weighted @ref GlossMassMatrix "mass matrix" for scalar or vector values finite elements.
      * \f[ \int_Z \omega(x) uv\,dx \quad \text{or} \quad \int_Z \omega(x)
      * \mathbf u\cdot \mathbf v\,dx \f]
      *
@@ -106,8 +106,8 @@ namespace LocalIntegrators
      */
     template <int dim>
     void
-    weighted_mass_matrix(FullMatrix<double> &       M,
-                         const FEValuesBase<dim> &  fe,
+    weighted_mass_matrix(FullMatrix<double>        &M,
+                         const FEValuesBase<dim>   &fe,
                          const std::vector<double> &weights)
     {
       const unsigned int n_dofs       = fe.dofs_per_cell;
@@ -157,8 +157,8 @@ namespace LocalIntegrators
      */
     template <int dim, typename number>
     void
-    L2(Vector<number> &           result,
-       const FEValuesBase<dim> &  fe,
+    L2(Vector<number>            &result,
+       const FEValuesBase<dim>   &fe,
        const std::vector<double> &input,
        const double               factor = 1.)
     {
@@ -187,8 +187,8 @@ namespace LocalIntegrators
      */
     template <int dim, typename number>
     void
-    L2(Vector<number> &                            result,
-       const FEValuesBase<dim> &                   fe,
+    L2(Vector<number>                             &result,
+       const FEValuesBase<dim>                    &fe,
        const ArrayView<const std::vector<double>> &input,
        const double                                factor = 1.)
     {
@@ -235,10 +235,10 @@ namespace LocalIntegrators
      */
     template <int dim>
     void
-    jump_matrix(FullMatrix<double> &     M11,
-                FullMatrix<double> &     M12,
-                FullMatrix<double> &     M21,
-                FullMatrix<double> &     M22,
+    jump_matrix(FullMatrix<double>      &M11,
+                FullMatrix<double>      &M12,
+                FullMatrix<double>      &M21,
+                FullMatrix<double>      &M22,
                 const FEValuesBase<dim> &fe1,
                 const FEValuesBase<dim> &fe2,
                 const double             factor1 = 1.,

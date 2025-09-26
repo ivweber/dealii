@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2018 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -208,7 +208,7 @@ main()
     {
       test();
     }
-  catch (std::exception &e)
+  catch (const std::exception &e)
     {
       std::cerr << std::endl
                 << std::endl

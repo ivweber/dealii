@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,8 +40,9 @@ template <typename Number>
 class BlockVector;
 #endif
 
-/*! @addtogroup Matrix1
- *@{
+/**
+ * @addtogroup Matrix1
+ * @{
  */
 
 
@@ -212,7 +213,7 @@ public:
    */
   template <typename somenumber>
   void
-  Tvmult(BlockVector<somenumber> &      dst,
+  Tvmult(BlockVector<somenumber>       &dst,
          const BlockVector<somenumber> &src) const;
 
   /**
@@ -221,7 +222,7 @@ public:
    */
   template <typename somenumber>
   void
-  vmult_add(BlockVector<somenumber> &      dst,
+  vmult_add(BlockVector<somenumber>       &dst,
             const BlockVector<somenumber> &src) const;
 
   /**
@@ -231,7 +232,7 @@ public:
    */
   template <typename somenumber>
   void
-  Tvmult_add(BlockVector<somenumber> &      dst,
+  Tvmult_add(BlockVector<somenumber>       &dst,
              const BlockVector<somenumber> &src) const;
 
 
@@ -240,7 +241,7 @@ public:
    * existing row lengths and allocated row lengths. Otherwise, just the
    * relation of allocated and used entries is shown.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   print_statistics(StreamType &s, bool full = false);
 
@@ -263,7 +264,7 @@ private:
   Table<2, SparseMatrixEZ<Number>> blocks;
 };
 
-/*@}*/
+/** @} */
 /*----------------------------------------------------------------------*/
 
 
@@ -367,7 +368,7 @@ BlockSparseMatrixEZ<Number>::add(const size_type i,
 template <typename Number>
 template <typename somenumber>
 void
-BlockSparseMatrixEZ<Number>::vmult(BlockVector<somenumber> &      dst,
+BlockSparseMatrixEZ<Number>::vmult(BlockVector<somenumber>       &dst,
                                    const BlockVector<somenumber> &src) const
 {
   Assert(dst.n_blocks() == n_block_rows(),
@@ -387,7 +388,7 @@ BlockSparseMatrixEZ<Number>::vmult(BlockVector<somenumber> &      dst,
 template <typename Number>
 template <typename somenumber>
 void
-BlockSparseMatrixEZ<Number>::vmult_add(BlockVector<somenumber> &      dst,
+BlockSparseMatrixEZ<Number>::vmult_add(BlockVector<somenumber>       &dst,
                                        const BlockVector<somenumber> &src) const
 {
   Assert(dst.n_blocks() == n_block_rows(),
@@ -405,7 +406,7 @@ BlockSparseMatrixEZ<Number>::vmult_add(BlockVector<somenumber> &      dst,
 template <typename Number>
 template <typename somenumber>
 void
-BlockSparseMatrixEZ<Number>::Tvmult(BlockVector<somenumber> &      dst,
+BlockSparseMatrixEZ<Number>::Tvmult(BlockVector<somenumber>       &dst,
                                     const BlockVector<somenumber> &src) const
 {
   Assert(dst.n_blocks() == n_block_cols(),
@@ -426,7 +427,7 @@ template <typename Number>
 template <typename somenumber>
 void
 BlockSparseMatrixEZ<Number>::Tvmult_add(
-  BlockVector<somenumber> &      dst,
+  BlockVector<somenumber>       &dst,
   const BlockVector<somenumber> &src) const
 {
   Assert(dst.n_blocks() == n_block_cols(),
@@ -441,7 +442,7 @@ BlockSparseMatrixEZ<Number>::Tvmult_add(
 
 
 template <typename number>
-template <class StreamType>
+template <typename StreamType>
 inline void
 BlockSparseMatrixEZ<number>::print_statistics(StreamType &out, bool full)
 {

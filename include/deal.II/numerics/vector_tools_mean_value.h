@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,19 +19,28 @@
 
 #include <deal.II/base/config.h>
 
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/lac/read_vector.h>
+
+#include <vector>
 
 DEAL_II_NAMESPACE_OPEN
 
 #ifndef DOXYGEN
 // forward declarations
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
+template <int dim, int spacedim>
+class Mapping;
+template <int dim>
+class Quadrature;
 namespace hp
 {
   template <int dim, int spacedim>
   class MappingCollection;
-}
+  template <int dim>
+  class QCollection;
+} // namespace hp
 #endif
 
 namespace VectorTools
@@ -39,7 +48,7 @@ namespace VectorTools
   /**
    * Mean value operations
    */
-  //@{
+  /** @{ */
 
   /**
    * Subtract the (algebraic) mean value from a vector.
@@ -89,11 +98,48 @@ namespace VectorTools
    *
    * @warning This function can only be used for distributed vector classes
    * provided the boolean mask is empty, i.e. selecting the whole vector.
+   *
+   * @dealiiConceptRequires{concepts::is_writable_dealii_vector_type<VectorType>}
    */
   template <typename VectorType>
-  void
-  subtract_mean_value(VectorType &v, const std::vector<bool> &p_select = {});
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void subtract_mean_value(VectorType              &v,
+                           const std::vector<bool> &p_select = {});
 
+  /**
+   * Add the constant @p constant_adjustment to the specified
+   * component of the finite element function given by the coefficient
+   * vector @p solution defined by the given DoFHandler.
+   *
+   * This operation is a common operation to compute a solution with
+   * mean pressure zero for a Stokes flow problem. Here, one can
+   * use VectorTools::compute_mean_value() to compute the value to
+   * subtract.
+   *
+   * For a nodal finite element like FE_Q, this function will simply add
+   * the value @p constant_adjustment to each coefficient of the corresponding
+   * component. If you have the component in a separate block @p b, you
+   * could directly use
+   * <code>solution.block(b) += constant_adjustment</code>
+   * instead of calling this function (and this would be more efficient).
+   * For other finite element spaces like FE_DGP, the logic is more
+   * complicated and handled correctly by this function.
+   *
+   * @note Not all kinds of finite elements are supported and the selected
+   * component must not be part of a non-primitive element for this
+   * implementation to work.
+   *
+   * @note In contrast to subtract_mean_value(), this function can
+   * adjust a single component of a distributed vector.
+   *
+   * @dealiiConceptRequires{concepts::is_writable_dealii_vector_type<VectorType>}
+   */
+  template <typename VectorType, int dim, int spacedim = dim>
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void add_constant(VectorType                           &solution,
+                    const DoFHandler<dim, spacedim>      &dof_handler,
+                    const unsigned int                    component,
+                    const typename VectorType::value_type constant_adjustment);
 
   /**
    * Compute the mean value of one component of the solution.
@@ -118,13 +164,13 @@ namespace VectorTools
    * Lagrangian elements. For all other elements, you will need to compute the
    * mean value and subtract it right inside the evaluation routine.
    */
-  template <int dim, typename VectorType, int spacedim>
-  typename VectorType::value_type
+  template <int dim, typename Number, int spacedim>
+  Number
   compute_mean_value(
     const hp::MappingCollection<dim, spacedim> &mapping_collection,
-    const DoFHandler<dim, spacedim> &           dof,
-    const hp::QCollection<dim> &                q_collection,
-    const VectorType &                          v,
+    const DoFHandler<dim, spacedim>            &dof,
+    const hp::QCollection<dim>                 &q_collection,
+    const ReadVector<Number>                   &v,
     const unsigned int                          component);
 
   /**
@@ -132,25 +178,25 @@ namespace VectorTools
    * case. That means, it requires a single FiniteElement, a single Quadrature,
    * and a single Mapping object.
    */
-  template <int dim, typename VectorType, int spacedim>
-  typename VectorType::value_type
-  compute_mean_value(const Mapping<dim, spacedim> &   mapping,
+  template <int dim, typename Number, int spacedim>
+  Number
+  compute_mean_value(const Mapping<dim, spacedim>    &mapping,
                      const DoFHandler<dim, spacedim> &dof,
-                     const Quadrature<dim> &          quadrature,
-                     const VectorType &               v,
+                     const Quadrature<dim>           &quadrature,
+                     const ReadVector<Number>        &v,
                      const unsigned int               component);
 
   /**
    * Call the other compute_mean_value() function, see above, with
    * <tt>mapping=MappingQ@<dim@>(1)</tt>.
    */
-  template <int dim, typename VectorType, int spacedim>
-  typename VectorType::value_type
+  template <int dim, typename Number, int spacedim>
+  Number
   compute_mean_value(const DoFHandler<dim, spacedim> &dof,
-                     const Quadrature<dim> &          quadrature,
-                     const VectorType &               v,
+                     const Quadrature<dim>           &quadrature,
+                     const ReadVector<Number>        &v,
                      const unsigned int               component);
-  //@}
+  /** @} */
 } // namespace VectorTools
 
 DEAL_II_NAMESPACE_CLOSE

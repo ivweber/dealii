@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,8 +26,6 @@
 #include <deal.II/base/types.h>
 #include <deal.II/base/vectorization.h>
 
-#include <deal.II/lac/cuda_kernels.h>
-#include <deal.II/lac/cuda_kernels.templates.h>
 #include <deal.II/lac/vector_operation.h>
 
 #include <cstdio>
@@ -74,7 +72,7 @@ namespace internal
     void
     copy(const std::complex<T> *begin,
          const std::complex<T> *end,
-         std::complex<U> *      dest)
+         std::complex<U>       *dest)
     {
       std::copy(begin, end, dest);
     }
@@ -102,7 +100,7 @@ namespace internal
     template <typename Functor>
     struct TBBForFunctor
     {
-      TBBForFunctor(Functor &       functor,
+      TBBForFunctor(Functor        &functor,
                     const size_type start,
                     const size_type end)
         : functor(functor)
@@ -137,7 +135,7 @@ namespace internal
         functor(r_begin, r_end);
       }
 
-      Functor &       functor;
+      Functor        &functor;
       const size_type start;
       const size_type end;
       unsigned int    n_chunks;
@@ -148,7 +146,7 @@ namespace internal
     template <typename Functor>
     void
     parallel_for(
-      Functor &       functor,
+      Functor        &functor,
       const size_type start,
       const size_type end,
       const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
@@ -214,11 +212,7 @@ namespace internal
 
         if (value == Number())
           {
-#ifdef DEAL_II_HAVE_CXX17
-            if constexpr (std::is_trivial<Number>::value)
-#else
-            if (std::is_trivial<Number>::value)
-#endif
+            if constexpr (std::is_trivial_v<Number>)
               {
                 std::memset(dst + begin, 0, sizeof(Number) * (end - begin));
                 return;
@@ -247,18 +241,8 @@ namespace internal
       {
         Assert(end >= begin, ExcInternalError());
 
-#if __GNUG__ && __GNUC__ < 5
-        if (__has_trivial_copy(Number) &&
-            std::is_same<Number, OtherNumber>::value)
-#else
-#  ifdef DEAL_II_HAVE_CXX17
         if constexpr (std::is_trivially_copyable<Number>() &&
-                      std::is_same<Number, OtherNumber>::value)
-#  else
-        if (std::is_trivially_copyable<Number>() &&
-            std::is_same<Number, OtherNumber>::value)
-#  endif
-#endif
+                      std::is_same_v<Number, OtherNumber>)
           std::memcpy(dst + begin, src + begin, (end - begin) * sizeof(Number));
         else
           {
@@ -277,12 +261,16 @@ namespace internal
     {
       Vectorization_multiply_factor(Number *const val, const Number factor)
         : val(val)
-        , factor(factor)
+        , stored_factor(factor)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        // create a local copy of the variable to help the compiler with the
+        // aliasing analysis
+        const Number factor = stored_factor;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -297,7 +285,7 @@ namespace internal
       }
 
       Number *const val;
-      const Number  factor;
+      const Number  stored_factor;
     };
 
     template <typename Number>
@@ -308,12 +296,15 @@ namespace internal
                            const Number        factor)
         : val(val)
         , v_val(v_val)
-        , factor(factor)
+        , stored_factor(factor)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        // create a local copy of the variable to help the compiler with the
+        // aliasing analysis
+        const Number factor = stored_factor;
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -329,25 +320,29 @@ namespace internal
 
       Number *const       val;
       const Number *const v_val;
-      const Number        factor;
+      const Number        stored_factor;
     };
 
     template <typename Number>
     struct Vectorization_sadd_xav
     {
-      Vectorization_sadd_xav(Number *            val,
+      Vectorization_sadd_xav(Number             *val,
                              const Number *const v_val,
                              const Number        a,
                              const Number        x)
         : val(val)
         , v_val(v_val)
-        , a(a)
-        , x(x)
+        , stored_a(a)
+        , stored_x(x)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        // create a local copy of the variable to help the compiler with the
+        // aliasing analysis
+        const Number x = stored_x, a = stored_a;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -363,8 +358,8 @@ namespace internal
 
       Number *const       val;
       const Number *const v_val;
-      const Number        a;
-      const Number        x;
+      const Number        stored_a;
+      const Number        stored_x;
     };
 
     template <typename Number>
@@ -400,12 +395,14 @@ namespace internal
     {
       Vectorization_add_factor(Number *const val, const Number factor)
         : val(val)
-        , factor(factor)
+        , stored_factor(factor)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        const Number factor = stored_factor;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -420,7 +417,7 @@ namespace internal
       }
 
       Number *const val;
-      const Number  factor;
+      const Number  stored_factor;
     };
 
     template <typename Number>
@@ -462,13 +459,15 @@ namespace internal
         : val(val)
         , v_val(v_val)
         , w_val(w_val)
-        , a(a)
-        , b(b)
+        , stored_a(a)
+        , stored_b(b)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        const Number a = stored_a, b = stored_b;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -485,8 +484,8 @@ namespace internal
       Number *const       val;
       const Number *const v_val;
       const Number *const w_val;
-      const Number        a;
-      const Number        b;
+      const Number        stored_a;
+      const Number        stored_b;
     };
 
     template <typename Number>
@@ -497,12 +496,14 @@ namespace internal
                             const Number        x)
         : val(val)
         , v_val(v_val)
-        , x(x)
+        , stored_x(x)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        const Number x = stored_x;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -518,13 +519,13 @@ namespace internal
 
       Number *const       val;
       const Number *const v_val;
-      const Number        x;
+      const Number        stored_x;
     };
 
     template <typename Number>
     struct Vectorization_sadd_xavbw
     {
-      Vectorization_sadd_xavbw(Number *      val,
+      Vectorization_sadd_xavbw(Number       *val,
                                const Number *v_val,
                                const Number *w_val,
                                Number        x,
@@ -533,14 +534,16 @@ namespace internal
         : val(val)
         , v_val(v_val)
         , w_val(w_val)
-        , x(x)
-        , a(a)
-        , b(b)
+        , stored_x(x)
+        , stored_a(a)
+        , stored_b(b)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        const Number x = stored_x, a = stored_a, b = stored_b;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -557,9 +560,9 @@ namespace internal
       Number *const       val;
       const Number *const v_val;
       const Number *const w_val;
-      const Number        x;
-      const Number        a;
-      const Number        b;
+      const Number        stored_x;
+      const Number        stored_a;
+      const Number        stored_b;
     };
 
     template <typename Number>
@@ -598,12 +601,14 @@ namespace internal
                            const Number        a)
         : val(val)
         , u_val(u_val)
-        , a(a)
+        , stored_a(a)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        const Number a = stored_a;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -619,7 +624,7 @@ namespace internal
 
       Number *const       val;
       const Number *const u_val;
-      const Number        a;
+      const Number        stored_a;
     };
 
     template <typename Number>
@@ -633,13 +638,15 @@ namespace internal
         : val(val)
         , u_val(u_val)
         , v_val(v_val)
-        , a(a)
-        , b(b)
+        , stored_a(a)
+        , stored_b(b)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        const Number a = stored_a, b = stored_b;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -656,14 +663,14 @@ namespace internal
       Number *const       val;
       const Number *const u_val;
       const Number *const v_val;
-      const Number        a;
-      const Number        b;
+      const Number        stored_a;
+      const Number        stored_b;
     };
 
     template <typename Number>
     struct Vectorization_equ_aubvcw
     {
-      Vectorization_equ_aubvcw(Number *      val,
+      Vectorization_equ_aubvcw(Number       *val,
                                const Number *u_val,
                                const Number *v_val,
                                const Number *w_val,
@@ -674,14 +681,16 @@ namespace internal
         , u_val(u_val)
         , v_val(v_val)
         , w_val(w_val)
-        , a(a)
-        , b(b)
-        , c(c)
+        , stored_a(a)
+        , stored_b(b)
+        , stored_c(c)
       {}
 
       void
       operator()(const size_type begin, const size_type end) const
       {
+        const Number a = stored_a, b = stored_b, c = stored_c;
+
         if (::dealii::parallel::internal::EnableOpenMPSimdFor<Number>::value)
           {
             DEAL_II_OPENMP_SIMD_PRAGMA
@@ -699,9 +708,9 @@ namespace internal
       const Number *const u_val;
       const Number *const v_val;
       const Number *const w_val;
-      const Number        a;
-      const Number        b;
-      const Number        c;
+      const Number        stored_a;
+      const Number        stored_b;
+      const Number        stored_c;
     };
 
     template <typename Number>
@@ -744,7 +753,7 @@ namespace internal
     template <typename Number, typename Number2>
     struct Dot
     {
-      static constexpr bool vectorizes = std::is_same<Number, Number2>::value &&
+      static constexpr bool vectorizes = std::is_same_v<Number, Number2> &&
                                          (VectorizedArray<Number>::size() > 1);
 
       Dot(const Number *const X, const Number2 *const Y)
@@ -858,7 +867,7 @@ namespace internal
         return std::pow(std::abs(x), p);
       }
 
-      const Number * X;
+      const Number  *X;
       const RealType p;
     };
 
@@ -990,110 +999,85 @@ namespace internal
     accumulate_recursive(const Operation &op,
                          const size_type  first,
                          const size_type  last,
-                         ResultType &     result)
+                         ResultType      &result)
     {
+      if (first == last)
+        {
+          result = ResultType();
+          return;
+        }
+
       const size_type vec_size = last - first;
       if (vec_size <= vector_accumulation_recursion_threshold * 32)
         {
-          // the vector is short enough so we perform the summation. first
-          // work on the regular part. The innermost 32 values are expanded in
-          // order to obtain known loop bounds for most of the work.
-          size_type  index = first;
-          ResultType outer_results[vector_accumulation_recursion_threshold];
-
-          // set the zeroth element to zero to correctly handle the case where
-          // vec_size == 0
-          outer_results[0] = ResultType();
-
-          // the variable serves two purposes: (i)  number of chunks (each 32
-          // indices) for the given size; all results are stored in
-          // outer_results[0,n_chunks) (ii) in the SIMD case n_chunks is also a
-          // next free index in outer_results[] to which we can write after
-          // accumulate_regular() is executed.
-          size_type       n_chunks  = vec_size / 32;
-          const size_type remainder = vec_size % 32;
-          Assert(remainder == 0 ||
-                   n_chunks < vector_accumulation_recursion_threshold,
-                 ExcInternalError());
+          // The vector is short enough so we perform the summation.  We store
+          // the number of chunks (each 32 indices) for the given vector
+          // length; all results are stored in outer_results[0,n_chunks). We
+          // keep twice the number around to be able to do the pairwise
+          // summation with a single for loop (see the loop over j below)
+          ResultType outer_results[vector_accumulation_recursion_threshold * 2];
 
           // Select between the regular version and vectorized version based
           // on the number types we are given. To choose the vectorized
           // version often enough, we need to have all tasks but the last one
           // to be divisible by the vectorization length
-          accumulate_regular(
+          size_type n_chunks = do_accumulate(
             op,
-            n_chunks,
-            index,
+            vec_size,
+            first,
             outer_results,
             std::integral_constant<bool, Operation::vectorizes>());
 
-          // now work on the remainder, i.e., the last up to 32 values. Use
-          // switch statement with fall-through to work on these values.
-          if (remainder > 0)
-            {
-              // if we got here, it means that (vec_size <=
-              // vector_accumulation_recursion_threshold * 32), which is to say
-              // that the domain can be split into n_chunks <=
-              // vector_accumulation_recursion_threshold:
-              AssertIndexRange(n_chunks,
-                               vector_accumulation_recursion_threshold + 1);
-              // split the remainder into chunks of 8, there could be up to 3
-              // such chunks since remainder < 32.
-              // Work on those chunks without any SIMD, that is we call
-              // op(index).
-              const size_type inner_chunks = remainder / 8;
-              Assert(inner_chunks <= 3, ExcInternalError());
-              const size_type remainder_inner = remainder % 8;
-              ResultType      r0 = ResultType(), r1 = ResultType(),
-                         r2 = ResultType();
-              switch (inner_chunks)
-                {
-                  case 3:
-                    r2 = op(index++);
-                    for (size_type j = 1; j < 8; ++j)
-                      r2 += op(index++);
-                    DEAL_II_FALLTHROUGH;
-                  case 2:
-                    r1 = op(index++);
-                    for (size_type j = 1; j < 8; ++j)
-                      r1 += op(index++);
-                    r1 += r2;
-                    DEAL_II_FALLTHROUGH;
-                  case 1:
-                    r2 = op(index++);
-                    for (size_type j = 1; j < 8; ++j)
-                      r2 += op(index++);
-                    DEAL_II_FALLTHROUGH;
-                  default:
-                    for (size_type j = 0; j < remainder_inner; ++j)
-                      r0 += op(index++);
-                    r0 += r2;
-                    r0 += r1;
-                    if (n_chunks == vector_accumulation_recursion_threshold)
-                      outer_results[vector_accumulation_recursion_threshold -
-                                    1] += r0;
-                    else
-                      {
-                        outer_results[n_chunks] = r0;
-                        n_chunks++;
-                      }
-                    break;
-                }
-            }
-          // make sure we worked through all indices
-          AssertDimension(index, last);
+          AssertIndexRange(n_chunks,
+                           vector_accumulation_recursion_threshold + 1);
 
           // now sum the results from the chunks stored in
           // outer_results[0,n_chunks) recursively
-          while (n_chunks > 1)
+          unsigned int           j       = 0;
+          constexpr unsigned int n_lanes = VectorizedArray<ResultType>::size();
+          for (; j + 2 * n_lanes - 1 < n_chunks;
+               j += 2 * n_lanes, n_chunks += n_lanes)
             {
-              if (n_chunks % 2 == 1)
-                outer_results[n_chunks++] = ResultType();
-              for (size_type i = 0; i < n_chunks; i += 2)
-                outer_results[i / 2] = outer_results[i] + outer_results[i + 1];
-              n_chunks /= 2;
+              VectorizedArray<ResultType> a, b;
+              a.load(outer_results + j);
+              b.load(outer_results + j + n_lanes);
+              a += b;
+              a.store(outer_results + n_chunks);
             }
-          result = outer_results[0];
+
+          // In the vectorized case, we know the loop bounds and can do things
+          // more efficiently
+          if (Operation::vectorizes)
+            {
+              AssertDimension(j + n_lanes, n_chunks);
+              AssertIndexRange(n_chunks,
+                               2 * vector_accumulation_recursion_threshold + 1);
+              ResultType *result_ptr = outer_results + j;
+              if (n_lanes >= 16)
+                for (unsigned int i = 0; i < 8; ++i)
+                  result_ptr[i] = result_ptr[i] + result_ptr[i + 8];
+              if (n_lanes >= 8)
+                for (unsigned int i = 0; i < 4; ++i)
+                  result_ptr[i] = result_ptr[i] + result_ptr[i + 4];
+              if (n_lanes >= 4)
+                for (unsigned int i = 0; i < 2; ++i)
+                  result_ptr[i] = result_ptr[i] + result_ptr[i + 2];
+              result = result_ptr[0] + result_ptr[1];
+            }
+          else
+            {
+              // Without vectorization, we do not know the exact bounds, so we
+              // need to continue the variable-length pairwise summation loop
+              // from above
+              for (; j + 1 < n_chunks; j += 2, ++n_chunks)
+                outer_results[n_chunks] =
+                  outer_results[j] + outer_results[j + 1];
+
+              AssertIndexRange(n_chunks,
+                               2 * vector_accumulation_recursion_threshold + 1);
+              Assert(n_chunks > 0, ExcInternalError());
+              result = outer_results[n_chunks - 1];
+            }
         }
       else
         {
@@ -1112,120 +1096,191 @@ namespace internal
                                first + 3 * new_size,
                                r2);
           accumulate_recursive(op, first + 3 * new_size, last, r3);
-          r0 += r1;
-          r2 += r3;
-          result = r0 + r2;
+          result = (r0 + r1) + (r2 + r3);
         }
     }
 
 
-    // this is the inner working routine for the accumulation loops
-    // below. This is the standard case where the loop bounds are known. We
-    // pulled this function out of the regular accumulate routine because we
-    // might do this thing vectorized (see specialized function below)
+    // this is the inner working routine for the accumulation loops below. We
+    // pulled this part out of the regular accumulate routine because we might
+    // do this thing vectorized (see specialized function below; this is the
+    // un-vectorized version). As opposed to the vector add functions above,
+    // we here pass the functor 'op' by value, because we cannot create a copy
+    // of the scalar inline, and instead make sure that the numbers get local
+    // (and thus definitely not aliased) for the compiler
     template <typename Operation, typename ResultType>
-    void
-    accumulate_regular(
-      const Operation &op,
-      const size_type &n_chunks,
-      size_type &      index,
-      ResultType (&outer_results)[vector_accumulation_recursion_threshold],
-      std::integral_constant<bool, false>)
+    size_type
+    do_accumulate(const Operation op,
+                  const size_type vec_size,
+                  const size_type start_index,
+                  ResultType     *outer_results,
+                  std::integral_constant<bool, false>)
     {
-      // note that each chunk is chosen to have a width of 32, thereby the index
+      // Create local copy to indicate no aliasing to the compiler
+      size_type index = start_index;
+
+      // choose each chunk to have a width of 32, thereby the index
       // is incremented by 4*8 for each @p i.
+      size_type n_chunks = vec_size / 32;
       for (size_type i = 0; i < n_chunks; ++i)
         {
-          ResultType r0 = op(index);
-          ResultType r1 = op(index + 1);
-          ResultType r2 = op(index + 2);
-          ResultType r3 = op(index + 3);
-          index += 4;
-          for (size_type j = 1; j < 8; ++j, index += 4)
+          ResultType r = {};
+          for (unsigned int k = 0; k < 2; ++k)
             {
-              r0 += op(index);
-              r1 += op(index + 1);
-              r2 += op(index + 2);
-              r3 += op(index + 3);
+              ResultType r0 = op(index);
+              ResultType r1 = op(index + 1);
+              ResultType r2 = op(index + 2);
+              ResultType r3 = op(index + 3);
+              index += 4;
+              for (size_type j = 1; j < 4; ++j, index += 4)
+                {
+                  r0 += op(index);
+                  r1 += op(index + 1);
+                  r2 += op(index + 2);
+                  r3 += op(index + 3);
+                }
+              r += (r0 + r1) + (r2 + r3);
             }
-          r0 += r1;
-          r2 += r3;
-          outer_results[i] = r0 + r2;
+          outer_results[i] = r;
         }
+
+      if (n_chunks * 32 < vec_size)
+        {
+          const size_type remainder       = vec_size - n_chunks * 32;
+          const size_type inner_chunks    = remainder / 8;
+          const size_type remainder_inner = remainder % 8;
+          ResultType r0 = ResultType(), r1 = ResultType(), r2 = ResultType();
+          switch (inner_chunks)
+            {
+              case 3:
+                r2 = op(index++);
+                for (size_type j = 1; j < 8; ++j)
+                  r2 += op(index++);
+                DEAL_II_FALLTHROUGH;
+              case 2:
+                r1 = op(index++);
+                for (size_type j = 1; j < 8; ++j)
+                  r1 += op(index++);
+                r1 += r2;
+                DEAL_II_FALLTHROUGH;
+              case 1:
+                r2 = op(index++);
+                for (size_type j = 1; j < 8; ++j)
+                  r2 += op(index++);
+                DEAL_II_FALLTHROUGH;
+              default:
+                for (size_type j = 0; j < remainder_inner; ++j)
+                  r0 += op(index++);
+                outer_results[n_chunks++] = (r0 + r2) + r1;
+                break;
+            }
+        }
+
+      // make sure we worked through all indices
+      AssertDimension(index, start_index + vec_size);
+
+      return n_chunks;
     }
 
 
 
     // this is the inner working routine for the accumulation loops
-    // below. This is the specialized case where the loop bounds are known and
-    // where we can vectorize. In that case, we request the 'do_vectorized'
-    // routine of the operation instead of the regular one which does several
-    // operations at once.
+    // below. This is the specialized case where we can vectorize. We request
+    // the 'do_vectorized' routine of the operation instead of the regular one
+    // which does several operations at once. As above, pass in the functor by
+    // value to create a local copy of the scalar factors in the function (if
+    // there are any).
     template <typename Operation, typename Number>
-    void
-    accumulate_regular(
-      const Operation &op,
-      size_type &      n_chunks,
-      size_type &      index,
-      Number (&outer_results)[vector_accumulation_recursion_threshold],
-      std::integral_constant<bool, true>)
+    size_type
+    do_accumulate(const Operation op,
+                  const size_type vec_size,
+                  const size_type start_index,
+                  Number         *outer_results,
+                  std::integral_constant<bool, true>)
     {
+      // Create local copy to indicate no aliasing to the compiler
+      size_type index = start_index;
+
       // we start from @p index and workout @p n_chunks each of size 32.
       // in order employ SIMD and work on @p nvecs at a time, we split this
       // loop yet again:
       // First we work on (n_chunks/nvecs) chunks, where each chunk processes
       // nvecs*(4*8) elements.
 
-      constexpr unsigned int nvecs          = VectorizedArray<Number>::size();
-      const size_type        regular_chunks = n_chunks / nvecs;
+      constexpr size_type n_lanes        = VectorizedArray<Number>::size();
+      const size_type     regular_chunks = vec_size / (32 * n_lanes);
       for (size_type i = 0; i < regular_chunks; ++i)
         {
-          VectorizedArray<Number> r0 = op.do_vectorized(index);
-          VectorizedArray<Number> r1 = op.do_vectorized(index + nvecs);
-          VectorizedArray<Number> r2 = op.do_vectorized(index + 2 * nvecs);
-          VectorizedArray<Number> r3 = op.do_vectorized(index + 3 * nvecs);
-          index += nvecs * 4;
-          for (size_type j = 1; j < 8; ++j, index += nvecs * 4)
+          VectorizedArray<Number> r = {};
+          for (unsigned int k = 0; k < 2; ++k)
             {
-              r0 += op.do_vectorized(index);
-              r1 += op.do_vectorized(index + nvecs);
-              r2 += op.do_vectorized(index + 2 * nvecs);
-              r3 += op.do_vectorized(index + 3 * nvecs);
+              VectorizedArray<Number> r0 = op.do_vectorized(index);
+              VectorizedArray<Number> r1 = op.do_vectorized(index + n_lanes);
+              VectorizedArray<Number> r2 =
+                op.do_vectorized(index + 2 * n_lanes);
+              VectorizedArray<Number> r3 =
+                op.do_vectorized(index + 3 * n_lanes);
+              index += n_lanes * 4;
+              for (size_type j = 1; j < 4; ++j, index += n_lanes * 4)
+                {
+                  r0 += op.do_vectorized(index);
+                  r1 += op.do_vectorized(index + n_lanes);
+                  r2 += op.do_vectorized(index + 2 * n_lanes);
+                  r3 += op.do_vectorized(index + 3 * n_lanes);
+                }
+              r += (r0 + r1) + (r2 + r3);
             }
-          r0 += r1;
-          r2 += r3;
-          r0 += r2;
-          r0.store(&outer_results[i * nvecs]);
+          r.store(&outer_results[i * n_lanes]);
         }
 
       // If we are treating a case where the vector length is not divisible by
       // the vectorization length, need a cleanup loop
       // The remaining chunks are processed one by one starting from
-      // regular_chunks * nvecs; We do as much as possible with 2 SIMD
-      // operations within each chunk. Here we assume that nvecs < 32/2 = 16 as
-      // well as 16%nvecs==0.
-      static_assert(
-        VectorizedArray<Number>::size() <= 16 &&
-          16 % VectorizedArray<Number>::size() == 0,
-        "VectorizedArray::size() must be a power of 2 and not more than 16");
-      Assert(16 % nvecs == 0, ExcInternalError());
-      if (n_chunks % nvecs != 0)
+      // regular_chunks * n_lanes; We do as much as possible with 2 SIMD
+      // operations within each chunk. Here we assume that n_lanes < 32/2 = 16
+      // as well as 16 % n_lanes == 0.
+      static_assert(n_lanes <= 16 && 16 % n_lanes == 0,
+                    "VectorizedArray::size() must be 1, 2, 4, 8, or 16");
+      size_type       n_chunks        = regular_chunks * n_lanes;
+      const size_type start_irregular = regular_chunks * n_lanes * 32;
+      if (start_irregular < vec_size)
         {
           VectorizedArray<Number> r0  = VectorizedArray<Number>(),
                                   r1  = VectorizedArray<Number>();
-          const size_type start_irreg = regular_chunks * nvecs;
-          for (size_type c = start_irreg; c < n_chunks; ++c)
-            for (size_type j = 0; j < 32; j += 2 * nvecs, index += 2 * nvecs)
-              {
-                r0 += op.do_vectorized(index);
-                r1 += op.do_vectorized(index + nvecs);
-              }
+          const size_type remainder   = vec_size - start_irregular;
+          const size_type loop_length = remainder / (2 * n_lanes);
+          for (size_type j = 0; j < loop_length; ++j, index += 2 * n_lanes)
+            {
+              r0 += op.do_vectorized(index);
+              r1 += op.do_vectorized(index + n_lanes);
+            }
+          Number    scalar_part = Number();
+          size_type last        = remainder % (2 * n_lanes);
+          if (last > 0)
+            {
+              if (last >= n_lanes)
+                {
+                  r0 += op.do_vectorized(index);
+                  index += n_lanes;
+                  last -= n_lanes;
+                }
+              for (unsigned int i = 0; i < last; ++i)
+                scalar_part += op(index++);
+            }
+
           r0 += r1;
-          r0.store(&outer_results[start_irreg]);
-          // update n_chunks to denote unused element in outer_results[] from
-          // which we can keep writing.
-          n_chunks = start_irreg + VectorizedArray<Number>::size();
+          r0.store(&outer_results[n_chunks]);
+          outer_results[n_chunks] += scalar_part;
+
+          // update n_chunks to denote range of entries to sum up in
+          // outer_results[].
+          n_chunks += n_lanes;
         }
+
+      // make sure we worked through all indices
+      AssertDimension(index, start_index + vec_size);
+
+      return n_chunks;
     }
 
 
@@ -1350,14 +1405,17 @@ namespace internal
      * parallel.
      */
     template <typename Operation, typename ResultType>
-    void
-    parallel_reduce(
-      const Operation &op,
-      const size_type  start,
-      const size_type  end,
-      ResultType &     result,
-      const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-        &partitioner)
+#ifndef DEBUG
+    DEAL_II_ALWAYS_INLINE
+#endif
+      inline void
+      parallel_reduce(
+        const Operation &op,
+        const size_type  start,
+        const size_type  end,
+        ResultType      &result,
+        const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
+          &partitioner)
     {
 #ifdef DEAL_II_WITH_TBB
       const size_type vec_size = end - start;
@@ -1415,9 +1473,9 @@ namespace internal
         ::dealii::MemorySpace::MemorySpaceData<Number, MemorySpace> & /*data*/)
       {
         static_assert(
-          std::is_same<MemorySpace, ::dealii::MemorySpace::CUDA>::value &&
-            std::is_same<Number, Number2>::value,
-          "For the CUDA MemorySpace Number and Number2 should be the same type");
+          std::is_same_v<MemorySpace, ::dealii::MemorySpace::Default> &&
+            std::is_same_v<Number, Number2>,
+          "For the Default MemorySpace Number and Number2 should be the same type");
       }
 
       static void
@@ -1608,7 +1666,7 @@ namespace internal
         const size_type /*size*/,
         real_type & /*sum*/,
         Number * /*values*/,
-        Number * /*values_dev*/)
+        Number * /*values*/)
       {}
 
       template <typename real_type>
@@ -1657,7 +1715,7 @@ namespace internal
     {
       static void
       copy(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-             &             thread_loop_partitioner,
+                          &thread_loop_partitioner,
            const size_type size,
            const ::dealii::MemorySpace::
              MemorySpaceData<Number2, ::dealii::MemorySpace::Host> &v_data,
@@ -1665,28 +1723,28 @@ namespace internal
                                                   ::dealii::MemorySpace::Host>
              &data)
       {
-        Vector_copy<Number, Number2> copier(v_data.values.get(),
-                                            data.values.get());
+        Vector_copy<Number, Number2> copier(v_data.values.data(),
+                                            data.values.data());
         parallel_for(copier, 0, size, thread_loop_partitioner);
       }
 
       static void
       set(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-            &             thread_loop_partitioner,
+                         &thread_loop_partitioner,
           const size_type size,
           const Number    s,
           ::dealii::MemorySpace::MemorySpaceData<Number,
                                                  ::dealii::MemorySpace::Host>
             &data)
       {
-        Vector_set<Number> setter(s, data.values.get());
+        Vector_set<Number> setter(s, data.values.data());
         parallel_for(setter, 0, size, thread_loop_partitioner);
       }
 
       static void
       add_vector(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const ::dealii::MemorySpace::
           MemorySpaceData<Number, ::dealii::MemorySpace::Host> &v_data,
@@ -1694,15 +1752,15 @@ namespace internal
                                                ::dealii::MemorySpace::Host>
           &data)
       {
-        Vectorization_add_v<Number> vector_add(data.values.get(),
-                                               v_data.values.get());
+        Vectorization_add_v<Number> vector_add(data.values.data(),
+                                               v_data.values.data());
         parallel_for(vector_add, 0, size, thread_loop_partitioner);
       }
 
       static void
       subtract_vector(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const ::dealii::MemorySpace::
           MemorySpaceData<Number, ::dealii::MemorySpace::Host> &v_data,
@@ -1710,28 +1768,28 @@ namespace internal
                                                ::dealii::MemorySpace::Host>
           &data)
       {
-        Vectorization_subtract_v<Number> vector_subtract(data.values.get(),
-                                                         v_data.values.get());
+        Vectorization_subtract_v<Number> vector_subtract(data.values.data(),
+                                                         v_data.values.data());
         parallel_for(vector_subtract, 0, size, thread_loop_partitioner);
       }
 
       static void
       add_factor(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         Number          a,
         ::dealii::MemorySpace::MemorySpaceData<Number,
                                                ::dealii::MemorySpace::Host>
           &data)
       {
-        Vectorization_add_factor<Number> vector_add(data.values.get(), a);
+        Vectorization_add_factor<Number> vector_add(data.values.data(), a);
         parallel_for(vector_add, 0, size, thread_loop_partitioner);
       }
 
       static void
       add_av(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-               &             thread_loop_partitioner,
+                            &thread_loop_partitioner,
              const size_type size,
              const Number    a,
              const ::dealii::MemorySpace::
@@ -1740,8 +1798,8 @@ namespace internal
                                                     ::dealii::MemorySpace::Host>
                &data)
       {
-        Vectorization_add_av<Number> vector_add(data.values.get(),
-                                                v_data.values.get(),
+        Vectorization_add_av<Number> vector_add(data.values.data(),
+                                                v_data.values.data(),
                                                 a);
         parallel_for(vector_add, 0, size, thread_loop_partitioner);
       }
@@ -1749,7 +1807,7 @@ namespace internal
       static void
       add_avpbw(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const Number    a,
         const Number    b,
@@ -1762,14 +1820,14 @@ namespace internal
           &data)
       {
         Vectorization_add_avpbw<Number> vector_add(
-          data.values.get(), v_data.values.get(), w_data.values.get(), a, b);
+          data.values.data(), v_data.values.data(), w_data.values.data(), a, b);
         parallel_for(vector_add, 0, size, thread_loop_partitioner);
       }
 
       static void
       sadd_xv(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const Number    x,
         const ::dealii::MemorySpace::
@@ -1778,8 +1836,8 @@ namespace internal
                                                ::dealii::MemorySpace::Host>
           &data)
       {
-        Vectorization_sadd_xv<Number> vector_sadd(data.values.get(),
-                                                  v_data.values.get(),
+        Vectorization_sadd_xv<Number> vector_sadd(data.values.data(),
+                                                  v_data.values.data(),
                                                   x);
         parallel_for(vector_sadd, 0, size, thread_loop_partitioner);
       }
@@ -1787,7 +1845,7 @@ namespace internal
       static void
       sadd_xav(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const Number    x,
         const Number    a,
@@ -1797,8 +1855,8 @@ namespace internal
                                                ::dealii::MemorySpace::Host>
           &data)
       {
-        Vectorization_sadd_xav<Number> vector_sadd(data.values.get(),
-                                                   v_data.values.get(),
+        Vectorization_sadd_xav<Number> vector_sadd(data.values.data(),
+                                                   v_data.values.data(),
                                                    a,
                                                    x);
         parallel_for(vector_sadd, 0, size, thread_loop_partitioner);
@@ -1807,7 +1865,7 @@ namespace internal
       static void
       sadd_xavbw(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const Number    x,
         const Number    a,
@@ -1820,29 +1878,33 @@ namespace internal
                                                ::dealii::MemorySpace::Host>
           &data)
       {
-        Vectorization_sadd_xavbw<Number> vector_sadd(
-          data.values.get(), v_data.values.get(), w_data.values.get(), x, a, b);
+        Vectorization_sadd_xavbw<Number> vector_sadd(data.values.data(),
+                                                     v_data.values.data(),
+                                                     w_data.values.data(),
+                                                     x,
+                                                     a,
+                                                     b);
         parallel_for(vector_sadd, 0, size, thread_loop_partitioner);
       }
 
       static void
       multiply_factor(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const Number    factor,
         ::dealii::MemorySpace::MemorySpaceData<Number,
                                                ::dealii::MemorySpace::Host>
           &data)
       {
-        Vectorization_multiply_factor<Number> vector_multiply(data.values.get(),
-                                                              factor);
+        Vectorization_multiply_factor<Number> vector_multiply(
+          data.values.data(), factor);
         parallel_for(vector_multiply, 0, size, thread_loop_partitioner);
       }
 
       static void
       scale(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-              &             thread_loop_partitioner,
+                           &thread_loop_partitioner,
             const size_type size,
             const ::dealii::MemorySpace::
               MemorySpaceData<Number, ::dealii::MemorySpace::Host> &v_data,
@@ -1850,14 +1912,14 @@ namespace internal
                                                    ::dealii::MemorySpace::Host>
               &data)
       {
-        Vectorization_scale<Number> vector_scale(data.values.get(),
-                                                 v_data.values.get());
+        Vectorization_scale<Number> vector_scale(data.values.data(),
+                                                 v_data.values.data());
         parallel_for(vector_scale, 0, size, thread_loop_partitioner);
       }
 
       static void
       equ_au(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-               &             thread_loop_partitioner,
+                            &thread_loop_partitioner,
              const size_type size,
              const Number    a,
              const ::dealii::MemorySpace::
@@ -1866,8 +1928,8 @@ namespace internal
                                                     ::dealii::MemorySpace::Host>
                &data)
       {
-        Vectorization_equ_au<Number> vector_equ(data.values.get(),
-                                                v_data.values.get(),
+        Vectorization_equ_au<Number> vector_equ(data.values.data(),
+                                                v_data.values.data(),
                                                 a);
         parallel_for(vector_equ, 0, size, thread_loop_partitioner);
       }
@@ -1875,7 +1937,7 @@ namespace internal
       static void
       equ_aubv(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const Number    a,
         const Number    b,
@@ -1888,13 +1950,13 @@ namespace internal
           &data)
       {
         Vectorization_equ_aubv<Number> vector_equ(
-          data.values.get(), v_data.values.get(), w_data.values.get(), a, b);
+          data.values.data(), v_data.values.data(), w_data.values.data(), a, b);
         parallel_for(vector_equ, 0, size, thread_loop_partitioner);
       }
 
       static Number
       dot(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-            &             thread_loop_partitioner,
+                         &thread_loop_partitioner,
           const size_type size,
           const ::dealii::MemorySpace::
             MemorySpaceData<Number2, ::dealii::MemorySpace::Host> &v_data,
@@ -1904,7 +1966,7 @@ namespace internal
       {
         Number                                                   sum;
         dealii::internal::VectorOperations::Dot<Number, Number2> dot(
-          data.values.get(), v_data.values.get());
+          data.values.data(), v_data.values.data());
         dealii::internal::VectorOperations::parallel_reduce(
           dot, 0, size, sum, thread_loop_partitioner);
         AssertIsFinite(sum);
@@ -1915,27 +1977,27 @@ namespace internal
       template <typename real_type>
       static void
       norm_2(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-               &             thread_loop_partitioner,
+                            &thread_loop_partitioner,
              const size_type size,
-             real_type &     sum,
+             real_type      &sum,
              ::dealii::MemorySpace::MemorySpaceData<Number,
                                                     ::dealii::MemorySpace::Host>
                &data)
       {
-        Norm2<Number, real_type> norm2(data.values.get());
+        Norm2<Number, real_type> norm2(data.values.data());
         parallel_reduce(norm2, 0, size, sum, thread_loop_partitioner);
       }
 
       static Number
       mean_value(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const ::dealii::MemorySpace::
           MemorySpaceData<Number, ::dealii::MemorySpace::Host> &data)
       {
         Number            sum;
-        MeanValue<Number> mean(data.values.get());
+        MeanValue<Number> mean(data.values.data());
         parallel_reduce(mean, 0, size, sum, thread_loop_partitioner);
 
         return sum;
@@ -1944,36 +2006,36 @@ namespace internal
       template <typename real_type>
       static void
       norm_1(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-               &             thread_loop_partitioner,
+                            &thread_loop_partitioner,
              const size_type size,
-             real_type &     sum,
+             real_type      &sum,
              ::dealii::MemorySpace::MemorySpaceData<Number,
                                                     ::dealii::MemorySpace::Host>
                &data)
       {
-        Norm1<Number, real_type> norm1(data.values.get());
+        Norm1<Number, real_type> norm1(data.values.data());
         parallel_reduce(norm1, 0, size, sum, thread_loop_partitioner);
       }
 
       template <typename real_type>
       static void
       norm_p(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-               &             thread_loop_partitioner,
+                            &thread_loop_partitioner,
              const size_type size,
-             real_type &     sum,
+             real_type      &sum,
              const real_type p,
              ::dealii::MemorySpace::MemorySpaceData<Number,
                                                     ::dealii::MemorySpace::Host>
                &data)
       {
-        NormP<Number, real_type> normp(data.values.get(), p);
+        NormP<Number, real_type> normp(data.values.data(), p);
         parallel_reduce(normp, 0, size, sum, thread_loop_partitioner);
       }
 
       static Number
       add_and_dot(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &             thread_loop_partitioner,
+                       &thread_loop_partitioner,
         const size_type size,
         const Number    a,
         const ::dealii::MemorySpace::
@@ -1985,9 +2047,9 @@ namespace internal
           &data)
       {
         Number            sum;
-        AddAndDot<Number> adder(data.values.get(),
-                                v_data.values.get(),
-                                w_data.values.get(),
+        AddAndDot<Number> adder(data.values.data(),
+                                v_data.values.data(),
+                                w_data.values.data(),
                                 a);
         parallel_reduce(adder, 0, size, sum, thread_loop_partitioner);
 
@@ -1998,7 +2060,7 @@ namespace internal
       static void
       import_elements(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &                     thread_loop_partitioner,
+                               &thread_loop_partitioner,
         const size_type         size,
         VectorOperation::values operation,
         const ::dealii::MemorySpace::MemorySpaceData<Number, MemorySpace2>
@@ -2006,9 +2068,9 @@ namespace internal
         ::dealii::MemorySpace::MemorySpaceData<Number,
                                                ::dealii::MemorySpace::Host>
           &data,
-        typename std::enable_if<
-          std::is_same<MemorySpace2, dealii::MemorySpace::Host>::value,
-          int>::type = 0)
+        std::enable_if_t<
+          std::is_same_v<MemorySpace2, dealii::MemorySpace::Host>,
+          int> = 0)
       {
         if (operation == VectorOperation::insert)
           {
@@ -2024,7 +2086,6 @@ namespace internal
           }
       }
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
       template <typename MemorySpace2>
       static void
       import_elements(
@@ -2037,52 +2098,45 @@ namespace internal
         ::dealii::MemorySpace::MemorySpaceData<Number,
                                                ::dealii::MemorySpace::Host>
           &data,
-        typename std::enable_if<
-          std::is_same<MemorySpace2, ::dealii::MemorySpace::CUDA>::value,
-          int>::type = 0)
+        std::enable_if_t<
+          std::is_same_v<MemorySpace2, ::dealii::MemorySpace::Default>,
+          int> = 0)
       {
         if (operation == VectorOperation::insert)
           {
-            cudaError_t cuda_error_code = cudaMemcpy(data.values.get(),
-                                                     v_data.values_dev.get(),
-                                                     size * sizeof(Number),
-                                                     cudaMemcpyDeviceToHost);
-            AssertCuda(cuda_error_code);
+            Kokkos::deep_copy(
+              Kokkos::subview(data.values,
+                              Kokkos::pair<size_type, size_type>(0, size)),
+              Kokkos::subview(v_data.values,
+                              Kokkos::pair<size_type, size_type>(0, size)));
           }
         else
           {
             AssertThrow(false, ExcNotImplemented());
           }
       }
-#endif
     };
 
 
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
     template <typename Number>
-    struct functions<Number, Number, ::dealii::MemorySpace::CUDA>
+    struct functions<Number, Number, ::dealii::MemorySpace::Default>
     {
-      static const int block_size =
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::block_size;
-      static const int chunk_size =
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::chunk_size;
-
       static void
       copy(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner> &,
         const size_type size,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        cudaError_t cuda_error_code = cudaMemcpy(data.values_dev.get(),
-                                                 v_data.values_dev.get(),
-                                                 size * sizeof(Number),
-                                                 cudaMemcpyDeviceToDevice);
-        AssertCuda(cuda_error_code);
+        Kokkos::deep_copy(
+          Kokkos::subview(data.values,
+                          Kokkos::pair<size_type, size_type>(0, size)),
+          Kokkos::subview(v_data.values,
+                          Kokkos::pair<size_type, size_type>(0, size)));
       }
 
       static void
@@ -2090,13 +2144,13 @@ namespace internal
           const size_type size,
           const Number    s,
           ::dealii::MemorySpace::MemorySpaceData<Number,
-                                                 ::dealii::MemorySpace::CUDA>
+                                                 ::dealii::MemorySpace::Default>
             &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::set<Number>
-          <<<n_blocks, block_size>>>(data.values_dev.get(), s, size);
-        AssertCudaKernel();
+        Kokkos::deep_copy(
+          Kokkos::subview(data.values,
+                          Kokkos::pair<size_type, size_type>(0, size)),
+          s);
       }
 
       static void
@@ -2104,18 +2158,20 @@ namespace internal
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner> &,
         const size_type size,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::add_aV<Number>
-          <<<n_blocks, block_size>>>(data.values_dev.get(),
-                                     1.,
-                                     v_data.values_dev.get(),
-                                     size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::add_vector",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(int i) { data.values(i) += v_data.values(i); });
+        exec.fence();
       }
 
       static void
@@ -2123,18 +2179,20 @@ namespace internal
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner> &,
         const size_type size,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::add_aV<Number>
-          <<<n_blocks, block_size>>>(data.values_dev.get(),
-                                     -1.,
-                                     v_data.values_dev.get(),
-                                     size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::subtract_vector",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) { data.values(i) -= v_data.values(i); });
+        exec.fence();
       }
 
       static void
@@ -2143,13 +2201,18 @@ namespace internal
         const size_type size,
         Number          a,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::vec_add<Number>
-          <<<n_blocks, block_size>>>(data.values_dev.get(), a, size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::add_factor",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) { data.values(i) += a; });
+        exec.fence();
       }
 
       static void
@@ -2158,18 +2221,22 @@ namespace internal
         const size_type size,
         const Number    a,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::add_aV<Number>
-          <<<n_blocks, block_size>>>(data.values_dev.get(),
-                                     a,
-                                     v_data.values_dev.get(),
-                                     size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::add_av",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) {
+            data.values(i) += a * v_data.values(i);
+          });
+        exec.fence();
       }
 
       static void
@@ -2179,22 +2246,24 @@ namespace internal
         const Number    a,
         const Number    b,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &w_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &w_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::add_aVbW<Number>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(data.values_dev.get(),
-                                                    a,
-                                                    v_data.values_dev.get(),
-                                                    b,
-                                                    w_data.values_dev.get(),
-                                                    size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::add_avpbw",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) {
+            data.values(i) += a * v_data.values(i) + b * w_data.values(i);
+          });
+        exec.fence();
       }
 
       static void
@@ -2203,16 +2272,22 @@ namespace internal
         const size_type size,
         const Number    x,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::sadd<Number>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(
-            x, data.values_dev.get(), 1., v_data.values_dev.get(), size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::sadd_xv",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) {
+            data.values(i) = x * data.values(i) + v_data.values(i);
+          });
+        exec.fence();
       }
 
       static void
@@ -2222,16 +2297,22 @@ namespace internal
         const Number    x,
         const Number    a,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::sadd<Number>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(
-            x, data.values_dev.get(), a, v_data.values_dev.get(), size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::sadd_xav",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) {
+            data.values(i) = x * data.values(i) + a * v_data.values(i);
+          });
+        exec.fence();
       }
 
       static void
@@ -2242,23 +2323,25 @@ namespace internal
         const Number    a,
         const Number    b,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &w_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &w_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::sadd<Number>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(x,
-                                                    data.values_dev.get(),
-                                                    a,
-                                                    v_data.values_dev.get(),
-                                                    b,
-                                                    w_data.values_dev.get(),
-                                                    size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::sadd_xavbw",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) {
+            data.values(i) =
+              x * data.values(i) + a * v_data.values(i) + b * w_data.values(i);
+          });
+        exec.fence();
       }
 
       static void
@@ -2267,13 +2350,18 @@ namespace internal
         const size_type size,
         const Number    factor,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::vec_scale<Number>
-          <<<n_blocks, block_size>>>(data.values_dev.get(), factor, size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::multiply_factor",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) { data.values(i) *= factor; });
+        exec.fence();
       }
 
       static void
@@ -2281,17 +2369,20 @@ namespace internal
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner> &,
         const size_type size,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::scale<Number>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(data.values_dev.get(),
-                                                    v_data.values_dev.get(),
-                                                    size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::scale",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) { data.values(i) *= v_data.values(i); });
+        exec.fence();
       }
 
       static void
@@ -2300,18 +2391,22 @@ namespace internal
         const size_type size,
         const Number    a,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::equ<Number>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(data.values_dev.get(),
-                                                    a,
-                                                    v_data.values_dev.get(),
-                                                    size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::equ_au",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) {
+            data.values(i) = a * v_data.values(i);
+          });
+        exec.fence();
       }
 
       static void
@@ -2321,75 +2416,61 @@ namespace internal
         const Number    a,
         const Number    b,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &w_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &w_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::equ<Number>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(data.values_dev.get(),
-                                                    a,
-                                                    v_data.values_dev.get(),
-                                                    b,
-                                                    w_data.values_dev.get(),
-                                                    size);
-        AssertCudaKernel();
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_for(
+          "dealii::equ_aubv",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i) {
+            data.values(i) = a * v_data.values(i) + b * w_data.values(i);
+          });
+        exec.fence();
       }
 
       static Number
       dot(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner> &,
           const size_type size,
           const ::dealii::MemorySpace::
-            MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+            MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
           ::dealii::MemorySpace::MemorySpaceData<Number,
-                                                 ::dealii::MemorySpace::CUDA>
+                                                 ::dealii::MemorySpace::Default>
             &data)
       {
-        Number *    result_device;
-        cudaError_t error_code = cudaMalloc(&result_device, sizeof(Number));
-        AssertCuda(error_code);
-        error_code = cudaMemset(result_device, 0, sizeof(Number));
-        AssertCuda(error_code);
-
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::double_vector_reduction<
-          Number,
-          ::dealii::LinearAlgebra::CUDAWrappers::kernel::DotProduct<Number>>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(result_device,
-                                                    data.values_dev.get(),
-                                                    v_data.values_dev.get(),
-                                                    static_cast<unsigned int>(
-                                                      size));
-        AssertCudaKernel();
-
-        // Copy the result back to the host
         Number result;
-        error_code = cudaMemcpy(&result,
-                                result_device,
-                                sizeof(Number),
-                                cudaMemcpyDeviceToHost);
-        AssertCuda(error_code);
-        // Free the memory on the device
-        error_code = cudaFree(result_device);
-        AssertCuda(error_code);
+
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_reduce(
+          "dealii::dot",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i, Number & update) {
+            update += data.values(i) * v_data.values(i);
+          },
+          result);
 
         AssertIsFinite(result);
-
         return result;
       }
 
       template <typename real_type>
       static void
       norm_2(const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-               &             thread_loop_partitioner,
+                            &thread_loop_partitioner,
              const size_type size,
-             real_type &     sum,
-             ::dealii::MemorySpace::MemorySpaceData<Number,
-                                                    ::dealii::MemorySpace::CUDA>
-               &data)
+             real_type      &sum,
+             ::dealii::MemorySpace::
+               MemorySpaceData<Number, ::dealii::MemorySpace::Default> &data)
       {
         sum = dot(thread_loop_partitioner, size, data, data);
       }
@@ -2399,32 +2480,23 @@ namespace internal
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner> &,
         const size_type size,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &data)
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &data)
       {
-        Number *    result_device;
-        cudaError_t error_code = cudaMalloc(&result_device, sizeof(Number));
-        AssertCuda(error_code);
-        error_code = cudaMemset(result_device, 0, sizeof(Number));
-
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::reduction<
-          Number,
-          ::dealii::LinearAlgebra::CUDAWrappers::kernel::ElemSum<Number>>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(result_device,
-                                                    data.values_dev.get(),
-                                                    size);
-
-        // Copy the result back to the host
         Number result;
-        error_code = cudaMemcpy(&result,
-                                result_device,
-                                sizeof(Number),
-                                cudaMemcpyDeviceToHost);
-        AssertCuda(error_code);
-        // Free the memory on the device
-        error_code = cudaFree(result_device);
-        AssertCuda(error_code);
 
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_reduce(
+          "dealii::mean_value",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i, Number & update) {
+            update += data.values(i);
+          },
+          result);
+
+        AssertIsFinite(result);
         return result;
       }
 
@@ -2433,46 +2505,59 @@ namespace internal
       norm_1(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner> &,
         const size_type size,
-        real_type &     sum,
+        real_type      &sum,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        Number *    result_device;
-        cudaError_t error_code = cudaMalloc(&result_device, sizeof(Number));
-        AssertCuda(error_code);
-        error_code = cudaMemset(result_device, 0, sizeof(Number));
-
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::reduction<
-          Number,
-          ::dealii::LinearAlgebra::CUDAWrappers::kernel::L1Norm<Number>>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(result_device,
-                                                    data.values_dev.get(),
-                                                    size);
-
-        // Copy the result back to the host
-        error_code = cudaMemcpy(&sum,
-                                result_device,
-                                sizeof(Number),
-                                cudaMemcpyDeviceToHost);
-        AssertCuda(error_code);
-        // Free the memory on the device
-        error_code = cudaFree(result_device);
-        AssertCuda(error_code);
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_reduce(
+          "dealii::norm_1",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i, Number & update) {
+#if KOKKOS_VERSION < 30400
+            update += std::abs(data.values(i));
+#elif KOKKOS_VERSION < 30700
+            update += Kokkos::Experimental::fabs(data.values(i));
+#else
+            update += Kokkos::abs(data.values(i));
+#endif
+          },
+          sum);
       }
 
       template <typename real_type>
       static void
       norm_p(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner> &,
-        const size_type,
-        real_type &,
-        real_type,
+        const size_type size,
+        real_type      &sum,
+        real_type       exp,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA> &)
+                                               ::dealii::MemorySpace::Default>
+          &data)
       {
-        Assert(false, ExcNotImplemented());
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_reduce(
+          "dealii::norm_p",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i, Number & update) {
+#if KOKKOS_VERSION < 30400
+            update += std::pow(fabs(data.values(i)), exp);
+#elif KOKKOS_VERSION < 30700
+            update += Kokkos::Experimental::pow(
+              Kokkos::Experimental::fabs(data.values(i)), exp);
+#else
+            update += Kokkos::pow(Kokkos::abs(data.values(i)), exp);
+#endif
+          },
+          sum);
       }
 
       static Number
@@ -2481,33 +2566,29 @@ namespace internal
         const size_type size,
         const Number    a,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &v_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &v_data,
         const ::dealii::MemorySpace::
-          MemorySpaceData<Number, ::dealii::MemorySpace::CUDA> &w_data,
+          MemorySpaceData<Number, ::dealii::MemorySpace::Default> &w_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data)
       {
-        Number *    res_d;
-        cudaError_t error_code = cudaMalloc(&res_d, sizeof(Number));
-        AssertCuda(error_code);
-        error_code = cudaMemset(res_d, 0, sizeof(Number));
-        AssertCuda(error_code);
-
-        const int n_blocks = 1 + size / (chunk_size * block_size);
-        ::dealii::LinearAlgebra::CUDAWrappers::kernel::add_and_dot<Number>
-          <<<dim3(n_blocks, 1), dim3(block_size)>>>(res_d,
-                                                    data.values_dev.get(),
-                                                    v_data.values_dev.get(),
-                                                    w_data.values_dev.get(),
-                                                    a,
-                                                    size);
-
         Number res;
-        error_code =
-          cudaMemcpy(&res, res_d, sizeof(Number), cudaMemcpyDeviceToHost);
-        AssertCuda(error_code);
-        error_code = cudaFree(res_d);
+
+        auto exec = typename ::dealii::MemorySpace::Default::kokkos_space::
+          execution_space{};
+        Kokkos::parallel_reduce(
+          "dealii::add_and_dot",
+          Kokkos::RangePolicy<
+            ::dealii::MemorySpace::Default::kokkos_space::execution_space>(
+            exec, 0, size),
+          KOKKOS_LAMBDA(size_type i, Number & update) {
+            data.values(i) += a * v_data.values(i);
+            update +=
+              data.values(i) * Number(numbers::NumberTraits<Number>::conjugate(
+                                 w_data.values(i)));
+          },
+          res);
 
         return res;
       }
@@ -2516,17 +2597,17 @@ namespace internal
       static void
       import_elements(
         const std::shared_ptr<::dealii::parallel::internal::TBBPartitioner>
-          &                     thread_loop_partitioner,
+                               &thread_loop_partitioner,
         const size_type         size,
         VectorOperation::values operation,
         const ::dealii::MemorySpace::MemorySpaceData<Number, MemorySpace2>
           &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data,
-        typename std::enable_if<
-          std::is_same<MemorySpace2, ::dealii::MemorySpace::CUDA>::value,
-          int>::type = 0)
+        std::enable_if_t<
+          std::is_same_v<MemorySpace2, ::dealii::MemorySpace::Default>,
+          int> = 0)
       {
         if (operation == VectorOperation::insert)
           {
@@ -2552,19 +2633,19 @@ namespace internal
         const ::dealii::MemorySpace::MemorySpaceData<Number, MemorySpace2>
           &v_data,
         ::dealii::MemorySpace::MemorySpaceData<Number,
-                                               ::dealii::MemorySpace::CUDA>
+                                               ::dealii::MemorySpace::Default>
           &data,
-        typename std::enable_if<
-          std::is_same<MemorySpace2, ::dealii::MemorySpace::Host>::value,
-          int>::type = 0)
+        std::enable_if_t<
+          std::is_same_v<MemorySpace2, ::dealii::MemorySpace::Host>,
+          int> = 0)
       {
         if (operation == VectorOperation::insert)
           {
-            cudaError_t cuda_error_code = cudaMemcpy(data.values_dev.get(),
-                                                     v_data.values.get(),
-                                                     size * sizeof(Number),
-                                                     cudaMemcpyHostToDevice);
-            AssertCuda(cuda_error_code);
+            Kokkos::deep_copy(
+              Kokkos::subview(data.values,
+                              Kokkos::pair<size_type, size_type>(0, size)),
+              Kokkos::subview(v_data.values,
+                              Kokkos::pair<size_type, size_type>(0, size)));
           }
         else
           {
@@ -2572,7 +2653,6 @@ namespace internal
           }
       }
     };
-#endif
   } // namespace VectorOperations
 } // namespace internal
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,7 +15,8 @@
 
 
 
-// check PETScWrappers::MatrixBase::clear_rows () with used second argument
+// check PETScWrappers::MatrixBase::clear_rows () and
+// PETScWrappers::MatrixBase::clear_rows_columns () with used second argument
 
 #include <deal.II/lac/petsc_sparse_matrix.h>
 #include <deal.II/lac/vector.h>
@@ -101,6 +102,12 @@ test(PETScWrappers::MatrixBase &m)
   // may remove some, though)
   AssertThrow(m.n_nonzero_elements() <= nnz, ExcInternalError());
 
+  m.clear_rows_columns(std::vector<size_type>(&rows[0], &rows[2]), rnd);
+
+  deallog << m.frobenius_norm() << std::endl;
+  deallog << m.n_nonzero_elements() << ' ' << nnz << std::endl;
+
+  AssertThrow(m.n_nonzero_elements() <= nnz, ExcInternalError());
   deallog << "OK" << std::endl;
 }
 
@@ -119,7 +126,7 @@ main(int argc, char **argv)
         test(v);
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

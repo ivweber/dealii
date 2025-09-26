@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2019 by the deal.II authors
+// Copyright (C) 2015 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,7 +24,7 @@ IntegratedLegendreSZ::IntegratedLegendreSZ(const unsigned int k)
 
 
 
-const std::vector<double>
+std::vector<double>
 IntegratedLegendreSZ::get_coefficients(const unsigned int k)
 {
   std::vector<double> coefficients(k + 1);

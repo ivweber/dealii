@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,7 +35,7 @@ namespace python
 
   ReferenceCellWrapper::ReferenceCellWrapper(const std::uint8_t &kind)
   {
-    cell_type = internal::ReferenceCell::make_reference_cell_from_int(kind);
+    cell_type = internal::make_reference_cell_from_int(kind);
   }
 
 

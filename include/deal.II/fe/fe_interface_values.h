@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,8 +21,10 @@
 #include <deal.II/base/std_cxx20/iota_view.h>
 
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping.h>
 
+#include <deal.II/hp/fe_collection.h>
+#include <deal.II/hp/fe_values.h>
 #include <deal.II/hp/q_collection.h>
 
 DEAL_II_NAMESPACE_OPEN
@@ -47,7 +49,7 @@ namespace FEInterfaceViews
   public:
     /**
      * The constructor.
-     **/
+     */
     Base(const FEInterfaceValues<dim, spacedim> &fe_interface);
 
   protected:
@@ -63,7 +65,7 @@ namespace FEInterfaceViews
     template <class InputVector, class OutputVector>
     void
     get_local_dof_values(const InputVector &dof_values,
-                         OutputVector &     local_dof_values) const;
+                         OutputVector      &local_dof_values) const;
   };
 
 
@@ -149,7 +151,7 @@ namespace FEInterfaceViews
     /**
      * @name Access to shape functions
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the value of the shape function
@@ -175,12 +177,12 @@ namespace FEInterfaceViews
           const unsigned int interface_dof_index,
           const unsigned int q_point) const;
 
-    //@}
+    /** @} */
 
     /**
      * @name Access to jumps in shape functions and their derivatives
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the jump $\jump{u}=u_1 - u_2$ on the interface for the shape
@@ -197,16 +199,6 @@ namespace FEInterfaceViews
                    const unsigned int q_point) const;
 
     /**
-     * The same as above.
-     *
-     * @deprecated Use the jump_in_values() function instead.
-     */
-    DEAL_II_DEPRECATED
-    value_type
-    jump(const unsigned int interface_dof_index,
-         const unsigned int q_point) const;
-
-    /**
      * Return the jump of the gradient $\jump{nabla u}$ on the interface for
      * the shape
      * function @p interface_dof_index in the quadrature point @p q_point
@@ -219,16 +211,6 @@ namespace FEInterfaceViews
     gradient_type
     jump_in_gradients(const unsigned int interface_dof_index,
                       const unsigned int q_point) const;
-
-    /**
-     * The same as above.
-     *
-     * @deprecated Use the jump_in_gradients() function instead.
-     */
-    DEAL_II_DEPRECATED
-    gradient_type
-    jump_gradient(const unsigned int interface_dof_index,
-                  const unsigned int q_point) const;
 
     /**
      * Return the jump in the gradient $\jump{\nabla u}=\nabla u_{\text{cell0}}
@@ -245,16 +227,6 @@ namespace FEInterfaceViews
                      const unsigned int q_point) const;
 
     /**
-     * The same as above.
-     *
-     * @deprecated Use the jump_in_hessians() function instead.
-     */
-    DEAL_II_DEPRECATED
-    hessian_type
-    jump_hessian(const unsigned int interface_dof_index,
-                 const unsigned int q_point) const;
-
-    /**
      * Return the jump in the third derivative $\jump{\nabla^3 u} = \nabla^3
      * u_{\text{cell0}} - \nabla^3 u_{\text{cell1}}$ on the interface for the
      * shape function @p interface_dof_index at the quadrature point @p q_point of
@@ -268,22 +240,12 @@ namespace FEInterfaceViews
     jump_in_third_derivatives(const unsigned int interface_dof_index,
                               const unsigned int q_point) const;
 
-    /**
-     * The same as above.
-     *
-     * @deprecated Use the jump_in_third_derivatives() function instead.
-     */
-    DEAL_II_DEPRECATED
-    third_derivative_type
-    jump_3rd_derivative(const unsigned int interface_dof_index,
-                        const unsigned int q_point) const;
-
-    //@}
+    /** @} */
 
     /**
      * @name Access to the average of shape functions and their derivatives
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the average value $\average{u}=\frac{1}{2}(u_1 + u_2)$ on the
@@ -300,26 +262,6 @@ namespace FEInterfaceViews
                       const unsigned int q_point) const;
 
     /**
-     * The same as above.
-     *
-     * @deprecated Use the average_of_values() function instead.
-     */
-    DEAL_II_DEPRECATED
-    value_type
-    average_value(const unsigned int interface_dof_index,
-                  const unsigned int q_point) const;
-
-    /**
-     * The same as above.
-     *
-     * @deprecated Use the average_of_values() function instead.
-     */
-    DEAL_II_DEPRECATED
-    value_type
-    average(const unsigned int interface_dof_index,
-            const unsigned int q_point) const;
-
-    /**
      * Return the average of the gradient $\average{\nabla u}$ on the interface
      * for the shape
      * function @p interface_dof_index in the quadrature point @p q_point
@@ -332,16 +274,6 @@ namespace FEInterfaceViews
     gradient_type
     average_of_gradients(const unsigned int interface_dof_index,
                          const unsigned int q_point) const;
-
-    /**
-     * The same as above.
-     *
-     * @deprecated Use the average_of_gradients() function instead.
-     */
-    DEAL_II_DEPRECATED
-    gradient_type
-    average_gradient(const unsigned int interface_dof_index,
-                     const unsigned int q_point) const;
 
     /**
      * Return the average of the Hessian $\average{\nabla^2 u} =
@@ -359,21 +291,26 @@ namespace FEInterfaceViews
                         const unsigned int q_point) const;
 
     /**
-     * The same as above.
+     * Return the average the third derivative $\jump{\nabla^3 u} = 
+     * \frac{1}{2} \nabla^3 u_{\text{cell0}} + \frac{1}{2} \nabla^3 
+     * u_{\text{cell1}}$ on the interface for the
+     * shape function @p interface_dof_index at the quadrature point @p q_point of
+     * the component selected by this view.
      *
-     * @deprecated Use the average_of_hessians() function instead.
+     * @note The name of the function is supposed to be read as "the average
+     *   (singular) of the third derivatives (plural: one or two possible values
+     *   for the third derivative) of the shape function (singular)".
      */
-    DEAL_II_DEPRECATED
-    hessian_type
-    average_hessian(const unsigned int interface_dof_index,
-                    const unsigned int q_point) const;
+    third_derivative_type
+    average_of_third_derivatives(const unsigned int interface_dof_index,
+                                 const unsigned int q_point) const;
 
-    //@}
+    /** @} */
 
     /**
      * @name Access to values of global finite element fields
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the values of the selected scalar component of the finite
@@ -432,12 +369,12 @@ namespace FEInterfaceViews
       std::vector<solution_value_type<typename InputVector::value_type>>
         &values) const;
 
-    //@}
+    /** @} */
 
     /**
      * @name Access to jumps in global finite element fields
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the jump in the values of the selected scalar component of the
@@ -578,12 +515,12 @@ namespace FEInterfaceViews
         solution_third_derivative_type<typename InputVector::value_type>>
         &third_derivatives) const;
 
-    //@}
+    /** @} */
 
     /**
      * @name Access to the average of global finite element fields
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the average of the values of the selected scalar component of the
@@ -687,7 +624,7 @@ namespace FEInterfaceViews
       std::vector<solution_hessian_type<typename InputVector::value_type>>
         &hessians) const;
 
-    //@}
+    /** @} */
 
   private:
     /**
@@ -782,7 +719,7 @@ namespace FEInterfaceViews
     /**
      * @name Access to shape functions
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the value of the vector components selected by this view
@@ -808,12 +745,12 @@ namespace FEInterfaceViews
           const unsigned int interface_dof_index,
           const unsigned int q_point) const;
 
-    //@}
+    /** @} */
 
     /**
      * @name Access to jumps in shape functions and their derivatives
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the jump vector $[\mathbf{u}]=\mathbf{u_1} - \mathbf{u_2}$ on the
@@ -827,16 +764,6 @@ namespace FEInterfaceViews
     value_type
     jump_in_values(const unsigned int interface_dof_index,
                    const unsigned int q_point) const;
-
-    /**
-     * The same as above.
-     *
-     * @deprecated Use the jump_in_values() function instead.
-     */
-    DEAL_II_DEPRECATED
-    value_type
-    jump(const unsigned int interface_dof_index,
-         const unsigned int q_point) const;
 
     /**
      * Return the jump of the gradient (a tensor of rank 2) $\jump{\nabla
@@ -897,22 +824,12 @@ namespace FEInterfaceViews
     jump_in_third_derivatives(const unsigned int interface_dof_index,
                               const unsigned int q_point) const;
 
-    /**
-     * The same as above.
-     *
-     * @deprecated Use the jump_in_third_derivatives() function instead.
-     */
-    DEAL_II_DEPRECATED
-    third_derivative_type
-    jump_3rd_derivative(const unsigned int interface_dof_index,
-                        const unsigned int q_point) const;
-
-    //@}
+    /** @} */
 
     /**
      * @name Access to the average of shape functions and their derivatives
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the average vector $\average{\mathbf{u}}=\frac{1}{2}(\mathbf{u_1}
@@ -928,16 +845,6 @@ namespace FEInterfaceViews
                       const unsigned int q_point) const;
 
     /**
-     * The same as above.
-     *
-     * @deprecated Use the average_of_values() function instead.
-     */
-    DEAL_II_DEPRECATED
-    value_type
-    average(const unsigned int interface_dof_index,
-            const unsigned int q_point) const;
-
-    /**
      * Return the average of the gradient (a tensor of rank 2) $\average{\nabla
      * \mathbf{u}}$ on the interface for the shape
      * function @p interface_dof_index in the quadrature point @p q_point.
@@ -949,16 +856,6 @@ namespace FEInterfaceViews
     gradient_type
     average_of_gradients(const unsigned int interface_dof_index,
                          const unsigned int q_point) const;
-
-    /**
-     * The same as above.
-     *
-     * @deprecated Use the average_of_gradients() function instead.
-     */
-    DEAL_II_DEPRECATED
-    gradient_type
-    average_gradient(const unsigned int interface_dof_index,
-                     const unsigned int q_point) const;
 
     /**
      * Return the average of the Hessian $\average{\nabla^2 u} =
@@ -984,12 +881,25 @@ namespace FEInterfaceViews
     average_hessian(const unsigned int interface_dof_index,
                     const unsigned int q_point) const;
 
-    //@}
+    /**
+     * Return the average of the third derivative $\jump{\nabla^3 u} = \frac{1}{2} \nabla^3
+     * u_{\text{cell0}} + \frac{1}{2} \nabla^3 u_{\text{cell1}}$ on the interface for the
+     * shape function @p interface_dof_index at the quadrature point @p q_point of
+     * the component selected by this view.
+     *
+     * @note The name of the function is supposed to be read as "the average
+     *   (singular) of the third derivatives (plural: one or two possible values
+     *   for the third derivative) of the shape function (singular)".
+     */
+    third_derivative_type
+    average_of_third_derivatives(const unsigned int interface_dof_index,
+                                 const unsigned int q_point) const;
+    /** @} */
 
     /**
      * @name Access to values of global finite element fields
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the values of the selected vector component of the finite
@@ -1048,12 +958,12 @@ namespace FEInterfaceViews
       std::vector<solution_value_type<typename InputVector::value_type>>
         &values) const;
 
-    //@}
+    /** @} */
 
     /**
      * @name Access to jumps in global finite element fields
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the jump in the values of the selected vector component of the
@@ -1194,12 +1104,12 @@ namespace FEInterfaceViews
         solution_third_derivative_type<typename InputVector::value_type>>
         &third_derivatives) const;
 
-    //@}
+    /** @} */
 
     /**
      * @name Access to the average of global finite element fields
      */
-    //@{
+    /** @{ */
 
     /**
      * Return the average of the values of the selected vector component of the
@@ -1303,7 +1213,7 @@ namespace FEInterfaceViews
       std::vector<solution_hessian_type<typename InputVector::value_type>>
         &hessians) const;
 
-    //@}
+    /** @} */
 
   private:
     /**
@@ -1405,9 +1315,9 @@ public:
    * sides of the facet). The FEFaceValues objects will be initialized with
    * the given @p mapping, @p quadrature, and @p update_flags.
    */
-  FEInterfaceValues(const Mapping<dim, spacedim> &      mapping,
+  FEInterfaceValues(const Mapping<dim, spacedim>       &mapping,
                     const FiniteElement<dim, spacedim> &fe,
-                    const Quadrature<dim - 1> &         quadrature,
+                    const Quadrature<dim - 1>          &quadrature,
                     const UpdateFlags                   update_flags);
 
   /**
@@ -1415,9 +1325,9 @@ public:
    * so that different quadrature rules can be assigned to different
    * faces.
    */
-  FEInterfaceValues(const Mapping<dim, spacedim> &      mapping,
+  FEInterfaceValues(const Mapping<dim, spacedim>       &mapping,
                     const FiniteElement<dim, spacedim> &fe,
-                    const hp::QCollection<dim - 1> &    quadrature,
+                    const hp::QCollection<dim - 1>     &quadrature,
                     const UpdateFlags                   update_flags);
 
   /**
@@ -1427,8 +1337,25 @@ public:
    * See the constructor above.
    */
   FEInterfaceValues(const FiniteElement<dim, spacedim> &fe,
-                    const Quadrature<dim - 1> &         quadrature,
+                    const Quadrature<dim - 1>          &quadrature,
                     const UpdateFlags                   update_flags);
+
+  /**
+   * Construct the FEInterfaceValues object with different FiniteElements
+   * assigned to different faces.
+   */
+  FEInterfaceValues(
+    const hp::MappingCollection<dim, spacedim> &mapping_collection,
+    const hp::FECollection<dim, spacedim>      &fe_collection,
+    const hp::QCollection<dim - 1>             &quadrature_collection,
+    const UpdateFlags                           update_flags);
+
+  /**
+   * Same as above, but using the default linear mapping.
+   */
+  FEInterfaceValues(const hp::FECollection<dim, spacedim> &fe_collection,
+                    const hp::QCollection<dim - 1> &quadrature_collection,
+                    const UpdateFlags               update_flags);
 
   /**
    * Re-initialize this object to be used on a new interface given by two faces
@@ -1442,6 +1369,76 @@ public:
    *
    * The arguments (including their order) are identical to the @p face_worker
    * arguments in MeshWorker::mesh_loop().
+   *
+   * In order to do integration on a face or sub-face, this object will have to
+   * choose what quadrature formula to use. This is simple if you initialized
+   * the current FEInterfaceValues object with just a single FiniteElement and
+   * a single (face) Quadrature object, because in that case there is only one
+   * element and quadrature that will be used for all interfaces. But it is not
+   * so simple in the hp case where there may be different elements used on
+   * different cells, and different quadrature formulas should be used on
+   * different faces; one may also want to use a different mapping for different
+   * faces. As a consequence, you would have initialized the current object
+   * with a hp::FECollection, hp::QCollection, and possible an
+   * hp::MappingCollection object. The question then is: For a given face or
+   * subface, which quadrature and mapping should be used? The following
+   * decision tree will then be used:
+   * -# If the `q_index` and `mapping_index` arguments to this function are
+   *    explicitly specified (rather than leaving them at their default
+   *    values), then these indices will be used to select which element
+   *    of the hp::QCollection and hp::MappingCollection passed to the
+   *    constructor should serve as the quadrature and mapping to be used.
+   * -# If one of these arguments is left at its default value, then the
+   *    function will need to choose a quadrature and/or mapping that is
+   *    appropriate for the two finite element spaces used on the two cells
+   *    adjacent to the current interface. As the first choice, if the
+   *    quadrature or mapping collection we are considering has only one
+   *    element, then that is clearly the one that should be used.
+   * -# If the quadrature or mapping collection have multiple elements,
+   *    then we need to dig further. For quadrature objects, we can
+   *    compare whether the two quadrature objects that correspond to
+   *    the `active_fe_index` values of the two adjacent cells are
+   *    identical (i.e., have quadrature points at the same locations,
+   *    and have the same weights). If this is so, then it does not
+   *    matter which one of the two we take, and we choose one or the
+   *    other.
+   * -# If this has still not helped, we try to find out
+   *    which of the two finite element spaces on the two adjacent cells
+   *    is "larger" (say, if you had used $Q_2$
+   *    and $Q_4$ elements on the two adjacent cells, then the $Q_4$
+   *    element is the larger one); the determination of which space
+   *    is "larger" is made using the hp::FECollection::find_dominated_fe()
+   *    function, which is not necessarily intended for this kind of query,
+   *    but yields a result that serves just fine for our purposes here.
+   *    We then operate on the assumption that the quadrature object
+   *    associated with the "larger" of the two spaces is the appropriate
+   *    one to use for the face that separates these two spaces.
+   *    - If this function returns that one of the two elements in question
+   *      is dominated by the other, then presumably it is "larger" one and
+   *      we take the quadrature formula and mapping that corresponds
+   *      to this "larger" element is. For example, for the $Q_2$ element
+   *      mentioned above, one would generally use a QGauss(3) quadrature
+   *      formula, whereas for the $Q_4$ element, one would use QGauss(5).
+   *      To integrate jump and average terms on the interface between
+   *      cells using these two elements, QGauss(5) is appropriate. Because,
+   *      typically, people will order elements
+   *      in the hp::FECollection in the same order as the quadrature and
+   *      mapping objects in hp::QCollection and hp::MappingCollection, this
+   *      function will use the index of the "larger" element in the
+   *      hp::FECollection to also index into the hp::QCollection and
+   *      hp::MappingCollection to retrieve quadrature and mapping objects
+   *      appropriate for the current face.
+   *    - There are cases where neither element dominates the other. For
+   *      example, if one uses $Q_2\times Q_1$ and $Q_1\times Q_2$ elements on
+   *      neighboring cells, neither of the two spaces dominates the other --
+   *      or, in the context of the current function, neither space is "larger"
+   *      than the other. In that case, there is no way for the current function
+   *      to determine quadrature and mapping objects associated with the two
+   *      elements are the appropriate ones. If that happens, you will get an
+   *      error -- and the only way to avoid the error is to explicitly specify
+   *      for these interfaces which quadrature and mapping objects you want
+   *      to use, by providing non-default values for the @p q_index and
+   *      @p mapping_index arguments to this function.
    *
    * @param[in] cell An iterator to the first cell adjacent to the interface.
    * @param[in] face_no An integer identifying which face of the first cell the
@@ -1460,15 +1457,31 @@ public:
    *   cell.
    * @param[in] sub_face_no_neighbor Like `sub_face_no`, just for the
    *   neighboring cell.
+   * @param[in] q_index The index of the quadrature object within the
+   *   hp::QCollection passed to the constructor to use on the current
+   *   interface. See the documentation above what happens if this argument
+   *   is not explicitly provided but left at its default value.
+   * @param[in] mapping_index The index of the mapping object within the
+   *   hp::MappingCollection passed to the constructor to use on the current
+   *   interface. See the documentation above what happens if this argument
+   *   is not explicitly provided but left at its default value.
+   * @param[in] fe_index If left at its default, use the finite element within
+   *   the hp::FECollection passed to the constructor as given by the dominating
+   *   finite element across the interface (only used if the FEInterface object
+   *   is initialized with an hp::FECollection, an hp::QCollection, and possibly
+   *   an hp::MappingCollection).
    */
-  template <class CellIteratorType, class CellNeighborIteratorType>
+  template <typename CellIteratorType, typename CellNeighborIteratorType>
   void
-  reinit(const CellIteratorType &        cell,
+  reinit(const CellIteratorType         &cell,
          const unsigned int              face_no,
          const unsigned int              sub_face_no,
          const CellNeighborIteratorType &cell_neighbor,
          const unsigned int              face_no_neighbor,
-         const unsigned int              sub_face_no_neighbor);
+         const unsigned int              sub_face_no_neighbor,
+         const unsigned int q_index       = numbers::invalid_unsigned_int,
+         const unsigned int mapping_index = numbers::invalid_unsigned_int,
+         const unsigned int fe_index      = numbers::invalid_unsigned_int);
 
   /**
    * Re-initialize this object to be used on an interface given by a single face
@@ -1480,10 +1493,29 @@ public:
    * boundary face can not neighbor a finer cell.
    *
    * After calling this function at_boundary() will return true.
+   *
+   * @param[in] cell An iterator to the first cell adjacent to the interface.
+   * @param[in] face_no An integer identifying which face of the first cell the
+   *   interface is on.
+   * @param[in] q_index This argument selects which quadrature formula to use
+   *   See the discussion in the documentation of the other reinit() function
+   *   for what happens when this argument is left at its default value.
+   * @param[in] mapping_index This argument selects which mapping to use
+   *   See the discussion in the documentation of the other reinit() function
+   *   for what happens when this argument is left at its default value.
+   * @param[in] fe_index If left at its default, use the finite element within
+   * the hp::FECollection passed to the constructor as given by the dominating
+   * finite element across the interface (only used if the FEInterface object
+   * is initialized with an hp::FECollection, an hp::QCollection, and possibly
+   * an hp::MappingCollection).
    */
-  template <class CellIteratorType>
+  template <typename CellIteratorType>
   void
-  reinit(const CellIteratorType &cell, const unsigned int face_no);
+  reinit(const CellIteratorType &cell,
+         const unsigned int      face_no,
+         const unsigned int      q_index       = numbers::invalid_unsigned_int,
+         const unsigned int      mapping_index = numbers::invalid_unsigned_int,
+         const unsigned int      fe_index      = numbers::invalid_unsigned_int);
 
   /**
    * Return a reference to the FEFaceValues or FESubfaceValues object
@@ -1514,6 +1546,31 @@ public:
   get_quadrature() const;
 
   /**
+   * Return a reference to the used mapping.
+   */
+  const hp::MappingCollection<dim, spacedim> &
+  get_mapping_collection() const;
+
+  /**
+   * Return a reference to the selected finite element object.
+   */
+  const hp::FECollection<dim, spacedim> &
+  get_fe_collection() const;
+
+  /**
+   * Return a reference to the face quadrature object in use.
+   */
+  const hp::QCollection<dim - 1> &
+  get_quadrature_collection() const;
+
+  /**
+   * Returns a boolean indicating whether or not this FEInterfaceValues object
+   * has hp-capabilities enabled.
+   */
+  bool
+  has_hp_capabilities() const;
+
+  /**
    * Return the update flags set.
    */
   UpdateFlags
@@ -1525,7 +1582,7 @@ public:
    * The @p cell_index is either 0 or 1 and corresponds to the cell index
    * returned by interface_dof_to_cell_and_dof_index().
    */
-  const typename Triangulation<dim, spacedim>::cell_iterator
+  typename Triangulation<dim, spacedim>::cell_iterator
   get_cell(const unsigned int cell_index) const;
 
   /**
@@ -1755,17 +1812,6 @@ public:
                        const unsigned int component = 0) const;
 
   /**
-   * The same as above.
-   *
-   * @deprecated Use the jump_in_shape_values() function instead.
-   */
-  DEAL_II_DEPRECATED
-  double
-  jump(const unsigned int interface_dof_index,
-       const unsigned int q_point,
-       const unsigned int component = 0) const;
-
-  /**
    * Return the jump in the gradient $\jump{\nabla u}=\nabla u_{\text{cell0}} -
    * \nabla u_{\text{cell1}}$ on the interface for the shape function @p
    * interface_dof_index at the quadrature point @p q_point of component @p
@@ -1782,17 +1828,6 @@ public:
   jump_in_shape_gradients(const unsigned int interface_dof_index,
                           const unsigned int q_point,
                           const unsigned int component = 0) const;
-
-  /**
-   * The same as above.
-   *
-   * @deprecated Use the jump_in_shape_gradients() function instead.
-   */
-  DEAL_II_DEPRECATED
-  Tensor<1, spacedim>
-  jump_gradient(const unsigned int interface_dof_index,
-                const unsigned int q_point,
-                const unsigned int component = 0) const;
 
   /**
    * Return the jump in the Hessian $\jump{\nabla^2 u} = \nabla^2
@@ -1814,17 +1849,6 @@ public:
                          const unsigned int component = 0) const;
 
   /**
-   * The same as above.
-   *
-   * @deprecated Use the jump_in_shape_hessians() function instead.
-   */
-  DEAL_II_DEPRECATED
-  Tensor<2, spacedim>
-  jump_hessian(const unsigned int interface_dof_index,
-               const unsigned int q_point,
-               const unsigned int component = 0) const;
-
-  /**
    * Return the jump in the third derivative $\jump{\nabla^3 u} = \nabla^3
    * u_{\text{cell0}} - \nabla^3 u_{\text{cell1}}$ on the interface for the
    * shape function @p interface_dof_index at the quadrature point @p q_point of
@@ -1841,17 +1865,6 @@ public:
   jump_in_shape_3rd_derivatives(const unsigned int interface_dof_index,
                                 const unsigned int q_point,
                                 const unsigned int component = 0) const;
-
-  /**
-   * The same as above.
-   *
-   * @deprecated Use the jump_in_shape_3rd_derivatives() function instead.
-   */
-  DEAL_II_DEPRECATED
-  Tensor<3, spacedim>
-  jump_3rd_derivative(const unsigned int interface_dof_index,
-                      const unsigned int q_point,
-                      const unsigned int component = 0) const;
 
   /**
    * @}
@@ -1881,17 +1894,6 @@ public:
                           const unsigned int component = 0) const;
 
   /**
-   * The same as above.
-   *
-   * @deprecated Use the average_of_shape_values() function instead.
-   */
-  DEAL_II_DEPRECATED
-  double
-  average(const unsigned int interface_dof_index,
-          const unsigned int q_point,
-          const unsigned int component = 0) const;
-
-  /**
    * Return the average of the gradient $\average{\nabla u} = \frac{1}{2}\nabla
    * u_{\text{cell0}} + \frac{1}{2} \nabla u_{\text{cell1}}$ on the interface
    * for the shape function @p interface_dof_index at the quadrature point @p
@@ -1908,17 +1910,6 @@ public:
   average_of_shape_gradients(const unsigned int interface_dof_index,
                              const unsigned int q_point,
                              const unsigned int component = 0) const;
-
-  /**
-   * The same as above.
-   *
-   * @deprecated Use the average_of_shape_gradients() function instead.
-   */
-  DEAL_II_DEPRECATED
-  Tensor<1, spacedim>
-  average_gradient(const unsigned int interface_dof_index,
-                   const unsigned int q_point,
-                   const unsigned int component = 0) const;
 
   /**
    * Return the average of the Hessian $\average{\nabla^2 u} =
@@ -1940,19 +1931,146 @@ public:
                             const unsigned int component = 0) const;
 
   /**
-   * The same as above.
+   * Return the average the third derivative $\jump{\nabla^3 u} = 
+   * \frac{1}{2} \nabla^3 u_{\text{cell0}} + \frac{1}{2} \nabla^3 u_{\text{cell1}}$
+   * on the interface for the
+   * shape function @p interface_dof_index at the quadrature point @p q_point of
+   * component @p component.
    *
-   * @deprecated Use the average_of_shape_hessians() function instead.
+   * If this is a boundary face (at_boundary() returns true), then
+   * $\jump{\nabla^3 u} = \nabla^3 u_{\text{cell0}}$.
+   *
+   * @note The name of the function is supposed to be read as "the average
+   *   (singular) of the third derivatives (plural: one or two possible values
+   *   for the derivative) of the shape function (singular)".
    */
-  DEAL_II_DEPRECATED
-  Tensor<2, spacedim>
-  average_hessian(const unsigned int interface_dof_index,
-                  const unsigned int q_point,
-                  const unsigned int component = 0) const;
+  Tensor<3, spacedim>
+  average_of_shape_3rd_derivatives(const unsigned int interface_dof_index,
+                                   const unsigned int q_point,
+                                   const unsigned int component = 0) const;
+  /**
+   * @}
+   */
+
+
+
+  /**
+   * @name Access to jumps in the function values and derivatives
+   * @{
+   */
+
+  /**
+   * Return the jump in the values of the
+   * finite element function characterized by <tt>fe_function</tt> at the
+   * quadrature points of the cell interface selected the last time
+   * the <tt>reinit</tt> function of the FEInterfaceValues object was called.
+   *
+   * @dealiiRequiresUpdateFlags{update_values}
+   */
+  template <class InputVector>
+  void
+  get_jump_in_function_values(
+    const InputVector                             &fe_function,
+    std::vector<typename InputVector::value_type> &values) const;
+
+  /**
+   * Return the jump in the gradients of the
+   * finite element function characterized by <tt>fe_function</tt> at the
+   * quadrature points of the cell interface selected the last time
+   * the <tt>reinit</tt> function of the FEInterfaceValues object was called.
+   *
+   * @dealiiRequiresUpdateFlags{update_gradients}
+   */
+  template <class InputVector>
+  void
+  get_jump_in_function_gradients(
+    const InputVector &fe_function,
+    std::vector<Tensor<1, spacedim, typename InputVector::value_type>>
+      &gradients) const;
+
+  /**
+   * Return the jump in the Hessians of the
+   * finite element function characterized by <tt>fe_function</tt> at the
+   * quadrature points of the cell interface selected the last time
+   * the <tt>reinit</tt> function of the FEInterfaceValues object was called.
+   * @dealiiRequiresUpdateFlags{update_hessians}
+   */
+  template <class InputVector>
+  void
+  get_jump_in_function_hessians(
+    const InputVector &fe_function,
+    std::vector<Tensor<2, spacedim, typename InputVector::value_type>>
+      &hessians) const;
+
+  /**
+   * Return the jump in the third derivatives of the
+   * finite element function characterized by <tt>fe_function</tt> at
+   * the quadrature points of the cell interface selected the last time
+   * the <tt>reinit</tt> function of the FEInterfaceValues object was called.
+   *
+   * @dealiiRequiresUpdateFlags{update_third_derivatives}
+   */
+  template <class InputVector>
+  void
+  get_jump_in_function_third_derivatives(
+    const InputVector &fe_function,
+    std::vector<Tensor<3, spacedim, typename InputVector::value_type>>
+      &third_derivatives) const;
+
+  /** @} */
+
+  /**
+   * @name Access to the average of the function values and derivatives
+   */
+  /** @{ */
+
+  /**
+   * Return the average of the values of the
+   * finite element function characterized by <tt>fe_function</tt> at the
+   * quadrature points of the cell interface selected the last time
+   * the <tt>reinit</tt> function of the FEInterfaceValues object was called.
+   *
+   * @dealiiRequiresUpdateFlags{update_values}
+   */
+  template <class InputVector>
+  void
+  get_average_of_function_values(
+    const InputVector                             &fe_function,
+    std::vector<typename InputVector::value_type> &values) const;
+
+  /**
+   * Return the average of the gradients of the
+   * finite element function characterized by <tt>fe_function</tt> at the
+   * quadrature points of the cell interface selected the last time
+   * the <tt>reinit</tt> function of the FEInterfaceValues object was called.
+   * @dealiiRequiresUpdateFlags{update_gradients}
+   */
+  template <class InputVector>
+  void
+  get_average_of_function_gradients(
+    const InputVector &fe_function,
+    std::vector<Tensor<1, spacedim, typename InputVector::value_type>>
+      &gradients) const;
+
+  /**
+   * Return the average of the Hessians of the
+   * finite element function characterized by <tt>fe_function</tt> at the
+   * quadrature points of the cell interface selected the last time
+   * the <tt>reinit</tt> function of the FEInterfaceValues object was called.
+   * @dealiiRequiresUpdateFlags{update_hessians}
+   */
+  template <class InputVector>
+  void
+  get_average_of_function_hessians(
+    const InputVector &fe_function,
+    std::vector<Tensor<2, spacedim, typename InputVector::value_type>>
+      &hessians) const;
 
   /**
    * @}
    */
+
+
 
   /**
    * @name Extractors Methods to extract individual components
@@ -1965,7 +2083,7 @@ public:
    * The concept of views is explained in the documentation of the namespace
    * FEValuesViews.
    */
-  const FEInterfaceViews::Scalar<dim, spacedim>
+  FEInterfaceViews::Scalar<dim, spacedim>
   operator[](const FEValuesExtractors::Scalar &scalar) const;
 
   /**
@@ -1974,7 +2092,7 @@ public:
    * finite element. The concept of views is explained in the documentation of
    * the namespace FEValuesViews.
    */
-  const FEInterfaceViews::Vector<dim, spacedim>
+  FEInterfaceViews::Vector<dim, spacedim>
   operator[](const FEValuesExtractors::Vector &vector) const;
 
   /**
@@ -1995,26 +2113,6 @@ private:
   std::vector<std::array<unsigned int, 2>> dofmap;
 
   /**
-   * The FEFaceValues object for the current cell.
-   */
-  FEFaceValues<dim, spacedim> internal_fe_face_values;
-
-  /**
-   * The FEFaceValues object for the current cell if the cell is refined.
-   */
-  FESubfaceValues<dim, spacedim> internal_fe_subface_values;
-
-  /**
-   * The FEFaceValues object for the neighboring cell.
-   */
-  FEFaceValues<dim, spacedim> internal_fe_face_values_neighbor;
-
-  /**
-   * The FEFaceValues object for the neighboring cell if the cell is refined.
-   */
-  FESubfaceValues<dim, spacedim> internal_fe_subface_values_neighbor;
-
-  /**
    * Pointer to internal_fe_face_values or internal_fe_subface_values,
    * respectively as determined in reinit().
    */
@@ -2027,8 +2125,91 @@ private:
    */
   FEFaceValuesBase<dim, spacedim> *fe_face_values_neighbor;
 
-  /* Make the view classes friends of this class, since they access internal
-   * data.
+  /**
+   * @name Data that supports the standard FE implementation
+   */
+  /** @{ */ // non-hp data
+
+  /**
+   * The FEFaceValues object for the current cell.
+   */
+  std::unique_ptr<FEFaceValues<dim, spacedim>> internal_fe_face_values;
+
+  /**
+   * The FEFaceValues object for the current cell if the cell is refined.
+   */
+  std::unique_ptr<FESubfaceValues<dim, spacedim>> internal_fe_subface_values;
+
+  /**
+   * The FEFaceValues object for the neighboring cell.
+   */
+  std::unique_ptr<FEFaceValues<dim, spacedim>> internal_fe_face_values_neighbor;
+
+  /**
+   * The FEFaceValues object for the neighboring cell if the cell is refined.
+   */
+  std::unique_ptr<FESubfaceValues<dim, spacedim>>
+    internal_fe_subface_values_neighbor;
+
+  /** @} */ // non-hp data
+
+  /**
+   * @name Data that supports the hp-FE implementation
+   */
+  /** @{ */ // hp data
+
+  /**
+   * An hp::FEValues object for the FEFaceValues on the
+   * present cell.
+   */
+  std::unique_ptr<hp::FEFaceValues<dim, spacedim>> internal_hp_fe_face_values;
+
+  /**
+   * An hp::FEValues object for the FESubfaceValues on the
+   * present cell.
+   */
+  std::unique_ptr<hp::FESubfaceValues<dim, spacedim>>
+    internal_hp_fe_subface_values;
+
+  /**
+   * An hp::FEValues object for the FEFaceValues on the
+   * neighbor of the present cell.
+   */
+  std::unique_ptr<hp::FEFaceValues<dim, spacedim>>
+    internal_hp_fe_face_values_neighbor;
+
+  /**
+   * An hp::FEValues object for the FESubfaceValues on the
+   * neighboring cell.
+   */
+  std::unique_ptr<hp::FESubfaceValues<dim, spacedim>>
+    internal_hp_fe_subface_values_neighbor;
+
+  /**
+   * Exception used when a certain feature doesn't make sense when
+   * FEInterfaceValues does has hp-capabilities enabled.
+   *
+   * @ingroup Exceptions
+   */
+  DeclExceptionMsg(ExcOnlyAvailableWithoutHP,
+                   "The current function doesn't make sense when used with a "
+                   "FEInterfaceValues object with hp-capabilities.");
+
+  /**
+   * Exception used when a certain feature doesn't make sense when
+   * FEInterfaceValues does not have hp-capabilities enabled.
+   *
+   * @ingroup Exceptions
+   */
+  DeclExceptionMsg(ExcOnlyAvailableWithHP,
+                   "The current function doesn't make sense when used with a "
+                   "FEInterfaceValues object without hp-capabilities.");
+
+  /** @} */ // hp data
+
+  /*
+   * Make the view classes friends of this class, since they
+   * access internal data.
    */
   template <int, int>
   friend class FEInterfaceViews::Scalar;
@@ -2044,112 +2225,289 @@ private:
 
 template <int dim, int spacedim>
 FEInterfaceValues<dim, spacedim>::FEInterfaceValues(
-  const Mapping<dim, spacedim> &      mapping,
+  const Mapping<dim, spacedim>       &mapping,
   const FiniteElement<dim, spacedim> &fe,
-  const Quadrature<dim - 1> &         quadrature,
+  const Quadrature<dim - 1>          &quadrature,
   const UpdateFlags                   update_flags)
   : n_quadrature_points(quadrature.size())
-  , internal_fe_face_values(mapping, fe, quadrature, update_flags)
-  , internal_fe_subface_values(mapping, fe, quadrature, update_flags)
-  , internal_fe_face_values_neighbor(mapping, fe, quadrature, update_flags)
-  , internal_fe_subface_values_neighbor(mapping, fe, quadrature, update_flags)
   , fe_face_values(nullptr)
   , fe_face_values_neighbor(nullptr)
+  , internal_fe_face_values(
+      std::make_unique<FEFaceValues<dim, spacedim>>(mapping,
+                                                    fe,
+                                                    quadrature,
+                                                    update_flags))
+  , internal_fe_subface_values(
+      std::make_unique<FESubfaceValues<dim, spacedim>>(mapping,
+                                                       fe,
+                                                       quadrature,
+                                                       update_flags))
+  , internal_fe_face_values_neighbor(
+      std::make_unique<FEFaceValues<dim, spacedim>>(mapping,
+                                                    fe,
+                                                    quadrature,
+                                                    update_flags))
+  , internal_fe_subface_values_neighbor(
+      std::make_unique<FESubfaceValues<dim, spacedim>>(mapping,
+                                                       fe,
+                                                       quadrature,
+                                                       update_flags))
 {}
 
 
 
 template <int dim, int spacedim>
 FEInterfaceValues<dim, spacedim>::FEInterfaceValues(
-  const Mapping<dim, spacedim> &      mapping,
   const FiniteElement<dim, spacedim> &fe,
-  const hp::QCollection<dim - 1> &    quadrature,
+  const Quadrature<dim - 1>          &quadrature,
+  const UpdateFlags                   update_flags)
+  : FEInterfaceValues(
+      fe.reference_cell().template get_default_linear_mapping<dim, spacedim>(),
+      fe,
+      quadrature,
+      update_flags)
+{}
+
+
+
+template <int dim, int spacedim>
+FEInterfaceValues<dim, spacedim>::FEInterfaceValues(
+  const Mapping<dim, spacedim>       &mapping,
+  const FiniteElement<dim, spacedim> &fe,
+  const hp::QCollection<dim - 1>     &quadrature,
   const UpdateFlags                   update_flags)
   : n_quadrature_points(quadrature.max_n_quadrature_points())
-  , internal_fe_face_values(mapping, fe, quadrature, update_flags)
-  , internal_fe_subface_values(mapping, fe, quadrature, update_flags)
-  , internal_fe_face_values_neighbor(mapping, fe, quadrature[0], update_flags)
-  , internal_fe_subface_values_neighbor(mapping,
-                                        fe,
-                                        quadrature[0],
-                                        update_flags)
   , fe_face_values(nullptr)
   , fe_face_values_neighbor(nullptr)
+  , internal_fe_face_values(
+      std::make_unique<FEFaceValues<dim, spacedim>>(mapping,
+                                                    fe,
+                                                    quadrature,
+                                                    update_flags))
+  , internal_fe_subface_values(
+      std::make_unique<FESubfaceValues<dim, spacedim>>(mapping,
+                                                       fe,
+                                                       quadrature,
+                                                       update_flags))
+  , internal_fe_face_values_neighbor(
+      std::make_unique<FEFaceValues<dim, spacedim>>(mapping,
+                                                    fe,
+                                                    quadrature[0],
+                                                    update_flags))
+  , internal_fe_subface_values_neighbor(
+      std::make_unique<FESubfaceValues<dim, spacedim>>(mapping,
+                                                       fe,
+                                                       quadrature[0],
+                                                       update_flags))
 {}
 
 
 
 template <int dim, int spacedim>
 FEInterfaceValues<dim, spacedim>::FEInterfaceValues(
-  const FiniteElement<dim, spacedim> &fe,
-  const Quadrature<dim - 1> &         quadrature,
-  const UpdateFlags                   update_flags)
-  : n_quadrature_points(quadrature.size())
-  , internal_fe_face_values(
-      fe.reference_cell().template get_default_linear_mapping<dim, spacedim>(),
-      fe,
-      quadrature,
-      update_flags)
-  , internal_fe_subface_values(
-      fe.reference_cell().template get_default_linear_mapping<dim, spacedim>(),
-      fe,
-      quadrature,
-      update_flags)
-  , internal_fe_face_values_neighbor(
-      fe.reference_cell().template get_default_linear_mapping<dim, spacedim>(),
-      fe,
-      quadrature,
-      update_flags)
-  , internal_fe_subface_values_neighbor(
-      fe.reference_cell().template get_default_linear_mapping<dim, spacedim>(),
-      fe,
-      quadrature,
-      update_flags)
+  const hp::MappingCollection<dim, spacedim> &mapping_collection,
+  const hp::FECollection<dim, spacedim>      &fe_collection,
+  const hp::QCollection<dim - 1>             &quadrature_collection,
+  const UpdateFlags                           update_flags)
+  : n_quadrature_points(quadrature_collection.max_n_quadrature_points())
   , fe_face_values(nullptr)
   , fe_face_values_neighbor(nullptr)
+  , internal_hp_fe_face_values(
+      std::make_unique<hp::FEFaceValues<dim, spacedim>>(mapping_collection,
+                                                        fe_collection,
+                                                        quadrature_collection,
+                                                        update_flags))
+  , internal_hp_fe_subface_values(
+      std::make_unique<hp::FESubfaceValues<dim, spacedim>>(
+        mapping_collection,
+        fe_collection,
+        quadrature_collection,
+        update_flags))
+  , internal_hp_fe_face_values_neighbor(
+      std::make_unique<hp::FEFaceValues<dim, spacedim>>(mapping_collection,
+                                                        fe_collection,
+                                                        quadrature_collection,
+                                                        update_flags))
+  , internal_hp_fe_subface_values_neighbor(
+      std::make_unique<hp::FESubfaceValues<dim, spacedim>>(
+        mapping_collection,
+        fe_collection,
+        quadrature_collection,
+        update_flags))
+{
+  AssertDimension(dim, spacedim);
+}
+
+
+
+template <int dim, int spacedim>
+FEInterfaceValues<dim, spacedim>::FEInterfaceValues(
+  const hp::FECollection<dim, spacedim> &fe_collection,
+  const hp::QCollection<dim - 1>        &quadrature_collection,
+  const UpdateFlags                      update_flags)
+  : FEInterfaceValues(fe_collection.get_reference_cell_default_linear_mapping(),
+                      fe_collection,
+                      quadrature_collection,
+                      update_flags)
 {}
 
 
 
 template <int dim, int spacedim>
-template <class CellIteratorType, class CellNeighborIteratorType>
+template <typename CellIteratorType, typename CellNeighborIteratorType>
 void
 FEInterfaceValues<dim, spacedim>::reinit(
-  const CellIteratorType &        cell,
+  const CellIteratorType         &cell,
   const unsigned int              face_no,
   const unsigned int              sub_face_no,
   const CellNeighborIteratorType &cell_neighbor,
   const unsigned int              face_no_neighbor,
-  const unsigned int              sub_face_no_neighbor)
+  const unsigned int              sub_face_no_neighbor,
+  const unsigned int              q_index,
+  const unsigned int              mapping_index,
+  const unsigned int              fe_index)
 {
-  if (sub_face_no == numbers::invalid_unsigned_int)
-    {
-      internal_fe_face_values.reinit(cell, face_no);
-      fe_face_values = &internal_fe_face_values;
-    }
-  else
-    {
-      internal_fe_subface_values.reinit(cell, face_no, sub_face_no);
-      fe_face_values = &internal_fe_subface_values;
-    }
-  if (sub_face_no_neighbor == numbers::invalid_unsigned_int)
-    {
-      internal_fe_face_values_neighbor.reinit(cell_neighbor, face_no_neighbor);
-      fe_face_values_neighbor = &internal_fe_face_values_neighbor;
-    }
-  else
-    {
-      internal_fe_subface_values_neighbor.reinit(cell_neighbor,
-                                                 face_no_neighbor,
-                                                 sub_face_no_neighbor);
-      fe_face_values_neighbor = &internal_fe_subface_values_neighbor;
-    }
+  Assert(internal_fe_face_values || internal_hp_fe_face_values,
+         ExcNotInitialized());
 
-  AssertDimension(fe_face_values->n_quadrature_points,
-                  fe_face_values_neighbor->n_quadrature_points);
+  if (internal_fe_face_values)
+    {
+      if (sub_face_no == numbers::invalid_unsigned_int)
+        {
+          internal_fe_face_values->reinit(cell, face_no);
+          fe_face_values = internal_fe_face_values.get();
+        }
+      else
+        {
+          internal_fe_subface_values->reinit(cell, face_no, sub_face_no);
+          fe_face_values = internal_fe_subface_values.get();
+        }
+      if (sub_face_no_neighbor == numbers::invalid_unsigned_int)
+        {
+          internal_fe_face_values_neighbor->reinit(cell_neighbor,
+                                                   face_no_neighbor);
+          fe_face_values_neighbor = internal_fe_face_values_neighbor.get();
+        }
+      else
+        {
+          internal_fe_subface_values_neighbor->reinit(cell_neighbor,
+                                                      face_no_neighbor,
+                                                      sub_face_no_neighbor);
+          fe_face_values_neighbor = internal_fe_subface_values_neighbor.get();
+        }
 
-  const_cast<unsigned int &>(this->n_quadrature_points) =
-    fe_face_values->n_quadrature_points;
+      AssertDimension(fe_face_values->n_quadrature_points,
+                      fe_face_values_neighbor->n_quadrature_points);
+
+      const_cast<unsigned int &>(this->n_quadrature_points) =
+        fe_face_values->n_quadrature_points;
+    }
+  else if (internal_hp_fe_face_values)
+    {
+      unsigned int used_q_index       = q_index;
+      unsigned int used_mapping_index = mapping_index;
+
+      // First check. If there is only one element in a collection, and if none
+      // had been specified explicitly, then that's clearly the one to take:
+      if (used_q_index == numbers::invalid_unsigned_int)
+        if (internal_hp_fe_face_values->get_quadrature_collection().size() == 1)
+          used_q_index = 0;
+
+      if (used_mapping_index == numbers::invalid_unsigned_int)
+        if (internal_hp_fe_face_values->get_mapping_collection().size() == 1)
+          used_mapping_index = 0;
+
+      // Second check: See if the two quadrature objects are the same, because
+      // in that case it does not matter which one we use. Unfortunately, we
+      // currently have no way of testing that two mapping objects are the
+      // same :-(
+      if (used_q_index == numbers::invalid_unsigned_int)
+        if (internal_hp_fe_face_values
+              ->get_quadrature_collection()[cell->active_fe_index()] ==
+            internal_hp_fe_face_values
+              ->get_quadrature_collection()[cell_neighbor->active_fe_index()])
+          used_q_index = cell->active_fe_index();
+
+      // Third check, if the above did not already suffice. We see if we
+      // can get somewhere via the dominated's finite element index.
+      const unsigned int dominated_fe_index =
+        ((used_q_index == numbers::invalid_unsigned_int) ||
+             (used_mapping_index == numbers::invalid_unsigned_int) ?
+           internal_hp_fe_face_values->get_fe_collection().find_dominated_fe(
+             {cell->active_fe_index(), cell_neighbor->active_fe_index()}) :
+           numbers::invalid_unsigned_int);
+
+      if (used_q_index == numbers::invalid_unsigned_int)
+        {
+          Assert(dominated_fe_index != numbers::invalid_fe_index,
+                 ExcMessage(
+                   "You called this function with 'q_index' left at its "
+                   "default value, but this can only work if one of "
+                   "the two finite elements adjacent to this face "
+                   "dominates the other. See the documentation "
+                   "of this function for more information of how "
+                   "to deal with this situation."));
+          used_q_index = dominated_fe_index;
+        }
+
+      if (used_mapping_index == numbers::invalid_unsigned_int)
+        {
+          Assert(dominated_fe_index != numbers::invalid_fe_index,
+                 ExcMessage(
+                   "You called this function with 'mapping_index' left "
+                   "at its default value, but this can only work if one "
+                   "of the two finite elements adjacent to this face "
+                   "dominates the other. See the documentation "
+                   "of this function for more information of how "
+                   "to deal with this situation."));
+          used_mapping_index = dominated_fe_index;
+        }
+
+      // Same as if above, but when hp is enabled.
+      if (sub_face_no == numbers::invalid_unsigned_int)
+        {
+          internal_hp_fe_face_values->reinit(
+            cell, face_no, used_q_index, used_mapping_index, fe_index);
+          fe_face_values = &const_cast<FEFaceValues<dim, spacedim> &>(
+            internal_hp_fe_face_values->get_present_fe_values());
+        }
+      else
+        {
+          internal_hp_fe_subface_values->reinit(
+            cell, face_no, sub_face_no, used_q_index, used_mapping_index);
+
+          fe_face_values = &const_cast<FESubfaceValues<dim, spacedim> &>(
+            internal_hp_fe_subface_values->get_present_fe_values());
+        }
+      if (sub_face_no_neighbor == numbers::invalid_unsigned_int)
+        {
+          internal_hp_fe_face_values_neighbor->reinit(cell_neighbor,
+                                                      face_no_neighbor,
+                                                      used_q_index,
+                                                      used_mapping_index);
+
+          fe_face_values_neighbor = &const_cast<FEFaceValues<dim, spacedim> &>(
+            internal_hp_fe_face_values_neighbor->get_present_fe_values());
+        }
+      else
+        {
+          internal_hp_fe_subface_values_neighbor->reinit(cell_neighbor,
+                                                         face_no_neighbor,
+                                                         sub_face_no_neighbor,
+                                                         used_q_index,
+                                                         used_mapping_index);
+
+          fe_face_values_neighbor =
+            &const_cast<FESubfaceValues<dim, spacedim> &>(
+              internal_hp_fe_subface_values_neighbor->get_present_fe_values());
+        }
+
+      AssertDimension(fe_face_values->n_quadrature_points,
+                      fe_face_values_neighbor->n_quadrature_points);
+
+      const_cast<unsigned int &>(this->n_quadrature_points) =
+        fe_face_values->n_quadrature_points;
+    }
 
   // Set up dof mapping and remove duplicates (for continuous elements).
   {
@@ -2198,20 +2556,39 @@ FEInterfaceValues<dim, spacedim>::reinit(
 
 
 template <int dim, int spacedim>
-template <class CellIteratorType>
+template <typename CellIteratorType>
 void
 FEInterfaceValues<dim, spacedim>::reinit(const CellIteratorType &cell,
-                                         const unsigned int      face_no)
+                                         const unsigned int      face_no,
+                                         const unsigned int      q_index,
+                                         const unsigned int      mapping_index,
+                                         const unsigned int      fe_index)
 {
-  internal_fe_face_values.reinit(cell, face_no);
-  fe_face_values          = &internal_fe_face_values;
-  fe_face_values_neighbor = nullptr;
+  Assert(internal_fe_face_values || internal_hp_fe_face_values,
+         ExcNotInitialized());
 
-  interface_dof_indices.resize(fe_face_values->get_fe().n_dofs_per_cell());
-  cell->get_active_or_mg_dof_indices(interface_dof_indices);
+  if (internal_fe_face_values)
+    {
+      internal_fe_face_values->reinit(cell, face_no);
+      fe_face_values          = internal_fe_face_values.get();
+      fe_face_values_neighbor = nullptr;
+
+      interface_dof_indices.resize(fe_face_values->get_fe().n_dofs_per_cell());
+      cell->get_active_or_mg_dof_indices(interface_dof_indices);
+    }
+  else if (internal_hp_fe_face_values)
+    {
+      internal_hp_fe_face_values->reinit(
+        cell, face_no, q_index, mapping_index, fe_index);
+      fe_face_values = &const_cast<FEFaceValues<dim> &>(
+        internal_hp_fe_face_values->get_present_fe_values());
+      fe_face_values_neighbor = nullptr;
+
+      interface_dof_indices.resize(fe_face_values->get_fe().n_dofs_per_cell());
+      cell->get_active_or_mg_dof_indices(interface_dof_indices);
+    }
 
   dofmap.resize(interface_dof_indices.size());
-
   for (unsigned int i = 0; i < interface_dof_indices.size(); ++i)
     {
       dofmap[i] = {{i, numbers::invalid_unsigned_int}};
@@ -2257,7 +2634,8 @@ template <int dim, int spacedim>
 const Mapping<dim, spacedim> &
 FEInterfaceValues<dim, spacedim>::get_mapping() const
 {
-  return internal_fe_face_values.get_mapping();
+  Assert(!has_hp_capabilities(), ExcOnlyAvailableWithoutHP());
+  return internal_fe_face_values->get_mapping();
 }
 
 
@@ -2266,7 +2644,8 @@ template <int dim, int spacedim>
 const FiniteElement<dim, spacedim> &
 FEInterfaceValues<dim, spacedim>::get_fe() const
 {
-  return internal_fe_face_values.get_fe();
+  Assert(!has_hp_capabilities(), ExcOnlyAvailableWithoutHP());
+  return internal_fe_face_values->get_fe();
 }
 
 
@@ -2275,7 +2654,68 @@ template <int dim, int spacedim>
 const Quadrature<dim - 1> &
 FEInterfaceValues<dim, spacedim>::get_quadrature() const
 {
-  return internal_fe_face_values.get_quadrature();
+  Assert(!has_hp_capabilities(), ExcOnlyAvailableWithoutHP());
+  return internal_fe_face_values->get_quadrature();
+}
+
+
+
+template <int dim, int spacedim>
+const hp::MappingCollection<dim, spacedim> &
+FEInterfaceValues<dim, spacedim>::get_mapping_collection() const
+{
+  Assert(has_hp_capabilities(), ExcOnlyAvailableWithHP());
+  return internal_hp_fe_face_values->get_mapping_collection();
+}
+
+
+
+template <int dim, int spacedim>
+const hp::FECollection<dim, spacedim> &
+FEInterfaceValues<dim, spacedim>::get_fe_collection() const
+{
+  Assert(has_hp_capabilities(), ExcOnlyAvailableWithHP());
+  return internal_hp_fe_face_values->get_fe_collection();
+}
+
+
+
+template <int dim, int spacedim>
+const hp::QCollection<dim - 1> &
+FEInterfaceValues<dim, spacedim>::get_quadrature_collection() const
+{
+  Assert(has_hp_capabilities(), ExcOnlyAvailableWithHP());
+  return internal_hp_fe_face_values->get_quadrature_collection();
+}
+
+
+
+template <int dim, int spacedim>
+bool
+FEInterfaceValues<dim, spacedim>::has_hp_capabilities() const
+{
+  if (internal_hp_fe_face_values || internal_hp_fe_subface_values ||
+      internal_hp_fe_face_values_neighbor ||
+      internal_hp_fe_subface_values_neighbor)
+    {
+      Assert(!internal_fe_face_values, ExcInternalError());
+      Assert(!internal_fe_subface_values, ExcInternalError());
+      Assert(!internal_fe_face_values_neighbor, ExcInternalError());
+      Assert(!internal_fe_subface_values_neighbor, ExcInternalError());
+
+      return true;
+    }
+
+  Assert(internal_fe_face_values || internal_fe_subface_values ||
+           internal_fe_face_values_neighbor ||
+           internal_fe_subface_values_neighbor,
+         ExcInternalError());
+  Assert(!internal_hp_fe_face_values, ExcInternalError());
+  Assert(!internal_hp_fe_subface_values, ExcInternalError());
+  Assert(!internal_hp_fe_face_values_neighbor, ExcInternalError());
+  Assert(!internal_hp_fe_subface_values_neighbor, ExcInternalError());
+
+  return false;
 }
 
 
@@ -2304,13 +2744,16 @@ template <int dim, int spacedim>
 UpdateFlags
 FEInterfaceValues<dim, spacedim>::get_update_flags() const
 {
-  return internal_fe_face_values.get_update_flags();
+  if (has_hp_capabilities())
+    return internal_hp_fe_face_values->get_update_flags();
+  else
+    return internal_fe_face_values->get_update_flags();
 }
 
 
 
 template <int dim, int spacedim>
-const typename Triangulation<dim, spacedim>::cell_iterator
+typename Triangulation<dim, spacedim>::cell_iterator
 FEInterfaceValues<dim, spacedim>::get_cell(const unsigned int cell_index) const
 {
   return get_fe_face_values(cell_index).get_cell();
@@ -2454,17 +2897,6 @@ FEInterfaceValues<dim, spacedim>::jump_in_shape_values(
 
 template <int dim, int spacedim>
 double
-FEInterfaceValues<dim, spacedim>::jump(const unsigned int interface_dof_index,
-                                       const unsigned int q_point,
-                                       const unsigned int component) const
-{
-  return jump_in_shape_values(interface_dof_index, q_point, component);
-}
-
-
-
-template <int dim, int spacedim>
-double
 FEInterfaceValues<dim, spacedim>::average_of_shape_values(
   const unsigned int interface_dof_index,
   const unsigned int q_point,
@@ -2489,18 +2921,6 @@ FEInterfaceValues<dim, spacedim>::average_of_shape_values(
                                                                component);
 
   return value;
-}
-
-
-
-template <int dim, int spacedim>
-double
-FEInterfaceValues<dim, spacedim>::average(
-  const unsigned int interface_dof_index,
-  const unsigned int q_point,
-  const unsigned int component) const
-{
-  return average_of_shape_values(interface_dof_index, q_point, component);
 }
 
 
@@ -2536,18 +2956,6 @@ FEInterfaceValues<dim, spacedim>::average_of_shape_gradients(
 
 
 template <int dim, int spacedim>
-Tensor<1, spacedim>
-FEInterfaceValues<dim, spacedim>::average_gradient(
-  const unsigned int interface_dof_index,
-  const unsigned int q_point,
-  const unsigned int component) const
-{
-  return average_of_shape_gradients(interface_dof_index, q_point, component);
-}
-
-
-
-template <int dim, int spacedim>
 Tensor<2, spacedim>
 FEInterfaceValues<dim, spacedim>::average_of_shape_hessians(
   const unsigned int interface_dof_index,
@@ -2578,13 +2986,31 @@ FEInterfaceValues<dim, spacedim>::average_of_shape_hessians(
 
 
 template <int dim, int spacedim>
-Tensor<2, spacedim>
-FEInterfaceValues<dim, spacedim>::average_hessian(
+Tensor<3, spacedim>
+FEInterfaceValues<dim, spacedim>::average_of_shape_3rd_derivatives(
   const unsigned int interface_dof_index,
   const unsigned int q_point,
   const unsigned int component) const
 {
-  return average_of_shape_hessians(interface_dof_index, q_point, component);
+  const auto dof_pair = dofmap[interface_dof_index];
+
+  if (at_boundary())
+    return get_fe_face_values(0).shape_3rd_derivative_component(dof_pair[0],
+                                                                q_point,
+                                                                component);
+
+  Tensor<3, spacedim> value;
+
+  if (dof_pair[0] != numbers::invalid_unsigned_int)
+    value += 0.5 * get_fe_face_values(0).shape_3rd_derivative_component(dof_pair[0],
+                                                                        q_point,
+                                                                        component);
+  if (dof_pair[1] != numbers::invalid_unsigned_int)
+    value += 0.5 * get_fe_face_values(1).shape_3rd_derivative_component(dof_pair[1],
+                                                                        q_point,
+                                                                        component);
+
+  return value;
 }
 
 
@@ -2620,18 +3046,6 @@ FEInterfaceValues<dim, spacedim>::jump_in_shape_gradients(
 
 
 template <int dim, int spacedim>
-Tensor<1, spacedim>
-FEInterfaceValues<dim, spacedim>::jump_gradient(
-  const unsigned int interface_dof_index,
-  const unsigned int q_point,
-  const unsigned int component) const
-{
-  return jump_in_shape_gradients(interface_dof_index, q_point, component);
-}
-
-
-
-template <int dim, int spacedim>
 Tensor<2, spacedim>
 FEInterfaceValues<dim, spacedim>::jump_in_shape_hessians(
   const unsigned int interface_dof_index,
@@ -2657,18 +3071,6 @@ FEInterfaceValues<dim, spacedim>::jump_in_shape_hessians(
                                                            component);
 
   return value;
-}
-
-
-
-template <int dim, int spacedim>
-Tensor<2, spacedim>
-FEInterfaceValues<dim, spacedim>::jump_hessian(
-  const unsigned int interface_dof_index,
-  const unsigned int q_point,
-  const unsigned int component) const
-{
-  return jump_in_shape_hessians(interface_dof_index, q_point, component);
 }
 
 
@@ -2704,39 +3106,148 @@ FEInterfaceValues<dim, spacedim>::jump_in_shape_3rd_derivatives(
 
 
 template <int dim, int spacedim>
-Tensor<3, spacedim>
-FEInterfaceValues<dim, spacedim>::jump_3rd_derivative(
-  const unsigned int interface_dof_index,
-  const unsigned int q_point,
-  const unsigned int component) const
+template <class InputVector>
+void
+FEInterfaceValues<dim, spacedim>::get_jump_in_function_values(
+  const InputVector                             &fe_function,
+  std::vector<typename InputVector::value_type> &values) const
 {
-  return jump_in_shape_3rd_derivatives(interface_dof_index, q_point, component);
+  AssertDimension(values.size(), n_quadrature_points);
+
+  const FEValuesExtractors::Scalar scalar(0);
+  this->operator[](scalar).get_jump_in_function_values(fe_function, values);
+}
+
+
+
+template <int dim, int spacedim>
+template <class InputVector>
+void
+FEInterfaceValues<dim, spacedim>::get_jump_in_function_gradients(
+  const InputVector &fe_function,
+  std::vector<Tensor<1, spacedim, typename InputVector::value_type>> &gradients)
+  const
+{
+  AssertDimension(gradients.size(), n_quadrature_points);
+
+  const FEValuesExtractors::Scalar scalar(0);
+  this->operator[](scalar).get_jump_in_function_gradients(fe_function,
+                                                          gradients);
+}
+
+
+
+template <int dim, int spacedim>
+template <class InputVector>
+void
+FEInterfaceValues<dim, spacedim>::get_jump_in_function_hessians(
+  const InputVector &fe_function,
+  std::vector<Tensor<2, spacedim, typename InputVector::value_type>> &hessians)
+  const
+{
+  AssertDimension(hessians.size(), n_quadrature_points);
+
+  const FEValuesExtractors::Scalar scalar(0);
+  this->operator[](scalar).get_jump_in_function_hessians(fe_function, hessians);
+}
+
+
+
+template <int dim, int spacedim>
+template <class InputVector>
+void
+FEInterfaceValues<dim, spacedim>::get_jump_in_function_third_derivatives(
+  const InputVector &fe_function,
+  std::vector<Tensor<3, spacedim, typename InputVector::value_type>>
+    &third_derivatives) const
+{
+  AssertDimension(third_derivatives.size(), n_quadrature_points);
+
+  const FEValuesExtractors::Scalar scalar(0);
+  this->operator[](scalar).get_jump_in_function_third_derivatives(
+    fe_function, third_derivatives);
+}
+
+
+
+template <int dim, int spacedim>
+template <class InputVector>
+void
+FEInterfaceValues<dim, spacedim>::get_average_of_function_values(
+  const InputVector                             &fe_function,
+  std::vector<typename InputVector::value_type> &values) const
+{
+  AssertDimension(values.size(), n_quadrature_points);
+
+  const FEValuesExtractors::Scalar scalar(0);
+  this->operator[](scalar).get_average_of_function_values(fe_function, values);
+}
+
+
+
+template <int dim, int spacedim>
+template <class InputVector>
+void
+FEInterfaceValues<dim, spacedim>::get_average_of_function_gradients(
+  const InputVector &fe_function,
+  std::vector<Tensor<1, spacedim, typename InputVector::value_type>> &gradients)
+  const
+{
+  AssertDimension(gradients.size(), n_quadrature_points);
+
+  const FEValuesExtractors::Scalar scalar(0);
+  this->operator[](scalar).get_average_of_function_gradients(fe_function,
+                                                             gradients);
+}
+
+
+
+template <int dim, int spacedim>
+template <class InputVector>
+void
+FEInterfaceValues<dim, spacedim>::get_average_of_function_hessians(
+  const InputVector &fe_function,
+  std::vector<Tensor<2, spacedim, typename InputVector::value_type>> &hessians)
+  const
+{
+  AssertDimension(hessians.size(), n_quadrature_points);
+
+  const FEValuesExtractors::Scalar scalar(0);
+  this->operator[](scalar).get_average_of_function_hessians(fe_function,
+                                                            hessians);
 }
 
 
 
 /*------------ Inline functions: FEInterfaceValues------------*/
 template <int dim, int spacedim>
-inline const FEInterfaceViews::Scalar<dim, spacedim>
+inline FEInterfaceViews::Scalar<dim, spacedim>
 FEInterfaceValues<dim, spacedim>::operator[](
   const FEValuesExtractors::Scalar &scalar) const
 {
-  AssertIndexRange(scalar.component, this->get_fe().n_components());
+  const unsigned int n_components =
+    (this->has_hp_capabilities() ? this->get_fe_collection().n_components() :
+                                   this->get_fe().n_components());
+  (void)n_components;
+  AssertIndexRange(scalar.component, n_components);
   return FEInterfaceViews::Scalar<dim, spacedim>(*this, scalar.component);
 }
 
 
 
 template <int dim, int spacedim>
-inline const FEInterfaceViews::Vector<dim, spacedim>
+inline FEInterfaceViews::Vector<dim, spacedim>
 FEInterfaceValues<dim, spacedim>::operator[](
   const FEValuesExtractors::Vector &vector) const
 {
-  const FiniteElement<dim, spacedim> &fe = this->get_fe();
-  const unsigned int                  n_vectors =
-    (fe.n_components() >= Tensor<1, spacedim>::n_independent_components ?
-       fe.n_components() - Tensor<1, spacedim>::n_independent_components + 1 :
+  const unsigned int n_components =
+    (this->has_hp_capabilities() ? this->get_fe_collection().n_components() :
+                                   this->get_fe().n_components());
+  const unsigned int n_vectors =
+    (n_components >= Tensor<1, spacedim>::n_independent_components ?
+       n_components - Tensor<1, spacedim>::n_independent_components + 1 :
        0);
+  (void)n_components;
   (void)n_vectors;
   AssertIndexRange(vector.first_vector_component, n_vectors);
   return FEInterfaceViews::Vector<dim, spacedim>(*this,
@@ -2770,14 +3281,14 @@ namespace FEInterfaceViews
   void
   Base<dim, spacedim>::get_local_dof_values(
     const InputVector &dof_values,
-    OutputVector &     local_dof_values) const
+    OutputVector      &local_dof_values) const
   {
     const auto &interface_dof_indices =
       this->fe_interface->get_interface_dof_indices();
 
     AssertDimension(interface_dof_indices.size(), local_dof_values.size());
 
-    for (unsigned int i = 0; i < interface_dof_indices.size(); ++i)
+    for (const unsigned int i : this->fe_interface->dof_indices())
       local_dof_values[i] = dof_values(interface_dof_indices[i]);
   }
 
@@ -2830,16 +3341,6 @@ namespace FEInterfaceViews
 
   template <int dim, int spacedim>
   typename Scalar<dim, spacedim>::value_type
-  Scalar<dim, spacedim>::jump(const unsigned int interface_dof_index,
-                              const unsigned int q_point) const
-  {
-    return jump_in_values(interface_dof_index, q_point);
-  }
-
-
-
-  template <int dim, int spacedim>
-  typename Scalar<dim, spacedim>::value_type
   Scalar<dim, spacedim>::average_of_values(
     const unsigned int interface_dof_index,
     const unsigned int q_point) const
@@ -2869,16 +3370,6 @@ namespace FEInterfaceViews
 
 
   template <int dim, int spacedim>
-  typename Scalar<dim, spacedim>::value_type
-  Scalar<dim, spacedim>::average(const unsigned int interface_dof_index,
-                                 const unsigned int q_point) const
-  {
-    return average_of_values(interface_dof_index, q_point);
-  }
-
-
-
-  template <int dim, int spacedim>
   typename Scalar<dim, spacedim>::gradient_type
   Scalar<dim, spacedim>::average_of_gradients(
     const unsigned int interface_dof_index,
@@ -2903,16 +3394,6 @@ namespace FEInterfaceViews
                        .gradient(dof_pair[1], q_point);
 
     return value;
-  }
-
-
-  template <int dim, int spacedim>
-  typename Scalar<dim, spacedim>::gradient_type
-  Scalar<dim, spacedim>::average_gradient(
-    const unsigned int interface_dof_index,
-    const unsigned int q_point) const
-  {
-    return average_of_gradients(interface_dof_index, q_point);
   }
 
 
@@ -2947,16 +3428,6 @@ namespace FEInterfaceViews
 
 
   template <int dim, int spacedim>
-  typename Scalar<dim, spacedim>::gradient_type
-  Scalar<dim, spacedim>::jump_gradient(const unsigned int interface_dof_index,
-                                       const unsigned int q_point) const
-  {
-    return jump_in_gradients(interface_dof_index, q_point);
-  }
-
-
-
-  template <int dim, int spacedim>
   typename Scalar<dim, spacedim>::hessian_type
   Scalar<dim, spacedim>::average_of_hessians(
     const unsigned int interface_dof_index,
@@ -2981,16 +3452,6 @@ namespace FEInterfaceViews
                        .hessian(dof_pair[1], q_point);
 
     return value;
-  }
-
-
-
-  template <int dim, int spacedim>
-  typename Scalar<dim, spacedim>::hessian_type
-  Scalar<dim, spacedim>::average_hessian(const unsigned int interface_dof_index,
-                                         const unsigned int q_point) const
-  {
-    return average_of_hessians(interface_dof_index, q_point);
   }
 
 
@@ -3025,11 +3486,28 @@ namespace FEInterfaceViews
 
   template <int dim, int spacedim>
   typename Scalar<dim, spacedim>::third_derivative_type
-  Scalar<dim, spacedim>::jump_3rd_derivative(
+  Scalar<dim, spacedim>::average_of_third_derivatives(
     const unsigned int interface_dof_index,
     const unsigned int q_point) const
   {
-    return jump_in_third_derivatives(interface_dof_index, q_point);
+    const auto dof_pair = this->fe_interface->dofmap[interface_dof_index];
+
+    if (this->fe_interface->at_boundary())
+      return (*(this->fe_interface->fe_face_values))[extractor]
+        .third_derivative(dof_pair[0], q_point);
+
+    third_derivative_type value;
+
+    if (dof_pair[0] != numbers::invalid_unsigned_int)
+      value +=
+        0.5 * (*(this->fe_interface->fe_face_values))[extractor].third_derivative(
+          dof_pair[0], q_point);
+
+    if (dof_pair[1] != numbers::invalid_unsigned_int)
+      value += 0.5 * (*(this->fe_interface->fe_face_values_neighbor))[extractor]
+                 .third_derivative(dof_pair[1], q_point);
+
+    return value;
   }
 
 
@@ -3064,16 +3542,6 @@ namespace FEInterfaceViews
 
 
   template <int dim, int spacedim>
-  typename Scalar<dim, spacedim>::hessian_type
-  Scalar<dim, spacedim>::jump_hessian(const unsigned int interface_dof_index,
-                                      const unsigned int q_point) const
-  {
-    return jump_in_hessians(interface_dof_index, q_point);
-  }
-
-
-
-  template <int dim, int spacedim>
   template <class InputVector>
   void
   Scalar<dim, spacedim>::get_function_values_from_local_dof_values(
@@ -3083,9 +3551,6 @@ namespace FEInterfaceViews
     const
   {
     AssertDimension(values.size(), this->fe_interface->n_quadrature_points);
-
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
 
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
@@ -3130,9 +3595,6 @@ namespace FEInterfaceViews
   {
     AssertDimension(values.size(), this->fe_interface->n_quadrature_points);
 
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
-
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
         {
@@ -3172,9 +3634,6 @@ namespace FEInterfaceViews
       &gradients) const
   {
     AssertDimension(gradients.size(), this->fe_interface->n_quadrature_points);
-
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
 
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
@@ -3216,9 +3675,6 @@ namespace FEInterfaceViews
     const
   {
     AssertDimension(values.size(), this->fe_interface->n_quadrature_points);
-
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
 
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
@@ -3262,9 +3718,6 @@ namespace FEInterfaceViews
   {
     AssertDimension(gradients.size(), this->fe_interface->n_quadrature_points);
 
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
-
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
         {
@@ -3305,9 +3758,6 @@ namespace FEInterfaceViews
       &hessians) const
   {
     AssertDimension(hessians.size(), this->fe_interface->n_quadrature_points);
-
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
 
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
@@ -3350,11 +3800,7 @@ namespace FEInterfaceViews
   {
     AssertDimension(hessians.size(), this->fe_interface->n_quadrature_points);
 
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
-
-    for (unsigned int dof_index = 0; dof_index < interface_dof_indices.size();
-         ++dof_index)
+    for (const unsigned int dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
         {
           if (dof_index == 0)
@@ -3398,11 +3844,7 @@ namespace FEInterfaceViews
     AssertDimension(third_derivatives.size(),
                     this->fe_interface->n_quadrature_points);
 
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
-
-    for (unsigned int dof_index = 0; dof_index < interface_dof_indices.size();
-         ++dof_index)
+    for (const unsigned int dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
         {
           if (dof_index == 0)
@@ -3492,16 +3934,6 @@ namespace FEInterfaceViews
 
   template <int dim, int spacedim>
   typename Vector<dim, spacedim>::value_type
-  Vector<dim, spacedim>::jump(const unsigned int interface_dof_index,
-                              const unsigned int q_point) const
-  {
-    return jump_in_values(interface_dof_index, q_point);
-  }
-
-
-
-  template <int dim, int spacedim>
-  typename Vector<dim, spacedim>::value_type
   Vector<dim, spacedim>::average_of_values(
     const unsigned int interface_dof_index,
     const unsigned int q_point) const
@@ -3531,16 +3963,6 @@ namespace FEInterfaceViews
 
 
   template <int dim, int spacedim>
-  typename Vector<dim, spacedim>::value_type
-  Vector<dim, spacedim>::average(const unsigned int interface_dof_index,
-                                 const unsigned int q_point) const
-  {
-    return average_of_values(interface_dof_index, q_point);
-  }
-
-
-
-  template <int dim, int spacedim>
   typename Vector<dim, spacedim>::gradient_type
   Vector<dim, spacedim>::average_of_gradients(
     const unsigned int interface_dof_index,
@@ -3565,17 +3987,6 @@ namespace FEInterfaceViews
                        .gradient(dof_pair[1], q_point);
 
     return value;
-  }
-
-
-
-  template <int dim, int spacedim>
-  typename Vector<dim, spacedim>::gradient_type
-  Vector<dim, spacedim>::average_gradient(
-    const unsigned int interface_dof_index,
-    const unsigned int q_point) const
-  {
-    return average_of_gradients(interface_dof_index, q_point);
   }
 
 
@@ -3699,6 +4110,34 @@ namespace FEInterfaceViews
 
   template <int dim, int spacedim>
   typename Vector<dim, spacedim>::third_derivative_type
+  Vector<dim, spacedim>::average_of_third_derivatives(
+    const unsigned int interface_dof_index,
+    const unsigned int q_point) const
+  {
+    const auto dof_pair = this->fe_interface->dofmap[interface_dof_index];
+
+    if (this->fe_interface->at_boundary())
+      return (*(this->fe_interface->fe_face_values))[extractor]
+        .third_derivative(dof_pair[0], q_point);
+
+    third_derivative_type value;
+
+    if (dof_pair[0] != numbers::invalid_unsigned_int)
+      value += 0.5 *
+        (*(this->fe_interface->fe_face_values))[extractor].third_derivative(
+          dof_pair[0], q_point);
+
+    if (dof_pair[1] != numbers::invalid_unsigned_int)
+      value += 0.5 * (*(this->fe_interface->fe_face_values_neighbor))[extractor]
+                 .third_derivative(dof_pair[1], q_point);
+
+    return value;
+  }
+
+
+
+  template <int dim, int spacedim>
+  typename Vector<dim, spacedim>::third_derivative_type
   Vector<dim, spacedim>::jump_in_third_derivatives(
     const unsigned int interface_dof_index,
     const unsigned int q_point) const
@@ -3726,17 +4165,6 @@ namespace FEInterfaceViews
 
 
   template <int dim, int spacedim>
-  typename Vector<dim, spacedim>::third_derivative_type
-  Vector<dim, spacedim>::jump_3rd_derivative(
-    const unsigned int interface_dof_index,
-    const unsigned int q_point) const
-  {
-    return jump_in_third_derivatives(interface_dof_index, q_point);
-  }
-
-
-
-  template <int dim, int spacedim>
   template <class InputVector>
   void
   Vector<dim, spacedim>::get_function_values_from_local_dof_values(
@@ -3746,9 +4174,6 @@ namespace FEInterfaceViews
     const
   {
     AssertDimension(values.size(), this->fe_interface->n_quadrature_points);
-
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
 
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
@@ -3793,9 +4218,6 @@ namespace FEInterfaceViews
   {
     AssertDimension(values.size(), this->fe_interface->n_quadrature_points);
 
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
-
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
         {
@@ -3835,9 +4257,6 @@ namespace FEInterfaceViews
       &gradients) const
   {
     AssertDimension(gradients.size(), this->fe_interface->n_quadrature_points);
-
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
 
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
@@ -3879,9 +4298,6 @@ namespace FEInterfaceViews
     const
   {
     AssertDimension(values.size(), this->fe_interface->n_quadrature_points);
-
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
 
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
@@ -3925,9 +4341,6 @@ namespace FEInterfaceViews
   {
     AssertDimension(gradients.size(), this->fe_interface->n_quadrature_points);
 
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
-
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
         {
@@ -3968,9 +4381,6 @@ namespace FEInterfaceViews
       &hessians) const
   {
     AssertDimension(hessians.size(), this->fe_interface->n_quadrature_points);
-
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
 
     for (const auto dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
@@ -4013,11 +4423,7 @@ namespace FEInterfaceViews
   {
     AssertDimension(hessians.size(), this->fe_interface->n_quadrature_points);
 
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
-
-    for (unsigned int dof_index = 0; dof_index < interface_dof_indices.size();
-         ++dof_index)
+    for (const unsigned int dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
         {
           if (dof_index == 0)
@@ -4061,11 +4467,7 @@ namespace FEInterfaceViews
     AssertDimension(third_derivatives.size(),
                     this->fe_interface->n_quadrature_points);
 
-    const auto &interface_dof_indices =
-      this->fe_interface->get_interface_dof_indices();
-
-    for (unsigned int dof_index = 0; dof_index < interface_dof_indices.size();
-         ++dof_index)
+    for (const unsigned int dof_index : this->fe_interface->dof_indices())
       for (const auto q_index : this->fe_interface->quadrature_point_indices())
         {
           if (dof_index == 0)

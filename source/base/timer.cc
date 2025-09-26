@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -162,7 +162,7 @@ Timer::Timer()
 
 
 
-Timer::Timer(const MPI_Comm &mpi_communicator, const bool sync_lap_times_)
+Timer::Timer(const MPI_Comm mpi_communicator, const bool sync_lap_times_)
   : running(false)
   , mpi_communicator(mpi_communicator)
   , sync_lap_times(sync_lap_times_)
@@ -209,16 +209,15 @@ Timer::stop()
       if (sync_lap_times)
         {
           wall_times.last_lap_time =
-            internal::TimerImplementation::from_seconds<decltype(
-              wall_times)::duration_type>(last_lap_wall_time_data.max);
-          cpu_times.last_lap_time =
-            internal::TimerImplementation::from_seconds<decltype(
-              cpu_times)::duration_type>(
-              Utilities::MPI::min_max_avg(
-                internal::TimerImplementation::to_seconds(
-                  cpu_times.last_lap_time),
-                mpi_communicator)
-                .max);
+            internal::TimerImplementation::from_seconds<
+              decltype(wall_times)::duration_type>(last_lap_wall_time_data.max);
+          cpu_times.last_lap_time = internal::TimerImplementation::from_seconds<
+            decltype(cpu_times)::duration_type>(
+            Utilities::MPI::min_max_avg(
+              internal::TimerImplementation::to_seconds(
+                cpu_times.last_lap_time),
+              mpi_communicator)
+              .max);
         }
       wall_times.accumulated_time += wall_times.last_lap_time;
       cpu_times.accumulated_time += cpu_times.last_lap_time;
@@ -298,7 +297,7 @@ Timer::reset()
 
 /* ---------------------------- TimerOutput -------------------------- */
 
-TimerOutput::TimerOutput(std::ostream &        stream,
+TimerOutput::TimerOutput(std::ostream         &stream,
                          const OutputFrequency output_frequency,
                          const OutputType      output_type)
   : output_frequency(output_frequency)
@@ -310,7 +309,7 @@ TimerOutput::TimerOutput(std::ostream &        stream,
 
 
 
-TimerOutput::TimerOutput(ConditionalOStream &  stream,
+TimerOutput::TimerOutput(ConditionalOStream   &stream,
                          const OutputFrequency output_frequency,
                          const OutputType      output_type)
   : output_frequency(output_frequency)
@@ -322,8 +321,8 @@ TimerOutput::TimerOutput(ConditionalOStream &  stream,
 
 
 
-TimerOutput::TimerOutput(const MPI_Comm &      mpi_communicator,
-                         std::ostream &        stream,
+TimerOutput::TimerOutput(const MPI_Comm        mpi_communicator,
+                         std::ostream         &stream,
                          const OutputFrequency output_frequency,
                          const OutputType      output_type)
   : output_frequency(output_frequency)
@@ -335,8 +334,8 @@ TimerOutput::TimerOutput(const MPI_Comm &      mpi_communicator,
 
 
 
-TimerOutput::TimerOutput(const MPI_Comm &      mpi_communicator,
-                         ConditionalOStream &  stream,
+TimerOutput::TimerOutput(const MPI_Comm        mpi_communicator,
+                         ConditionalOStream   &stream,
                          const OutputFrequency output_frequency,
                          const OutputType      output_type)
   : output_frequency(output_frequency)
@@ -839,8 +838,8 @@ TimerOutput::print_summary() const
 
 
 void
-TimerOutput::print_wall_time_statistics(const MPI_Comm &mpi_comm,
-                                        const double    quantile) const
+TimerOutput::print_wall_time_statistics(const MPI_Comm mpi_comm,
+                                        const double   quantile) const
 {
   // we are going to change the precision and width of output below. store the
   // old values so the get restored when exiting this function

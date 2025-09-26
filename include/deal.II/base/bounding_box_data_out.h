@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,16 +27,8 @@
 #include <deal.II/boost_adaptors/point.h>
 #include <deal.II/boost_adaptors/segment.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
-#ifdef DEAL_II_BOOST_HAS_BROKEN_HEADER_DEPRECATIONS
-#  define BOOST_ALLOW_DEPRECATED_HEADERS
-#endif
 #include <boost/geometry/index/rtree.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
-#ifdef DEAL_II_BOOST_HAS_BROKEN_HEADER_DEPRECATIONS
-#  undef BOOST_ALLOW_DEPRECATED_HEADERS
-#endif
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 
 DEAL_II_NAMESPACE_OPEN
@@ -95,7 +87,7 @@ public:
    */
   void
   add_datasets(const std::vector<std::vector<double>> &datasets,
-               const std::vector<std::string> &        dataset_names);
+               const std::vector<std::string>         &dataset_names);
 
 protected:
   // Copy doc
@@ -173,7 +165,7 @@ template <int dim>
 void
 BoundingBoxDataOut<dim>::add_datasets(
   const std::vector<std::vector<double>> &datasets,
-  const std::vector<std::string> &        names)
+  const std::vector<std::string>         &names)
 {
   AssertDimension(datasets.size(), patches.size());
   dataset_names = names;

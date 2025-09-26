@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2018 by the deal.II authors
+## Copyright (C) 2012 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,11 +13,9 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(${UMFPACK_BUNDLED_INCLUDE_DIRS})
+strip_flag(DEAL_II_WARNING_FLAGS "-Wfloat-conversion")
 
-STRIP_FLAG(DEAL_II_CXX_FLAGS "-Wfloat-conversion")
-
-SET(src_amd
+set(src_amd
   amd_1.cc
   amd_2.cc
   amd_aat.cc
@@ -32,11 +30,12 @@ SET(src_amd
   amd_valid.cc
   )
 
-DEAL_II_ADD_LIBRARY(obj_amd_int OBJECT ${src_amd})
-DEAL_II_ADD_DEFINITIONS(obj_amd_int "DINT")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../Include)
+define_object_library(bundled_amd_int OBJECT ${src_amd})
+deal_ii_add_definitions(bundled_amd_int "DINT")
 
-DEAL_II_ADD_LIBRARY(obj_amd_long OBJECT ${src_amd})
-DEAL_II_ADD_DEFINITIONS(obj_amd_long "DLONG")
+define_object_library(bundled_amd_long OBJECT ${src_amd})
+deal_ii_add_definitions(bundled_amd_long "DLONG")
 
-DEAL_II_ADD_LIBRARY(obj_amd_global OBJECT "amd_global.cc")
+define_object_library(bundled_amd_global OBJECT "amd_global.cc")
 

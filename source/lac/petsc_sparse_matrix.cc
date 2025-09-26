@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,7 +35,9 @@ namespace PETScWrappers
     AssertThrow(ierr == 0, ExcPETScError(ierr));
   }
 
-
+  SparseMatrix::SparseMatrix(const Mat &A)
+    : MatrixBase(A)
+  {}
 
   SparseMatrix::SparseMatrix(const size_type m,
                              const size_type n,
@@ -83,7 +85,7 @@ namespace PETScWrappers
   {
     // get rid of old matrix and generate a
     // new one
-    const PetscErrorCode ierr = destroy_matrix(matrix);
+    const PetscErrorCode ierr = MatDestroy(&matrix);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
 
     do_reinit(m, n, n_nonzero_per_row, is_symmetric);
@@ -99,7 +101,7 @@ namespace PETScWrappers
   {
     // get rid of old matrix and generate a
     // new one
-    const PetscErrorCode ierr = destroy_matrix(matrix);
+    const PetscErrorCode ierr = MatDestroy(&matrix);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
 
     do_reinit(m, n, row_lengths, is_symmetric);
@@ -114,22 +116,10 @@ namespace PETScWrappers
   {
     // get rid of old matrix and generate a
     // new one
-    const PetscErrorCode ierr = destroy_matrix(matrix);
+    const PetscErrorCode ierr = MatDestroy(&matrix);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
 
     do_reinit(sparsity_pattern, preset_nonzero_locations);
-  }
-
-
-
-  const MPI_Comm &
-  SparseMatrix::get_mpi_communicator() const
-  {
-    static MPI_Comm      comm;
-    const PetscErrorCode ierr =
-      PetscObjectGetComm(reinterpret_cast<PetscObject>(matrix), &comm);
-    AssertThrow(ierr == 0, ExcPETScError(ierr));
-    return comm;
   }
 
 
@@ -265,9 +255,9 @@ namespace PETScWrappers
   }
 
   void
-  SparseMatrix::mmult(SparseMatrix &      C,
+  SparseMatrix::mmult(SparseMatrix       &C,
                       const SparseMatrix &B,
-                      const MPI::Vector & V) const
+                      const MPI::Vector  &V) const
   {
     // Simply forward to the protected member function of the base class
     // that takes abstract matrix and vector arguments (to which the compiler
@@ -276,9 +266,9 @@ namespace PETScWrappers
   }
 
   void
-  SparseMatrix::Tmmult(SparseMatrix &      C,
+  SparseMatrix::Tmmult(SparseMatrix       &C,
                        const SparseMatrix &B,
-                       const MPI::Vector & V) const
+                       const MPI::Vector  &V) const
   {
     // Simply forward to the protected member function of the base class
     // that takes abstract matrix and vector arguments (to which the compiler

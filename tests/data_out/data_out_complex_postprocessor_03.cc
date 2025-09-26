@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -53,7 +53,7 @@ namespace DataPostprocessors
     virtual void
     evaluate_vector_field(
       const DataPostprocessorInputs::Vector<dim> &inputs,
-      std::vector<Vector<double>> &               computed_quantities) const;
+      std::vector<Vector<double>>                &computed_quantities) const;
   };
 
   template <int dim>
@@ -66,7 +66,7 @@ namespace DataPostprocessors
   void
   ComplexMagnitude<dim>::evaluate_vector_field(
     const DataPostprocessorInputs::Vector<dim> &inputs,
-    std::vector<Vector<double>> &               computed_quantities) const
+    std::vector<Vector<double>>                &computed_quantities) const
   {
     Assert(computed_quantities.size() == inputs.solution_values.size(),
            ExcDimensionMismatch(computed_quantities.size(),
@@ -96,7 +96,7 @@ namespace DataPostprocessors
     virtual void
     evaluate_vector_field(
       const DataPostprocessorInputs::Vector<dim> &inputs,
-      std::vector<Vector<double>> &               computed_quantities) const;
+      std::vector<Vector<double>>                &computed_quantities) const;
   };
 
   template <int dim>
@@ -109,7 +109,7 @@ namespace DataPostprocessors
   void
   ComplexPhase<dim>::evaluate_vector_field(
     const DataPostprocessorInputs::Vector<dim> &inputs,
-    std::vector<Vector<double>> &               computed_quantities) const
+    std::vector<Vector<double>>                &computed_quantities) const
   {
     Assert(computed_quantities.size() == inputs.solution_values.size(),
            ExcDimensionMismatch(computed_quantities.size(),
@@ -149,8 +149,8 @@ check()
   for (unsigned int i = 0; i < v.size(); ++i)
     v(i) = std::complex<double>(0, 1);
 
-  const DataPostprocessors::ComplexMagnitude<dim> complex_magnitude;
-  const DataPostprocessors::ComplexPhase<dim>     complex_phase;
+  const ::DataPostprocessors::ComplexMagnitude<dim> complex_magnitude;
+  const ::DataPostprocessors::ComplexPhase<dim>     complex_phase;
 
   DataOut<dim> data_out;
   data_out.attach_dof_handler(dof_handler);
@@ -177,7 +177,7 @@ main()
       check<2>();
       check<3>();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

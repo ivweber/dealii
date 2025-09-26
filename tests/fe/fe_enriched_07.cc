@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -186,7 +186,7 @@ test6(const bool         do_href,
                          "_p_feq=" + std::to_string(p_feq) +
                          "_p_feenr=" + std::to_string(p_feen) + "_" +
                          dealii::Utilities::int_to_string(dim) + "D.vtu";
-  std::ofstream output(filename.c_str());
+  std::ofstream output(filename);
   data_out.write_vtu(output);
 #endif
 
@@ -206,7 +206,7 @@ main(int argc, char **argv)
     {
       test6<2>(false, 1, 2); // 1 vs 2+1
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

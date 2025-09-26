@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -50,8 +50,8 @@ namespace dealii
         const FEEvaluationData<dim, Number, is_face> &fe_eval,
         const bool                                    transpose,
         const std::array<dealii::internal::MatrixFreeFunctions::ConstraintKinds,
-                         Number::size()> &            c_mask,
-        Number *                                      values)
+                         Number::size()>             &c_mask,
+        Number                                       *values)
       {
         Assert(is_face == false, ExcInternalError());
 
@@ -105,8 +105,8 @@ namespace dealii
       run_2D(
         const FEEvaluationData<dim, Number, is_face> &fe_eval,
         const std::array<dealii::internal::MatrixFreeFunctions::ConstraintKinds,
-                         Number::size()> &            constraint_mask,
-        Number *                                      values)
+                         Number::size()>             &constraint_mask,
+        Number                                       *values)
       {
         const auto &constraint_weights = fe_eval.get_shape_info()
                                            .data.front()
@@ -243,8 +243,8 @@ namespace dealii
       run_3D(
         const FEEvaluationData<dim, Number, is_face> &fe_eval,
         const std::array<dealii::internal::MatrixFreeFunctions::ConstraintKinds,
-                         Number::size()> &            constraint_mask,
-        Number *                                      values)
+                         Number::size()>             &constraint_mask,
+        Number                                       *values)
       {
         const auto &constraint_weights = fe_eval.get_shape_info()
                                            .data.front()
@@ -450,14 +450,23 @@ test(const unsigned int                                           degree,
   FEEvaluation<dim, -1, 0, 1, double> eval(matrix_free);
   eval.reinit(0);
 
-  std::array<dealii::internal::MatrixFreeFunctions::ConstraintKinds,
+  std::array<dealii::internal::MatrixFreeFunctions::compressed_constraint_kind,
              VectorizedArray<double>::size()>
     cmask;
+  std::fill(cmask.begin(),
+            cmask.end(),
+            dealii::internal::MatrixFreeFunctions::
+              unconstrained_compressed_constraint_kind);
+  cmask[0] = dealii::internal::MatrixFreeFunctions::compress(mask_value, dim);
+
+  std::array<dealii::internal::MatrixFreeFunctions::ConstraintKinds,
+             VectorizedArray<double>::size()>
+    cmask_;
   std::fill(
-    cmask.begin(),
-    cmask.end(),
+    cmask_.begin(),
+    cmask_.end(),
     dealii::internal::MatrixFreeFunctions::ConstraintKinds::unconstrained);
-  cmask[0] = mask_value;
+  cmask_[0] = mask_value;
 
   for (unsigned int b = 0; b < 2; ++b)
     {
@@ -477,7 +486,7 @@ test(const unsigned int                                           degree,
       internal::FEEvaluationImplHangingNodesReference<
         dim,
         VectorizedArray<double>,
-        false>::template run<-1, -1>(eval, b == 1, cmask, values1.data());
+        false>::template run<-1, -1>(eval, b == 1, cmask_, values1.data());
       internal::FEEvaluationImplHangingNodes<dim, VectorizedArray<double>>::
         template run<-1, -1>(
           1, eval.get_shape_info(), b == 1, cmask, values2.data());

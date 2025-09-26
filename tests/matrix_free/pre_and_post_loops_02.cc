@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -56,7 +56,7 @@ public:
   {}
 
   void
-  vmult(LinearAlgebra::distributed::Vector<Number> &      dst,
+  vmult(LinearAlgebra::distributed::Vector<Number>       &dst,
         const LinearAlgebra::distributed::Vector<Number> &src) const
   {
     const std::function<void(const MatrixFree<dim, Number> &,
@@ -141,8 +141,7 @@ test()
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
   AffineConstraints<double> constraints;
-  IndexSet                  relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_dofs);
+  const IndexSet relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof);
   constraints.reinit(relevant_dofs);
   VectorTools::interpolate_boundary_values(dof,
                                            0,
@@ -157,7 +156,7 @@ test()
     const QGauss<1>                                  quad(fe_degree + 1);
     typename MatrixFree<dim, number>::AdditionalData data;
     data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   Matrix<dim, fe_degree, fe_degree + 1, number> mf(mf_data);
@@ -166,7 +165,7 @@ test()
   mf_data.initialize_dof_vector(vec2);
   mf_data.initialize_dof_vector(vec3);
 
-  for (unsigned int i = 0; i < vec1.local_size(); ++i)
+  for (unsigned int i = 0; i < vec1.locally_owned_size(); ++i)
     {
       if (constraints.is_constrained(
             vec1.get_partitioner()->local_to_global(i)))

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,7 +14,6 @@
 // ---------------------------------------------------------------------
 
 
-#include <deal.II/base/ndarray.h>
 #include <deal.II/base/polynomials_barycentric.h>
 #include <deal.II/base/polynomials_wedge.h>
 
@@ -50,49 +49,14 @@ ScalarLagrangePolynomialWedge<dim>::ScalarLagrangePolynomialWedge(
 {}
 
 
-namespace
-{
-  /**
-   * Decompose the shape-function index of a linear wedge into an index
-   * to access the right shape function within the triangle and and within
-   * the line.
-   */
-  static const constexpr ndarray<unsigned int, 6, 2> wedge_table_1{
-    {{{0, 0}}, {{1, 0}}, {{2, 0}}, {{0, 1}}, {{1, 1}}, {{2, 1}}}};
-
-  /**
-   * Decompose the shape-function index of a quadratic wedge into an index
-   * to access the right shape function within the triangle and and within
-   * the line.
-   */
-  static const constexpr ndarray<unsigned int, 18, 2> wedge_table_2{{{{0, 0}},
-                                                                     {{1, 0}},
-                                                                     {{2, 0}},
-                                                                     {{0, 1}},
-                                                                     {{1, 1}},
-                                                                     {{2, 1}},
-                                                                     {{3, 0}},
-                                                                     {{4, 0}},
-                                                                     {{5, 0}},
-                                                                     {{3, 1}},
-                                                                     {{4, 1}},
-                                                                     {{5, 1}},
-                                                                     {{0, 2}},
-                                                                     {{1, 2}},
-                                                                     {{2, 2}},
-                                                                     {{3, 2}},
-                                                                     {{4, 2}},
-                                                                     {{5, 2}}}};
-} // namespace
-
-
 
 template <int dim>
 double
 ScalarLagrangePolynomialWedge<dim>::compute_value(const unsigned int i,
-                                                  const Point<dim> & p) const
+                                                  const Point<dim>  &p) const
 {
-  const auto pair = this->degree() == 1 ? wedge_table_1[i] : wedge_table_2[i];
+  const auto pair = this->degree() == 1 ? internal::wedge_table_1[i] :
+                                          internal::wedge_table_2[i];
 
   const Point<2> p_tri(p[0], p[1]);
   const auto     v_tri = poly_tri.compute_value(pair[0], p_tri);
@@ -108,9 +72,10 @@ ScalarLagrangePolynomialWedge<dim>::compute_value(const unsigned int i,
 template <int dim>
 Tensor<1, dim>
 ScalarLagrangePolynomialWedge<dim>::compute_grad(const unsigned int i,
-                                                 const Point<dim> & p) const
+                                                 const Point<dim>  &p) const
 {
-  const auto pair = this->degree() == 1 ? wedge_table_1[i] : wedge_table_2[i];
+  const auto pair = this->degree() == 1 ? internal::wedge_table_1[i] :
+                                          internal::wedge_table_2[i];
 
   const Point<2> p_tri(p[0], p[1]);
   const auto     v_tri = poly_tri.compute_value(pair[0], p_tri);
@@ -147,8 +112,8 @@ ScalarLagrangePolynomialWedge<dim>::compute_grad_grad(const unsigned int i,
 template <int dim>
 void
 ScalarLagrangePolynomialWedge<dim>::evaluate(
-  const Point<dim> &           unit_point,
-  std::vector<double> &        values,
+  const Point<dim>            &unit_point,
+  std::vector<double>         &values,
   std::vector<Tensor<1, dim>> &grads,
   std::vector<Tensor<2, dim>> &grad_grads,
   std::vector<Tensor<3, dim>> &third_derivatives,
@@ -174,7 +139,7 @@ template <int dim>
 Tensor<1, dim>
 ScalarLagrangePolynomialWedge<dim>::compute_1st_derivative(
   const unsigned int i,
-  const Point<dim> & p) const
+  const Point<dim>  &p) const
 {
   return compute_grad(i, p);
 }
@@ -185,7 +150,7 @@ template <int dim>
 Tensor<2, dim>
 ScalarLagrangePolynomialWedge<dim>::compute_2nd_derivative(
   const unsigned int i,
-  const Point<dim> & p) const
+  const Point<dim>  &p) const
 {
   (void)i;
   (void)p;
@@ -201,7 +166,7 @@ template <int dim>
 Tensor<3, dim>
 ScalarLagrangePolynomialWedge<dim>::compute_3rd_derivative(
   const unsigned int i,
-  const Point<dim> & p) const
+  const Point<dim>  &p) const
 {
   (void)i;
   (void)p;
@@ -217,7 +182,7 @@ template <int dim>
 Tensor<4, dim>
 ScalarLagrangePolynomialWedge<dim>::compute_4th_derivative(
   const unsigned int i,
-  const Point<dim> & p) const
+  const Point<dim>  &p) const
 {
   (void)i;
   (void)p;

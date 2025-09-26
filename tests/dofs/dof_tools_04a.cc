@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -50,8 +50,8 @@ check_this(const DoFHandler<dim> &dof_handler)
 {
   const types::global_dof_index n_dofs = dof_handler.n_dofs();
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   const IndexSet is_hanging_node_constrained =
     DoFTools::extract_hanging_node_dofs(dof_handler);

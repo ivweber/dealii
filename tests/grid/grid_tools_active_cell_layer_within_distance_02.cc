@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2021 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,7 @@
 
 
 // write VTK files for visual inspection
-//#define WRITE_VTK
+// #define WRITE_VTK
 
 
 #include <deal.II/grid/grid_generator.h>
@@ -113,7 +113,7 @@ test()
   {
     const std::string filename =
       "grid_no_skin_" + Utilities::int_to_string(dim) + "d.vtk";
-    std::ofstream f(filename.c_str());
+    std::ofstream f(filename);
     GridOut().write_vtk(tria, f);
   }
 #endif
@@ -145,7 +145,7 @@ test()
   {
     const std::string filename =
       "grid_with_skin_" + Utilities::int_to_string(dim) + "d.vtk";
-    std::ofstream f(filename.c_str());
+    std::ofstream f(filename);
     GridOut().write_vtk(tria, f);
   }
 #endif

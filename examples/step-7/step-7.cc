@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2000 - 2021 by the deal.II authors
+ * Copyright (C) 2000 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,9 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Wolfgang Bangerth and Ralf Hartmann, University of Heidelberg, 2000
+ * Authors: Wolfgang Bangerth and Ralf Hartmann, University of Heidelberg, 2000
  */
 
 
@@ -172,11 +171,11 @@ namespace Step7
   class Solution : public Function<dim>, protected SolutionBase<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
     virtual Tensor<1, dim>
-    gradient(const Point<dim> & p,
+    gradient(const Point<dim>  &p,
              const unsigned int component = 0) const override;
   };
 
@@ -268,7 +267,7 @@ namespace Step7
   class RightHandSide : public Function<dim>, protected SolutionBase<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -569,8 +568,8 @@ namespace Step7
     // Note that the operations we will do with the right hand side object are
     // only querying data, never changing the object. We can therefore declare
     // it <code>const</code>:
-    const RightHandSide<dim> right_hand_side;
-    std::vector<double>      rhs_values(n_q_points);
+    RightHandSide<dim>  right_hand_side;
+    std::vector<double> rhs_values(n_q_points);
 
     // Finally we define an object denoting the exact solution function. We
     // will use it to compute the Neumann values at the boundary from
@@ -1070,8 +1069,8 @@ namespace Step7
     // <code>1</code>, which is why you haven't seen this parameter in
     // previous examples). This parameter denotes into how many sub-cells per
     // space direction each cell shall be subdivided for output. For example,
-    // if you give <code>2</code>, this leads to 4 cells in 2D and 8 cells in
-    // 3D. For quadratic elements, two sub-cells per space direction is
+    // if you give <code>2</code>, this leads to 4 cells in 2d and 8 cells in
+    // 3d. For quadratic elements, two sub-cells per space direction is
     // obviously the right choice, so this is what we choose. In general, for
     // elements of polynomial order <code>q</code>, we use <code>q</code>
     // subdivisions, and the order of the elements is determined in the same

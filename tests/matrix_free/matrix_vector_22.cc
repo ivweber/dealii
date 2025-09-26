@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,10 +51,10 @@
 template <int dim, int fe_degree, typename Number>
 void
 helmholtz_operator(
-  const MatrixFree<dim, Number> &                                  data,
-  std::vector<LinearAlgebra::distributed::Vector<Number> *> &      dst,
+  const MatrixFree<dim, Number>                                   &data,
+  std::vector<LinearAlgebra::distributed::Vector<Number> *>       &dst,
   const std::vector<LinearAlgebra::distributed::Vector<Number> *> &src,
-  const std::pair<unsigned int, unsigned int> &                    cell_range)
+  const std::pair<unsigned int, unsigned int>                     &cell_range)
 {
   FEEvaluation<dim, fe_degree, fe_degree + 1, 2, Number> fe_eval(data);
   const unsigned int n_q_points = fe_eval.n_q_points;
@@ -91,7 +91,7 @@ public:
 
   void
   vmult(
-    std::vector<LinearAlgebra::distributed::Vector<Number> *> &      dst,
+    std::vector<LinearAlgebra::distributed::Vector<Number> *>       &dst,
     const std::vector<LinearAlgebra::distributed::Vector<Number> *> &src) const
   {
     for (unsigned int i = 0; i < dst.size(); ++i)
@@ -153,9 +153,8 @@ test()
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints(relevant_set);
   DoFTools::make_hanging_node_constraints(dof, constraints);
@@ -177,7 +176,7 @@ test()
     typename MatrixFree<dim, number>::AdditionalData data;
     data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
     data.tasks_block_size      = 7;
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   MatrixFreeTest<dim, fe_degree, number>                  mf(mf_data);
@@ -190,7 +189,7 @@ test()
     }
   mf_data.initialize_dof_vector(ref);
 
-  for (unsigned int i = 0; i < in[0].local_size(); ++i)
+  for (unsigned int i = 0; i < in[0].locally_owned_size(); ++i)
     {
       const unsigned int glob_index = owned_set.nth_index_in_set(i);
       if (constraints.is_constrained(glob_index))

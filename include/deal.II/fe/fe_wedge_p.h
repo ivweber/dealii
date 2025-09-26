@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,9 +27,10 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * Base class of FE_WedgeP and FE_WedgeDGP.
  *
- * @note Only implemented for 3D.
+ * @note Only implemented for 3d.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_WedgePoly : public dealii::FE_Poly<dim, spacedim>
@@ -39,7 +40,7 @@ public:
    * Constructor.
    */
   FE_WedgePoly(const unsigned int                                degree,
-               const internal::GenericDoFsPerObject &            dpos,
+               const internal::GenericDoFsPerObject             &dpos,
                const typename FiniteElementData<dim>::Conformity conformity);
 
   /**
@@ -48,7 +49,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 };
 
 /**
@@ -60,7 +61,8 @@ public:
  *   (degree=2) are implemented. See also the documentation of
  *   ScalarLagrangePolynomialWedge.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_WedgeP : public FE_WedgePoly<dim, spacedim>
@@ -123,7 +125,8 @@ public:
  *   (degree=2) are implemented. See also the documentation of
  *   ScalarLagrangePolynomialWedge.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_WedgeDGP : public FE_WedgePoly<dim, spacedim>

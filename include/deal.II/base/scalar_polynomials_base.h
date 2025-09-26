@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2021 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,8 @@
 #include <deal.II/base/point.h>
 #include <deal.II/base/tensor.h>
 
+#include <memory>
+#include <string>
 #include <vector>
 
 DEAL_II_NAMESPACE_OPEN
@@ -97,8 +99,8 @@ public:
    * in a loop over all tensor product polynomials.
    */
   virtual void
-  evaluate(const Point<dim> &           unit_point,
-           std::vector<double> &        values,
+  evaluate(const Point<dim>            &unit_point,
+           std::vector<double>         &values,
            std::vector<Tensor<1, dim>> &grads,
            std::vector<Tensor<2, dim>> &grad_grads,
            std::vector<Tensor<3, dim>> &third_derivatives,
@@ -255,7 +257,7 @@ template <int dim>
 template <int order>
 inline Tensor<order, dim>
 ScalarPolynomialsBase<dim>::compute_derivative(const unsigned int i,
-                                               const Point<dim> & p) const
+                                               const Point<dim>  &p) const
 {
   if (order == 1)
     {

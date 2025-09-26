@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,7 +35,7 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.h>
 
-#include <deal.II/lac/petsc_parallel_vector.h>
+#include <deal.II/lac/petsc_vector.h>
 
 #include "../tests.h"
 
@@ -83,9 +83,9 @@ test()
 
       dh.distribute_dofs(fe_collection);
 
-      IndexSet locally_owned_dofs = dh.locally_owned_dofs();
-      IndexSet locally_relevant_dofs;
-      DoFTools::extract_locally_relevant_dofs(dh, locally_relevant_dofs);
+      const IndexSet &locally_owned_dofs = dh.locally_owned_dofs();
+      const IndexSet  locally_relevant_dofs =
+        DoFTools::extract_locally_relevant_dofs(dh);
 
       PETScWrappers::MPI::Vector x(locally_owned_dofs, com_small);
       PETScWrappers::MPI::Vector rel_x(locally_owned_dofs,
@@ -137,10 +137,9 @@ test()
     dh.deserialize_active_fe_indices();
     dh.distribute_dofs(fe_collection);
 
-    IndexSet locally_owned_dofs = dh.locally_owned_dofs();
-    IndexSet locally_relevant_dofs;
-
-    DoFTools::extract_locally_relevant_dofs(dh, locally_relevant_dofs);
+    const IndexSet &locally_owned_dofs = dh.locally_owned_dofs();
+    const IndexSet  locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dh);
 
     PETScWrappers::MPI::Vector solution(locally_owned_dofs, com_all);
     solution = PetscScalar();

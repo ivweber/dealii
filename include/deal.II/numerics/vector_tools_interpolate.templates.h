@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,7 +29,6 @@
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -72,7 +71,7 @@ namespace VectorTools
     transform(const typename FiniteElementData<dim>::Conformity conformity,
               const unsigned int                                offset,
               const FEValuesType &fe_values_jacobians,
-              T3 &                function_values)
+              T3                 &function_values)
     {
       switch (conformity)
         {
@@ -173,8 +172,8 @@ namespace VectorTools
     unsigned int
     apply_transform(const FiniteElement<dim, spacedim> &fe,
                     const unsigned int                  offset,
-                    const FEValuesType &                fe_values_jacobians,
-                    T3 &                                function_values)
+                    const FEValuesType                 &fe_values_jacobians,
+                    T3                                 &function_values)
     {
       if (const auto *system =
             dynamic_cast<const FESystem<dim, spacedim> *>(&fe))
@@ -215,12 +214,13 @@ namespace VectorTools
     //
     // A given cell is skipped if function(cell) == nullptr
     template <int dim, int spacedim, typename VectorType, typename T>
-    void
-    interpolate(const hp::MappingCollection<dim, spacedim> &mapping_collection,
-                const DoFHandler<dim, spacedim> &           dof_handler,
-                T &                                         function,
-                VectorType &                                vec,
-                const ComponentMask &                       component_mask)
+    DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+    void interpolate(
+      const hp::MappingCollection<dim, spacedim> &mapping_collection,
+      const DoFHandler<dim, spacedim>            &dof_handler,
+      T                                          &function,
+      VectorType                                 &vec,
+      const ComponentMask                        &component_mask)
     {
       Assert(component_mask.represents_n_components(
                dof_handler.get_fe_collection().n_components()),
@@ -474,13 +474,13 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  interpolate(
-    const hp::MappingCollection<dim, spacedim> &               mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void interpolate(
+    const hp::MappingCollection<dim, spacedim>                &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
     const Function<spacedim, typename VectorType::value_type> &function,
-    VectorType &                                               vec,
-    const ComponentMask &                                      component_mask)
+    VectorType                                                &vec,
+    const ComponentMask                                       &component_mask)
   {
     AssertDimension(dof_handler.get_fe_collection().n_components(),
                     function.n_components);
@@ -501,13 +501,13 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  interpolate(
-    const Mapping<dim, spacedim> &                             mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void interpolate(
+    const Mapping<dim, spacedim>                              &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
     const Function<spacedim, typename VectorType::value_type> &function,
-    VectorType &                                               vec,
-    const ComponentMask &                                      component_mask)
+    VectorType                                                &vec,
+    const ComponentMask                                       &component_mask)
   {
     interpolate(hp::MappingCollection<dim, spacedim>(mapping),
                 dof_handler,
@@ -519,12 +519,12 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  interpolate(
-    const DoFHandler<dim, spacedim> &                          dof,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void interpolate(
+    const DoFHandler<dim, spacedim>                           &dof,
     const Function<spacedim, typename VectorType::value_type> &function,
-    VectorType &                                               vec,
-    const ComponentMask &                                      component_mask)
+    VectorType                                                &vec,
+    const ComponentMask                                       &component_mask)
   {
     AssertDimension(dof.get_fe_collection().n_components(),
                     function.n_components);
@@ -538,12 +538,13 @@ namespace VectorTools
 
 
   template <int dim, class InVector, class OutVector, int spacedim>
-  void
-  interpolate(const DoFHandler<dim, spacedim> &dof_1,
-              const DoFHandler<dim, spacedim> &dof_2,
-              const FullMatrix<double> &       transfer,
-              const InVector &                 data_1,
-              OutVector &                      data_2)
+  DEAL_II_CXX20_REQUIRES(concepts::is_dealii_vector_type<InVector> &&
+                           concepts::is_writable_dealii_vector_type<OutVector>)
+  void interpolate(const DoFHandler<dim, spacedim> &dof_1,
+                   const DoFHandler<dim, spacedim> &dof_2,
+                   const FullMatrix<double>        &transfer,
+                   const InVector                  &data_1,
+                   OutVector                       &data_2)
   {
     using number = typename OutVector::value_type;
     Vector<number> cell_data_1(dof_1.get_fe().n_dofs_per_cell());
@@ -617,10 +618,10 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  get_position_vector(const DoFHandler<dim, spacedim> &dh,
-                      VectorType &                     vector,
-                      const ComponentMask &            mask)
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void get_position_vector(const DoFHandler<dim, spacedim> &dh,
+                           VectorType                      &vector,
+                           const ComponentMask             &mask)
   {
     const FiniteElement<dim, spacedim> &fe = dh.get_fe();
     get_position_vector(
@@ -634,11 +635,11 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  get_position_vector(const Mapping<dim, spacedim> &   map_q,
-                      const DoFHandler<dim, spacedim> &dh,
-                      VectorType &                     vector,
-                      const ComponentMask &            mask)
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void get_position_vector(const Mapping<dim, spacedim>    &map_q,
+                           const DoFHandler<dim, spacedim> &dh,
+                           VectorType                      &vector,
+                           const ComponentMask             &mask)
   {
     AssertDimension(vector.size(), dh.n_dofs());
     const FiniteElement<dim, spacedim> &fe = dh.get_fe();
@@ -808,14 +809,14 @@ namespace VectorTools
   }
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  interpolate_based_on_material_id(
-    const Mapping<dim, spacedim> &   mapping,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void interpolate_based_on_material_id(
+    const Mapping<dim, spacedim>    &mapping,
     const DoFHandler<dim, spacedim> &dof_handler,
     const std::map<types::material_id,
                    const Function<spacedim, typename VectorType::value_type> *>
-      &                  functions,
-    VectorType &         vec,
+                        &functions,
+    VectorType          &vec,
     const ComponentMask &component_mask)
   {
     // Create a small lambda capture wrapping the function map and call the
@@ -858,12 +859,14 @@ namespace VectorTools
     }
   } // namespace internal
 
+
+
   template <int dim, int spacedim, typename VectorType>
-  void
-  interpolate_to_different_mesh(const DoFHandler<dim, spacedim> &dof1,
-                                const VectorType &               u1,
-                                const DoFHandler<dim, spacedim> &dof2,
-                                VectorType &                     u2)
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void interpolate_to_different_mesh(const DoFHandler<dim, spacedim> &dof1,
+                                     const VectorType                &u1,
+                                     const DoFHandler<dim, spacedim> &dof2,
+                                     VectorType                      &u2)
   {
     Assert(GridTools::have_same_coarse_mesh(dof1, dof2),
            ExcMessage("The two DoF handlers must represent triangulations that "
@@ -881,13 +884,13 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  interpolate_to_different_mesh(
-    const DoFHandler<dim, spacedim> &                         dof1,
-    const VectorType &                                        u1,
-    const DoFHandler<dim, spacedim> &                         dof2,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void interpolate_to_different_mesh(
+    const DoFHandler<dim, spacedim>                          &dof1,
+    const VectorType                                         &u1,
+    const DoFHandler<dim, spacedim>                          &dof2,
     const AffineConstraints<typename VectorType::value_type> &constraints,
-    VectorType &                                              u2)
+    VectorType                                               &u2)
   {
     Assert(GridTools::have_same_coarse_mesh(dof1, dof2),
            ExcMessage("The two DoF handlers must represent triangulations that "
@@ -899,13 +902,15 @@ namespace VectorTools
     interpolate_to_different_mesh(intergridmap, u1, constraints, u2);
   }
 
+
+
   template <int dim, int spacedim, typename VectorType>
-  void
-  interpolate_to_different_mesh(
-    const InterGridMap<DoFHandler<dim, spacedim>> &           intergridmap,
-    const VectorType &                                        u1,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void interpolate_to_different_mesh(
+    const InterGridMap<DoFHandler<dim, spacedim>>            &intergridmap,
+    const VectorType                                         &u1,
     const AffineConstraints<typename VectorType::value_type> &constraints,
-    VectorType &                                              u2)
+    VectorType                                               &u2)
   {
     const DoFHandler<dim, spacedim> &dof1 = intergridmap.get_source_grid();
     const DoFHandler<dim, spacedim> &dof2 = intergridmap.get_destination_grid();

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,9 +20,7 @@
 
 #include <deal.II/base/bounding_box.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <deal.II/boost_adaptors/point.h>
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 
 namespace boost
@@ -61,7 +59,7 @@ namespace boost
          * a dealii::BoundingBox.
          */
         static inline double
-        get(dealii::BoundingBox<dim, Number> const &box)
+        get(const dealii::BoundingBox<dim, Number> &box)
         {
           return box.get_boundary_points().first[D];
         }
@@ -89,7 +87,7 @@ namespace boost
          * a dealii::BoundingBox.
          */
         static inline double
-        get(dealii::BoundingBox<dim, Number> const &box)
+        get(const dealii::BoundingBox<dim, Number> &box)
         {
           return box.get_boundary_points().second[D];
         }

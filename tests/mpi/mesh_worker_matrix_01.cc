@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2021 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -59,8 +59,8 @@ public:
   void
   face(MeshWorker::DoFInfo<dim> &dinfo1,
        MeshWorker::DoFInfo<dim> &dinfo2,
-       CellInfo &                info1,
-       CellInfo &                info2) const;
+       CellInfo                 &info1,
+       CellInfo                 &info2) const;
 
   bool cells;
   bool faces;
@@ -258,7 +258,6 @@ test(const FiniteElement<dim> &fe)
           std::vector<types::global_dof_index> &renumbered =
             dofmap[cell->id().to_string()];
           cell->set_dof_indices(renumbered);
-          cell->update_cell_dof_indices_cache();
         }
     }
 

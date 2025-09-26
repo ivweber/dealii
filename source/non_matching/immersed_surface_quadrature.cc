@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2019 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,8 +20,8 @@ namespace NonMatching
 {
   template <int dim, int spacedim>
   ImmersedSurfaceQuadrature<dim, spacedim>::ImmersedSurfaceQuadrature(
-    const std::vector<Point<dim>> &         points,
-    const std::vector<double> &             weights,
+    const std::vector<Point<dim>>          &points,
+    const std::vector<double>              &weights,
     const std::vector<Tensor<1, spacedim>> &normals)
     : Quadrature<dim>(points, weights)
     , normals(normals)
@@ -39,9 +39,20 @@ namespace NonMatching
 
 
   template <int dim, int spacedim>
+  inline void
+  ImmersedSurfaceQuadrature<dim, spacedim>::clear()
+  {
+    this->quadrature_points.clear();
+    this->weights.clear();
+    this->normals.clear();
+  }
+
+
+
+  template <int dim, int spacedim>
   void
   ImmersedSurfaceQuadrature<dim, spacedim>::push_back(
-    const Point<dim> &         point,
+    const Point<dim>          &point,
     const double               weight,
     const Tensor<1, spacedim> &normal)
   {
@@ -77,6 +88,7 @@ namespace NonMatching
   template class ImmersedSurfaceQuadrature<1, 1>;
   template class ImmersedSurfaceQuadrature<2, 2>;
   template class ImmersedSurfaceQuadrature<3, 3>;
+  template class ImmersedSurfaceQuadrature<0, 1>;
   template class ImmersedSurfaceQuadrature<1, 2>;
   template class ImmersedSurfaceQuadrature<2, 3>;
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 by the deal.II authors
+// Copyright (C) 2019 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,7 +19,8 @@
 
 #include <deal.II/base/mutable_bind.h>
 #include <deal.II/base/point.h>
-#include <deal.II/base/std_cxx17/tuple.h>
+
+#include <tuple>
 
 #include "../tests.h"
 

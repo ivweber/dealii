@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,6 +24,7 @@
 
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_system.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
@@ -59,7 +60,7 @@ BoundaryFunction<dim>::vector_value(const Point<dim> &,
 
 template <int dim>
 void
-test_boundary_values(const FiniteElement<dim> & fe,
+test_boundary_values(const FiniteElement<dim>  &fe,
                      AffineConstraints<double> &constraints)
 {
   Triangulation<dim> triangulation;

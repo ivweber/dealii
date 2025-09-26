@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -135,8 +135,11 @@ namespace Particles
      *   on both the locally owned cells, as well as on ghost cells. The
      *   particles on the latter are *copies* of particles owned on other
      *   processors, and should therefore be treated in the same way as
-     *   ghost entries in @ref GlossGhostedVector "vectors with ghost elements"
-     *   or @ref GlossGhostCell "ghost cells": In both cases, one should
+     *   ghost entries in
+     *   @ref GlossGhostedVector "vectors with ghost elements"
+     *   or
+     *   @ref GlossGhostCell "ghost cells":
+     *   In both cases, one should
      *   treat the ghost elements or cells as `const` objects that shouldn't
      *   be modified even if the objects allow for calls that modify
      *   properties. Rather, properties should only be modified on processors
@@ -163,8 +166,11 @@ namespace Particles
      *   on both the locally owned cells, as well as on ghost cells. The
      *   particles on the latter are *copies* of particles owned on other
      *   processors, and should therefore be treated in the same way as
-     *   ghost entries in @ref GlossGhostedVector "vectors with ghost elements"
-     *   or @ref GlossGhostCell "ghost cells": In both cases, one should
+     *   ghost entries in
+     *   @ref GlossGhostedVector "vectors with ghost elements"
+     *   or
+     *   @ref GlossGhostCell "ghost cells":
+     *   In both cases, one should
      *   treat the ghost elements or cells as `const` objects that shouldn't
      *   be modified even if the objects allow for calls that modify
      *   properties. Rather, properties should only be modified on processors
@@ -229,8 +235,11 @@ namespace Particles
      *   on both the locally owned cells, as well as on ghost cells. The
      *   particles on the latter are *copies* of particles owned on other
      *   processors, and should therefore be treated in the same way as
-     *   ghost entries in @ref GlossGhostedVector "vectors with ghost elements"
-     *   or @ref GlossGhostCell "ghost cells": In both cases, one should
+     *   ghost entries in
+     *   @ref GlossGhostedVector "vectors with ghost elements"
+     *   or
+     *   @ref GlossGhostCell "ghost cells":
+     *    In both cases, one should
      *   treat the ghost elements or cells as `const` objects that shouldn't
      *   be modified even if the objects allow for calls that modify
      *   properties. Rather, properties should only be modified on processors
@@ -249,8 +258,11 @@ namespace Particles
      *   on both the locally owned cells, as well as on ghost cells. The
      *   particles on the latter are *copies* of particles owned on other
      *   processors, and should therefore be treated in the same way as
-     *   ghost entries in @ref GlossGhostedVector "vectors with ghost elements"
-     *   or @ref GlossGhostCell "ghost cells": In both cases, one should
+     *   ghost entries in
+     *   @ref GlossGhostedVector "vectors with ghost elements"
+     *   or
+     *   @ref GlossGhostCell "ghost cells":
+     *   In both cases, one should
      *   treat the ghost elements or cells as `const` objects that shouldn't
      *   be modified even if the objects allow for calls that modify
      *   properties. Rather, properties should only be modified on processors
@@ -272,8 +284,11 @@ namespace Particles
      *   on both the locally owned cells, as well as on ghost cells. The
      *   particles on the latter are *copies* of particles owned on other
      *   processors, and should therefore be treated in the same way as
-     *   ghost entries in @ref GlossGhostedVector "vectors with ghost elements"
-     *   or @ref GlossGhostCell "ghost cells": In both cases, one should
+     *   ghost entries in
+     *   @ref GlossGhostedVector "vectors with ghost elements"
+     *   or
+     *   @ref GlossGhostCell "ghost cells":
+     *   In both cases, one should
      *   treat the ghost elements or cells as `const` objects that shouldn't
      *   be modified even if the objects allow for calls that modify
      *   properties. Rather, properties should only be modified on processors
@@ -287,7 +302,7 @@ namespace Particles
      *
      * @return An ArrayView of the properties of this particle.
      */
-    const ArrayView<double>
+    ArrayView<double>
     get_properties();
 
     /**
@@ -295,7 +310,7 @@ namespace Particles
      *
      * @return An ArrayView of the properties of this particle.
      */
-    const ArrayView<const double>
+    ArrayView<const double>
     get_properties() const;
 
     /**
@@ -309,7 +324,7 @@ namespace Particles
      * and has no meaning any more. ParticleAccessors always use the
      * property pool of the owning particle handler.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     set_property_pool(PropertyPool<dim, spacedim> &property_pool);
 
@@ -334,7 +349,7 @@ namespace Particles
      * @deprecated Deprecated version of the function with the same
      * name above.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     const typename Triangulation<dim, spacedim>::cell_iterator &
     get_surrounding_cell(
       const Triangulation<dim, spacedim> &triangulation) const;
@@ -420,7 +435,7 @@ namespace Particles
      */
     ParticleAccessor(
       const typename particle_container::iterator particles_in_cell,
-      const PropertyPool<dim, spacedim> &         property_pool,
+      const PropertyPool<dim, spacedim>          &property_pool,
       const unsigned int                          particle_index_within_cell);
 
     /**
@@ -470,9 +485,9 @@ namespace Particles
   {
     unsigned int n_properties = 0;
 
-    Point<spacedim>       location;
-    Point<dim>            reference_location;
-    types::particle_index id;
+    Point<spacedim>                       location;
+    Point<dim>                            reference_location;
+    types::particle_index                 id;
     ar &location &reference_location &id &n_properties;
 
     set_location(location);
@@ -533,7 +548,7 @@ namespace Particles
   template <int dim, int spacedim>
   inline ParticleAccessor<dim, spacedim>::ParticleAccessor(
     const typename particle_container::iterator particles_in_cell,
-    const PropertyPool<dim, spacedim> &         property_pool,
+    const PropertyPool<dim, spacedim>          &property_pool,
     const unsigned int                          particle_index_within_cell)
     : particles_in_cell(particles_in_cell)
     , property_pool(const_cast<PropertyPool<dim, spacedim> *>(&property_pool))
@@ -769,7 +784,7 @@ namespace Particles
 
 
   template <int dim, int spacedim>
-  inline const ArrayView<const double>
+  inline ArrayView<const double>
   ParticleAccessor<dim, spacedim>::get_properties() const
   {
     Assert(state() == IteratorState::valid, ExcInternalError());
@@ -784,7 +799,7 @@ namespace Particles
   ParticleAccessor<dim, spacedim>::set_property_pool(
     PropertyPool<dim, spacedim> &new_property_pool)
   {
-    Assert(&new_property_pool = property_pool, ExcInternalError());
+    Assert(&new_property_pool == property_pool, ExcInternalError());
     (void)new_property_pool;
   }
 
@@ -818,7 +833,7 @@ namespace Particles
 
 
   template <int dim, int spacedim>
-  inline const ArrayView<double>
+  inline ArrayView<double>
   ParticleAccessor<dim, spacedim>::get_properties()
   {
     Assert(state() == IteratorState::valid, ExcInternalError());

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,7 @@
 
 #include <deal.II/dofs/dof_accessor.h>
 
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -26,8 +27,8 @@ namespace parallel
 {
   template <int dim, int spacedim>
   CellWeights<dim, spacedim>::CellWeights(
-    const dealii::DoFHandler<dim, spacedim> &dof_handler,
-    const WeightingFunction &                weighting_function)
+    const DoFHandler<dim, spacedim> &dof_handler,
+    const WeightingFunction         &weighting_function)
   {
     reinit(dof_handler, weighting_function);
   }
@@ -50,7 +51,7 @@ namespace parallel
       &weighting_function)
   {
     connection.disconnect();
-    connection = dof_handler.get_triangulation().signals.cell_weight.connect(
+    connection = dof_handler.get_triangulation().signals.weight.connect(
       make_weighting_callback(dof_handler, weighting_function));
   }
 
@@ -127,7 +128,7 @@ namespace parallel
   template <int dim, int spacedim>
   std::function<unsigned int(
     const typename dealii::Triangulation<dim, spacedim>::cell_iterator &cell,
-    const typename dealii::Triangulation<dim, spacedim>::CellStatus     status)>
+    const CellStatus                                                    status)>
   CellWeights<dim, spacedim>::make_weighting_callback(
     const DoFHandler<dim, spacedim> &dof_handler,
     const typename CellWeights<dim, spacedim>::WeightingFunction
@@ -142,19 +143,17 @@ namespace parallel
       ExcMessage(
         "parallel::CellWeights requires a parallel::TriangulationBase object."));
 
-    return
-      [&dof_handler, tria, weighting_function](
-        const typename dealii::Triangulation<dim, spacedim>::cell_iterator
-          &                                                             cell,
-        const typename dealii::Triangulation<dim, spacedim>::CellStatus status)
-        -> unsigned int {
-        return CellWeights<dim, spacedim>::weighting_callback(
-          cell,
-          status,
-          std::cref(dof_handler),
-          std::cref(*tria),
-          weighting_function);
-      };
+    return [&dof_handler, tria, weighting_function](
+             const typename dealii::Triangulation<dim, spacedim>::cell_iterator
+                             &cell,
+             const CellStatus status) -> unsigned int {
+      return CellWeights<dim, spacedim>::weighting_callback(cell,
+                                                            status,
+                                                            std::cref(
+                                                              dof_handler),
+                                                            std::cref(*tria),
+                                                            weighting_function);
+    };
   }
 
 
@@ -163,8 +162,8 @@ namespace parallel
   unsigned int
   CellWeights<dim, spacedim>::weighting_callback(
     const typename dealii::Triangulation<dim, spacedim>::cell_iterator &cell_,
-    const typename dealii::Triangulation<dim, spacedim>::CellStatus     status,
-    const DoFHandler<dim, spacedim> &                 dof_handler,
+    const CellStatus                                                    status,
+    const DoFHandler<dim, spacedim>                  &dof_handler,
     const parallel::TriangulationBase<dim, spacedim> &triangulation,
     const typename CellWeights<dim, spacedim>::WeightingFunction
       &weighting_function)
@@ -190,13 +189,13 @@ namespace parallel
     unsigned int fe_index = numbers::invalid_unsigned_int;
     switch (status)
       {
-        case Triangulation<dim, spacedim>::CELL_PERSIST:
-        case Triangulation<dim, spacedim>::CELL_REFINE:
-        case Triangulation<dim, spacedim>::CELL_INVALID:
+        case CellStatus::cell_will_persist:
+        case CellStatus::cell_will_be_refined:
+        case CellStatus::cell_invalid:
           fe_index = cell->future_fe_index();
           break;
 
-        case Triangulation<dim, spacedim>::CELL_COARSEN:
+        case CellStatus::children_will_be_coarsened:
 #ifdef DEBUG
           for (const auto &child : cell->child_iterators())
             Assert(child->is_active() && child->coarsen_flag_set(),

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,10 +22,10 @@
 #include <deal.II/base/aligned_vector.h>
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/index_set.h>
+#include <deal.II/base/numbers.h>
 #include <deal.II/base/subscriptor.h>
 
-#include <deal.II/differentiation/ad/ad_number_traits.h>
-
+#include <deal.II/lac/read_vector.h>
 #include <deal.II/lac/vector_operation.h>
 #include <deal.II/lac/vector_type_traits.h>
 
@@ -34,7 +34,6 @@
 #include <algorithm>
 #include <initializer_list>
 #include <iosfwd>
-#include <iterator>
 #include <vector>
 
 DEAL_II_NAMESPACE_OPEN
@@ -75,8 +74,9 @@ namespace parallel
 #endif
 
 
-/*! @addtogroup Vectors
- *@{
+/**
+ * @addtogroup Vectors
+ * @{
  */
 
 /**
@@ -106,14 +106,21 @@ namespace parallel
  * in the manual).
  */
 template <typename Number>
-class Vector : public Subscriptor
+class Vector : public Subscriptor, public ReadVector<Number>
 {
 public:
-  // The assertion in vector.templates.h for whether or not a number is
-  // finite is not compatible for AD number types.
+  /**
+   * This class only supports basic numeric types (i.e., we support double and
+   * float but not automatically differentiated numbers).
+   *
+   * @note we test real_type here to get the underlying scalar type when using
+   * std::complex.
+   */
   static_assert(
-    !Differentiation::AD::is_ad_number<Number>::value,
-    "The Vector class does not support auto-differentiable numbers.");
+    std::is_arithmetic<
+      typename numbers::NumberTraits<Number>::real_type>::value,
+    "The Vector class only supports basic numeric types. In particular, it "
+    "does not support automatically differentiated numbers.");
 
   /**
    * Declare standard types used in all containers. These types parallel those
@@ -142,7 +149,7 @@ public:
   /**
    * @name Basic object handling
    */
-  //@{
+  /** @{ */
   /**
    * Constructor. Create a vector of dimension zero.
    */
@@ -265,8 +272,7 @@ public:
    * an empty function.
    */
   void
-  compress(::dealii::VectorOperation::values operation =
-             ::dealii::VectorOperation::unknown) const;
+  compress(VectorOperation::values operation = VectorOperation::unknown) const;
 
   /**
    * Change the dimension of the vector to @p N. The reserved memory for this
@@ -452,13 +458,13 @@ public:
   bool
   operator!=(const Vector<Number2> &v) const;
 
-  //@}
+  /** @} */
 
 
   /**
    * @name Scalar products, norms and related operations
    */
-  //@{
+  /** @{ */
 
   /**
    * Return the scalar product of two vectors.  The return type is the
@@ -562,13 +568,13 @@ public:
   Number
   add_and_dot(const Number a, const Vector<Number> &V, const Vector<Number> &W);
 
-  //@}
+  /** @} */
 
 
   /**
    * @name Data access
    */
-  //@{
+  /** @{ */
 
   /**
    * Return a pointer to the underlying data buffer.
@@ -655,7 +661,14 @@ public:
   template <typename OtherNumber>
   void
   extract_subvector_to(const std::vector<size_type> &indices,
-                       std::vector<OtherNumber> &    values) const;
+                       std::vector<OtherNumber>     &values) const;
+
+  /**
+   * Extract a range of elements all at once.
+   */
+  virtual void
+  extract_subvector_to(const ArrayView<const types::global_dof_index> &indices,
+                       ArrayView<Number> &elements) const override;
 
   /**
    * Instead of getting individual elements of a vector via operator(),
@@ -689,13 +702,13 @@ public:
   extract_subvector_to(ForwardIterator       indices_begin,
                        const ForwardIterator indices_end,
                        OutputIterator        values_begin) const;
-  //@}
+  /** @} */
 
 
   /**
    * @name Modification of vectors
    */
-  //@{
+  /** @{ */
 
   /**
    * Add the given vector to the present one.
@@ -719,7 +732,7 @@ public:
    */
   template <typename OtherNumber>
   void
-  add(const std::vector<size_type> &  indices,
+  add(const std::vector<size_type>   &indices,
       const std::vector<OtherNumber> &values);
 
   /**
@@ -738,7 +751,7 @@ public:
   template <typename OtherNumber>
   void
   add(const size_type    n_elements,
-      const size_type *  indices,
+      const size_type   *indices,
       const OtherNumber *values);
 
   /**
@@ -841,13 +854,13 @@ public:
    */
   void
   update_ghost_values() const;
-  //@}
+  /** @} */
 
 
   /**
    * @name Input and output
    */
-  //@{
+  /** @{ */
   /**
    * Print to a stream. @p precision denotes the desired precision with which
    * values shall be printed, @p scientific whether scientific notation shall
@@ -855,7 +868,7 @@ public:
    * while if @p false then the elements are printed on a separate line each.
    */
   void
-  print(std::ostream &     out,
+  print(std::ostream      &out,
         const unsigned int precision  = 3,
         const bool         scientific = true,
         const bool         across     = true) const;
@@ -922,7 +935,7 @@ public:
   /**
    * @name Information about the object
    */
-  //@{
+  /** @{ */
 
   /**
    * Return true if the given global index is in the local range of this
@@ -953,8 +966,8 @@ public:
   /**
    * Return dimension of the vector.
    */
-  size_type
-  size() const;
+  virtual size_type
+  size() const override;
 
   /**
    * Return local dimension of the vector. Since this vector does not support
@@ -995,12 +1008,20 @@ public:
 
   /**
    * This function exists for compatibility with the @p
-   * parallel vector classes (e.g., LinearAlgebra::distributed::Vector class).
-   * Always returns false since this implementation is serial.
+   * parallel vector classes (e.g., LinearAlgebra::distributed::Vector class)
+   * and always returns false since this implementation is serial.
    */
   bool
   has_ghost_elements() const;
-  //@}
+
+  /**
+   * This function exists for compatibility with the @p
+   * parallel vector classes (e.g., LinearAlgebra::distributed::Vector class)
+   * and does nothing since this implementation is serial.
+   */
+  void
+  zero_out_ghost_values() const;
+  /** @} */
 
 private:
   /**
@@ -1036,7 +1057,7 @@ private:
   friend class Vector;
 };
 
-/*@}*/
+/** @} */
 /*----------------------- Inline functions ----------------------------------*/
 
 
@@ -1216,7 +1237,7 @@ template <typename Number>
 template <typename OtherNumber>
 inline void
 Vector<Number>::extract_subvector_to(const std::vector<size_type> &indices,
-                                     std::vector<OtherNumber> &    values) const
+                                     std::vector<OtherNumber>     &values) const
 {
   for (size_type i = 0; i < indices.size(); ++i)
     values[i] = operator()(indices[i]);
@@ -1257,7 +1278,7 @@ Vector<Number>::operator/=(const Number factor)
 template <typename Number>
 template <typename OtherNumber>
 inline void
-Vector<Number>::add(const std::vector<size_type> &  indices,
+Vector<Number>::add(const std::vector<size_type>   &indices,
                     const std::vector<OtherNumber> &values)
 {
   Assert(indices.size() == values.size(),
@@ -1271,7 +1292,7 @@ template <typename Number>
 template <typename OtherNumber>
 inline void
 Vector<Number>::add(const std::vector<size_type> &indices,
-                    const Vector<OtherNumber> &   values)
+                    const Vector<OtherNumber>    &values)
 {
   Assert(indices.size() == values.size(),
          ExcDimensionMismatch(indices.size(), values.size()));
@@ -1284,7 +1305,7 @@ template <typename Number>
 template <typename OtherNumber>
 inline void
 Vector<Number>::add(const size_type    n_indices,
-                    const size_type *  indices,
+                    const size_type   *indices,
                     const OtherNumber *values)
 {
   for (size_type i = 0; i < n_indices; ++i)
@@ -1312,8 +1333,10 @@ Vector<Number>::operator!=(const Vector<Number2> &v) const
 
 
 template <typename Number>
-inline void Vector<Number>::compress(::dealii::VectorOperation::values) const
+inline void
+Vector<Number>::compress(VectorOperation::values) const
 {}
+
 
 
 template <typename Number>
@@ -1323,10 +1346,36 @@ Vector<Number>::has_ghost_elements() const
   return false;
 }
 
+
+
+template <typename Number>
+inline void
+Vector<Number>::zero_out_ghost_values() const
+{}
+
+
+
 template <typename Number>
 inline void
 Vector<Number>::update_ghost_values() const
 {}
+
+
+
+template <typename Number>
+template <typename Number2>
+inline void
+Vector<Number>::reinit(const Vector<Number2> &v,
+                       const bool             omit_zeroing_entries)
+{
+  // go to actual reinit functions in case we need to change something with
+  // the vector, else there is nothing to be done
+  if (!omit_zeroing_entries || size() != v.size())
+    {
+      do_reinit(v.size(), omit_zeroing_entries, false);
+      thread_loop_partitioner = v.thread_loop_partitioner;
+    }
+}
 
 
 
@@ -1369,8 +1418,9 @@ Vector<Number>::load(Archive &ar, const unsigned int)
 #endif
 
 
-/*! @addtogroup Vectors
- *@{
+/**
+ * @addtogroup Vectors
+ * @{
  */
 
 
@@ -1412,7 +1462,7 @@ operator<<(std::ostream &out, const Vector<number> &v)
   return out;
 }
 
-/*@}*/
+/** @} */
 
 
 /**

@@ -193,10 +193,9 @@ Step4<dim>::setup_system()
                                            constraints);
   constraints.close();
 
-  IndexSet locally_owned_dofs = dof_handler.locally_owned_dofs();
-  IndexSet locally_relevant_dofs;
-
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet &locally_owned_dofs = dof_handler.locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   DynamicSparsityPattern dsp(dof_handler.n_dofs());
   DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints, false);
@@ -366,7 +365,7 @@ main(int argc, char **argv)
       Step4<2> test;
       test.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

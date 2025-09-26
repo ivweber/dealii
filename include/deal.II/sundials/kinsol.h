@@ -1,17 +1,18 @@
-//-----------------------------------------------------------
+// ---------------------------------------------------------------------
 //
-//    Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2023 by the deal.II authors
 //
-//    This file is part of the deal.II library.
+// This file is part of the deal.II library.
 //
-//    The deal.II library is free software; you can use it, redistribute
-//    it, and/or modify it under the terms of the GNU Lesser General
-//    Public License as published by the Free Software Foundation; either
-//    version 2.1 of the License, or (at your option) any later version.
-//    The full text of the license can be found in the file LICENSE.md at
-//    the top level directory of deal.II.
+// The deal.II library is free software; you can use it, redistribute
+// it, and/or modify it under the terms of the GNU Lesser General
+// Public License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+// The full text of the license can be found in the file LICENSE.md at
+// the top level directory of deal.II.
 //
-//---------------------------------------------------------------
+// ---------------------------------------------------------------------
+
 
 #ifndef dealii_sundials_kinsol_h
 #define dealii_sundials_kinsol_h
@@ -24,7 +25,7 @@
 #  include <deal.II/base/conditional_ostream.h>
 #  include <deal.II/base/exceptions.h>
 #  include <deal.II/base/logstream.h>
-#  include <deal.II/base/mpi.h>
+#  include <deal.II/base/mpi_stub.h>
 #  include <deal.II/base/parameter_handler.h>
 
 #  include <deal.II/lac/vector.h>
@@ -33,13 +34,11 @@
 #  include <boost/signals2.hpp>
 
 #  include <kinsol/kinsol.h>
-#  if DEAL_II_SUNDIALS_VERSION_LT(4, 1, 0)
-#    include <kinsol/kinsol_impl.h>
-#  endif
 #  include <nvector/nvector_serial.h>
 #  include <sundials/sundials_math.h>
 #  include <sundials/sundials_types.h>
 
+#  include <exception>
 #  include <memory>
 
 
@@ -115,7 +114,7 @@ namespace SUNDIALS
    * automatically incorporated into the calculation of the perturbations used
    * for the default difference quotient approximations for Jacobian
    * information if the user does not supply a Jacobian solver through the
-   * solve_jacobian_system() function.
+   * solve_with_jacobian() function.
    *
    * Two methods of applying a computed step $\delta_n$ to the previously
    * computed solution vector are implemented. The first and simplest is the
@@ -125,9 +124,8 @@ namespace SUNDIALS
    * way for furthering convergence of the nonlinear problem. This technique is
    * implemented in the second strategy, called Linesearch. This option employs
    * both the $\alpha$ and $\beta$ conditions of the Goldstein-Armijo
-   * linesearch algorithm given in *J. E. Dennis and R. B. Schnabel. "Numerical
-   * Methods for Unconstrained Optimization and Nonlinear Equations." SIAM,
-   * Philadelphia, 1996.*, where $\lambda$ is chosen to guarantee a sufficient
+   * linesearch algorithm given in @cite DennisSchnabel96 ,
+   * where $\lambda$ is chosen to guarantee a sufficient
    * decrease in $F$ relative to the step length as well as a minimum step
    * length relative to the initial rate of decrease of $F$. One property of the
    * algorithm is that the full Newton step tends to be taken close to the
@@ -152,9 +150,10 @@ namespace SUNDIALS
    * produce the new iterate. Next, the nonlinear residual function is
    * evaluated at the new iterate, and convergence is checked. The Picard and
    * fixed point methods can be significantly accelerated using Anderson's
-   * method.
+   * acceleration method.
    *
-   * The user has to provide the implementation of the following std::functions:
+   * The user has to provide the implementation of the following
+   * `std::function`s:
    *  - reinit_vector;
    * and only one of
    *  - residual;
@@ -163,11 +162,13 @@ namespace SUNDIALS
    *
    * Specifying residual() allows the user to use Newton and Picard strategies
    * (i.e., $F(u)=0$ will be solved), while specifying iteration_function(), a
-   * fixed point iteration will be used (i.e., $G(u)=u$ will be solved).
+   * fixed point iteration will be used (i.e., $G(u)=u$ will be solved). An
+   * error will be thrown if iteration_function() is set for Picard or
+   * Newton.
    *
    * If the use of a Newton or Picard method is desired, then the user should
    * also supply
-   *  - solve_jacobian_system or solve_with_jacobian;
+   *  - solve_with_jacobian;
    * and optionally
    *  - setup_jacobian;
    *
@@ -177,7 +178,7 @@ namespace SUNDIALS
    * scaling factors for both the solution and the residual evaluation during
    * convergence checks:
    *  - get_solution_scaling;
-   *  - get_function_scaling;
+   *  - get_function_scaling.
    */
   template <typename VectorType = Vector<double>>
   class KINSOL
@@ -294,10 +295,10 @@ namespace SUNDIALS
       add_parameters(ParameterHandler &prm);
 
       /**
-       * The solution strategy to use. If you choose SolutionStrategy::newton
-       * or SolutionStrategy::linesearch, you have to provide also the function
-       * residual(). If you choose SolutionStrategy::picard or
-       * SolutionStrategy::fixed_point, you have to provide also the function
+       * The solution strategy to use. If you choose SolutionStrategy::newton,
+       * SolutionStrategy::linesearch, or SolutionStrategy::picard you have to
+       * provide the function residual(). If you choose
+       * SolutionStrategy::fixed_point, you have to provide the function
        * iteration_function().
        */
       SolutionStrategy strategy;
@@ -353,7 +354,7 @@ namespace SUNDIALS
       /**
        * The relative error in computing $F(u)$, which is used in the
        * difference quotient approximation to the Jacobian matrix when the user
-       * does not supply a solve_jacobian_system_matrix() function.
+       * does not supply a solve_with_jacobian() function.
        *
        * If set to zero, default values provided by KINSOL will be used.
        */
@@ -376,15 +377,24 @@ namespace SUNDIALS
     };
 
     /**
-     * Constructor. It is possible to fine tune the SUNDIALS KINSOL solver by
-     * passing an AdditionalData() object that sets all of the solver
-     * parameters.
+     * Constructor, with class parameters set by the AdditionalData object.
      *
      * @param data KINSOL configuration data
-     * @param mpi_comm MPI communicator
+     *
+     * @note With SUNDIALS 6 and later this constructor sets up logging
+     * objects to only work on the present processor (i.e., results are only
+     * communicated over MPI_COMM_SELF).
      */
-    KINSOL(const AdditionalData &data     = AdditionalData(),
-           const MPI_Comm &      mpi_comm = MPI_COMM_WORLD);
+    KINSOL(const AdditionalData &data = AdditionalData());
+
+    /**
+     * Constructor.
+     *
+     * @param data KINSOL configuration data
+     * @param mpi_comm MPI Communicator over which logging operations are
+     * computed. Only used in SUNDIALS 6 and newer.
+     */
+    KINSOL(const AdditionalData &data, const MPI_Comm mpi_comm);
 
     /**
      * Destructor.
@@ -405,48 +415,54 @@ namespace SUNDIALS
      * block vectors are used), and MPI communicator (if the vector is
      * distributed across multiple processors using MPI), along with any
      * other properties necessary.
+     *
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, KINSOL can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
     std::function<void(VectorType &)> reinit_vector;
 
     /**
      * A function object that users should supply and that is intended to
      * compute the residual `dst = F(src)`. This function is only used if the
-     * SolutionStrategy::newton or SolutionStrategy::linesearch strategies
-     * were selected.
+     * SolutionStrategy::newton, SolutionStrategy::linesearch, or
+     * SolutionStrategy::picard strategies were selected.
      *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (KINSOL will try to change its internal
-     * parameters and attempt a new solution step)
-     * - <0: Unrecoverable error the computation will be aborted and an
-     * assertion will be thrown.
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, KINSOL can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
-    std::function<int(const VectorType &src, VectorType &dst)> residual;
+    std::function<void(const VectorType &src, VectorType &dst)> residual;
 
     /**
      * A function object that users should supply and that is intended to
-     * compute the iteration function $G(u)$ for the fixed point and Picard
+     * compute the iteration function $G(u)$ for the fixed point
      * iteration. This function is only used if the
-     * SolutionStrategy::fixed_point or SolutionStrategy::picard strategies
-     * were selected.
+     * SolutionStrategy::fixed_point strategy is selected.
      *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (KINSOL will try to change its internal
-     * parameters and attempt a new solution step)
-     * - <0: Unrecoverable error; the computation will be aborted and an
-     * assertion will be thrown.
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, KINSOL can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
-    std::function<int(const VectorType &src, VectorType &dst)>
+    std::function<void(const VectorType &src, VectorType &dst)>
       iteration_function;
 
     /**
      * A function object that users may supply and that is intended to
      * prepare the linear solver for subsequent calls to
-     * solve_jacobian_system().
+     * solve_with_jacobian().
      *
      * The job of setup_jacobian() is to prepare the linear solver for
-     * subsequent calls to solve_jacobian_system(), in the solution of linear
+     * subsequent calls to solve_with_jacobian(), in the solution of linear
      * systems $Ax = b$. The exact nature of this system depends on the
      * SolutionStrategy that has been selected.
      *
@@ -460,7 +476,7 @@ namespace SUNDIALS
      * The setup_jacobian() function may call a user-supplied function, or a
      * function within the linear solver module, to compute Jacobian-related
      * data that is required by the linear solver. It may also preprocess that
-     * data as needed for solve_jacobian_system(), which may involve calling a
+     * data as needed for solve_with_jacobian(), which may involve calling a
      * generic function (such as for LU factorization) or, more generally,
      * build preconditioners from the assembled Jacobian. In any case, the
      * data so generated may then be used whenever a linear system is solved.
@@ -478,21 +494,18 @@ namespace SUNDIALS
      * @param current_u Current value of $u$
      * @param current_f Current value of $F(u)$ or $G(u)$
      *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (KINSOL will try to change its internal
-     * parameters and attempt a new solution step)
-     * - <0: Unrecoverable error the computation will be aborted and an
-     * assertion will be thrown.
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, KINSOL can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
-    std::function<int(const VectorType &current_u, const VectorType &current_f)>
+    std::function<void(const VectorType &current_u,
+                       const VectorType &current_f)>
       setup_jacobian;
 
     /**
-     * @deprecated Versions of SUNDIALS after 4.0 no longer provide all
-     *   of the information necessary for this callback (see below). Use the
-     *   `solve_with_jacobian` callback described below.
-     *
      * A function object that users may supply and that is intended to solve
      * a linear system with the Jacobian matrix. This function will be called by
      * KINSOL (possibly several times) after setup_jacobian() has been called at
@@ -501,67 +514,7 @@ namespace SUNDIALS
      * the Jacobian, then KINSOL does not call setup_jacobian() again. If, on
      * the contrary, internal KINSOL convergence tests fail, then KINSOL calls
      * setup_jacobian() again with updated vectors and coefficients so that
-     * successive calls to solve_jacobian_systems() lead to better convergence
-     * in the Newton process.
-     *
-     * If you do not specify a `solve_jacobian_system` or `solve_with_jacobian`
-     * function, then only a fixed point iteration strategy can be used. Notice
-     * that this may not converge, or may converge very slowly.
-     *
-     * A call to this function should store in `dst` the result of $J^{-1}$
-     * applied to `rhs`, i.e., `J*dst = rhs`. It is the user's responsibility
-     * to set up proper solvers and preconditioners inside this function
-     * (or in the `setup_jacobian` callback above).
-     *
-     *
-     * Arguments to the function are:
-     *
-     * @param[in] ycur The current $y$ vector for the current KINSOL
-     * internal step. In the documentation above, this $y$ vector is generally
-     * denoted by $u$.
-     * @param[in] fcur The current value of the implicit right-hand side at
-     * `ycur`, $f_I (t_n, ypred)$.
-     * @param[in] rhs The system right hand side to solve for
-     * @param[out] dst The solution of $J^{-1} * src$
-     *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (KINSOL will try to change its internal
-     * parameters and attempt a new solution step)
-     * - <0: Unrecoverable error the computation will be aborted and an
-     * assertion will be thrown.
-     *
-     * @warning Starting with SUNDIALS 4.1, SUNDIALS no longer provides the
-     *   `ycur` and `fcur` variables -- only `rhs` is provided and `dst`
-     *   needs to be returned. The first two arguments will therefore be
-     *   empty vectors in that case. In practice, that means that one
-     *   can no longer compute a Jacobian matrix for the current iterate
-     *   within this function. Rather, this has to happen inside the
-     *   `setup_jacobian` function above that receives this information.
-     *   If it is important that the Jacobian corresponds to the *current*
-     *   iterate (rather than a re-used Jacobian matrix that had been
-     *   computed in a previous iteration and that therefore corresponds
-     *   to a *previous* iterate), then you will also have to set the
-     *   AdditionalData::maximum_newton_step variable to one, indicating
-     *   that the Jacobian should be re-computed in every iteration.
-     */
-    DEAL_II_DEPRECATED
-    std::function<int(const VectorType &ycur,
-                      const VectorType &fcur,
-                      const VectorType &rhs,
-                      VectorType &      dst)>
-      solve_jacobian_system;
-
-    /**
-     * A function object that users may supply and that is intended to solve
-     * a linear system with the Jacobian matrix. This function will be called by
-     * KINSOL (possibly several times) after setup_jacobian() has been called at
-     * least once. KINSOL tries to do its best to call setup_jacobian() the
-     * minimum number of times. If convergence can be achieved without updating
-     * the Jacobian, then KINSOL does not call setup_jacobian() again. If, on
-     * the contrary, internal KINSOL convergence tests fail, then KINSOL calls
-     * setup_jacobian() again with updated vectors and coefficients so that
-     * successive calls to solve_jacobian_systems() lead to better convergence
+     * successive calls to solve_with_jacobian() lead to better convergence
      * in the Newton process.
      *
      * If you do not specify a `solve_with_jacobian` function, then only a
@@ -569,13 +522,13 @@ namespace SUNDIALS
      * converge, or may converge very slowly.
      *
      * A call to this function should store in `dst` the result of $J^{-1}$
-     * applied to `rhs`, i.e., `J*dst = rhs`. It is the user's responsibility
-     * to set up proper solvers and preconditioners inside this function
-     * (or in the `setup_jacobian` callback above). The function attached
-     * to this callback is also provided with a tolerance to the linear solver,
-     * indicating that it is not necessary to solve the linear system with
-     * the Jacobian matrix exactly, but only to a tolerance that KINSOL will
-     * adapt over time.
+     * applied to `rhs`, i.e., $J \cdot dst = rhs$. It is the user's
+     * responsibility to set up proper solvers and preconditioners inside this
+     * function (or in the `setup_jacobian` callback above). The function
+     * attached to this callback is also provided with a tolerance to the linear
+     * solver, indicating that it is not necessary to solve the linear system
+     * with the Jacobian matrix exactly, but only to a tolerance that KINSOL
+     * will adapt over time.
      *
      * Arguments to the function are:
      *
@@ -584,15 +537,15 @@ namespace SUNDIALS
      * @param[in] tolerance The tolerance with which to solve the linear system
      *   of equations.
      *
-     * This function should return:
-     * - 0: Success
-     * - >0: Recoverable error (KINSOL will try to change its internal
-     * parameters and attempt a new solution step)
-     * - <0: Unrecoverable error the computation will be aborted and an
-     * assertion will be thrown.
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, KINSOL can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
     std::function<
-      int(const VectorType &rhs, VectorType &dst, const double tolerance)>
+      void(const VectorType &rhs, VectorType &dst, const double tolerance)>
       solve_with_jacobian;
 
     /**
@@ -619,7 +572,7 @@ namespace SUNDIALS
      * solution) makes no sense because the norm will either be dominated by the
      * velocity components or the pressure components. The scaling vector this
      * function returns is intended to provide each component of the solution
-     * with a scaling factor that is generally chosen as as the inverse of a
+     * with a scaling factor that is generally chosen as the inverse of a
      * "typical velocity" or "typical pressure" so that upon multiplication of a
      * vector component by the corresponding scaling vector component, one
      * obtains a number that is of order of magnitude of one (i.e., a reasonably
@@ -632,6 +585,13 @@ namespace SUNDIALS
      * If no function is provided to a KINSOL object, then this is interpreted
      * as implicitly saying that all of these scaling factors should be
      * considered as one.
+     *
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, KINSOL can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
     std::function<VectorType &()> get_solution_scaling;
 
@@ -648,8 +608,46 @@ namespace SUNDIALS
      * than the components of $U$, when computing norms. As above, if no
      * function is provided, then this is equivalent to using a scaling vector
      * whose components are all equal to one.
+     *
+     * @note This variable represents a
+     * @ref GlossUserProvidedCallBack "user provided callback".
+     * See there for a description of how to deal with errors and other
+     * requirements and conventions. In particular, KINSOL can deal
+     * with "recoverable" errors in some circumstances, so callbacks
+     * can throw exceptions of type RecoverableUserCallbackError.
      */
     std::function<VectorType &()> get_function_scaling;
+
+
+    /**
+     * A function object that users may supply and which is intended to perform
+     * custom setup on the supplied @p kinsol_mem object. Refer to the
+     * SUNDIALS documentation for valid options.
+     *
+     * For instance, the following code attaches a file for error output of the
+     * internal KINSOL implementation:
+     *
+     * @code
+     *      // Open C-style file handle and manage it inside a shared_ptr which
+     *      // is handed to the lambda capture in the next statement. When the
+     *      // custom_setup function is destroyed, the file is closed.
+     *      auto errfile = std::shared_ptr<FILE>(
+     *                        fopen("kinsol.err", "w"),
+     *                        [](FILE *fptr) { fclose(fptr); });
+     *
+     *      ode.custom_setup = [&, errfile](void *kinsol_mem) {
+     *        KINSetErrFile(kinsol_mem, errfile.get());
+     *      };
+     * @endcode
+     *
+     * @note This function will be called at the end of all other setup code
+     *   right before the actual solve call is issued to KINSOL. Consult the
+     *   SUNDIALS manual to see which options are still available at this point.
+     *
+     * @param kinsol_mem pointer to the KINSOL memory block which can be used
+     *   for custom calls to `KINSet...` functions.
+     */
+    std::function<void(void *kinsol_mem)> custom_setup;
 
     /**
      * Handle KINSOL exceptions.
@@ -659,7 +657,6 @@ namespace SUNDIALS
                    << "One of the SUNDIALS KINSOL internal functions "
                    << "returned a negative error code: " << arg1
                    << ". Please consult SUNDIALS manual.");
-
 
   private:
     /**
@@ -694,17 +691,25 @@ namespace SUNDIALS
      */
     void *kinsol_mem;
 
-#  if !DEAL_II_SUNDIALS_VERSION_LT(6, 0, 0)
+#  if DEAL_II_SUNDIALS_VERSION_GTE(6, 0, 0)
     /**
      * A context object associated with the KINSOL solver.
      */
     SUNContext kinsol_ctx;
 #  endif
 
+
     /**
      * Memory pool of vectors.
      */
     GrowingVectorMemory<VectorType> mem;
+
+    /**
+     * A pointer to any exception that may have been thrown in user-defined
+     * call-backs and that we have to deal after the KINSOL function we call
+     * has returned.
+     */
+    mutable std::exception_ptr pending_exception;
   };
 
 } // namespace SUNDIALS

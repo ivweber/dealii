@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,13 +16,13 @@
 #ifndef dealii_vector_tools_rhs_templates_h
 #define dealii_vector_tools_rhs_templates_h
 
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/hp/fe_values.h>
 
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_parallel_block_vector.h>
@@ -36,22 +36,20 @@ DEAL_II_NAMESPACE_OPEN
 namespace VectorTools
 {
   template <int dim, int spacedim, typename VectorType>
-  void
-  create_boundary_right_hand_side(
-    const Mapping<dim, spacedim> &                             mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const Quadrature<dim - 1> &                                quadrature,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void create_boundary_right_hand_side(
+    const Mapping<dim, spacedim>                              &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const Quadrature<dim - 1>                                 &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const std::set<types::boundary_id> &                       boundary_ids)
+    VectorType                                                &rhs_vector,
+    const std::set<types::boundary_id>                        &boundary_ids)
   {
     const FiniteElement<dim> &fe = dof_handler.get_fe();
-    Assert(fe.n_components() == rhs_function.n_components,
-           ExcDimensionMismatch(fe.n_components(), rhs_function.n_components));
-    Assert(rhs_vector.size() == dof_handler.n_dofs(),
-           ExcDimensionMismatch(rhs_vector.size(), dof_handler.n_dofs()));
+    AssertDimension(fe.n_components(), rhs_function.n_components);
+    AssertDimension(rhs_vector.size(), dof_handler.n_dofs());
 
-    rhs_vector = 0;
+    rhs_vector = typename VectorType::value_type(0.0);
 
     UpdateFlags update_flags =
       UpdateFlags(update_values | update_quadrature_points | update_JxW_values);
@@ -64,16 +62,12 @@ namespace VectorTools
     std::vector<types::global_dof_index> dofs(dofs_per_cell);
     Vector<double>                       cell_vector(dofs_per_cell);
 
-    typename DoFHandler<dim, spacedim>::active_cell_iterator
-      cell = dof_handler.begin_active(),
-      endc = dof_handler.end();
-
     if (n_components == 1)
       {
         std::vector<double> rhs_values(n_q_points);
 
-        for (; cell != endc; ++cell)
-          for (unsigned int face : cell->face_indices())
+        for (const auto &cell : dof_handler.active_cell_iterators())
+          for (const unsigned int face : cell->face_indices())
             if (cell->face(face)->at_boundary() &&
                 (boundary_ids.empty() ||
                  (boundary_ids.find(cell->face(face)->boundary_id()) !=
@@ -103,8 +97,8 @@ namespace VectorTools
         std::vector<Vector<double>> rhs_values(n_q_points,
                                                Vector<double>(n_components));
 
-        for (; cell != endc; ++cell)
-          for (unsigned int face : cell->face_indices())
+        for (const auto &cell : dof_handler.active_cell_iterators())
+          for (const unsigned int face : cell->face_indices())
             if (cell->face(face)->at_boundary() &&
                 (boundary_ids.empty() ||
                  (boundary_ids.find(cell->face(face)->boundary_id()) !=
@@ -164,13 +158,13 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  create_boundary_right_hand_side(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const Quadrature<dim - 1> &                                quadrature,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void create_boundary_right_hand_side(
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const Quadrature<dim - 1>                                 &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const std::set<types::boundary_id> &                       boundary_ids)
+    VectorType                                                &rhs_vector,
+    const std::set<types::boundary_id>                        &boundary_ids)
   {
     create_boundary_right_hand_side(StaticMappingQ1<dim>::mapping,
                                     dof_handler,
@@ -183,22 +177,20 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  create_boundary_right_hand_side(
-    const hp::MappingCollection<dim, spacedim> &               mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const hp::QCollection<dim - 1> &                           quadrature,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void create_boundary_right_hand_side(
+    const hp::MappingCollection<dim, spacedim>                &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const hp::QCollection<dim - 1>                            &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const std::set<types::boundary_id> &                       boundary_ids)
+    VectorType                                                &rhs_vector,
+    const std::set<types::boundary_id>                        &boundary_ids)
   {
     const hp::FECollection<dim> &fe = dof_handler.get_fe_collection();
-    Assert(fe.n_components() == rhs_function.n_components,
-           ExcDimensionMismatch(fe.n_components(), rhs_function.n_components));
-    Assert(rhs_vector.size() == dof_handler.n_dofs(),
-           ExcDimensionMismatch(rhs_vector.size(), dof_handler.n_dofs()));
+    AssertDimension(fe.n_components(), rhs_function.n_components);
+    AssertDimension(rhs_vector.size(), dof_handler.n_dofs());
 
-    rhs_vector = 0;
+    rhs_vector = typename VectorType::value_type(0.0);
 
     UpdateFlags update_flags =
       UpdateFlags(update_values | update_quadrature_points | update_JxW_values);
@@ -209,16 +201,12 @@ namespace VectorTools
     std::vector<types::global_dof_index> dofs(fe.max_dofs_per_cell());
     Vector<double>                       cell_vector(fe.max_dofs_per_cell());
 
-    typename DoFHandler<dim, spacedim>::active_cell_iterator
-      cell = dof_handler.begin_active(),
-      endc = dof_handler.end();
-
     if (n_components == 1)
       {
         std::vector<double> rhs_values;
 
-        for (; cell != endc; ++cell)
-          for (unsigned int face : cell->face_indices())
+        for (const auto &cell : dof_handler.active_cell_iterators())
+          for (const unsigned int face : cell->face_indices())
             if (cell->face(face)->at_boundary() &&
                 (boundary_ids.empty() ||
                  (boundary_ids.find(cell->face(face)->boundary_id()) !=
@@ -255,8 +243,8 @@ namespace VectorTools
       {
         std::vector<Vector<double>> rhs_values;
 
-        for (; cell != endc; ++cell)
-          for (unsigned int face : cell->face_indices())
+        for (const auto &cell : dof_handler.active_cell_iterators())
+          for (const unsigned int face : cell->face_indices())
             if (cell->face(face)->at_boundary() &&
                 (boundary_ids.empty() ||
                  (boundary_ids.find(cell->face(face)->boundary_id()) !=
@@ -323,13 +311,13 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  create_boundary_right_hand_side(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const hp::QCollection<dim - 1> &                           quadrature,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void create_boundary_right_hand_side(
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const hp::QCollection<dim - 1>                            &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const std::set<types::boundary_id> &                       boundary_ids)
+    VectorType                                                &rhs_vector,
+    const std::set<types::boundary_id>                        &boundary_ids)
   {
     create_boundary_right_hand_side(
       hp::StaticMappingQ1<dim>::mapping_collection,
@@ -340,24 +328,24 @@ namespace VectorTools
       boundary_ids);
   }
 
+
+
   template <int dim, int spacedim, typename VectorType>
-  void
-  create_right_hand_side(
-    const Mapping<dim, spacedim> &                             mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const Quadrature<dim> &                                    quadrature,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void create_right_hand_side(
+    const Mapping<dim, spacedim>                              &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const Quadrature<dim>                                     &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const AffineConstraints<typename VectorType::value_type> & constraints)
+    VectorType                                                &rhs_vector,
+    const AffineConstraints<typename VectorType::value_type>  &constraints)
   {
     using Number = typename VectorType::value_type;
 
     const FiniteElement<dim, spacedim> &fe = dof_handler.get_fe();
-    Assert(fe.n_components() == rhs_function.n_components,
-           ExcDimensionMismatch(fe.n_components(), rhs_function.n_components));
-    Assert(rhs_vector.size() == dof_handler.n_dofs(),
-           ExcDimensionMismatch(rhs_vector.size(), dof_handler.n_dofs()));
-    rhs_vector = typename VectorType::value_type(0.);
+    AssertDimension(fe.n_components(), rhs_function.n_components);
+    AssertDimension(rhs_vector.size(), dof_handler.n_dofs());
+    rhs_vector = typename VectorType::value_type(0.0);
 
     UpdateFlags update_flags =
       UpdateFlags(update_values | update_quadrature_points | update_JxW_values);
@@ -370,15 +358,11 @@ namespace VectorTools
     std::vector<types::global_dof_index> dofs(dofs_per_cell);
     Vector<Number>                       cell_vector(dofs_per_cell);
 
-    typename DoFHandler<dim, spacedim>::active_cell_iterator
-      cell = dof_handler.begin_active(),
-      endc = dof_handler.end();
-
     if (n_components == 1)
       {
         std::vector<Number> rhs_values(n_q_points);
 
-        for (; cell != endc; ++cell)
+        for (const auto &cell : dof_handler.active_cell_iterators())
           if (cell->is_locally_owned())
             {
               fe_values.reinit(cell);
@@ -406,7 +390,7 @@ namespace VectorTools
         std::vector<Vector<Number>> rhs_values(n_q_points,
                                                Vector<Number>(n_components));
 
-        for (; cell != endc; ++cell)
+        for (const auto &cell : dof_handler.active_cell_iterators())
           if (cell->is_locally_owned())
             {
               fe_values.reinit(cell);
@@ -464,13 +448,13 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  create_right_hand_side(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const Quadrature<dim> &                                    quadrature,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void create_right_hand_side(
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const Quadrature<dim>                                     &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const AffineConstraints<typename VectorType::value_type> & constraints)
+    VectorType                                                &rhs_vector,
+    const AffineConstraints<typename VectorType::value_type>  &constraints)
   {
     create_right_hand_side(get_default_linear_mapping(
                              dof_handler.get_triangulation()),
@@ -484,23 +468,21 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  create_right_hand_side(
-    const hp::MappingCollection<dim, spacedim> &               mapping,
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const hp::QCollection<dim> &                               quadrature,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void create_right_hand_side(
+    const hp::MappingCollection<dim, spacedim>                &mapping,
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const hp::QCollection<dim>                                &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const AffineConstraints<typename VectorType::value_type> & constraints)
+    VectorType                                                &rhs_vector,
+    const AffineConstraints<typename VectorType::value_type>  &constraints)
   {
     using Number = typename VectorType::value_type;
 
     const hp::FECollection<dim, spacedim> &fe = dof_handler.get_fe_collection();
-    Assert(fe.n_components() == rhs_function.n_components,
-           ExcDimensionMismatch(fe.n_components(), rhs_function.n_components));
-    Assert(rhs_vector.size() == dof_handler.n_dofs(),
-           ExcDimensionMismatch(rhs_vector.size(), dof_handler.n_dofs()));
-    rhs_vector = 0;
+    AssertDimension(fe.n_components(), rhs_function.n_components);
+    AssertDimension(rhs_vector.size(), dof_handler.n_dofs());
+    rhs_vector = typename VectorType::value_type(0.0);
 
     UpdateFlags update_flags =
       UpdateFlags(update_values | update_quadrature_points | update_JxW_values);
@@ -514,15 +496,11 @@ namespace VectorTools
     std::vector<types::global_dof_index> dofs(fe.max_dofs_per_cell());
     Vector<Number>                       cell_vector(fe.max_dofs_per_cell());
 
-    typename DoFHandler<dim, spacedim>::active_cell_iterator
-      cell = dof_handler.begin_active(),
-      endc = dof_handler.end();
-
     if (n_components == 1)
       {
         std::vector<Number> rhs_values;
 
-        for (; cell != endc; ++cell)
+        for (const auto &cell : dof_handler.active_cell_iterators())
           if (cell->is_locally_owned())
             {
               x_fe_values.reinit(cell);
@@ -558,7 +536,7 @@ namespace VectorTools
       {
         std::vector<Vector<Number>> rhs_values;
 
-        for (; cell != endc; ++cell)
+        for (const auto &cell : dof_handler.active_cell_iterators())
           if (cell->is_locally_owned())
             {
               x_fe_values.reinit(cell);
@@ -626,13 +604,13 @@ namespace VectorTools
 
 
   template <int dim, int spacedim, typename VectorType>
-  void
-  create_right_hand_side(
-    const DoFHandler<dim, spacedim> &                          dof_handler,
-    const hp::QCollection<dim> &                               quadrature,
+  DEAL_II_CXX20_REQUIRES(concepts::is_writable_dealii_vector_type<VectorType>)
+  void create_right_hand_side(
+    const DoFHandler<dim, spacedim>                           &dof_handler,
+    const hp::QCollection<dim>                                &quadrature,
     const Function<spacedim, typename VectorType::value_type> &rhs_function,
-    VectorType &                                               rhs_vector,
-    const AffineConstraints<typename VectorType::value_type> & constraints)
+    VectorType                                                &rhs_vector,
+    const AffineConstraints<typename VectorType::value_type>  &constraints)
   {
     create_right_hand_side(
       hp::StaticMappingQ1<dim, spacedim>::mapping_collection,

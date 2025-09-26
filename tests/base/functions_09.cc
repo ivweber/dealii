@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2018 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -86,7 +86,7 @@ check()
   FillTensor<rank, dim>::fill_tensor(value, 0);
 
   ConstantTensorFunction<rank, dim> tensor_function(value);
-  TensorFunction<rank, dim> *       foo = &tensor_function;
+  TensorFunction<rank, dim>        *foo = &tensor_function;
 
 
   Point<dim> point;

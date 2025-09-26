@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,10 @@
 #include <deal.II/base/parallel.h>
 #include <deal.II/base/utilities.h>
 
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
+
 #include <deal.II/matrix_free/task_info.h>
+#include <deal.II/matrix_free/util.h>
 
 
 #ifdef DEAL_II_WITH_TBB
@@ -73,7 +76,7 @@ namespace internal
       public:
         ActualCellWork(MFWorkerInterface **worker_pointer,
                        const unsigned int  partition,
-                       const TaskInfo &    task_info)
+                       const TaskInfo     &task_info)
           : worker(nullptr)
           , worker_pointer(worker_pointer)
           , partition(partition)
@@ -82,7 +85,7 @@ namespace internal
 
         ActualCellWork(MFWorkerInterface &worker,
                        const unsigned int partition,
-                       const TaskInfo &   task_info)
+                       const TaskInfo    &task_info)
           : worker(&worker)
           , worker_pointer(nullptr)
           , partition(partition)
@@ -105,10 +108,10 @@ namespace internal
         }
 
       private:
-        MFWorkerInterface * worker;
+        MFWorkerInterface  *worker;
         MFWorkerInterface **worker_pointer;
         const unsigned int  partition;
-        const TaskInfo &    task_info;
+        const TaskInfo     &task_info;
       };
 
       class CellWork : public tbb::task
@@ -116,7 +119,7 @@ namespace internal
       public:
         CellWork(MFWorkerInterface &worker,
                  const unsigned int partition,
-                 const TaskInfo &   task_info,
+                 const TaskInfo    &task_info,
                  const bool         is_blocked)
           : dummy(nullptr)
           , work(worker, partition, task_info)
@@ -147,7 +150,7 @@ namespace internal
       public:
         PartitionWork(MFWorkerInterface &function_in,
                       const unsigned int partition_in,
-                      const TaskInfo &   task_info_in,
+                      const TaskInfo    &task_info_in,
                       const bool         is_blocked_in = false)
           : dummy(nullptr)
           , function(function_in)
@@ -229,7 +232,7 @@ namespace internal
       private:
         MFWorkerInterface &function;
         const unsigned int partition;
-        const TaskInfo &   task_info;
+        const TaskInfo    &task_info;
         const bool         is_blocked;
       };
 
@@ -243,7 +246,7 @@ namespace internal
       {
       public:
         CellWork(MFWorkerInterface &worker_in,
-                 const TaskInfo &   task_info_in,
+                 const TaskInfo    &task_info_in,
                  const unsigned int partition_in)
           : worker(worker_in)
           , task_info(task_info_in)
@@ -269,7 +272,7 @@ namespace internal
 
       private:
         MFWorkerInterface &worker;
-        const TaskInfo &   task_info;
+        const TaskInfo    &task_info;
         const unsigned int partition;
       };
 
@@ -280,7 +283,7 @@ namespace internal
       public:
         PartitionWork(MFWorkerInterface &worker_in,
                       const unsigned int partition_in,
-                      const TaskInfo &   task_info_in,
+                      const TaskInfo    &task_info_in,
                       const bool         is_blocked_in)
           : dummy(nullptr)
           , worker(worker_in)
@@ -309,7 +312,7 @@ namespace internal
       private:
         MFWorkerInterface &worker;
         const unsigned int partition;
-        const TaskInfo &   task_info;
+        const TaskInfo    &task_info;
         const bool         is_blocked;
       };
 
@@ -685,7 +688,7 @@ namespace internal
 
     template <typename StreamType>
     void
-    TaskInfo::print_memory_statistics(StreamType &      out,
+    TaskInfo::print_memory_statistics(StreamType       &out,
                                       const std::size_t data_length) const
     {
       Utilities::MPI::MinMaxAvg memory_c =
@@ -767,7 +770,7 @@ namespace internal
               ++bound_index;
             }
           while (fillup_needed > 0 &&
-                 (new_boundary_cells.size() == 0 ||
+                 (new_boundary_cells.empty() ||
                   new_boundary_cells.back() < n_active_cells - 1))
             new_boundary_cells.push_back(new_boundary_cells.back() + 1);
           while (bound_index < boundary_cells.size())
@@ -796,8 +799,8 @@ namespace internal
       const std::vector<unsigned int> &cell_vectorization_categories,
       const bool                       cell_vectorization_categories_strict,
       const std::vector<unsigned int> &parent_relation,
-      std::vector<unsigned int> &      renumbering,
-      std::vector<unsigned char> &     incompletely_filled_vectorization)
+      std::vector<unsigned int>       &renumbering,
+      std::vector<unsigned char>      &incompletely_filled_vectorization)
     {
       Assert(dofs_per_cell > 0, ExcInternalError());
       // This function is decomposed into several steps to determine a good
@@ -823,11 +826,7 @@ namespace internal
 
       // Give the compiler a chance to detect that vectorization_length is a
       // power of two, which allows it to replace integer divisions by shifts
-      unsigned int vectorization_length_bits = 0;
-      unsigned int my_length                 = vectorization_length;
-      while ((my_length >>= 1) != 0u)
-        ++vectorization_length_bits;
-      const unsigned int n_lanes = 1 << vectorization_length_bits;
+      const unsigned int n_lanes = indicate_power_of_two(vectorization_length);
 
       // Step 1: find tight map of categories for not taking exceeding amounts
       // of memory below. Sort the new categories by the numbers in the
@@ -924,7 +923,7 @@ namespace internal
           // categories) to the 'other_cells'. The cells with correct group
           // size are immediately appended to the temporary cell numbering
           auto group_it = grouped_cells.begin();
-          for (unsigned int length : n_cells_per_group)
+          for (const unsigned int length : n_cells_per_group)
             if (length < n_cells_per_parent)
               for (unsigned int j = 0; j < length; ++j)
                 other_cells.push_back((group_it++)->second);
@@ -1012,10 +1011,62 @@ namespace internal
           blocks                      = {0, comm_begin, comm_end, end};
         }
 
-      // Step 7: Fill in the data by batches for the locally owned cells.
+      // Step 7: sort ghost cells according to the category
+      std::vector<std::array<unsigned int, 2>> tight_category_map_ghost;
+
+      if (cell_vectorization_categories.empty() == false)
+        {
+          tight_category_map_ghost.reserve(n_ghost_cells);
+
+          std::set<unsigned int> used_categories;
+          for (unsigned int i = 0; i < n_ghost_cells; ++i)
+            used_categories.insert(
+              cell_vectorization_categories[i + n_active_cells]);
+
+          std::vector<unsigned int> used_categories_vector(
+            used_categories.size());
+          n_categories = 0;
+          for (const auto &it : used_categories)
+            used_categories_vector[n_categories++] = it;
+
+          std::vector<unsigned int> counters(n_categories, 0);
+
+          for (unsigned int i = 0; i < n_ghost_cells; ++i)
+            {
+              const unsigned int index =
+                std::lower_bound(
+                  used_categories_vector.begin(),
+                  used_categories_vector.end(),
+                  cell_vectorization_categories[i + n_active_cells]) -
+                used_categories_vector.begin();
+              AssertIndexRange(index, used_categories_vector.size());
+              tight_category_map_ghost.emplace_back(
+                std::array<unsigned int, 2>{{index, i}});
+
+              // account for padding in the hp and strict case
+              if (categories_are_hp || cell_vectorization_categories_strict)
+                counters[index]++;
+            }
+
+          // insert padding
+          for (unsigned int i = 0; i < counters.size(); ++i)
+            if (counters[i] % n_lanes != 0)
+              for (unsigned int j = counters[i] % n_lanes; j < n_lanes; ++j)
+                tight_category_map_ghost.emplace_back(
+                  std::array<unsigned int, 2>{
+                    {i, numbers::invalid_unsigned_int}});
+
+          std::sort(tight_category_map_ghost.begin(),
+                    tight_category_map_ghost.end());
+        }
+
+      // Step 8: Fill in the data by batches for the locally owned cells.
       const unsigned int n_cell_batches = batch_order.size();
       const unsigned int n_ghost_batches =
-        (n_ghost_cells + n_lanes - 1) / n_lanes;
+        ((tight_category_map_ghost.empty() ? n_ghost_cells :
+                                             tight_category_map_ghost.size()) +
+         n_lanes - 1) /
+        n_lanes;
       incompletely_filled_vectorization.resize(n_cell_batches +
                                                n_ghost_batches);
 
@@ -1052,18 +1103,37 @@ namespace internal
         }
       AssertDimension(counter, n_active_cells);
 
-      // Step 8: Treat the ghost cells
-      for (unsigned int cell = n_active_cells;
-           cell < n_active_cells + n_ghost_cells;
-           ++cell)
+      // Step 9: Treat the ghost cells
+      if (tight_category_map_ghost.empty())
         {
-          if (!cell_vectorization_categories.empty())
-            AssertDimension(cell_vectorization_categories[cell],
-                            cell_vectorization_categories[n_active_cells]);
-          renumbering[cell] = cell;
+          for (unsigned int cell = 0; cell < n_ghost_cells; ++cell)
+            renumbering[n_active_cells + cell] = n_active_cells + cell;
+
+          if ((n_ghost_cells % n_lanes) != 0u)
+            incompletely_filled_vectorization.back() = n_ghost_cells % n_lanes;
         }
-      if ((n_ghost_cells % n_lanes) != 0u)
-        incompletely_filled_vectorization.back() = n_ghost_cells % n_lanes;
+      else
+        {
+          for (unsigned int k = 0, ptr = 0; k < n_ghost_batches;
+               ++k, ptr += n_lanes)
+            {
+              unsigned int j = 0;
+
+              for (;
+                   j < n_lanes && (ptr + j < tight_category_map_ghost.size()) &&
+                   (tight_category_map_ghost[ptr + j][1] !=
+                    numbers::invalid_unsigned_int);
+                   ++j)
+                renumbering[counter++] =
+                  n_active_cells + tight_category_map_ghost[ptr + j][1];
+
+              if (j < n_lanes)
+                incompletely_filled_vectorization[n_cell_batches + k] = j;
+            }
+
+          AssertDimension(counter, n_active_cells + n_ghost_cells);
+        }
+
       cell_partition_data.push_back(n_cell_batches + n_ghost_batches);
       partition_row_index.back() = cell_partition_data.size() - 1;
 
@@ -1080,8 +1150,8 @@ namespace internal
     void
     TaskInfo::initial_setup_blocks_tasks(
       const std::vector<unsigned int> &boundary_cells,
-      std::vector<unsigned int> &      renumbering,
-      std::vector<unsigned char> &     incompletely_filled_vectorization)
+      std::vector<unsigned int>       &renumbering,
+      std::vector<unsigned char>      &incompletely_filled_vectorization)
     {
       const unsigned int n_cell_batches =
         (n_active_cells + vectorization_length - 1) / vectorization_length;
@@ -1173,8 +1243,8 @@ namespace internal
 
     void
     TaskInfo::make_thread_graph_partition_color(
-      DynamicSparsityPattern &    connectivity_large,
-      std::vector<unsigned int> & renumbering,
+      DynamicSparsityPattern     &connectivity_large,
+      std::vector<unsigned int>  &renumbering,
       std::vector<unsigned char> &irregular_cells,
       const bool)
     {
@@ -1321,9 +1391,9 @@ namespace internal
     void
     TaskInfo::make_thread_graph(
       const std::vector<unsigned int> &cell_active_fe_index,
-      DynamicSparsityPattern &         connectivity,
-      std::vector<unsigned int> &      renumbering,
-      std::vector<unsigned char> &     irregular_cells,
+      DynamicSparsityPattern          &connectivity,
+      std::vector<unsigned int>       &renumbering,
+      std::vector<unsigned char>      &irregular_cells,
       const bool                       hp_bool)
     {
       const unsigned int n_cell_batches = *(cell_partition_data.end() - 2);
@@ -1516,9 +1586,9 @@ namespace internal
     void
     TaskInfo::make_thread_graph_partition_partition(
       const std::vector<unsigned int> &cell_active_fe_index,
-      DynamicSparsityPattern &         connectivity,
-      std::vector<unsigned int> &      renumbering,
-      std::vector<unsigned char> &     irregular_cells,
+      DynamicSparsityPattern          &connectivity,
+      std::vector<unsigned int>       &renumbering,
+      std::vector<unsigned char>      &irregular_cells,
       const bool                       hp_bool)
     {
       const unsigned int n_cell_batches = *(cell_partition_data.end() - 2);
@@ -1584,8 +1654,8 @@ namespace internal
     void
     TaskInfo::make_connectivity_cells_to_blocks(
       const std::vector<unsigned char> &irregular_cells,
-      const DynamicSparsityPattern &    connectivity_cells,
-      DynamicSparsityPattern &          connectivity_blocks) const
+      const DynamicSparsityPattern     &connectivity_cells,
+      DynamicSparsityPattern           &connectivity_blocks) const
     {
       std::vector<std::vector<unsigned int>> cell_blocks(n_blocks);
       std::vector<unsigned int>              touched_cells(n_active_cells);
@@ -1627,7 +1697,7 @@ namespace internal
     // partition. Version without preblocking.
     void
     TaskInfo::make_partitioning_within_partitions_post_blocked(
-      const DynamicSparsityPattern &   connectivity,
+      const DynamicSparsityPattern    &connectivity,
       const std::vector<unsigned int> &cell_active_fe_index,
       const unsigned int               partition,
       const unsigned int               cluster_size,
@@ -1635,8 +1705,8 @@ namespace internal
       const std::vector<unsigned int> &cell_partition,
       const std::vector<unsigned int> &partition_list,
       const std::vector<unsigned int> &partition_size,
-      std::vector<unsigned int> &      partition_partition_list,
-      std::vector<unsigned char> &     irregular_cells)
+      std::vector<unsigned int>       &partition_partition_list,
+      std::vector<unsigned char>      &irregular_cells)
     {
       const unsigned int n_cell_batches = *(cell_partition_data.end() - 2);
       const unsigned int n_ghost_slots =
@@ -1685,7 +1755,7 @@ namespace internal
             unsigned int partition_counter = 0;
             while (work)
               {
-                if (neighbor_list.size() == 0)
+                if (neighbor_list.empty())
                   {
                     work              = false;
                     partition_counter = 0;
@@ -1948,12 +2018,12 @@ namespace internal
     // Version assumes preblocking.
     void
     TaskInfo::make_coloring_within_partitions_pre_blocked(
-      const DynamicSparsityPattern &   connectivity,
+      const DynamicSparsityPattern    &connectivity,
       const unsigned int               partition,
       const std::vector<unsigned int> &cell_partition,
       const std::vector<unsigned int> &partition_list,
       const std::vector<unsigned int> &partition_size,
-      std::vector<unsigned int> &      partition_color_list)
+      std::vector<unsigned int>       &partition_color_list)
     {
       const unsigned int n_cell_batches = *(cell_partition_data.end() - 2);
       std::vector<unsigned int> cell_color(n_blocks, n_cell_batches);
@@ -2025,10 +2095,10 @@ namespace internal
     void
     TaskInfo::make_partitioning(const DynamicSparsityPattern &connectivity,
                                 const unsigned int            cluster_size,
-                                std::vector<unsigned int> &   cell_partition,
-                                std::vector<unsigned int> &   partition_list,
-                                std::vector<unsigned int> &   partition_size,
-                                unsigned int &                partition) const
+                                std::vector<unsigned int>    &cell_partition,
+                                std::vector<unsigned int>    &partition_list,
+                                std::vector<unsigned int>    &partition_size,
+                                unsigned int                 &partition) const
 
     {
       // For each block of cells, this variable saves to which partitions the

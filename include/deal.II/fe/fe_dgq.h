@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2020 by the deal.II authors
+// Copyright (C) 2001 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,8 +18,8 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/tensor_product_polynomials.h>
-#include <deal.II/base/thread_management.h>
 
 #include <deal.II/fe/fe_poly.h>
 
@@ -33,8 +33,10 @@ template <int dim>
 class Quadrature;
 #endif
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Implementation of scalar, discontinuous tensor product elements based on
@@ -98,11 +100,11 @@ class Quadrature;
  * increases. In interpolation, this effect is known as the Runge
  * phenomenon. For Galerkin methods, the Runge phenomenon is typically not
  * visible in the solution quality but rather in the condition number of the
- * associated system matrices. For example, the elemental mass matrix of
+ * associated system matrices. For example, the elemental @ref GlossMassMatrix "mass matrix" of
  * equidistant points at degree 10 has condition number 2.6e6, whereas the
  * condition number for Gauss-Lobatto points is around 400.
  *
- * The Gauss-Lobatto points in 1D include the end points 0 and +1 of the unit
+ * The Gauss-Lobatto points in 1d include the end points 0 and +1 of the unit
  * interval. The interior points are shifted towards the end points, which
  * gives a denser point distribution close to the element boundary.
  */
@@ -152,7 +154,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                                FullMatrix<double> &                matrix,
+                                FullMatrix<double>                 &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -170,7 +172,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim, spacedim> &source,
     const unsigned int                  subface,
-    FullMatrix<double> &                matrix,
+    FullMatrix<double>                 &matrix,
     const unsigned int                  face_no = 0) const override;
 
   /**
@@ -319,7 +321,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 
   virtual std::unique_ptr<FiniteElement<dim, spacedim>>
   clone() const override;
@@ -384,7 +386,7 @@ private:
 /**
  * Implementation of scalar, discontinuous tensor product elements based on
  * Lagrange polynomials with arbitrary nodes. The primary purpose of this
- * class is to provide an element for which the mass matrix can be made
+ * class is to provide an element for which the @ref GlossMassMatrix "mass matrix" can be made
  * diagonal by choosing basis functions that are not either zero or one at the
  * vertices of the cell, but instead are zero or one at a given set of
  * quadrature points. If this set of quadrature points is then also used in
@@ -425,7 +427,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
   virtual std::unique_ptr<FiniteElement<dim, spacedim>>
   clone() const override;
 };
@@ -520,7 +522,7 @@ public:
 };
 
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

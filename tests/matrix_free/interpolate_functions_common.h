@@ -1,6 +1,6 @@
 //------------------  interpolate_functions_common.h  ------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -64,7 +64,7 @@ public:
     : data(data_in){};
 
   MatrixFreeTest(const MatrixFree<dim, Number> &data_in,
-                 const Mapping<dim> &           mapping)
+                 const Mapping<dim>            &mapping)
     : data(data_in){};
 
   virtual ~MatrixFreeTest()
@@ -75,7 +75,7 @@ public:
   virtual void
   cell(const MatrixFree<dim, Number> &data,
        Vector<Number> &,
-       const Vector<Number> &                       src,
+       const Vector<Number>                        &src,
        const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, fe_degree, n_q_points_1d, 1, Number> fe_eval(data);
@@ -89,7 +89,8 @@ public:
         fe_eval.evaluate(EvaluationFlags::values | EvaluationFlags::gradients |
                          EvaluationFlags::hessians);
 
-        for (unsigned int j = 0; j < data.n_components_filled(cell); ++j)
+        for (unsigned int j = 0; j < data.n_active_entries_per_cell_batch(cell);
+             ++j)
           for (unsigned int q = 0; q < fe_eval.n_q_points; ++q)
             {
               ++cell_times;
@@ -112,7 +113,7 @@ public:
   virtual void
   face(const MatrixFree<dim, Number> &data,
        Vector<Number> &,
-       const Vector<Number> &                       src,
+       const Vector<Number>                        &src,
        const std::pair<unsigned int, unsigned int> &face_range) const
   {
     FEFaceEvaluation<dim, fe_degree, n_q_points_1d, 1, Number> fe_evalm(data,
@@ -161,7 +162,7 @@ public:
                 double normal_derivative = 0;
                 for (unsigned int d = 0; d < dim; ++d)
                   normal_derivative += function.gradient(p, 0)[d] *
-                                       fe_evalm.get_normal_vector(q)[d][j];
+                                       fe_evalm.normal_vector(q)[d][j];
                 facem_errors[3] += std::abs(
                   fe_evalm.get_normal_derivative(q)[j] - normal_derivative);
 
@@ -186,7 +187,7 @@ public:
   virtual void
   boundary(const MatrixFree<dim, Number> &data,
            Vector<Number> &,
-           const Vector<Number> &                       src,
+           const Vector<Number>                        &src,
            const std::pair<unsigned int, unsigned int> &face_range) const
   {
     FEFaceEvaluation<dim, fe_degree, n_q_points_1d, 1, Number> fe_evalm(data,
@@ -227,7 +228,7 @@ public:
                 double normal_derivative = 0;
                 for (unsigned int d = 0; d < dim; ++d)
                   normal_derivative += function.gradient(p, 0)[d] *
-                                       fe_evalm.get_normal_vector(q)[d][j];
+                                       fe_evalm.normal_vector(q)[d][j];
                 boundary_errors[3] += std::abs(
                   fe_evalm.get_normal_derivative(q)[j] - normal_derivative);
               }
@@ -257,7 +258,7 @@ public:
               dst_dummy,
               src);
 
-    if (std::is_same<Number, float>::value)
+    if (std::is_same_v<Number, float>)
       for (unsigned int i = 0; i < 4; ++i)
         {
           if (cell_errors[i] / cell_times < 1e-5)
@@ -314,7 +315,7 @@ protected:
 
 template <int dim, int fe_degree, typename number>
 void
-do_test(const DoFHandler<dim> &          dof,
+do_test(const DoFHandler<dim>           &dof,
         const AffineConstraints<double> &constraints)
 {
   deallog << "Testing " << dof.get_fe().get_name() << std::endl;
@@ -341,7 +342,7 @@ do_test(const DoFHandler<dim> &          dof,
       update_gradients | update_hessians | update_quadrature_points;
     data.mapping_update_flags_inner_faces =
       update_gradients | update_hessians | update_quadrature_points;
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   MatrixFreeTest<dim, fe_degree, fe_degree + 1, number> mf(mf_data);

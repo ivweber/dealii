@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2018 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,14 +14,13 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_petsc_parallel_sparse_matrix_h
-#  define dealii_petsc_parallel_sparse_matrix_h
+#define dealii_petsc_parallel_sparse_matrix_h
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  include <deal.II/lac/petsc_sparse_matrix.h>
+#include <deal.II/lac/petsc_sparse_matrix.h>
 
 DEAL_II_WARNING(
   "This file is deprecated. Use deal.II/lac/petsc_sparse_matrix.h instead.")
 
 #endif
-/*---------------------- petsc_parallel_sparse_matrix.h ---------------------*/

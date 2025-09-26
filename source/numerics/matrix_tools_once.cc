@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2019 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,12 +24,8 @@
 
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/tria_iterator.h>
-
-#include <deal.II/hp/fe_values.h>
-#include <deal.II/hp/mapping_collection.h>
 
 #include <deal.II/lac/block_sparse_matrix.h>
 #include <deal.II/lac/block_vector.h>
@@ -65,14 +61,11 @@ namespace MatrixTools
   void
   apply_boundary_values(
     const std::map<types::global_dof_index, PetscScalar> &boundary_values,
-    PETScWrappers::MatrixBase &                           matrix,
-    PETScWrappers::VectorBase &                           solution,
-    PETScWrappers::VectorBase &                           right_hand_side,
+    PETScWrappers::MatrixBase                            &matrix,
+    PETScWrappers::VectorBase                            &solution,
+    PETScWrappers::VectorBase                            &right_hand_side,
     const bool                                            eliminate_columns)
   {
-    (void)eliminate_columns;
-    Assert(eliminate_columns == false, ExcNotImplemented());
-
     Assert(matrix.n() == right_hand_side.size(),
            ExcDimensionMismatch(matrix.n(), right_hand_side.size()));
     Assert(matrix.n() == solution.size(),
@@ -122,7 +115,11 @@ namespace MatrixTools
         // preserving it. this is different from
         // the case of deal.II sparse matrices
         // treated in the other functions.
-        matrix.clear_rows(constrained_rows, average_nonzero_diagonal_entry);
+        if (eliminate_columns)
+          matrix.clear_rows_columns(constrained_rows,
+                                    average_nonzero_diagonal_entry);
+        else
+          matrix.clear_rows(constrained_rows, average_nonzero_diagonal_entry);
 
         std::vector<types::global_dof_index> indices;
         std::vector<PetscScalar>             solution_values;
@@ -146,7 +143,10 @@ namespace MatrixTools
         // clear_rows() is a collective operation so we still have to call
         // it:
         std::vector<types::global_dof_index> constrained_rows;
-        matrix.clear_rows(constrained_rows, 1.);
+        if (eliminate_columns)
+          matrix.clear_rows_columns(constrained_rows, 1.);
+        else
+          matrix.clear_rows(constrained_rows, 1.);
       }
 
     // clean up
@@ -158,11 +158,12 @@ namespace MatrixTools
   void
   apply_boundary_values(
     const std::map<types::global_dof_index, PetscScalar> &boundary_values,
-    PETScWrappers::MPI::BlockSparseMatrix &               matrix,
-    PETScWrappers::MPI::BlockVector &                     solution,
-    PETScWrappers::MPI::BlockVector &                     right_hand_side,
+    PETScWrappers::MPI::BlockSparseMatrix                &matrix,
+    PETScWrappers::MPI::BlockVector                      &solution,
+    PETScWrappers::MPI::BlockVector                      &right_hand_side,
     const bool                                            eliminate_columns)
   {
+    Assert(eliminate_columns == false, ExcNotImplemented());
     Assert(matrix.n() == right_hand_side.size(),
            ExcDimensionMismatch(matrix.n(), right_hand_side.size()));
     Assert(matrix.n() == solution.size(),
@@ -242,9 +243,9 @@ namespace MatrixTools
       void
       apply_boundary_values(const std::map<types::global_dof_index,
                                            TrilinosScalar> &boundary_values,
-                            TrilinosMatrix &                matrix,
-                            TrilinosVector &                solution,
-                            TrilinosVector &                right_hand_side,
+                            TrilinosMatrix                 &matrix,
+                            TrilinosVector                 &solution,
+                            TrilinosVector                 &right_hand_side,
                             const bool                      eliminate_columns)
       {
         Assert(eliminate_columns == false, ExcNotImplemented());
@@ -336,8 +337,8 @@ namespace MatrixTools
       void
       apply_block_boundary_values(
         const std::map<types::global_dof_index, TrilinosScalar>
-          &                  boundary_values,
-        TrilinosMatrix &     matrix,
+                            &boundary_values,
+        TrilinosMatrix      &matrix,
         TrilinosBlockVector &solution,
         TrilinosBlockVector &right_hand_side,
         const bool           eliminate_columns)
@@ -419,9 +420,9 @@ namespace MatrixTools
   void
   apply_boundary_values(
     const std::map<types::global_dof_index, TrilinosScalar> &boundary_values,
-    TrilinosWrappers::SparseMatrix &                         matrix,
-    TrilinosWrappers::MPI::Vector &                          solution,
-    TrilinosWrappers::MPI::Vector &                          right_hand_side,
+    TrilinosWrappers::SparseMatrix                          &matrix,
+    TrilinosWrappers::MPI::Vector                           &solution,
+    TrilinosWrappers::MPI::Vector                           &right_hand_side,
     const bool                                               eliminate_columns)
   {
     // simply redirect to the generic function
@@ -435,9 +436,9 @@ namespace MatrixTools
   void
   apply_boundary_values(
     const std::map<types::global_dof_index, TrilinosScalar> &boundary_values,
-    TrilinosWrappers::BlockSparseMatrix &                    matrix,
-    TrilinosWrappers::MPI::BlockVector &                     solution,
-    TrilinosWrappers::MPI::BlockVector &                     right_hand_side,
+    TrilinosWrappers::BlockSparseMatrix                     &matrix,
+    TrilinosWrappers::MPI::BlockVector                      &solution,
+    TrilinosWrappers::MPI::BlockVector                      &right_hand_side,
     const bool                                               eliminate_columns)
   {
     internal::TrilinosWrappers::apply_block_boundary_values(

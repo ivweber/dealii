@@ -53,14 +53,14 @@ class MatrixIntegrator : public MeshWorker::LocalIntegrator<dim>
 {
 public:
   void
-  cell(MeshWorker::DoFInfo<dim> &                 dinfo,
+  cell(MeshWorker::DoFInfo<dim>                  &dinfo,
        typename MeshWorker::IntegrationInfo<dim> &info) const;
   void
-  boundary(MeshWorker::DoFInfo<dim> &                 dinfo,
+  boundary(MeshWorker::DoFInfo<dim>                  &dinfo,
            typename MeshWorker::IntegrationInfo<dim> &info) const;
   void
-  face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-       MeshWorker::DoFInfo<dim> &                 dinfo2,
+  face(MeshWorker::DoFInfo<dim>                  &dinfo1,
+       MeshWorker::DoFInfo<dim>                  &dinfo2,
        typename MeshWorker::IntegrationInfo<dim> &info1,
        typename MeshWorker::IntegrationInfo<dim> &info2) const;
 };
@@ -68,7 +68,7 @@ public:
 template <int dim>
 void
 MatrixIntegrator<dim>::cell(
-  MeshWorker::DoFInfo<dim> &                 dinfo,
+  MeshWorker::DoFInfo<dim>                  &dinfo,
   typename MeshWorker::IntegrationInfo<dim> &info) const
 {
   LocalIntegrators::Laplace::cell_matrix(dinfo.matrix(0, false).matrix,
@@ -78,7 +78,7 @@ MatrixIntegrator<dim>::cell(
 template <int dim>
 void
 MatrixIntegrator<dim>::boundary(
-  MeshWorker::DoFInfo<dim> &                 dinfo,
+  MeshWorker::DoFInfo<dim>                  &dinfo,
   typename MeshWorker::IntegrationInfo<dim> &info) const
 {
   const unsigned int deg = info.fe_values(0).get_fe().degree;
@@ -91,8 +91,8 @@ MatrixIntegrator<dim>::boundary(
 template <int dim>
 void
 MatrixIntegrator<dim>::face(
-  MeshWorker::DoFInfo<dim> &                 dinfo1,
-  MeshWorker::DoFInfo<dim> &                 dinfo2,
+  MeshWorker::DoFInfo<dim>                  &dinfo1,
+  MeshWorker::DoFInfo<dim>                  &dinfo2,
   typename MeshWorker::IntegrationInfo<dim> &info1,
   typename MeshWorker::IntegrationInfo<dim> &info2) const
 {
@@ -238,7 +238,7 @@ Step4<dim>::output_results(const unsigned int cycle) const
   data_out.add_data_vector(solution, "u");
 
   data_out.build_patches(fe.degree);
-  std::ofstream output((filename + ".vtk").c_str());
+  std::ofstream output(filename + ".vtk");
   data_out.write_vtk(output);
 }
 
@@ -327,7 +327,7 @@ main(int argc, char **argv)
       Step4<2> test;
       test.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

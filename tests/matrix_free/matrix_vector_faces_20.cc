@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -97,7 +97,7 @@ test()
         (update_gradients | update_JxW_values);
       data.mapping_update_flags_boundary_faces =
         (update_gradients | update_JxW_values);
-      mf_data.reinit(dof_system, constraints, quad, data);
+      mf_data.reinit(MappingQ1<dim>{}, dof_system, constraints, quad, data);
 
       mf_data.initialize_dof_vector(in);
       mf_data.initialize_dof_vector(out);
@@ -105,7 +105,7 @@ test()
 
       // Set random seed for reproducibility
       Testing::srand(42);
-      for (unsigned int i = 0; i < in.local_size(); ++i)
+      for (unsigned int i = 0; i < in.locally_owned_size(); ++i)
         {
           const double entry  = Testing::rand() / (double)RAND_MAX;
           in.local_element(i) = entry;
@@ -209,7 +209,7 @@ test()
 
       // finally compare to a series of scalar problems
       MatrixFree<dim, double> mf_data_scalar;
-      mf_data_scalar.reinit(dof, constraints, quad, data);
+      mf_data_scalar.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
 
       LinearAlgebra::distributed::Vector<double> in_small, out_small, ref_small;
       mf_data_scalar.initialize_dof_vector(in_small);

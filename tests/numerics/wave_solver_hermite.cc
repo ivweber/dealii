@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2021 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,6 +15,9 @@
 
 #include <deal.II/base/config.h>
 
+#define PRECISION 8
+
+
 #include <deal.II/base/function.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/utilities.h>
@@ -24,7 +27,6 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_hermite.h>
-#include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_cartesian.h>
 
@@ -39,7 +41,6 @@
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
 
-#include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 
@@ -186,11 +187,11 @@ get_cfl_number(const unsigned int regularity)
 
 template <int dim>
 double
-l2_error(const Mapping<dim> &   mapping,
+l2_error(const Mapping<dim>    &mapping,
          const DoFHandler<dim> &dof,
          const Quadrature<dim> &quadrature,
-         const Function<dim> &  solution,
-         const Vector<double> & fe_solution)
+         const Function<dim>   &solution,
+         const Vector<double>  &fe_solution)
 {
   FEValues<dim>                        herm_vals(mapping,
                           dof.get_fe(),
@@ -239,7 +240,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
   GridGenerator::subdivided_hyper_cube(tr, divisions, x_left, x_right);
 
   MappingCartesian<dim> mapping_h;
-  FE_Hermite<dim>       fe_h(regularity);
+  FE_Hermite<dim>       fe_h(2 * regularity + 1);
   dof.distribute_dofs(fe_h);
 
   AffineConstraints<double> constraints;
@@ -321,12 +322,7 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
 
   wave.update_time(dt);
   VectorTools::project_hermite_boundary_values(
-    mapping_h,
-    dof,
-    boundary_functions,
-    face_quadrature,
-    VectorTools::HermiteBoundaryType::hermite_dirichlet,
-    boundary_values);
+    mapping_h, dof, boundary_functions, face_quadrature, 0, boundary_values);
 
   mass_solve.copy_from(mass);
   MatrixTools::apply_boundary_values(
@@ -355,13 +351,12 @@ test_wave_solver(const double initial_time, const unsigned int regularity)
       sol_next = 0;
 
       wave.update_time(dt);
-      VectorTools::project_hermite_boundary_values(
-        mapping_h,
-        dof,
-        boundary_functions,
-        face_quadrature,
-        VectorTools::HermiteBoundaryType::hermite_dirichlet,
-        boundary_values);
+      VectorTools::project_hermite_boundary_values(mapping_h,
+                                                   dof,
+                                                   boundary_functions,
+                                                   face_quadrature,
+                                                   0,
+                                                   boundary_values);
 
       mass_solve.copy_from(mass);
       MatrixTools::apply_boundary_values(
@@ -406,7 +401,7 @@ int
 main()
 {
   std::ofstream logfile("output");
-  deallog << std::setprecision(8) << std::fixed;
+  deallog << std::setprecision(PRECISION) << std::fixed;
   deallog.attach(logfile);
 
   test_wave_solver<1>(-0.3, 1);

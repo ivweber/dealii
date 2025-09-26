@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,20 +13,20 @@
 //
 // ---------------------------------------------------------------------
 
-#include <deal.II/base/quadrature.h>
+#include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/signaling_nan.h>
+
+#include <deal.II/dofs/dof_handler.h>
 
 #include <deal.II/fe/fe_series.h>
 
 #include <deal.II/grid/filtered_iterator.h>
 
-#include <deal.II/hp/dof_handler.h>
 #include <deal.II/hp/q_collection.h>
 
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/trilinos_epetra_vector.h>
@@ -76,12 +76,12 @@ namespace SmoothnessEstimator
        * FESeries::process_coefficients() which requires a predicate to be
        * specified. The predicate should operate on TableIndices and return a
        * pair of <code>bool</code> and <code>unsigned int</code>. The latter is
-       * the value of the map from TableIndicies to unsigned int.  It is used to
+       * the value of the map from TableIndices to unsigned int.  It is used to
        * define subsets of coefficients from which we search for the one with
        * highest absolute value, i.e. $l^\infty$-norm. The <code>bool</code>
        * parameter defines which indices should be used in processing. In the
        * current case we are interested in coefficients which correspond to $0
-       * <= i+j < N$ and $0 <= i+j+k < N$ in 2D and 3D, respectively.
+       * <= i+j < N$ and $0 <= i+j+k < N$ in 2d and 3d, respectively.
        */
       template <int dim>
       std::pair<bool, unsigned int>
@@ -100,9 +100,9 @@ namespace SmoothnessEstimator
     template <int dim, int spacedim, typename VectorType>
     void
     coefficient_decay(FESeries::Legendre<dim, spacedim> &fe_legendre,
-                      const DoFHandler<dim, spacedim> &  dof_handler,
-                      const VectorType &                 solution,
-                      Vector<float> &                    smoothness_indicators,
+                      const DoFHandler<dim, spacedim>   &dof_handler,
+                      const VectorType                  &solution,
+                      Vector<float>                     &smoothness_indicators,
                       const VectorTools::NormType        regression_strategy,
                       const double smallest_abs_coefficient,
                       const bool   only_flagged_cells)
@@ -181,10 +181,10 @@ namespace SmoothnessEstimator
     void
     coefficient_decay_per_direction(
       FESeries::Legendre<dim, spacedim> &fe_legendre,
-      const DoFHandler<dim, spacedim> &  dof_handler,
-      const VectorType &                 solution,
-      Vector<float> &                    smoothness_indicators,
-      const ComponentMask &              coefficients_predicate,
+      const DoFHandler<dim, spacedim>   &dof_handler,
+      const VectorType                  &solution,
+      Vector<float>                     &smoothness_indicators,
+      const ComponentMask               &coefficients_predicate,
       const double                       smallest_abs_coefficient,
       const bool                         only_flagged_cells)
     {
@@ -341,12 +341,12 @@ namespace SmoothnessEstimator
        * which requires a predicate to be specified. The predicate should
        * operate on TableIndices and return a pair of <code>bool</code> and
        * <code>unsigned int</code>. The latter is the value of the map from
-       * TableIndicies to unsigned int.  It is used to define subsets of
+       * TableIndices to unsigned int.  It is used to define subsets of
        * coefficients from which we search for the one with highest absolute
        * value, i.e. $l^\infty$-norm. The <code>bool</code> parameter defines
        * which indices should be used in processing. In the current case we are
        * interested in coefficients which correspond to $0 < i^2+j^2 < N^2$ and
-       * $0 < i^2+j^2+k^2 < N^2$ in 2D and 3D, respectively.
+       * $0 < i^2+j^2+k^2 < N^2$ in 2d and 3d, respectively.
        */
       template <int dim>
       std::pair<bool, unsigned int>
@@ -367,9 +367,9 @@ namespace SmoothnessEstimator
     template <int dim, int spacedim, typename VectorType>
     void
     coefficient_decay(FESeries::Fourier<dim, spacedim> &fe_fourier,
-                      const DoFHandler<dim, spacedim> & dof_handler,
-                      const VectorType &                solution,
-                      Vector<float> &                   smoothness_indicators,
+                      const DoFHandler<dim, spacedim>  &dof_handler,
+                      const VectorType                 &solution,
+                      Vector<float>                    &smoothness_indicators,
                       const VectorTools::NormType       regression_strategy,
                       const double smallest_abs_coefficient,
                       const bool   only_flagged_cells)
@@ -466,10 +466,10 @@ namespace SmoothnessEstimator
     void
     coefficient_decay_per_direction(
       FESeries::Fourier<dim, spacedim> &fe_fourier,
-      const DoFHandler<dim, spacedim> & dof_handler,
-      const VectorType &                solution,
-      Vector<float> &                   smoothness_indicators,
-      const ComponentMask &             coefficients_predicate,
+      const DoFHandler<dim, spacedim>  &dof_handler,
+      const VectorType                 &solution,
+      Vector<float>                    &smoothness_indicators,
+      const ComponentMask              &coefficients_predicate,
       const double                      smallest_abs_coefficient,
       const bool                        only_flagged_cells)
     {

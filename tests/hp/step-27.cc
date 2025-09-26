@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2020 by the deal.II authors
+ * Copyright (C) 2006 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -120,7 +120,7 @@ namespace Step27
     {}
 
     virtual double
-    value(const Point<dim> &p, const unsigned int component) const;
+    value(const Point<dim> &p, const unsigned int component) const override;
   };
 
 
@@ -331,7 +331,7 @@ namespace Step27
 
         const std::string filename =
           "solution-" + Utilities::int_to_string(cycle, 2) + ".vtk";
-        std::ofstream output(filename.c_str());
+        std::ofstream output(filename);
         data_out.write_vtk(output);
       }
 
@@ -438,7 +438,7 @@ main()
       LaplaceProblem<2> laplace_problem;
       laplace_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

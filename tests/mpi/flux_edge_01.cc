@@ -79,7 +79,7 @@ namespace Step39
 
     parallel::distributed::Triangulation<dim> triangulation;
     const MappingQ<dim>                       mapping;
-    const FiniteElement<dim> &                fe;
+    const FiniteElement<dim>                 &fe;
     DoFHandler<dim>                           dof_handler;
 
     IndexSet locally_relevant_set;
@@ -115,7 +115,7 @@ namespace Step39
     dof_handler.distribute_dofs(fe);
     dof_handler.distribute_mg_dofs();
 
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_set);
+    locally_relevant_set = DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     DynamicSparsityPattern c_sparsity(dof_handler.n_dofs(),
                                       dof_handler.n_dofs());
@@ -220,7 +220,7 @@ main(int argc, char *argv[])
       InteriorPenaltyProblem<2> test1(fe1);
       test1.run(20);
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

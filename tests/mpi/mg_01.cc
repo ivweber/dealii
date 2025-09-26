@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2018 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -45,7 +45,7 @@ output(parallel::distributed::Triangulation<dim> &tr)
   const std::string filename =
     ("mesh." + Utilities::int_to_string(tr.locally_owned_subdomain(), 4) +
      ".fig");
-  std::ofstream stream(filename.c_str());
+  std::ofstream stream(filename);
 
   GridOutFlags::XFig flags;
   flags.color_by = GridOutFlags::XFig::level_subdomain_id;

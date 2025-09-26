@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -92,7 +92,7 @@ check()
                                                 std::move(n_subintervals),
                                                 std::move(data));
 
-  // Verify tha the data has really been moved
+  // Verify that the data has really been moved
   for (unsigned int d = 0; d < dim; ++d)
     Assert(data.size()[d] == 0, ExcInternalError());
 

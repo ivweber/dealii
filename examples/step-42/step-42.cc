@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2012 - 2021 by the deal.II authors
+ * Copyright (C) 2012 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Joerg Frohne, Texas A&M University and
  *                        University of Siegen, 2012, 2013
@@ -114,12 +113,12 @@ namespace Step42
 
     bool get_stress_strain_tensor(
       const SymmetricTensor<2, dim> &strain_tensor,
-      SymmetricTensor<4, dim> &      stress_strain_tensor) const;
+      SymmetricTensor<4, dim>       &stress_strain_tensor) const;
 
     void get_linearized_stress_strain_tensors(
       const SymmetricTensor<2, dim> &strain_tensor,
-      SymmetricTensor<4, dim> &      stress_strain_tensor_linearized,
-      SymmetricTensor<4, dim> &      stress_strain_tensor) const;
+      SymmetricTensor<4, dim>       &stress_strain_tensor_linearized,
+      SymmetricTensor<4, dim>       &stress_strain_tensor) const;
 
   private:
     const double kappa;
@@ -193,7 +192,7 @@ namespace Step42
   template <int dim>
   bool ConstitutiveLaw<dim>::get_stress_strain_tensor(
     const SymmetricTensor<2, dim> &strain_tensor,
-    SymmetricTensor<4, dim> &      stress_strain_tensor) const
+    SymmetricTensor<4, dim>       &stress_strain_tensor) const
   {
     Assert(dim == 3, ExcNotImplemented());
 
@@ -232,8 +231,8 @@ namespace Step42
   template <int dim>
   void ConstitutiveLaw<dim>::get_linearized_stress_strain_tensors(
     const SymmetricTensor<2, dim> &strain_tensor,
-    SymmetricTensor<4, dim> &      stress_strain_tensor_linearized,
-    SymmetricTensor<4, dim> &      stress_strain_tensor) const
+    SymmetricTensor<4, dim>       &stress_strain_tensor_linearized,
+    SymmetricTensor<4, dim>       &stress_strain_tensor) const
   {
     Assert(dim == 3, ExcNotImplemented());
 
@@ -276,11 +275,11 @@ namespace Step42
     public:
       BoundaryForce();
 
-      virtual double value(const Point<dim> & p,
+      virtual double value(const Point<dim>  &p,
                            const unsigned int component = 0) const override;
 
       virtual void vector_value(const Point<dim> &p,
-                                Vector<double> &  values) const override;
+                                Vector<double>   &values) const override;
     };
 
     template <int dim>
@@ -298,7 +297,7 @@ namespace Step42
 
     template <int dim>
     void BoundaryForce<dim>::vector_value(const Point<dim> &p,
-                                          Vector<double> &  values) const
+                                          Vector<double>   &values) const
     {
       for (unsigned int c = 0; c < this->n_components; ++c)
         values(c) = BoundaryForce<dim>::value(p, c);
@@ -312,7 +311,7 @@ namespace Step42
     public:
       BoundaryValues();
 
-      virtual double value(const Point<dim> & p,
+      virtual double value(const Point<dim>  &p,
                            const unsigned int component = 0) const override;
     };
 
@@ -349,11 +348,11 @@ namespace Step42
     public:
       SphereObstacle(const double z_surface);
 
-      virtual double value(const Point<dim> & p,
+      virtual double value(const Point<dim>  &p,
                            const unsigned int component = 0) const override;
 
       virtual void vector_value(const Point<dim> &p,
-                                Vector<double> &  values) const override;
+                                Vector<double>   &values) const override;
 
     private:
       const double z_surface;
@@ -368,7 +367,7 @@ namespace Step42
 
 
     template <int dim>
-    double SphereObstacle<dim>::value(const Point<dim> & p,
+    double SphereObstacle<dim>::value(const Point<dim>  &p,
                                       const unsigned int component) const
     {
       if (component == 0)
@@ -393,7 +392,7 @@ namespace Step42
 
     template <int dim>
     void SphereObstacle<dim>::vector_value(const Point<dim> &p,
-                                           Vector<double> &  values) const
+                                           Vector<double>   &values) const
     {
       for (unsigned int c = 0; c < this->n_components; ++c)
         values(c) = SphereObstacle<dim>::value(p, c);
@@ -524,11 +523,11 @@ namespace Step42
     public:
       ChineseObstacle(const std::string &filename, const double z_surface);
 
-      virtual double value(const Point<dim> & p,
+      virtual double value(const Point<dim>  &p,
                            const unsigned int component = 0) const override;
 
       virtual void vector_value(const Point<dim> &p,
-                                Vector<double> &  values) const override;
+                                Vector<double>   &values) const override;
 
     private:
       const BitmapFile<dim> input_obstacle;
@@ -546,7 +545,7 @@ namespace Step42
 
 
     template <int dim>
-    double ChineseObstacle<dim>::value(const Point<dim> & p,
+    double ChineseObstacle<dim>::value(const Point<dim>  &p,
                                        const unsigned int component) const
     {
       if (component == 0)
@@ -566,7 +565,7 @@ namespace Step42
 
     template <int dim>
     void ChineseObstacle<dim>::vector_value(const Point<dim> &p,
-                                            Vector<double> &  values) const
+                                            Vector<double>   &values) const
     {
       for (unsigned int c = 0; c < this->n_components; ++c)
         values(c) = ChineseObstacle<dim>::value(p, c);
@@ -814,7 +813,7 @@ namespace Step42
         prm.get_integer("number of initial refinements"))
     , triangulation(mpi_communicator)
     , fe_degree(prm.get_integer("polynomial degree"))
-    , fe(FE_Q<dim>(QGaussLobatto<1>(fe_degree + 1)), dim)
+    , fe(FE_Q<dim>(QGaussLobatto<1>(fe_degree + 1)) ^ dim)
     , dof_handler(triangulation)
 
     , e_modulus(200000)
@@ -1101,7 +1100,7 @@ namespace Step42
 
   // @sect4{PlasticityContactProblem::assemble_mass_matrix_diagonal}
 
-  // The next helper function computes the (diagonal) mass matrix that
+  // The next helper function computes the (diagonal) @ref GlossMassMatrix "mass matrix" that
   // is used to determine the active set of the active set method we use in
   // the contact algorithm. This matrix is of mass matrix type, but unlike
   // the standard mass matrix, we can make it diagonal (even in the case of

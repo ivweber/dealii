@@ -72,14 +72,14 @@ class LaplaceMatrix : public MeshWorker::LocalIntegrator<dim>
 public:
   LaplaceMatrix();
   virtual void
-  cell(MeshWorker::DoFInfo<dim> &        dinfo,
+  cell(MeshWorker::DoFInfo<dim>         &dinfo,
        MeshWorker::IntegrationInfo<dim> &info) const;
   virtual void
-  boundary(MeshWorker::DoFInfo<dim> &        dinfo,
+  boundary(MeshWorker::DoFInfo<dim>         &dinfo,
            MeshWorker::IntegrationInfo<dim> &info) const;
   virtual void
-  face(MeshWorker::DoFInfo<dim> &        dinfo1,
-       MeshWorker::DoFInfo<dim> &        dinfo2,
+  face(MeshWorker::DoFInfo<dim>         &dinfo1,
+       MeshWorker::DoFInfo<dim>         &dinfo2,
        MeshWorker::IntegrationInfo<dim> &info1,
        MeshWorker::IntegrationInfo<dim> &info2) const;
 };
@@ -93,7 +93,7 @@ LaplaceMatrix<dim>::LaplaceMatrix()
 
 template <int dim>
 void
-LaplaceMatrix<dim>::cell(MeshWorker::DoFInfo<dim> &        dinfo,
+LaplaceMatrix<dim>::cell(MeshWorker::DoFInfo<dim>         &dinfo,
                          MeshWorker::IntegrationInfo<dim> &info) const
 {
   AssertDimension(dinfo.n_matrices(), 1);
@@ -186,7 +186,7 @@ public:
 
   virtual void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<double> &          values,
+             std::vector<double>           &values,
              const unsigned int             component = 0) const;
 };
 
@@ -207,7 +207,7 @@ Coefficient<dim>::value(const Point<dim> &p, const unsigned int) const
 template <int dim>
 void
 Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                             std::vector<double> &          values,
+                             std::vector<double>           &values,
                              const unsigned int             component) const
 {
   const unsigned int n_points = points.size();
@@ -579,7 +579,7 @@ LaplaceProblem<dim>::output_results(const unsigned int cycle) const
   std::ostringstream filename;
   filename << "solution-" << cycle << ".vtk";
 
-  std::ofstream output(filename.str().c_str());
+  std::ofstream output(filename.str());
   data_out.write_vtk(output);
 }
 
@@ -640,7 +640,7 @@ main()
       LaplaceProblem<2> laplace_problem(1);
       laplace_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

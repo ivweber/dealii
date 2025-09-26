@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -114,7 +114,7 @@ check()
 
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
         {
-          const auto &       this_qp = qp[i];
+          const auto        &this_qp = qp[i];
           const unsigned int i_group = fe.system_to_base_index(i).first.first;
           const unsigned int i_comp  = fe.system_to_component_index(i).first;
           if (i_group == 0)
@@ -166,6 +166,9 @@ check()
   std::vector<std::string> component_name(dim + dim * dim, "tensor");
   std::fill(component_name.begin(), component_name.begin() + dim, "vector");
 
+  DataOutBase::VtkFlags vtk_flags;
+  vtk_flags.compression_level = DataOutBase::CompressionLevel::best_compression;
+
   DataOut<dim> data_out;
   data_out.attach_dof_handler(dof_handler);
   data_out.add_data_vector(v,
@@ -173,6 +176,7 @@ check()
                            DataOut<dim>::type_dof_data,
                            data_component_interpretation);
   data_out.build_patches();
+  data_out.set_flags(vtk_flags);
 
   std::vector<std::string> filenames;
   filenames.push_back("output_" + Utilities::int_to_string(dim) + "d.vtu");

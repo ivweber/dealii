@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -174,7 +174,7 @@ namespace Algorithms
     double start_val;
 
     /**
-     *The end of the time interval.
+     * The end of the time interval.
      */
     double final_val;
 

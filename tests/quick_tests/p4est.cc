@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2020 by the deal.II authors
+// Copyright (C) 2008 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,6 +16,9 @@
 
 
 // Test DoFTools::count_dofs_per_fe_component
+
+// Test p4est. This test exposes a bug in OpenMPI 1.3 and 1.4 Update to
+// OpenMPI 1.5 or newer.
 
 
 #include <deal.II/base/tensor.h>

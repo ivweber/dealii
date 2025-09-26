@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,7 +33,7 @@ namespace GridGenerator
     void
     parse_and_create(void (*generator)(Triangulation<dim, spacedim> &,
                                        Arguments...),
-                     const std::string &           arguments,
+                     const std::string            &arguments,
                      Triangulation<dim, spacedim> &tria)
     {
       std::function<void(Arguments...)> wrapper =
@@ -50,7 +50,7 @@ namespace GridGenerator
      * Return true if a grid was actually generated, false otherwise.
      */
     template <int dim, int spacedim>
-    typename std::enable_if<dim != spacedim, bool>::type
+    std::enable_if_t<dim != spacedim, bool>
     generate_codimension_zero_grid(const std::string &,
                                    const std::string &,
                                    Triangulation<dim, spacedim> &)
@@ -65,8 +65,8 @@ namespace GridGenerator
      */
     template <int dim>
     bool
-    generate_codimension_zero_grid(const std::string & name,
-                                   const std::string & arguments,
+    generate_codimension_zero_grid(const std::string  &name,
+                                   const std::string  &arguments,
                                    Triangulation<dim> &tria)
     {
       if (name == "simplex")
@@ -230,6 +230,21 @@ namespace GridGenerator
                          double,
                          unsigned int,
                          bool>(concentric_hyper_shells, arguments, tria);
+
+      else if (name == "subdivided_hyper_cube_with_simplices")
+        parse_and_create<dim, dim, unsigned int, double, double, bool>(
+          subdivided_hyper_cube_with_simplices, arguments, tria);
+
+      else if (name == "subdivided_hyper_rectangle_with_simplices")
+        parse_and_create<dim,
+                         dim,
+                         const std::vector<unsigned int> &,
+                         const Point<dim> &,
+                         const Point<dim> &,
+                         bool>(subdivided_hyper_rectangle_with_simplices,
+                               arguments,
+                               tria);
+
       else
         return false;
 
@@ -243,7 +258,7 @@ namespace GridGenerator
      * Return true if a grid was actually generated, false otherwise.
      */
     template <int dim, int spacedim>
-    typename std::enable_if<dim != spacedim - 1, bool>::type
+    std::enable_if_t<dim != spacedim - 1, bool>
     generate_codimension_one_grid(const std::string &,
                                   const std::string &,
                                   Triangulation<dim, spacedim> &)
@@ -258,8 +273,8 @@ namespace GridGenerator
      */
     template <int dim>
     bool
-    generate_codimension_one_grid(const std::string &          name,
-                                  const std::string &          arguments,
+    generate_codimension_one_grid(const std::string           &name,
+                                  const std::string           &arguments,
                                   Triangulation<dim, dim + 1> &tria)
     {
       if (name == "hyper_sphere")
@@ -290,8 +305,8 @@ namespace GridGenerator
      * Return true if a grid was actually generated, false otherwise.
      */
     bool
-    generate_special(const std::string &  name,
-                     const std::string &  arguments,
+    generate_special(const std::string   &name,
+                     const std::string   &arguments,
                      Triangulation<3, 3> &tria)
     {
       if (name == "moebius")
@@ -314,8 +329,8 @@ namespace GridGenerator
      * Return true if a grid was actually generated, false otherwise.
      */
     bool
-    generate_special(const std::string &  name,
-                     const std::string &  arguments,
+    generate_special(const std::string   &name,
+                     const std::string   &arguments,
                      Triangulation<2, 3> &tria)
     {
       if (name == "torus")
@@ -335,8 +350,8 @@ namespace GridGenerator
   template <int dim, int spacedim>
   void
   generate_from_name_and_arguments(Triangulation<dim, spacedim> &tria,
-                                   const std::string &           name,
-                                   const std::string &           arguments)
+                                   const std::string            &name,
+                                   const std::string            &arguments)
   {
     // We begin with all function calls that are implemented for all
     // combinations of dim and spacedim.
@@ -372,11 +387,14 @@ namespace GridGenerator
     //
     // If one of the function call succeeds, we skip the rest and return.
     else if (generate_codimension_zero_grid(name, arguments, tria))
-      {}
+      {
+      }
     else if (generate_codimension_one_grid(name, arguments, tria))
-      {}
+      {
+      }
     else if (generate_special(name, arguments, tria))
-      {}
+      {
+      }
     else
       // If we got here, we really have no idea what grid the user wants to
       // generate.

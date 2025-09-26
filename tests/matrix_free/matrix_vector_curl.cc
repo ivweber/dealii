@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -64,9 +64,9 @@ public:
     : data(data_in){};
 
   void
-  local_apply(const MatrixFree<dim, Number> &              data,
-              VectorType &                                 dst,
-              const VectorType &                           src,
+  local_apply(const MatrixFree<dim, Number>               &data,
+              VectorType                                  &dst,
+              const VectorType                            &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     using vector_t = VectorizedArray<Number>;
@@ -255,7 +255,8 @@ test()
   // setup matrix-free structure
   {
     QGauss<1> quad(fe_degree + 1);
-    mf_data.reinit(dof_handler_sca,
+    mf_data.reinit(MappingQ1<dim>{},
+                   dof_handler_sca,
                    constraints,
                    quad,
                    typename MatrixFree<dim>::AdditionalData(

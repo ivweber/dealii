@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,7 +33,7 @@ DEAL_II_NAMESPACE_OPEN
 template <int dim, int patch_dim, int spacedim>
 DataOutResample<dim, patch_dim, spacedim>::DataOutResample(
   const Triangulation<patch_dim, spacedim> &patch_tria,
-  const Mapping<patch_dim, spacedim> &      patch_mapping)
+  const Mapping<patch_dim, spacedim>       &patch_mapping)
   : patch_dof_handler(patch_tria)
   , patch_mapping(&patch_mapping)
 {}
@@ -64,8 +64,8 @@ DataOutResample<dim, patch_dim, spacedim>::update_mapping(
 
   std::vector<types::global_dof_index> dof_indices(fe.n_dofs_per_cell());
 
-  IndexSet active_dofs;
-  DoFTools::extract_locally_active_dofs(patch_dof_handler, active_dofs);
+  const IndexSet active_dofs =
+    DoFTools::extract_locally_active_dofs(patch_dof_handler);
   partitioner = std::make_shared<Utilities::MPI::Partitioner>(
     patch_dof_handler.locally_owned_dofs(), active_dofs, MPI_COMM_WORLD);
 
@@ -107,7 +107,7 @@ DataOutResample<dim, patch_dim, spacedim>::update_mapping(
 template <int dim, int patch_dim, int spacedim>
 void
 DataOutResample<dim, patch_dim, spacedim>::build_patches(
-  const Mapping<dim, spacedim> &                                mapping,
+  const Mapping<dim, spacedim>                                 &mapping,
   const unsigned int                                            n_subdivisions,
   const typename DataOut<patch_dim, spacedim>::CurvedCellRegion curved_region)
 {
@@ -151,32 +151,42 @@ DataOutResample<dim, patch_dim, spacedim>::build_patches(
 
       const auto &dh = *data_ptr->dof_handler;
 
-      // TODO: enable more components
-      AssertDimension(dh.get_fe_collection().n_components(), 1);
+#ifdef DEBUG
+      for (const auto &fe : dh.get_fe_collection())
+        Assert(
+          fe.n_base_elements() == 1,
+          ExcMessage(
+            "This class currently only supports scalar elements and elements "
+            "with a single base element."));
+#endif
 
-      const auto values =
-        VectorTools::point_values<1>(rpe, dh, data_ptr->vector);
+      for (unsigned int comp = 0; comp < dh.get_fe_collection().n_components();
+           ++comp)
+        {
+          const auto values = VectorTools::point_values<1>(
+            rpe, dh, data_ptr->vector, VectorTools::EvaluationFlags::avg, comp);
 
-      vectors.emplace_back(
-        std::make_shared<LinearAlgebra::distributed::Vector<double>>(
-          partitioner));
+          vectors.emplace_back(
+            std::make_shared<LinearAlgebra::distributed::Vector<double>>(
+              partitioner));
 
-      for (unsigned int j = 0; j < values.size(); ++j)
-        vectors.back()->local_element(point_to_local_vector_indices[j]) =
-          values[j];
+          for (unsigned int j = 0; j < values.size(); ++j)
+            vectors.back()->local_element(point_to_local_vector_indices[j]) =
+              values[j];
 
-      vectors.back()->set_ghost_state(true);
+          vectors.back()->set_ghost_state(true);
 
-      // we can give the vectors arbitrary names ("temp_*") here, since these
-      // are only used internally (by patch_data_out) but not later on during
-      // the actual output to file
-      patch_data_out.add_data_vector(
-        *vectors.back(),
-        std::string("temp_" + std::to_string(counter)),
-        DataOut_DoFData<patch_dim, patch_dim, spacedim, spacedim>::
-          DataVectorType::type_dof_data);
+          // we can give the vectors arbitrary names ("temp_*") here, since
+          // these are only used internally (by patch_data_out) but not later on
+          // during the actual output to file
+          patch_data_out.add_data_vector(
+            *vectors.back(),
+            std::string("temp_" + std::to_string(counter)),
+            DataOut_DoFData<patch_dim, patch_dim, spacedim, spacedim>::
+              DataVectorType::type_dof_data);
 
-      counter++;
+          counter++;
+        }
     }
 
   patch_data_out.build_patches(*patch_mapping,

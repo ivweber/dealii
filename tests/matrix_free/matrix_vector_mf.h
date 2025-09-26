@@ -31,8 +31,8 @@
 template <int dim, int fe_degree, typename VectorType, int n_q_points_1d>
 void
 helmholtz_operator(const MatrixFree<dim, typename VectorType::value_type> &data,
-                   VectorType &                                            dst,
-                   const VectorType &                                      src,
+                   VectorType                                             &dst,
+                   const VectorType                                       &src,
                    const std::pair<unsigned int, unsigned int> &cell_range)
 {
   using Number = typename VectorType::value_type;
@@ -60,9 +60,38 @@ template <int dim, typename VectorType>
 void
 helmholtz_operator_no_template(
   const MatrixFree<dim, typename VectorType::value_type> &data,
-  VectorType &                                            dst,
-  const VectorType &                                      src,
-  const std::pair<unsigned int, unsigned int> &           cell_range,
+  VectorType                                             &dst,
+  const VectorType                                       &src,
+  const std::pair<unsigned int, unsigned int>            &cell_range)
+{
+  using Number = typename VectorType::value_type;
+  FEEvaluation<dim, -1, 0, 1, Number> fe_eval(data, cell_range);
+  const unsigned int                  n_q_points = fe_eval.n_q_points;
+
+  for (unsigned int cell = cell_range.first; cell < cell_range.second; ++cell)
+    {
+      fe_eval.reinit(cell);
+      fe_eval.read_dof_values(src);
+      fe_eval.evaluate(EvaluationFlags::values | EvaluationFlags::gradients);
+      for (unsigned int q = 0; q < n_q_points; ++q)
+        {
+          fe_eval.submit_value(Number(10) * fe_eval.get_value(q), q);
+          fe_eval.submit_gradient(fe_eval.get_gradient(q), q);
+        }
+      fe_eval.integrate(EvaluationFlags::values | EvaluationFlags::gradients);
+      fe_eval.distribute_local_to_global(dst);
+    }
+}
+
+
+
+template <int dim, typename VectorType>
+void
+helmholtz_operator_no_template(
+  const MatrixFree<dim, typename VectorType::value_type> &data,
+  VectorType                                             &dst,
+  const VectorType                                       &src,
+  const std::pair<unsigned int, unsigned int>            &cell_range,
   const unsigned int                                      active_fe_index,
   const unsigned int                                      active_quad_index)
 {

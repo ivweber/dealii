@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2013 - 2014 by the deal.II authors
+## Copyright (C) 2013 - 2023 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -13,13 +13,11 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-
-SET(_src
+set(_src
   )
 
-FILE(GLOB _header
+file(GLOB _header
   ${CMAKE_SOURCE_DIR}/include/deal.II/integrators/*.h
   )
 
-DEAL_II_ADD_LIBRARY(obj_integrators OBJECT ${_src} ${_header})
+define_object_library(object_integrators OBJECT ${_src} ${_header})

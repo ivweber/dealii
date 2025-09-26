@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,8 @@
 #include <deal.II/base/point.h>
 #include <deal.II/base/tensor.h>
 
+#include <memory>
+#include <string>
 #include <vector>
 
 DEAL_II_NAMESPACE_OPEN
@@ -89,14 +91,9 @@ public:
    *
    * The size of the vectors must either be zero or equal <tt>n()</tt>.  In
    * the first case, the function will not compute these values.
-   *
-   * If you need values or derivatives of all polynomials then use this
-   * function, rather than using any of the <tt>compute_value</tt>,
-   * <tt>compute_grad</tt> or <tt>compute_grad_grad</tt> functions, see below,
-   * in a loop over all tensor product polynomials.
    */
   virtual void
-  evaluate(const Point<dim> &           unit_point,
+  evaluate(const Point<dim>            &unit_point,
            std::vector<Tensor<1, dim>> &values,
            std::vector<Tensor<2, dim>> &grads,
            std::vector<Tensor<3, dim>> &grad_grads,

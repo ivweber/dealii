@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 - 2020 by the deal.II authors
+// Copyright (C) 2014 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -71,9 +71,9 @@ private:
   const MatrixFree<dim, Number> &data;
 
   void
-  local_operation(const MatrixFree<dim, Number> &              data,
-                  VectorType &                                 out,
-                  const VectorType &                           in,
+  local_operation(const MatrixFree<dim, Number>               &data,
+                  VectorType                                  &out,
+                  const VectorType                            &in,
                   const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, fe_degree, fe_degree + 1, 1, Number> fe_eval(data);
@@ -107,7 +107,7 @@ private:
 
 template <int dim, int fe_degree, typename number>
 void
-do_test(const DoFHandler<dim> &          dof,
+do_test(const DoFHandler<dim>           &dof,
         const AffineConstraints<double> &constraints,
         const unsigned int               parallel_option = 0)
 {
@@ -134,7 +134,7 @@ do_test(const DoFHandler<dim> &          dof,
     data.tasks_block_size = 7;
     data.mapping_update_flags |= update_hessians;
 
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   MatrixFreeTest<dim, fe_degree, number> mf(mf_data);

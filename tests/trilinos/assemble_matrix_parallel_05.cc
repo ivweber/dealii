@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2021 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -56,10 +56,6 @@
 #include <iostream>
 
 #include "../tests.h"
-
-std::ofstream logfile("output");
-
-
 
 namespace Assembly
 {
@@ -130,15 +126,15 @@ private:
   void
   local_assemble(
     const FilteredIterator<typename DoFHandler<dim>::active_cell_iterator>
-      &                           cell,
+                                 &cell,
     Assembly::Scratch::Data<dim> &scratch,
-    Assembly::Copy::Data &        data);
+    Assembly::Copy::Data         &data);
   void
   copy_local_to_global(const Assembly::Copy::Data &data);
 
   std::vector<types::global_dof_index>
   get_conflict_indices(
-    FilteredIterator<typename DoFHandler<dim>::active_cell_iterator> const
+    const FilteredIterator<typename DoFHandler<dim>::active_cell_iterator>
       &cell) const;
 
   parallel::distributed::Triangulation<dim> triangulation;
@@ -232,7 +228,7 @@ LaplaceProblem<dim>::~LaplaceProblem()
 template <int dim>
 std::vector<types::global_dof_index>
 LaplaceProblem<dim>::get_conflict_indices(
-  FilteredIterator<typename DoFHandler<dim>::active_cell_iterator> const &cell)
+  const FilteredIterator<typename DoFHandler<dim>::active_cell_iterator> &cell)
   const
 {
   std::vector<types::global_dof_index> local_dof_indices(
@@ -274,7 +270,7 @@ LaplaceProblem<dim>::setup_system()
     begin,
     end,
     static_cast<std::function<std::vector<types::global_dof_index>(
-      FilteredIterator<typename DoFHandler<dim>::active_cell_iterator> const
+      const FilteredIterator<typename DoFHandler<dim>::active_cell_iterator>
         &)>>(std::bind(&LaplaceProblem<dim>::get_conflict_indices,
                        this,
                        std::placeholders::_1)));
@@ -289,8 +285,8 @@ LaplaceProblem<dim>::setup_system()
     reference_rhs.reinit(locally_owned, MPI_COMM_WORLD);
   }
   {
-    IndexSet relevant_set;
-    DoFTools::extract_locally_relevant_dofs(dof_handler, relevant_set);
+    const IndexSet relevant_set =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
     DynamicSparsityPattern csp(dof_handler.n_dofs(),
                                dof_handler.n_dofs(),
                                relevant_set);
@@ -307,7 +303,7 @@ void
 LaplaceProblem<dim>::local_assemble(
   const FilteredIterator<typename DoFHandler<dim>::active_cell_iterator> &cell,
   Assembly::Scratch::Data<dim> &scratch,
-  Assembly::Copy::Data &        data)
+  Assembly::Copy::Data         &data)
 {
   const unsigned int dofs_per_cell = cell->get_fe().dofs_per_cell;
 
@@ -469,12 +465,10 @@ LaplaceProblem<dim>::run()
 int
 main(int argc, char **argv)
 {
-  deallog << std::setprecision(2);
-  logfile << std::setprecision(2);
-  deallog.attach(logfile);
-
   Utilities::MPI::MPI_InitFinalize mpi_initialization(
     argc, argv, testing_max_num_threads());
+  mpi_initlog();
+  deallog << std::setprecision(2);
 
   {
     deallog.push("2d");

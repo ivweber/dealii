@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,7 +42,7 @@
  * The correct constrains are written in a log to make a unit test.
  */
 
-//#define FEQH_DEBUG_OUTPUT
+// #define FEQH_DEBUG_OUTPUT
 
 
 template <int dim>
@@ -139,7 +139,7 @@ test(const bool apply_constrains, const unsigned int hp)
                << (apply_constrains ? "_constrained" : "") << hp_string << '_'
                << i << ".vtk";
 
-      std::ofstream output(filename.str().c_str());
+      std::ofstream output(filename.str());
       data_out.write_vtk(output);
 #endif
     }

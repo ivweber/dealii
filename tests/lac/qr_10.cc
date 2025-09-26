@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,14 +18,14 @@
 #include "../tests.h"
 
 /*
- * Test ImplicitQR::append_column() with lineary dependent columns.
+ * Test ImplicitQR::append_column() with linearly dependent columns.
  * The output should be the same as qr_03 test plus extra output due to
  * the rejected column.
  */
 
 /*
- * MWE in Python for standard QR with 3 linearly independet columns. We will add
-the fourth one:
+ * MWE in Python for standard QR with 3 linearly independent columns. We will
+add the fourth one:
 
 import numpy as np
 from scipy import linalg
@@ -103,8 +103,8 @@ test()
   v[4] = 8.;
 
   const auto fun = [&](const Vector<number> &u,
-                       const number &        rho2,
-                       const number &        col_l2_norm2) {
+                       const number         &rho2,
+                       const number         &col_l2_norm2) {
     deallog << "Linearly dependent column" << std::endl;
     deallog << "u:" << std::endl;
     u.print(deallog.get_file_stream());

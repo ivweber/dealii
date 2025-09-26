@@ -47,7 +47,7 @@ success()
       prm.set("Precision", "float");
       prm.leave_subsection();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << exc.what() << std::endl;
     }
@@ -57,7 +57,7 @@ success()
     {
       prm.assert_that_entries_have_been_set();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << exc.what() << std::endl;
     }
@@ -91,9 +91,12 @@ fail()
       // dim is not set!
       prm.leave_subsection();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
-      deallog << exc.what() << std::endl;
+      std::string error = exc.what();
+      auto        start = error.find("The violated condition was:");
+      if (start != std::string::npos)
+        deallog << error.substr(start) << std::endl;
     }
 
   // check set status
@@ -101,9 +104,12 @@ fail()
     {
       prm.assert_that_entries_have_been_set();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
-      deallog << exc.what() << std::endl;
+      std::string error = exc.what();
+      auto        start = error.find("The violated condition was:");
+      if (start != std::string::npos)
+        deallog << error.substr(start) << std::endl;
     }
 }
 
@@ -119,7 +125,7 @@ main()
       success();
       fail();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << exc.what() << std::endl;
     }

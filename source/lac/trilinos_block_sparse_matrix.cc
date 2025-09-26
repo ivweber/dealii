@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2020 by the deal.II authors
+// Copyright (C) 2008 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -71,9 +71,9 @@ namespace TrilinosWrappers
   template <typename BlockSparsityPatternType>
   void
   BlockSparseMatrix::reinit(
-    const std::vector<IndexSet> &   parallel_partitioning,
+    const std::vector<IndexSet>    &parallel_partitioning,
     const BlockSparsityPatternType &block_sparsity_pattern,
-    const MPI_Comm &                communicator,
+    const MPI_Comm                  communicator,
     const bool                      exchange_data)
   {
     std::vector<Epetra_Map> epetra_maps;
@@ -162,9 +162,9 @@ namespace TrilinosWrappers
 
   void
   BlockSparseMatrix::reinit(
-    const std::vector<IndexSet> &              parallel_partitioning,
+    const std::vector<IndexSet>               &parallel_partitioning,
     const ::dealii::BlockSparseMatrix<double> &dealii_block_sparse_matrix,
-    const MPI_Comm &                           communicator,
+    const MPI_Comm                             communicator,
     const double                               drop_tolerance)
   {
     const size_type n_block_rows = parallel_partitioning.size();
@@ -232,10 +232,10 @@ namespace TrilinosWrappers
 
 
 
-  BlockSparseMatrix::size_type
+  std::uint64_t
   BlockSparseMatrix::n_nonzero_elements() const
   {
-    size_type n_nonzero = 0;
+    std::uint64_t n_nonzero = 0;
     for (size_type rows = 0; rows < this->n_block_rows(); ++rows)
       for (size_type cols = 0; cols < this->n_block_cols(); ++cols)
         n_nonzero += this->block(rows, cols).n_nonzero_elements();
@@ -246,7 +246,7 @@ namespace TrilinosWrappers
 
 
   TrilinosScalar
-  BlockSparseMatrix::residual(MPI::BlockVector &      dst,
+  BlockSparseMatrix::residual(MPI::BlockVector       &dst,
                               const MPI::BlockVector &x,
                               const MPI::BlockVector &b) const
   {
@@ -264,8 +264,8 @@ namespace TrilinosWrappers
   // above three more times. Use
   // templates.
   TrilinosScalar
-  BlockSparseMatrix::residual(MPI::BlockVector &      dst,
-                              const MPI::Vector &     x,
+  BlockSparseMatrix::residual(MPI::BlockVector       &dst,
+                              const MPI::Vector      &x,
                               const MPI::BlockVector &b) const
   {
     vmult(dst, x);
@@ -278,9 +278,9 @@ namespace TrilinosWrappers
 
 
   TrilinosScalar
-  BlockSparseMatrix::residual(MPI::Vector &           dst,
+  BlockSparseMatrix::residual(MPI::Vector            &dst,
                               const MPI::BlockVector &x,
-                              const MPI::Vector &     b) const
+                              const MPI::Vector      &b) const
   {
     vmult(dst, x);
     dst -= b;
@@ -292,7 +292,7 @@ namespace TrilinosWrappers
 
 
   TrilinosScalar
-  BlockSparseMatrix::residual(MPI::Vector &      dst,
+  BlockSparseMatrix::residual(MPI::Vector       &dst,
                               const MPI::Vector &x,
                               const MPI::Vector &b) const
   {
@@ -326,7 +326,7 @@ namespace TrilinosWrappers
   template void
   BlockSparseMatrix::reinit(const std::vector<IndexSet> &,
                             const dealii::BlockDynamicSparsityPattern &,
-                            const MPI_Comm &,
+                            const MPI_Comm,
                             const bool);
 #  endif // DOXYGEN
 

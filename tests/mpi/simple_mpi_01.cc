@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2018 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,7 @@
 
 #include "../tests.h"
 
-//#include <mpi.h>
+// #include <mpi.h>
 
 
 void

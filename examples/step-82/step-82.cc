@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2021 by the deal.II authors
+ * Copyright (C) 2021 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -91,7 +91,7 @@ namespace Step82
 
     // As indicated by its name, the function
     // <code>assemble_local_matrix()</code> is used for the assembly of the
-    // (local) mass matrix used to compute the two lifting terms (see the matrix
+    // (local) @ref GlossMassMatrix "mass matrix" used to compute the two lifting terms (see the matrix
     // $\boldsymbol{M}_c$ introduced in the introduction when describing the
     // computation of $b_e$). The function
     // <code>compute_discrete_hessians()</code> computes the required discrete
@@ -108,11 +108,11 @@ namespace Step82
     // <code>face=cell->face(face_no)</code>.
     void assemble_local_matrix(const FEValues<dim> &fe_values_lift,
                                const unsigned int   n_q_points,
-                               FullMatrix<double> & local_matrix);
+                               FullMatrix<double>  &local_matrix);
 
     void compute_discrete_hessians(
       const typename DoFHandler<dim>::active_cell_iterator &cell,
-      std::vector<std::vector<Tensor<2, dim>>> &            discrete_hessians,
+      std::vector<std::vector<Tensor<2, dim>>>             &discrete_hessians,
       std::vector<std::vector<std::vector<Tensor<2, dim>>>>
         &discrete_hessians_neigh);
 
@@ -155,7 +155,7 @@ namespace Step82
       : Function<dim>()
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -208,15 +208,15 @@ namespace Step82
       : Function<dim>()
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
     virtual Tensor<1, dim>
-    gradient(const Point<dim> & p,
+    gradient(const Point<dim>  &p,
              const unsigned int component = 0) const override;
 
     virtual SymmetricTensor<2, dim>
-    hessian(const Point<dim> & p,
+    hessian(const Point<dim>  &p,
             const unsigned int component = 0) const override;
   };
 
@@ -435,7 +435,7 @@ namespace Step82
     // At the end of the function, we output this sparsity pattern as
     // a scalable vector graphic. You can visualize it by loading this
     // file in most web browsers:
-    std::ofstream out("sparsity_pattern.svg");
+    std::ofstream out("sparsity-pattern.svg");
     sparsity_pattern.print_svg(out);
   }
 
@@ -1110,7 +1110,7 @@ namespace Step82
   void BiLaplacianLDGLift<dim>::assemble_local_matrix(
     const FEValues<dim> &fe_values_lift,
     const unsigned int   n_q_points,
-    FullMatrix<double> & local_matrix)
+    FullMatrix<double>  &local_matrix)
   {
     const FEValuesExtractors::Tensor<2> tau_ext(0);
 
@@ -1168,7 +1168,7 @@ namespace Step82
   template <int dim>
   void BiLaplacianLDGLift<dim>::compute_discrete_hessians(
     const typename DoFHandler<dim>::active_cell_iterator &cell,
-    std::vector<std::vector<Tensor<2, dim>>> &            discrete_hessians,
+    std::vector<std::vector<Tensor<2, dim>>>             &discrete_hessians,
     std::vector<std::vector<std::vector<Tensor<2, dim>>>>
       &discrete_hessians_neigh)
   {
@@ -1260,7 +1260,7 @@ namespace Step82
 
             const bool at_boundary = face->at_boundary();
 
-            // Recall that by convention, the average of a function accross a
+            // Recall that by convention, the average of a function across a
             // boundary face $e$ reduces to the trace of the function on the
             // only element adjacent to $e$, namely there is no factor
             // $\frac{1}{2}$. We distinguish between the two cases (the current
@@ -1351,7 +1351,7 @@ namespace Step82
     // neighboring <code>neighbor_cell</code> of <code>cell</code>, namely we
     // fill-in the variable <code>discrete_hessians_neigh[face_no][i][q]</code>.
     // For the lifting terms, we only need to add the contribution of the
-    // face adjecent to <code>cell</code> and <code>neighbor_cell</code>.
+    // face adjacent to <code>cell</code> and <code>neighbor_cell</code>.
     for (unsigned int face_no = 0; face_no < cell->n_faces(); ++face_no)
       {
         const typename DoFHandler<dim>::face_iterator face =
@@ -1467,7 +1467,7 @@ namespace Step82
 // This is the <code>main</code> function. We define here the number of mesh
 // refinements, the polynomial degree for the two finite element spaces
 // (for the solution and the two liftings) and the two penalty coefficients.
-// We can also change the dimension to run the code in 3D.
+// We can also change the dimension to run the code in 3d.
 int main()
 {
   try

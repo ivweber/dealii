@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -91,74 +91,28 @@ namespace
         return unit_points;
       }
 
+    const auto reference_cell = ReferenceCells::get_simplex<dim>();
     // Piecewise constants are a special case: use a support point at the
     // centroid and only the centroid
     if (degree == 0)
       {
-        Point<dim> centroid;
-        std::fill(centroid.begin_raw(),
-                  centroid.end_raw(),
-                  1.0 / double(dim + 1));
-        unit_points.emplace_back(centroid);
+        unit_points.emplace_back(reference_cell.template barycenter<dim>());
         return unit_points;
       }
 
-    if (dim == 1)
-      {
-        // We don't really have dim = 1 support for simplex elements yet, but
-        // its convenient for populating the face array
-        Assert(degree <= 2, ExcNotImplemented());
-        if (degree >= 1)
-          {
-            unit_points.emplace_back(0.0);
-            unit_points.emplace_back(1.0);
+    Assert(degree <= 2, ExcNotImplemented());
+    for (const auto &vertex_no : reference_cell.vertex_indices())
+      unit_points.emplace_back(reference_cell.template vertex<dim>(vertex_no));
 
-            if (degree == 2)
-              unit_points.emplace_back(0.5);
-          }
-      }
-    else if (dim == 2)
-      {
-        Assert(degree <= 2, ExcNotImplemented());
-        if (degree >= 1)
-          {
-            unit_points.emplace_back(0.0, 0.0);
-            unit_points.emplace_back(1.0, 0.0);
-            unit_points.emplace_back(0.0, 1.0);
-
-            if (degree == 2)
-              {
-                unit_points.emplace_back(0.5, 0.0);
-                unit_points.emplace_back(0.5, 0.5);
-                unit_points.emplace_back(0.0, 0.5);
-              }
-          }
-      }
-    else if (dim == 3)
-      {
-        Assert(degree <= 2, ExcNotImplemented());
-        if (degree >= 1)
-          {
-            unit_points.emplace_back(0.0, 0.0, 0.0);
-            unit_points.emplace_back(1.0, 0.0, 0.0);
-            unit_points.emplace_back(0.0, 1.0, 0.0);
-            unit_points.emplace_back(0.0, 0.0, 1.0);
-
-            if (degree == 2)
-              {
-                unit_points.emplace_back(0.5, 0.0, 0.0);
-                unit_points.emplace_back(0.5, 0.5, 0.0);
-                unit_points.emplace_back(0.0, 0.5, 0.0);
-                unit_points.emplace_back(0.0, 0.0, 0.5);
-                unit_points.emplace_back(0.5, 0.0, 0.5);
-                unit_points.emplace_back(0.0, 0.5, 0.5);
-              }
-          }
-      }
-    else
-      {
-        Assert(false, ExcNotImplemented());
-      }
+    if (degree == 2)
+      for (const auto &line_no : reference_cell.line_indices())
+        {
+          const auto v0 = reference_cell.template vertex<dim>(
+            reference_cell.line_to_cell_vertices(line_no, 0));
+          const auto v1 = reference_cell.template vertex<dim>(
+            reference_cell.line_to_cell_vertices(line_no, 1));
+          unit_points.emplace_back((v0 + v1) / 2.0);
+        }
 
     return unit_points;
   }
@@ -177,7 +131,7 @@ namespace
     if (conformity == FiniteElementData<dim>::Conformity::L2)
       return {};
 
-    // this concept doesn't exist in 1D so just return an empty vector
+    // this concept doesn't exist in 1d so just return an empty vector
     if (dim == 1)
       return {};
 
@@ -321,16 +275,16 @@ namespace
 template <int dim, int spacedim>
 FE_SimplexPoly<dim, spacedim>::FE_SimplexPoly(
   const BarycentricPolynomials<dim>              polynomials,
-  const FiniteElementData<dim> &                 fe_data,
-  const std::vector<Point<dim>> &                unit_support_points,
+  const FiniteElementData<dim>                  &fe_data,
+  const std::vector<Point<dim>>                 &unit_support_points,
   const std::vector<std::vector<Point<dim - 1>>> unit_face_support_points,
-  const FullMatrix<double> &                     interface_constraints)
+  const FullMatrix<double>                      &interface_constraints)
   : dealii::FE_Poly<dim, spacedim>(
       polynomials,
       fe_data,
       std::vector<bool>(fe_data.dofs_per_cell),
       std::vector<ComponentMask>(fe_data.dofs_per_cell,
-                                 std::vector<bool>(1, true)))
+                                 ComponentMask(std::vector<bool>(1, true))))
 {
   this->unit_support_points      = unit_support_points;
   this->unit_face_support_points = unit_face_support_points;
@@ -439,7 +393,7 @@ template <int dim, int spacedim>
 void
 FE_SimplexPoly<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   Assert(interpolation_matrix.m() == source_fe.n_dofs_per_face(face_no),
@@ -510,7 +464,7 @@ void
 FE_SimplexPoly<dim, spacedim>::get_subface_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
   const unsigned int                  subface,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   Assert(interpolation_matrix.m() == source_fe.n_dofs_per_face(face_no),
@@ -592,7 +546,7 @@ void
 FE_SimplexPoly<dim, spacedim>::
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const
+    std::vector<double>               &nodal_values) const
 {
   AssertDimension(support_point_values.size(),
                   this->get_unit_support_points().size());
@@ -733,7 +687,7 @@ FE_SimplexP<dim, spacedim>::hp_vertex_dof_identities(
     }
   else if (fe_other.n_unique_faces() == 1 && fe_other.n_dofs_per_face(0) == 0)
     {
-      // if the other element has no elements on faces at all,
+      // if the other element has no DoFs on faces at all,
       // then it would be impossible to enforce any kind of
       // continuity even if we knew exactly what kind of element
       // we have -- simply because the other element declares
@@ -757,7 +711,6 @@ FE_SimplexP<dim, spacedim>::hp_line_dof_identities(
   const FiniteElement<dim, spacedim> &fe_other) const
 {
   AssertDimension(dim, 2);
-  Assert(this->degree <= 2, ExcNotImplemented());
 
   if (const FE_SimplexP<dim, spacedim> *fe_p_other =
         dynamic_cast<const FE_SimplexP<dim, spacedim> *>(&fe_other))
@@ -769,8 +722,6 @@ FE_SimplexP<dim, spacedim>::hp_line_dof_identities(
       // hard-coded and we iterate over points on the first line which begin
       // after the 3 vertex points in the complete list of unit support points
 
-      Assert(fe_p_other->degree <= 2, ExcNotImplemented());
-
       std::vector<std::pair<unsigned int, unsigned int>> identities;
 
       for (unsigned int i = 0; i < this->degree - 1; ++i)
@@ -778,6 +729,15 @@ FE_SimplexP<dim, spacedim>::hp_line_dof_identities(
           if (std::fabs(this->unit_support_points[i + 3][0] -
                         fe_p_other->unit_support_points[i + 3][0]) < 1e-14)
             identities.emplace_back(i, j);
+          else
+            {
+              // If nodes are not located in the same place, we have to
+              // interpolate. This is then not handled through the
+              // current function, but via interpolation matrices that
+              // result in constraints, rather than identities. Since
+              // that happens in a different function, there is nothing
+              // for us to do here.
+            }
 
       return identities;
     }
@@ -807,13 +767,26 @@ FE_SimplexP<dim, spacedim>::hp_line_dof_identities(
                         fe_q_other->get_unit_support_points()
                           [index_map_inverse_q_other[j + 1]][0]) < 1e-14)
             identities.emplace_back(i, j);
+          else
+            {
+              // If nodes are not located in the same place, we have to
+              // interpolate. This will then also
+              // capture the case where the FE_Q has a different polynomial
+              // degree than the current element. In either case, the resulting
+              // constraints are computed elsewhere, rather than via the
+              // identities this function returns: Since
+              // that happens in a different function, there is nothing
+              // for us to do here.
+            }
 
       return identities;
     }
   else if (dynamic_cast<const FE_Nothing<dim> *>(&fe_other) != nullptr)
     {
-      // the FE_Nothing has no degrees of freedom, so there are no
-      // equivalencies to be recorded
+      // The FE_Nothing has no degrees of freedom, so there are no
+      // equivalencies to be recorded. (If the FE_Nothing is dominating,
+      // then this will also leads to constraints, but we are not concerned
+      // with this here.)
       return {};
     }
   else if (fe_other.n_unique_faces() == 1 && fe_other.n_dofs_per_face(0) == 0)
@@ -846,7 +819,7 @@ FE_SimplexDGP<dim, spacedim>::FE_SimplexDGP(const unsigned int degree)
                              degree,
                              FiniteElementData<dim>::L2),
       unit_support_points_fe_p<dim>(degree),
-      unit_face_support_points_fe_p<dim>(degree, FiniteElementData<dim>::H1),
+      unit_face_support_points_fe_p<dim>(degree, FiniteElementData<dim>::L2),
       constraints_fe_p<dim>(degree))
 {}
 

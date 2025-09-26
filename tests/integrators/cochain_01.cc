@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -57,7 +57,7 @@ const bool debugging = false;
 
 template <int dim>
 void
-cell_matrix(MeshWorker::DoFInfo<dim> &                      dinfo,
+cell_matrix(MeshWorker::DoFInfo<dim>                       &dinfo,
             typename MeshWorker::IntegrationInfo<dim, dim> &info)
 {
   unsigned int dm = 0; // Matrix index

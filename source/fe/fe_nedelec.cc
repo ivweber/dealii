@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -39,7 +39,7 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-//#define DEBUG_NEDELEC
+// #define DEBUG_NEDELEC
 
 namespace internal
 {
@@ -76,7 +76,7 @@ FE_Nedelec<dim>::FE_Nedelec(const unsigned int order)
                              FiniteElementData<dim>::Hcurl),
       std::vector<bool>(PolynomialsNedelec<dim>::n_polynomials(order), true),
       std::vector<ComponentMask>(PolynomialsNedelec<dim>::n_polynomials(order),
-                                 std::vector<bool>(dim, true)))
+                                 ComponentMask(std::vector<bool>(dim, true))))
 {
 #ifdef DEBUG_NEDELEC
   deallog << get_name() << std::endl;
@@ -84,19 +84,18 @@ FE_Nedelec<dim>::FE_Nedelec(const unsigned int order)
 
   Assert(dim >= 2, ExcImpossibleInDim(dim));
 
-  const unsigned int n_dofs = this->n_dofs_per_cell();
-
   this->mapping_kind = {mapping_nedelec};
   // First, initialize the
   // generalized support points and
   // quadrature weights, since they
   // are required for interpolation.
   initialize_support_points(order);
-  this->inverse_node_matrix.reinit(n_dofs, n_dofs);
-  this->inverse_node_matrix.fill(FullMatrix<double>(IdentityMatrix(n_dofs)));
-  // From now on, the shape functions
-  // will be the correct ones, not
-  // the raw shape functions anymore.
+
+  // We already use the correct basis, so no basis transformation is required
+  // from the polynomial space we have described above to the one that is dual
+  // to the node functionals. As documented in the base class, this is
+  // expressed by setting the inverse node matrix to the empty matrix.
+  this->inverse_node_matrix.clear();
 
   // do not initialize embedding and restriction here. these matrices are
   // initialized on demand in get_restriction_matrix and
@@ -217,7 +216,7 @@ template <int dim>
 void
 FE_Nedelec<dim>::initialize_quad_dof_index_permutation_and_sign_change()
 {
-  // for 1D and 2D, do nothing
+  // for 1d and 2d, do nothing
   if (dim < 3)
     return;
 
@@ -2484,7 +2483,7 @@ template <int dim>
 void
 FE_Nedelec<dim>::get_face_interpolation_matrix(
   const FiniteElement<dim> &source,
-  FullMatrix<double> &      interpolation_matrix,
+  FullMatrix<double>       &interpolation_matrix,
   const unsigned int        face_no) const
 {
   (void)face_no;
@@ -2592,7 +2591,7 @@ void
 FE_Nedelec<dim>::get_subface_interpolation_matrix(
   const FiniteElement<dim> &source,
   const unsigned int        subface,
-  FullMatrix<double> &      interpolation_matrix,
+  FullMatrix<double>       &interpolation_matrix,
   const unsigned int        face_no) const
 {
   // this is only implemented, if the
@@ -3148,7 +3147,7 @@ template <int dim>
 void
 FE_Nedelec<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   // TODO: the implementation makes the assumption that all faces have the
   // same number of dofs
@@ -4121,7 +4120,63 @@ FE_Nedelec<dim>::memory_consumption() const
   return 0;
 }
 
+template <int dim>
+std::vector<unsigned int>
+FE_Nedelec<dim>::get_embedding_dofs(const unsigned int sub_degree) const
+{
+  Assert((sub_degree > 0) && (sub_degree <= this->degree),
+         ExcIndexRange(sub_degree, 1, this->degree));
 
+  switch (dim)
+    {
+      case 2:
+        {
+          // The Nedelec cell has only Face (Line) and Cell DoFs...
+          const unsigned int n_face_dofs_sub =
+            GeometryInfo<dim>::lines_per_cell * sub_degree;
+          const unsigned int n_cell_dofs_sub =
+            2 * (sub_degree - 1) * sub_degree;
+
+          std::vector<unsigned int> embedding_dofs(n_face_dofs_sub +
+                                                   n_cell_dofs_sub);
+
+          unsigned int i = 0;
+
+          // Identify the Face/Line DoFs
+          while (i < n_face_dofs_sub)
+            {
+              const unsigned int face_index = i / sub_degree;
+              embedding_dofs[i] = i % sub_degree + face_index * this->degree;
+              ++i;
+            }
+
+          // Identify the Cell DoFs
+          if (sub_degree >= 2)
+            {
+              const unsigned int n_face_dofs =
+                GeometryInfo<dim>::lines_per_cell * this->degree;
+
+              // For the first component
+              for (unsigned ku = 0; ku < sub_degree; ++ku)
+                for (unsigned kv = 2; kv <= sub_degree; ++kv)
+                  embedding_dofs[i++] =
+                    n_face_dofs + ku * (this->degree - 1) + (kv - 2);
+
+              // For the second component
+              for (unsigned ku = 2; ku <= sub_degree; ++ku)
+                for (unsigned kv = 0; kv < sub_degree; ++kv)
+                  embedding_dofs[i++] = n_face_dofs +
+                                        this->degree * (this->degree - 1) +
+                                        (ku - 2) * (this->degree) + kv;
+            }
+          Assert(i == (n_face_dofs_sub + n_cell_dofs_sub), ExcInternalError());
+          return embedding_dofs;
+        }
+      default:
+        Assert(false, ExcNotImplemented());
+        return std::vector<unsigned int>();
+    }
+}
 //----------------------------------------------------------------------//
 
 

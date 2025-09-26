@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -53,9 +53,6 @@
 
 #include "../tests.h"
 
-std::ofstream logfile("output");
-
-
 template <int dim>
 class LaplaceProblem
 {
@@ -97,7 +94,7 @@ public:
 
   virtual void
   value_list(const std::vector<Point<dim>> &points,
-             std::vector<double> &          values,
+             std::vector<double>           &values,
              const unsigned int             component = 0) const;
 };
 
@@ -117,7 +114,7 @@ Coefficient<dim>::value(const Point<dim> &p,
 template <int dim>
 void
 Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                             std::vector<double> &          values,
+                             std::vector<double>           &values,
                              const unsigned int             component) const
 {
   Assert(values.size() == points.size(),
@@ -319,9 +316,9 @@ LaplaceProblem<dim>::run()
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(2);
-  logfile << std::setprecision(2);
-  deallog.attach(logfile);
+  deallog.get_file_stream() << std::setprecision(2);
 
   LaplaceProblem<2> laplace_problem_2d;
   laplace_problem_2d.run();

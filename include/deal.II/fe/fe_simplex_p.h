@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,7 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/polynomials_barycentric.h>
 
 #include <deal.II/fe/fe_poly.h>
@@ -27,9 +28,10 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * Base class of FE_SimplexP, FE_SimplexDGP, and FE_SimplexP_Bubbles.
  *
- * @note Only implemented for 2D and 3D.
+ * @note Only implemented for 2d and 3d.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_SimplexPoly : public dealii::FE_Poly<dim, spacedim>
@@ -40,10 +42,10 @@ public:
    */
   FE_SimplexPoly(
     const BarycentricPolynomials<dim>              polynomials,
-    const FiniteElementData<dim> &                 fe_data,
-    const std::vector<Point<dim>> &                unit_support_points,
+    const FiniteElementData<dim>                  &fe_data,
+    const std::vector<Point<dim>>                 &unit_support_points,
     const std::vector<std::vector<Point<dim - 1>>> unit_face_support_points,
-    const FullMatrix<double> &                     interface_constraints);
+    const FullMatrix<double>                      &interface_constraints);
 
   /**
    * Return a list of constant modes of the element. For this element, the
@@ -89,7 +91,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim, spacedim> &x_source_fe,
     const unsigned int                  subface,
-    FullMatrix<double> &                interpolation_matrix,
+    FullMatrix<double>                 &interpolation_matrix,
     const unsigned int                  face_no) const override;
 
   /**
@@ -104,7 +106,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 
 protected:
   /**
@@ -120,7 +122,8 @@ protected:
  * the finite element space of continuous, piecewise polynomials of
  * degree $k$.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_SimplexP : public FE_SimplexPoly<dim, spacedim>
@@ -175,7 +178,8 @@ public:
  * element space of discontinuous, piecewise polynomials of degree
  * $k$.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class FE_SimplexDGP : public FE_SimplexPoly<dim, spacedim>

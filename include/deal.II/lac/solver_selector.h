@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,8 +34,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup Solvers */
-/*@{*/
+/**
+ * @addtogroup Solvers
+ * @{
+ */
 
 /**
  * Selects a solver by changing a parameter.
@@ -116,9 +118,9 @@ public:
    */
   template <class Matrix, class Preconditioner>
   void
-  solve(const Matrix &        A,
-        VectorType &          x,
-        const VectorType &    b,
+  solve(const Matrix         &A,
+        VectorType           &x,
+        const VectorType     &b,
         const Preconditioner &precond) const;
 
   /**
@@ -240,13 +242,13 @@ private:
   typename SolverFGMRES<VectorType>::AdditionalData fgmres_data;
 };
 
-/*@}*/
+/** @} */
 /* --------------------- Inline and template functions ------------------- */
 
 
 template <typename VectorType>
 SolverSelector<VectorType>::SolverSelector(const std::string &name,
-                                           SolverControl &    solver_control)
+                                           SolverControl     &solver_control)
   : solver_name(name)
   , control(&solver_control)
 {}
@@ -265,9 +267,9 @@ SolverSelector<VectorType>::select(const std::string &name)
 template <typename VectorType>
 template <class Matrix, class Preconditioner>
 void
-SolverSelector<VectorType>::solve(const Matrix &        A,
-                                  VectorType &          x,
-                                  const VectorType &    b,
+SolverSelector<VectorType>::solve(const Matrix         &A,
+                                  VectorType           &x,
+                                  const VectorType     &b,
                                   const Preconditioner &precond) const
 {
   if (solver_name == "richardson")

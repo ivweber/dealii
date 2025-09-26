@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -111,7 +111,7 @@ test()
 
       // Set random seed for reproducibility
       Testing::srand(42);
-      for (unsigned int i = 0; i < in.block(0).local_size(); ++i)
+      for (unsigned int i = 0; i < in.block(0).locally_owned_size(); ++i)
         {
           const double entry           = Testing::rand() / (double)RAND_MAX;
           in.block(0).local_element(i) = entry;

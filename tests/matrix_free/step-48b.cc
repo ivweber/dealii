@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2020 by the deal.II authors
+// Copyright (C) 2012 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -58,19 +58,19 @@ namespace Step48
                         const double                   time_step);
 
     void
-    apply(LinearAlgebra::distributed::Vector<double> &                     dst,
+    apply(LinearAlgebra::distributed::Vector<double>                      &dst,
           const std::vector<LinearAlgebra::distributed::Vector<double> *> &src)
       const;
 
   private:
-    const MatrixFree<dim, double> &            data;
+    const MatrixFree<dim, double>             &data;
     const VectorizedArray<double>              delta_t_sqr;
     LinearAlgebra::distributed::Vector<double> inv_mass_matrix;
 
     void
     local_apply(
-      const MatrixFree<dim, double> &                                  data,
-      LinearAlgebra::distributed::Vector<double> &                     dst,
+      const MatrixFree<dim, double>                                   &data,
+      LinearAlgebra::distributed::Vector<double>                      &dst,
       const std::vector<LinearAlgebra::distributed::Vector<double> *> &src,
       const std::pair<unsigned int, unsigned int> &cell_range) const;
   };
@@ -101,7 +101,7 @@ namespace Step48
       }
 
     inv_mass_matrix.compress(VectorOperation::add);
-    for (unsigned int k = 0; k < inv_mass_matrix.local_size(); ++k)
+    for (unsigned int k = 0; k < inv_mass_matrix.locally_owned_size(); ++k)
       if (inv_mass_matrix.local_element(k) > 1e-15)
         inv_mass_matrix.local_element(k) =
           1. / inv_mass_matrix.local_element(k);
@@ -114,8 +114,8 @@ namespace Step48
   template <int dim>
   void
   SineGordonOperation<dim>::local_apply(
-    const MatrixFree<dim> &                                          data,
-    LinearAlgebra::distributed::Vector<double> &                     dst,
+    const MatrixFree<dim>                                           &data,
+    LinearAlgebra::distributed::Vector<double>                      &dst,
     const std::vector<LinearAlgebra::distributed::Vector<double> *> &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const
   {
@@ -167,7 +167,7 @@ namespace Step48
   template <int dim>
   void
   SineGordonOperation<dim>::apply(
-    LinearAlgebra::distributed::Vector<double> &                     dst,
+    LinearAlgebra::distributed::Vector<double>                      &dst,
     const std::vector<LinearAlgebra::distributed::Vector<double> *> &src) const
   {
     dst = 0;
@@ -261,7 +261,8 @@ namespace Step48
             << std::endl;
 
 
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
     constraints.close();
 
     QGaussLobatto<1>                         quadrature(fe_degree + 1);
@@ -269,10 +270,8 @@ namespace Step48
     additional_data.tasks_parallel_scheme =
       MatrixFree<dim>::AdditionalData::none;
 
-    matrix_free_data.reinit(dof_handler,
-                            constraints,
-                            quadrature,
-                            additional_data);
+    matrix_free_data.reinit(
+      MappingQ1<dim>{}, dof_handler, constraints, quadrature, additional_data);
 
     matrix_free_data.initialize_dof_vector(solution);
     old_solution.reinit(solution);

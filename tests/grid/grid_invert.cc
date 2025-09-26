@@ -18,11 +18,13 @@
 #include <deal.II/dofs/dof_handler.h>
 
 #include <deal.II/grid/grid_out.h>
-#include <deal.II/grid/grid_reordering.h>
+#include <deal.II/grid/grid_tools.h>
 
 #include <string>
 
 #include "../tests.h"
+
+#include "../test_grids.h"
 
 template <int dim>
 void
@@ -55,10 +57,12 @@ test(bool second_case = false)
     }
 
   SubCellData subcelldata;
-  GridReordering<dim>::invert_all_cells_of_negative_grid(vertices, cells);
+
+  TestGrids::reorder_old_to_new_style(cells);
+  GridTools::invert_all_negative_measure_cells(vertices, cells);
 
   Triangulation<dim> tria;
-  tria.create_triangulation_compatibility(vertices, cells, subcelldata);
+  tria.create_triangulation(vertices, cells, subcelldata);
 
   std::ostream &logfile = deallog.get_file_stream();
   logfile << "---------------------------------------------" << std::endl

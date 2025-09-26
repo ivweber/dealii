@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2020 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,7 @@
 
 #include <deal.II/dofs/dof_handler.h>
 
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping_q.h>
 
 #include <array>
 
@@ -32,8 +32,10 @@ template <typename>
 class Vector;
 
 
-/*!@addtogroup mapping */
-/*@{*/
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * This class provides a mapping that adds to the location of each cell
@@ -108,7 +110,7 @@ public:
    * to the location of cells of the underlying triangulation.
    */
   MappingQ1Eulerian(const DoFHandler<dim, spacedim> &euler_dof_handler,
-                    const VectorType &               euler_vector);
+                    const VectorType                &euler_vector);
 
   /**
    * Return the mapped vertices of the cell. For the current class, this
@@ -156,8 +158,8 @@ protected:
   fill_fe_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const CellSimilarity::Similarity                            cell_similarity,
-    const Quadrature<dim> &                                     quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
+    const Quadrature<dim>                                      &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
     internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
@@ -186,7 +188,7 @@ protected:
     shiftmap_dof_handler;
 };
 
-/*@}*/
+/** @} */
 
 /*----------------------------------------------------------------------*/
 

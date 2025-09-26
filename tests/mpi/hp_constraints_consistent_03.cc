@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -117,8 +117,8 @@ test(const unsigned int degree_center,
   dh.distribute_dofs(fe_collection);
 
   // ---- constrain ----
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dh, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dh);
 
   AffineConstraints<double> constraints;
   constraints.clear();
@@ -138,8 +138,8 @@ test(const unsigned int degree_center,
   std::vector<IndexSet> locally_owned_dofs_per_processor =
     Utilities::MPI::all_gather(dh.get_communicator(), dh.locally_owned_dofs());
 
-  IndexSet locally_active_dofs;
-  DoFTools::extract_locally_active_dofs(dh, locally_active_dofs);
+  const IndexSet locally_active_dofs =
+    DoFTools::extract_locally_active_dofs(dh);
 
   if (print_constraints)
     {

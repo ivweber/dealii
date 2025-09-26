@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2019 by the deal.II Authors
+// Copyright (C) 2015 - 2022 by the deal.II Authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,9 +28,8 @@
 
 // This function initializes a container of Number type
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, std::vector<Number>>::value,
-  Container<Number>>::type
+std::enable_if_t<std::is_same_v<Container<Number>, std::vector<Number>>,
+                 Container<Number>>
 initialize_container(std::vector<hsize_t> dimensions)
 {
   return Container<Number>(std::accumulate(
@@ -38,8 +37,8 @@ initialize_container(std::vector<hsize_t> dimensions)
 }
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<std::is_same<Container<Number>, Vector<Number>>::value,
-                        Container<Number>>::type
+std::enable_if_t<std::is_same_v<Container<Number>, Vector<Number>>,
+                 Container<Number>>
 initialize_container(std::vector<hsize_t> dimensions)
 {
   return Container<Number>(std::accumulate(
@@ -47,9 +46,8 @@ initialize_container(std::vector<hsize_t> dimensions)
 }
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, FullMatrix<Number>>::value,
-  Container<Number>>::type
+std::enable_if_t<std::is_same_v<Container<Number>, FullMatrix<Number>>,
+                 Container<Number>>
 initialize_container(std::vector<hsize_t> dimensions)
 {
   return FullMatrix<Number>(dimensions[0], dimensions[1]);
@@ -57,26 +55,21 @@ initialize_container(std::vector<hsize_t> dimensions)
 
 // This function calculates the sum of the elements in a container
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, std::vector<Number>>::value,
-  Number>::type
+std::enable_if_t<std::is_same_v<Container<Number>, std::vector<Number>>, Number>
 container_sum(Container<Number> data)
 {
   return std::accumulate(data.begin(), data.end(), static_cast<Number>(0));
 }
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<std::is_same<Container<Number>, Vector<Number>>::value,
-                        Number>::type
+std::enable_if_t<std::is_same_v<Container<Number>, Vector<Number>>, Number>
 container_sum(Container<Number> data)
 {
   return std::accumulate(data.begin(), data.end(), static_cast<Number>(0));
 }
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, FullMatrix<Number>>::value,
-  Number>::type
+std::enable_if_t<std::is_same_v<Container<Number>, FullMatrix<Number>>, Number>
 container_sum(Container<Number> data)
 {
   Number sum = 0;
@@ -95,14 +88,14 @@ container_sum(Container<Number> data)
 // If Number is scalar the function returns 1
 // If Number is complex the function returns 1 + 1j
 template <typename Number>
-typename std::enable_if<!boost::is_complex<Number>::value, Number>::type
+std::enable_if_t<!boost::is_complex<Number>::value, Number>
 get_factor()
 {
   return 1;
 }
 
 template <typename Number>
-typename std::enable_if<boost::is_complex<Number>::value, Number>::type
+std::enable_if_t<boost::is_complex<Number>::value, Number>
 get_factor()
 {
   return static_cast<Number>(std::complex<float>(1, 1));
@@ -110,9 +103,7 @@ get_factor()
 
 // This function assigns data to the elements of the container
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, std::vector<Number>>::value,
-  void>::type
+std::enable_if_t<std::is_same_v<Container<Number>, std::vector<Number>>, void>
 assign_data(Container<Number> &data)
 {
   for (unsigned int idx = 0; idx < data.size(); ++idx)
@@ -122,8 +113,7 @@ assign_data(Container<Number> &data)
 }
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<std::is_same<Container<Number>, Vector<Number>>::value,
-                        void>::type
+std::enable_if_t<std::is_same_v<Container<Number>, Vector<Number>>, void>
 assign_data(Container<Number> &data)
 {
   for (unsigned int idx = 0; idx < data.size(); ++idx)
@@ -133,9 +123,7 @@ assign_data(Container<Number> &data)
 }
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, FullMatrix<Number>>::value,
-  void>::type
+std::enable_if_t<std::is_same_v<Container<Number>, FullMatrix<Number>>, void>
 assign_data(Container<Number> &data)
 {
   for (unsigned int row_idx = 0; row_idx < data.m(); ++row_idx)
@@ -152,7 +140,7 @@ assign_data(Container<Number> &data)
 // This function tests parallel write and gets the group by reference
 template <template <class...> class Container, typename Number>
 void
-write_test(HDF5::Group &              root_group,
+write_test(HDF5::Group               &root_group,
            const std::vector<hsize_t> dataset_dimensions)
 {
   AssertDimension(dataset_dimensions.size(), 2);
@@ -160,36 +148,36 @@ write_test(HDF5::Group &              root_group,
   std::string container_name;
   std::string type_name;
 
-  if (std::is_same<Container<Number>, std::vector<Number>>::value)
+  if (std::is_same_v<Container<Number>, std::vector<Number>>)
     {
       container_name = std::string("std::vector");
     }
-  else if (std::is_same<Container<Number>, FullMatrix<Number>>::value)
+  else if (std::is_same_v<Container<Number>, FullMatrix<Number>>)
     {
       container_name = std::string("FullMatrix");
     }
 
-  if (std::is_same<Number, float>::value)
+  if (std::is_same_v<Number, float>)
     {
       type_name = std::string("float");
     }
-  else if (std::is_same<Number, double>::value)
+  else if (std::is_same_v<Number, double>)
     {
       type_name = std::string("double");
     }
-  else if (std::is_same<Number, std::complex<float>>::value)
+  else if (std::is_same_v<Number, std::complex<float>>)
     {
       type_name = std::string("std::complex<float>");
     }
-  else if (std::is_same<Number, std::complex<double>>::value)
+  else if (std::is_same_v<Number, std::complex<double>>)
     {
       type_name = std::string("std::complex<double>");
     }
-  else if (std::is_same<Number, int>::value)
+  else if (std::is_same_v<Number, int>)
     {
       type_name = std::string("int");
     }
-  else if (std::is_same<Number, unsigned int>::value)
+  else if (std::is_same_v<Number, unsigned int>)
     {
       type_name = std::string("unsigned int");
     }
@@ -303,7 +291,7 @@ write_test(HDF5::Group &              root_group,
   {
     // In this dataset, data conversion is tested. The test is only performed
     // for float and double.
-    if (std::is_same<Number, float>::value)
+    if (std::is_same_v<Number, float>)
       {
         std::string dataset_name("dataset_3");
         auto        dataset =
@@ -325,7 +313,7 @@ write_test(HDF5::Group &              root_group,
                 << type_name << '>' << " (Write): " << container_sum(data)
                 << std::endl;
       }
-    else if (std::is_same<Number, double>::value)
+    else if (std::is_same_v<Number, double>)
       {
         std::string dataset_name("dataset_3");
         auto        dataset =
@@ -445,36 +433,36 @@ read_test(HDF5::Group root_group)
   std::string container_name;
   std::string type_name;
 
-  if (std::is_same<Container<Number>, std::vector<Number>>::value)
+  if (std::is_same_v<Container<Number>, std::vector<Number>>)
     {
       container_name = std::string("std::vector");
     }
-  else if (std::is_same<Container<Number>, FullMatrix<Number>>::value)
+  else if (std::is_same_v<Container<Number>, FullMatrix<Number>>)
     {
       container_name = std::string("FullMatrix");
     }
 
-  if (std::is_same<Number, float>::value)
+  if (std::is_same_v<Number, float>)
     {
       type_name = std::string("float");
     }
-  else if (std::is_same<Number, double>::value)
+  else if (std::is_same_v<Number, double>)
     {
       type_name = std::string("double");
     }
-  else if (std::is_same<Number, std::complex<float>>::value)
+  else if (std::is_same_v<Number, std::complex<float>>)
     {
       type_name = std::string("std::complex<float>");
     }
-  else if (std::is_same<Number, std::complex<double>>::value)
+  else if (std::is_same_v<Number, std::complex<double>>)
     {
       type_name = std::string("std::complex<double>");
     }
-  else if (std::is_same<Number, int>::value)
+  else if (std::is_same_v<Number, int>)
     {
       type_name = std::string("int");
     }
-  else if (std::is_same<Number, unsigned int>::value)
+  else if (std::is_same_v<Number, unsigned int>)
     {
       type_name = std::string("unsigned int");
     }
@@ -577,8 +565,7 @@ read_test(HDF5::Group root_group)
   {
     // In this test data conversion is tested. The dataset only exists for
     // float and double.
-    if (std::is_same<Number, float>::value ||
-        std::is_same<Number, double>::value)
+    if (std::is_same_v<Number, float> || std::is_same_v<Number, double>)
       {
         std::string dataset_name("dataset_3");
         auto        dataset = group.open_dataset(dataset_name);
@@ -791,7 +778,7 @@ main()
 #endif
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

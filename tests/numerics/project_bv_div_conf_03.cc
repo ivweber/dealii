@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------
 
 // Test VectorTools::project_boundary_values_div_conforming convergence rates
-// for the case that the DoFHandler constains more than one
+// for the case that the DoFHandler contains more than one
 // FE_RaviartThomas element.
 
 #include <deal.II/base/function.h>
@@ -51,7 +51,7 @@ public:
   {}
 
   virtual double
-  value(const Point<dim> & point,
+  value(const Point<dim>  &point,
         const unsigned int component = 0) const override
   {
     Assert(component < dim, ExcNotImplemented());
@@ -69,7 +69,7 @@ public:
   {}
 
   virtual double
-  value(const Point<dim> & point,
+  value(const Point<dim>  &point,
         const unsigned int component = 0) const override
   {
     Assert(component < dim, ExcNotImplemented());
@@ -89,7 +89,7 @@ public:
   // To make interpolate_boundary_values happy, the pressure is assigned to
   // the 2*dim + 1th component
   virtual double
-  value(const Point<dim> & point,
+  value(const Point<dim>  &point,
         const unsigned int component = 0) const override
   {
     if (component != 2 * dim)

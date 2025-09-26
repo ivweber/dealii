@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,8 +46,9 @@ namespace TrilinosWrappers
 #endif
 
 
-/*! @addtogroup Vectors
- *@{
+/**
+ * @addtogroup Vectors
+ * @{
  */
 
 
@@ -178,8 +179,7 @@ public:
    * for more information.
    */
   void
-  compress(::dealii::VectorOperation::values operation =
-             ::dealii::VectorOperation::unknown);
+  compress(VectorOperation::values operation = VectorOperation::unknown);
 
   /**
    * Returns `false` as this is a serial block vector.
@@ -328,7 +328,7 @@ public:
    * Print to a stream.
    */
   void
-  print(std::ostream &     out,
+  print(std::ostream      &out,
         const unsigned int precision  = 3,
         const bool         scientific = true,
         const bool         across     = true) const;
@@ -364,10 +364,10 @@ public:
    * Exception
    */
   DeclException0(ExcIteratorRangeDoesNotMatchVectorSize);
-  //@}
+  /** @} */
 };
 
-/*@}*/
+/** @} */
 
 #ifndef DOXYGEN
 /*----------------------- Inline functions ----------------------------------*/
@@ -443,7 +443,7 @@ BlockVector<Number>::operator=(const BlockVector<Number2> &v)
 
 template <typename Number>
 inline void
-BlockVector<Number>::compress(::dealii::VectorOperation::values operation)
+BlockVector<Number>::compress(VectorOperation::values operation)
 {
   for (size_type i = 0; i < this->n_blocks(); ++i)
     this->components[i].compress(operation);
@@ -503,7 +503,7 @@ namespace internal
     public:
       template <typename Matrix>
       static void
-      reinit_range_vector(const Matrix &       matrix,
+      reinit_range_vector(const Matrix        &matrix,
                           BlockVector<number> &v,
                           bool                 omit_zeroing_entries)
       {
@@ -512,7 +512,7 @@ namespace internal
 
       template <typename Matrix>
       static void
-      reinit_domain_vector(const Matrix &       matrix,
+      reinit_domain_vector(const Matrix        &matrix,
                            BlockVector<number> &v,
                            bool                 omit_zeroing_entries)
       {

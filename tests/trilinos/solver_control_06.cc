@@ -196,8 +196,8 @@ Test_Solver_Output::setup_system()
   TimerOutput::Scope t(timer, "setup");
 
   dof_handler.distribute_dofs(fe);
-  locally_owned_dofs = dof_handler.locally_owned_dofs();
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  locally_owned_dofs    = dof_handler.locally_owned_dofs();
+  locally_relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   locally_relevant_solution.reinit(locally_owned_dofs,
                                    locally_relevant_dofs,
@@ -467,7 +467,7 @@ Test_Solver_Output::output(unsigned int cycle)
   const std::string filename =
     ("solution-" + Utilities::int_to_string(cycle, 2) + "." +
      Utilities::int_to_string(triangulation.locally_owned_subdomain(), 4));
-  std::ofstream output((filename + ".vtu").c_str());
+  std::ofstream output(filename + ".vtu");
   data_out.write_vtu(output);
 
   if (Utilities::MPI::this_mpi_process(mpi_comm) == 0)

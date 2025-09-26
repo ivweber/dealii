@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2018 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,6 +14,8 @@
 // ---------------------------------------------------------------------
 
 // Test the output of MatrixFree::is_supported for various FiniteElements
+
+#include <deal.II/base/quadrature_lib.h>
 
 #include <deal.II/fe/fe_abf.h>
 #include <deal.II/fe/fe_bdm.h>

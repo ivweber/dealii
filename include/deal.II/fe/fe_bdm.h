@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,7 +35,7 @@ DEAL_II_NAMESPACE_OPEN
  *
  * <h3>Degrees of freedom</h3>
  *
- * @todo The 3D version exhibits some numerical instabilities, in particular
+ * @todo The 3d version exhibits some numerical instabilities, in particular
  * for higher order
  *
  * @todo Restriction matrices are missing.
@@ -79,7 +79,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 
 private:
   /**

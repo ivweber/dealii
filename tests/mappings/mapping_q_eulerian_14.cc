@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -200,13 +200,12 @@ test(const unsigned int n_ref = 0)
   // IndexSets and constraints
   const IndexSet &locally_owned_dofs_euler =
     dof_handler_euler.locally_owned_dofs();
-  IndexSet locally_relevant_dofs_euler;
-  DoFTools::extract_locally_relevant_dofs(dof_handler_euler,
-                                          locally_relevant_dofs_euler);
+  const IndexSet locally_relevant_dofs_euler =
+    DoFTools::extract_locally_relevant_dofs(dof_handler_euler);
 
   const IndexSet &locally_owned_dofs = dof_handler.locally_owned_dofs();
-  IndexSet        locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet  locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   // constraints:
   AffineConstraints<double> constraints_euler;
@@ -217,7 +216,7 @@ test(const unsigned int n_ref = 0)
   AffineConstraints<double> constraints;
   constraints.reinit(locally_relevant_dofs);
   DoFTools::make_hanging_node_constraints(dof_handler, constraints);
-  constraints_euler.close();
+  constraints.close();
 
   // MG constraints:
   MGConstrainedDoFs mg_constrained_dofs_euler;
@@ -253,10 +252,8 @@ test(const unsigned int n_ref = 0)
   // the bug observed.
   for (unsigned int level = min_level; level <= max_level; ++level)
     {
-      IndexSet relevant_mg_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof_handler_euler,
-                                                    level,
-                                                    relevant_mg_dofs);
+      const IndexSet relevant_mg_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof_handler_euler, level);
       displacement_level[level].reinit(dof_handler_euler.locally_owned_mg_dofs(
                                          level),
                                        relevant_mg_dofs,
@@ -283,7 +280,8 @@ test(const unsigned int n_ref = 0)
       euler_fine, dof_handler, constraints, quadrature_formula, data);
 
     MatrixFree<dim, NumberType> matrix_free;
-    matrix_free.reinit(dof_handler, constraints, quadrature_formula, data);
+    matrix_free.reinit(
+      MappingQ1<dim>{}, dof_handler, constraints, quadrature_formula, data);
 
 
     // test fine-level mapping:
@@ -316,9 +314,8 @@ test(const unsigned int n_ref = 0)
   }
 
   // now go through all GMG levels:
-  std::set<types::boundary_id> dirichlet_boundary_ids;
-  dirichlet_boundary_ids.insert(0);
-  MGConstrainedDoFs mg_constrained_dofs;
+  const std::set<types::boundary_id> dirichlet_boundary_ids = {0};
+  MGConstrainedDoFs                  mg_constrained_dofs;
   mg_constrained_dofs.initialize(dof_handler);
   mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
                                                      dirichlet_boundary_ids);
@@ -335,16 +332,16 @@ test(const unsigned int n_ref = 0)
         update_quadrature_points;
 
       AffineConstraints<double> level_constraints;
-      IndexSet                  relevant_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof_handler,
-                                                    level,
-                                                    relevant_dofs);
+      const IndexSet            relevant_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof_handler, level);
       level_constraints.reinit(relevant_dofs);
       level_constraints.add_lines(
         mg_constrained_dofs.get_boundary_indices(level));
       level_constraints.close();
 
       MatrixFree<dim, LevelNumberType> mg_level_euler;
+
+      displacement_level[level].update_ghost_values();
 
       MappingQEulerian<dim, LinearAlgebra::distributed::Vector<LevelNumberType>>
         euler_level(euler_fe_degree,
@@ -359,7 +356,8 @@ test(const unsigned int n_ref = 0)
                             mg_additional_data);
 
       MatrixFree<dim, LevelNumberType> mg_level;
-      mg_level.reinit(dof_handler,
+      mg_level.reinit(MappingQ1<dim>{},
+                      dof_handler,
                       level_constraints,
                       quadrature_formula,
                       mg_additional_data);

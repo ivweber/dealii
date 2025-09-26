@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2021 by the deal.II authors
+// Copyright (C) 2010 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,7 +42,7 @@ namespace Functions
    *
    * The `dim`-dimensional coordinates on the restriction are ordered starting
    * from the restricted (`dim + 1`)-coordinate. In particular, this means that
-   * if the $y$-coordinate is locked to $Y$ in 3D, the coordinates are ordered
+   * if the $y$-coordinate is locked to $Y$ in 3d, the coordinates are ordered
    * as $(z, x)$ on the restriction:
    * $g = g(z, x) = f(x, Y, z)$.
    * This is the same convention as in BoundingBox::cross_section.
@@ -66,11 +66,11 @@ namespace Functions
     value(const Point<dim> &point, const unsigned int component) const override;
 
     Tensor<1, dim>
-    gradient(const Point<dim> & point,
+    gradient(const Point<dim>  &point,
              const unsigned int component) const override;
 
     SymmetricTensor<2, dim>
-    hessian(const Point<dim> & point,
+    hessian(const Point<dim>  &point,
             const unsigned int component) const override;
 
   private:
@@ -120,13 +120,13 @@ namespace Functions
      */
     PointRestriction(const Function<dim + 1> &function,
                      const unsigned int       open_direction,
-                     const Point<dim> &       point);
+                     const Point<dim>        &point);
 
     double
     value(const Point<1> &point, const unsigned int component) const override;
 
     Tensor<1, 1>
-    gradient(const Point<1> &   point,
+    gradient(const Point<1>    &point,
              const unsigned int component) const override;
 
     SymmetricTensor<2, 1>
@@ -164,7 +164,7 @@ namespace internal
    */
   template <int dim>
   Point<dim + 1>
-  create_higher_dim_point(const Point<dim> & point,
+  create_higher_dim_point(const Point<dim>  &point,
                           const unsigned int component_in_dim_plus_1,
                           const double       coordinate_value);
 } // namespace internal

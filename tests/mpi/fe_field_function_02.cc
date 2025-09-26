@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -99,8 +99,7 @@ test()
                                              MPI_COMM_WORLD);
   VectorTools::interpolate(dofh, LinearFunction<dim>(), interpolated);
 
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dofh, relevant_set);
+  const IndexSet relevant_set = DoFTools::extract_locally_relevant_dofs(dofh);
   TrilinosWrappers::MPI::Vector x_rel(relevant_set, MPI_COMM_WORLD);
   x_rel = interpolated;
 

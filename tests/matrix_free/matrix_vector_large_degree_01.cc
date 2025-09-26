@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -73,7 +73,7 @@ test()
       typename MatrixFree<dim, double>::AdditionalData data;
       data.tasks_parallel_scheme =
         MatrixFree<dim, double>::AdditionalData::none;
-      mf_data.reinit(dof, constraints, quad, data);
+      mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
     }
 
     MatrixFreeTest<dim, fe_degree, double, Vector<double>, fe_degree + 1> mf(
@@ -88,7 +88,7 @@ test()
       typename MatrixFree<dim, double>::AdditionalData data;
       data.tasks_parallel_scheme =
         MatrixFree<dim, double>::AdditionalData::none;
-      mf_data.reinit(dof, constraints, quad, data);
+      mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
     }
 
     MatrixFreeTest<dim, fe_degree, double, Vector<double>, fe_degree + 2> mf(

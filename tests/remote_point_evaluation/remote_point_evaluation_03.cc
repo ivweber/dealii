@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,6 +31,7 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/mapping_fe_field.h>
 #include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>
@@ -85,9 +86,8 @@ template <int dim, int spacedim>
 std::shared_ptr<const Utilities::MPI::Partitioner>
 create_partitioner(const DoFHandler<dim, spacedim> &dof_handler)
 {
-  IndexSet locally_relevant_dofs;
-
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   return std::make_shared<const Utilities::MPI::Partitioner>(
     dof_handler.locally_owned_dofs(),
@@ -102,7 +102,7 @@ namespace dealii
     template <int dim, int spacedim, typename VectorType>
     void
     get_position_vector(const DoFHandler<dim, spacedim> &dof_handler_dim,
-                        VectorType &                  euler_coordinates_vector,
+                        VectorType                   &euler_coordinates_vector,
                         const Mapping<dim, spacedim> &mapping)
     {
       FEValues<dim, spacedim> fe_eval(
@@ -145,11 +145,11 @@ namespace dealii
 template <int dim, int spacedim, typename VectorType>
 void
 test_1(const Triangulation<dim, spacedim> &surface_mesh,
-       const Mapping<dim, spacedim> &      surface_mapping,
-       const Quadrature<dim> &             surface_quadrature,
-       const Mapping<spacedim> &           mapping,
-       const DoFHandler<spacedim> &        dof_handler_dim,
-       const VectorType &                  normal_solution)
+       const Mapping<dim, spacedim>       &surface_mapping,
+       const Quadrature<dim>              &surface_quadrature,
+       const Mapping<spacedim>            &mapping,
+       const DoFHandler<spacedim>         &dof_handler_dim,
+       const VectorType                   &normal_solution)
 {
   using T = Point<spacedim>;
 
@@ -276,11 +276,11 @@ test_1(const Triangulation<dim, spacedim> &surface_mesh,
 template <int dim, int spacedim, typename VectorType>
 void
 test_2(const Triangulation<dim, spacedim> &surface_mesh,
-       const Mapping<dim, spacedim> &      surface_mapping,
-       const Quadrature<dim> &             surface_quadrature,
-       const Mapping<spacedim> &           mapping,
-       const DoFHandler<spacedim> &        dof_handler_dim,
-       const VectorType &                  normal_solution)
+       const Mapping<dim, spacedim>       &surface_mapping,
+       const Quadrature<dim>              &surface_quadrature,
+       const Mapping<spacedim>            &mapping,
+       const DoFHandler<spacedim>         &dof_handler_dim,
+       const VectorType                   &normal_solution)
 {
   using T = Point<spacedim>;
 

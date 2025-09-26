@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2013 - 2014 by the deal.II authors
+## Copyright (C) 2013 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -20,9 +20,9 @@
 #     CLEAR_CMAKE_REQUIRED_FLAGS
 #
 
-MACRO(CLEAR_CMAKE_REQUIRED)
-  SET(CMAKE_REQUIRED_FLAGS)
-  SET(CMAKE_REQUIRED_INCLUDES)
-  SET(CMAKE_REQUIRED_LIBRARIES)
-ENDMACRO()
+macro(clear_cmake_required)
+  set(CMAKE_REQUIRED_FLAGS)
+  set(CMAKE_REQUIRED_INCLUDES)
+  set(CMAKE_REQUIRED_LIBRARIES)
+endmacro()
 

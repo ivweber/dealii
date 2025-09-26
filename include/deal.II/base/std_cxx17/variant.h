@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2022 by the deal.II authors
+// Copyright (C) 2022 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,32 +17,19 @@
 
 #include <deal.II/base/config.h>
 
-#ifdef DEAL_II_HAVE_CXX17
-#  include <variant>
-#else
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
-#  include <boost/variant.hpp>
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
+#ifdef DEAL_II_EARLY_DEPRECATIONS
+DEAL_II_WARNING(
+  "This file is deprecated. Simply use the corresponding C++17 header <variant>.")
 #endif
+
+#include <variant>
 
 DEAL_II_NAMESPACE_OPEN
 namespace std_cxx17
 {
-#ifndef DEAL_II_HAVE_CXX17
-  using boost::get;
-  using boost::variant;
-
-  template <typename T, typename... Ts>
-  bool
-  holds_alternative(const boost::variant<Ts...> &v) noexcept
-  {
-    return boost::get<T>(&v) != nullptr;
-  }
-#else
   using std::get;
   using std::holds_alternative;
   using std::variant;
-#endif
 } // namespace std_cxx17
 DEAL_II_NAMESPACE_CLOSE
 

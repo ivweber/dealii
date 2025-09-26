@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -229,8 +229,8 @@ namespace python
     "with respect to the origin. Additional points are sums of these dim    \n"
     "vectors. Colorizing is done according to hyper_rectangle().            \n"
     "Note: This function silently reorders the vertices on the cells to     \n"
-    "lexicographic ordering (see GridReordering::reoder_grid()). In other   \n"
-    "words, if reordering of the vertices does occur, the ordering of       \n"
+    "lexicographic ordering (see GridTools::consistently_order_cells()). In \n"
+    "other words, if reordering of the vertices does occur, the ordering of \n"
     "vertices in the array of corners will no longer refer to the same      \n"
     "triangulation.                                                         \n";
 
@@ -447,6 +447,16 @@ namespace python
 
 
 
+  const char get_mesh_smoothing_docstring[] =
+    "Return the mesh smoothing requirements that are obeyed.                \n";
+
+
+
+  const char set_mesh_smoothing_docstring[] =
+    "Set the mesh smoothing to mesh_smoothing.                              \n";
+
+
+
   const char transform_docstring[] =
     "Transform the vertices of the given triangulation by applying the      \n"
     "function object provided as first argument to all its vertices.        \n";
@@ -491,9 +501,16 @@ namespace python
   {
     boost::python::class_<TriangulationWrapper>(
       "Triangulation",
-      boost::python::init<const std::string &>(boost::python::args("dim")))
-      .def(boost::python::init<const std::string &, const std::string &>(
-        boost::python::args("dim", "spacedim")))
+      boost::python::init<const std::string &,
+                          boost::python::optional<const int, const bool>>(
+        boost::python::args("dim",
+                            "mesh_smoothing",
+                            "check_for_distorted_cells")))
+      .def(boost::python::init<const std::string &,
+                               const std::string &,
+                               boost::python::optional<const int, const bool>>(
+        boost::python::args(
+          "dim", "spacedim", "mesh_smoothing", "check_for_distorted_cells")))
       .def("n_active_cells",
            &TriangulationWrapper::n_active_cells,
            n_active_cells_docstring,
@@ -728,7 +745,37 @@ namespace python
       .def("reset_manifold",
            &TriangulationWrapper::reset_manifold,
            reset_manifold_docstring,
-           boost::python::args("self", "number"));
+           boost::python::args("self", "number"))
+      .def("get_mesh_smoothing",
+           &TriangulationWrapper::get_mesh_smoothing,
+           get_mesh_smoothing_docstring,
+           boost::python::args("self"))
+      .def("set_mesh_smoothing",
+           &TriangulationWrapper::set_mesh_smoothing,
+           set_mesh_smoothing_docstring,
+           boost::python::args("self", "mesh_smoothing"));
+
+    boost::python::enum_<TriangulationWrapper::MeshSmoothing>("MeshSmoothing")
+      .value("none", TriangulationWrapper::none)
+      .value("limit_level_difference_at_vertices",
+             TriangulationWrapper::limit_level_difference_at_vertices)
+      .value("eliminate_unrefined_islands",
+             TriangulationWrapper::eliminate_unrefined_islands)
+      .value("patch_level_1", TriangulationWrapper::patch_level_1)
+      .value("coarsest_level_1", TriangulationWrapper::coarsest_level_1)
+      .value("allow_anisotropic_smoothing",
+             TriangulationWrapper::allow_anisotropic_smoothing)
+      .value("eliminate_refined_inner_islands",
+             TriangulationWrapper::eliminate_refined_inner_islands)
+      .value("eliminate_refined_boundary_islands",
+             TriangulationWrapper::eliminate_refined_boundary_islands)
+      .value("do_not_produce_unrefined_islands",
+             TriangulationWrapper::do_not_produce_unrefined_islands)
+      .value("smoothing_on_refinement",
+             TriangulationWrapper::smoothing_on_refinement)
+      .value("smoothing_on_coarsening",
+             TriangulationWrapper::smoothing_on_coarsening)
+      .value("maximum_smoothing", TriangulationWrapper::maximum_smoothing);
   }
 } // namespace python
 

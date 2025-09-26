@@ -60,7 +60,7 @@ template <int dim, typename Fu>
 void
 do_test(const unsigned int degree,
         const unsigned int mapping_degree,
-        const Fu &         fu,
+        const Fu          &fu,
         const bool         is_displacement_function)
 {
   parallel::distributed::Triangulation<dim> tria(
@@ -76,8 +76,8 @@ do_test(const unsigned int degree,
   dof_handler.distribute_dofs(fe);
   dof_handler.distribute_mg_dofs();
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
   LinearAlgebra::distributed::Vector<double> vector(
     dof_handler.locally_owned_dofs(),
     locally_relevant_dofs,

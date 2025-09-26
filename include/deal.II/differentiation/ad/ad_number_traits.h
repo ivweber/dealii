@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -310,7 +310,7 @@ namespace Differentiation
                  (void)std::declval<typename ADNumberTrait::derivative_type>(),
                  void())>
         : std::conditional<
-            std::is_floating_point<typename ADNumberTrait::real_type>::value,
+            std::is_floating_point_v<typename ADNumberTrait::real_type>,
             std::false_type,
             std::true_type>::type
       {};
@@ -324,8 +324,7 @@ namespace Differentiation
       struct ADNumberInfoFromEnum<
         ScalarType,
         Differentiation::AD::NumberTypes::none,
-        typename std::enable_if<
-          std::is_floating_point<ScalarType>::value>::type>
+        std::enable_if_t<std::is_floating_point_v<ScalarType>>>
       {
         static const bool is_taped                              = false;
         using real_type                                         = ScalarType;
@@ -341,14 +340,13 @@ namespace Differentiation
        */
       template <typename ScalarType>
       struct Marking<ScalarType,
-                     typename std::enable_if<
-                       std::is_floating_point<ScalarType>::value>::type>
+                     std::enable_if_t<std::is_floating_point_v<ScalarType>>>
       {
         /**
          * Initialize the state of an independent variable.
          *
          * With a nested marking approach it is sometimes
-         * necessary to initialise the value of an intermediate
+         * necessary to initialize the value of an intermediate
          * value that may be a floating point number.
          */
         template <typename ADNumberType>
@@ -380,9 +378,8 @@ namespace Differentiation
        * A specialization of the marking strategy for complex numbers.
        */
       template <typename ADNumberType>
-      struct Marking<
-        ADNumberType,
-        typename std::enable_if<boost::is_complex<ADNumberType>::value>::type>
+      struct Marking<ADNumberType,
+                     std::enable_if_t<boost::is_complex<ADNumberType>::value>>
       {
         /*
          * Initialize the state of an independent variable.
@@ -445,8 +442,7 @@ namespace Differentiation
      */
     template <typename NumberType>
     struct is_ad_number
-      : internal::HasRequiredADInfo<
-          ADNumberTraits<typename std::decay<NumberType>::type>>
+      : internal::HasRequiredADInfo<ADNumberTraits<std::decay_t<NumberType>>>
     {};
 
 
@@ -457,8 +453,7 @@ namespace Differentiation
     template <typename NumberType>
     struct is_taped_ad_number<
       NumberType,
-      typename std::enable_if<
-        ADNumberTraits<typename std::decay<NumberType>::type>::is_taped>::type>
+      std::enable_if_t<ADNumberTraits<std::decay_t<NumberType>>::is_taped>>
       : std::true_type
     {};
 
@@ -470,8 +465,7 @@ namespace Differentiation
     template <typename NumberType>
     struct is_tapeless_ad_number<
       NumberType,
-      typename std::enable_if<ADNumberTraits<
-        typename std::decay<NumberType>::type>::is_tapeless>::type>
+      std::enable_if_t<ADNumberTraits<std::decay_t<NumberType>>::is_tapeless>>
       : std::true_type
     {};
 
@@ -484,8 +478,8 @@ namespace Differentiation
     template <typename NumberType>
     struct is_real_valued_ad_number<
       NumberType,
-      typename std::enable_if<ADNumberTraits<
-        typename std::decay<NumberType>::type>::is_real_valued>::type>
+      std::enable_if_t<
+        ADNumberTraits<std::decay_t<NumberType>>::is_real_valued>>
       : std::true_type
     {};
 
@@ -498,8 +492,8 @@ namespace Differentiation
     template <typename NumberType>
     struct is_complex_valued_ad_number<
       NumberType,
-      typename std::enable_if<ADNumberTraits<
-        typename std::decay<NumberType>::type>::is_complex_valued>::type>
+      std::enable_if_t<
+        ADNumberTraits<std::decay_t<NumberType>>::is_complex_valued>>
       : std::true_type
     {};
 
@@ -536,8 +530,7 @@ namespace Differentiation
        */
       template <typename NumberType>
       struct ExtractData<NumberType,
-                         typename std::enable_if<
-                           std::is_floating_point<NumberType>::value>::type>
+                         std::enable_if_t<std::is_floating_point_v<NumberType>>>
       {
         /**
          * Extract the floating point value.
@@ -631,9 +624,8 @@ namespace Differentiation
          */
         template <typename F>
         static auto
-        value(const F &f,
-              typename std::enable_if<!is_ad_number<F>::value>::type * =
-                nullptr) -> decltype(dealii::internal::NumberType<T>::value(f))
+        value(const F &f, std::enable_if_t<!is_ad_number<F>::value> * = nullptr)
+          -> decltype(dealii::internal::NumberType<T>::value(f))
         {
           // We call the other function defined in the numbers
           // header to take care of all of the usual cases.
@@ -649,9 +641,8 @@ namespace Differentiation
         template <typename F>
         static T
         value(const F &f,
-              typename std::enable_if<is_ad_number<F>::value &&
-                                      std::is_floating_point<T>::value>::type
-                * = nullptr)
+              std::enable_if_t<is_ad_number<F>::value &&
+                               std::is_floating_point_v<T>> * = nullptr)
         {
           // We recursively call this function in case the AD number is a
           // nested one. The recursion ends when the extracted value is
@@ -668,8 +659,8 @@ namespace Differentiation
         template <typename F>
         static T
         value(const F &f,
-              typename std::enable_if<is_ad_number<F>::value &&
-                                      is_ad_number<T>::value>::type * = nullptr)
+              std::enable_if_t<is_ad_number<F>::value && is_ad_number<T>::value>
+                * = nullptr)
         {
           return T(f);
         }
@@ -683,9 +674,7 @@ namespace Differentiation
          */
         template <typename F>
         static auto
-        value(
-          const F &f,
-          typename std::enable_if<!is_ad_number<F>::value>::type * = nullptr)
+        value(const F &f, std::enable_if_t<!is_ad_number<F>::value> * = nullptr)
           -> decltype(dealii::internal::NumberType<std::complex<T>>::value(f))
         {
           // We call the other function defined in the numbers
@@ -701,9 +690,8 @@ namespace Differentiation
         template <typename F>
         static std::complex<T>
         value(const F &f,
-              typename std::enable_if<is_ad_number<F>::value &&
-                                      std::is_floating_point<T>::value>::type
-                * = nullptr)
+              std::enable_if_t<is_ad_number<F>::value &&
+                               std::is_floating_point_v<T>> * = nullptr)
         {
           // We recursively call this function in case the AD number is a
           // nested one. The recursion ends when the extracted value is
@@ -751,11 +739,11 @@ namespace Differentiation
     struct NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
-         std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>
+         std::is_floating_point<
+           typename internal::RemoveComplexWrapper<ScalarType>::type>::value)>>
     {
       /**
        * The type of taping used
@@ -929,8 +917,8 @@ namespace Differentiation
 
 
       static_assert((is_real_valued == true ?
-                       std::is_same<ad_type, real_type>::value :
-                       std::is_same<ad_type, complex_type>::value),
+                       std::is_same_v<ad_type, real_type> :
+                       std::is_same_v<ad_type, complex_type>),
                     "Incorrect template type selected for ad_type");
 
       static_assert((is_complex_valued == true ?
@@ -950,11 +938,11 @@ namespace Differentiation
     const bool NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_taped =
+           ScalarType>::type>::value)>>::is_taped =
       internal::ADNumberInfoFromEnum<
         typename internal::RemoveComplexWrapper<ScalarType>::type,
         ADNumberTypeCode>::is_taped;
@@ -964,11 +952,11 @@ namespace Differentiation
     const bool NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_tapeless =
+           ScalarType>::type>::value)>>::is_tapeless =
       !(NumberTraits<ScalarType, ADNumberTypeCode>::is_taped);
 
 
@@ -976,11 +964,11 @@ namespace Differentiation
     const bool NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_real_valued =
+           ScalarType>::type>::value)>>::is_real_valued =
       (!boost::is_complex<ScalarType>::value);
 
 
@@ -988,11 +976,11 @@ namespace Differentiation
     const bool NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_complex_valued =
+           ScalarType>::type>::value)>>::is_complex_valued =
       !(NumberTraits<ScalarType, ADNumberTypeCode>::is_real_valued);
 
 
@@ -1000,11 +988,11 @@ namespace Differentiation
     const unsigned int NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::n_supported_derivative_levels =
+           ScalarType>::type>::value)>>::n_supported_derivative_levels =
       internal::ADNumberInfoFromEnum<
         typename internal::RemoveComplexWrapper<ScalarType>::type,
         ADNumberTypeCode>::n_supported_derivative_levels;
@@ -1015,55 +1003,55 @@ namespace Differentiation
     constexpr bool NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_taped;
+           ScalarType>::type>::value)>>::is_taped;
 
 
     template <typename ScalarType, enum NumberTypes ADNumberTypeCode>
     constexpr bool NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_tapeless;
+           ScalarType>::type>::value)>>::is_tapeless;
 
 
     template <typename ScalarType, enum NumberTypes ADNumberTypeCode>
     constexpr bool NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_real_valued;
+           ScalarType>::type>::value)>>::is_real_valued;
 
 
     template <typename ScalarType, enum NumberTypes ADNumberTypeCode>
     constexpr bool NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_complex_valued;
+           ScalarType>::type>::value)>>::is_complex_valued;
 
 
     template <typename ScalarType, enum NumberTypes ADNumberTypeCode>
     constexpr unsigned int NumberTraits<
       ScalarType,
       ADNumberTypeCode,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::n_supported_derivative_levels;
+           ScalarType>::type>::value)>>::n_supported_derivative_levels;
 
 #  endif
 
@@ -1082,11 +1070,11 @@ namespace Differentiation
     struct NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
-         std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>
+         std::is_floating_point<
+           typename internal::RemoveComplexWrapper<ScalarType>::type>::value)>>
     {
       /**
        * The internal number type code.
@@ -1251,33 +1239,33 @@ namespace Differentiation
     const bool NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_taped = false;
+           ScalarType>::type>::value)>>::is_taped = false;
 
 
     template <typename ScalarType>
     const bool NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_tapeless = false;
+           ScalarType>::type>::value)>>::is_tapeless = false;
 
 
     template <typename ScalarType>
     const bool NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_real_valued =
+           ScalarType>::type>::value)>>::is_real_valued =
       (!boost::is_complex<ScalarType>::value);
 
 
@@ -1285,11 +1273,11 @@ namespace Differentiation
     const bool NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_complex_valued =
+           ScalarType>::type>::value)>>::is_complex_valued =
       !(NumberTraits<ScalarType, NumberTypes::none>::is_real_valued);
 
 
@@ -1297,12 +1285,11 @@ namespace Differentiation
     const unsigned int NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::n_supported_derivative_levels =
-      0;
+           ScalarType>::type>::value)>>::n_supported_derivative_levels = 0;
 
 #  else
 
@@ -1310,55 +1297,55 @@ namespace Differentiation
     constexpr bool NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_taped;
+           ScalarType>::type>::value)>>::is_taped;
 
 
     template <typename ScalarType>
     constexpr bool NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_tapeless;
+           ScalarType>::type>::value)>>::is_tapeless;
 
 
     template <typename ScalarType>
     constexpr bool NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_real_valued;
+           ScalarType>::type>::value)>>::is_real_valued;
 
 
     template <typename ScalarType>
     constexpr bool NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::is_complex_valued;
+           ScalarType>::type>::value)>>::is_complex_valued;
 
 
     template <typename ScalarType>
     constexpr unsigned int NumberTraits<
       ScalarType,
       NumberTypes::none,
-      typename std::enable_if<
-        std::is_floating_point<ScalarType>::value ||
+      std::enable_if_t<
+        std::is_floating_point_v<ScalarType> ||
         (boost::is_complex<ScalarType>::value &&
          std::is_floating_point<typename internal::RemoveComplexWrapper<
-           ScalarType>::type>::value)>::type>::n_supported_derivative_levels;
+           ScalarType>::type>::value)>>::n_supported_derivative_levels;
 
 #  endif
 
@@ -1384,7 +1371,7 @@ namespace Differentiation
     template <typename ScalarType>
     struct ADNumberTraits<
       ScalarType,
-      typename std::enable_if<std::is_floating_point<ScalarType>::value>::type>
+      std::enable_if_t<std::is_floating_point_v<ScalarType>>>
       : NumberTraits<ScalarType, NumberTypes::none>
     {};
 
@@ -1394,10 +1381,10 @@ namespace Differentiation
     template <typename ComplexScalarType>
     struct ADNumberTraits<
       ComplexScalarType,
-      typename std::enable_if<
+      std::enable_if_t<
         boost::is_complex<ComplexScalarType>::value &&
-        std::is_floating_point<typename ComplexScalarType::value_type>::value>::
-        type> : NumberTraits<ComplexScalarType, NumberTypes::none>
+        std::is_floating_point_v<typename ComplexScalarType::value_type>>>
+      : NumberTraits<ComplexScalarType, NumberTypes::none>
     {};
 
   } // namespace AD

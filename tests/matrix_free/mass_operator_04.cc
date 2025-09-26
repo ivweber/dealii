@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -55,9 +55,8 @@ test()
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints_0(relevant_set),
     constraints_1(relevant_set);
@@ -77,14 +76,15 @@ test()
   const QGauss<1>                                  quad(2);
   typename MatrixFree<dim, number>::AdditionalData data;
   data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
-  mf_data_0->reinit(dof, constraints_0, quad, data);
-  mf_data_1->reinit(dof, constraints_1, quad, data);
+  mf_data_0->reinit(MappingQ1<dim>{}, dof, constraints_0, quad, data);
+  mf_data_1->reinit(MappingQ1<dim>{}, dof, constraints_1, quad, data);
   {
     std::vector<const DoFHandler<dim> *>           dof_handlers(2, &dof);
     std::vector<const AffineConstraints<double> *> constraint(2);
     constraint[0] = &constraints_0;
     constraint[1] = &constraints_1;
-    mf_data_combined->reinit(dof_handlers, constraint, quad, data);
+    mf_data_combined->reinit(
+      MappingQ1<dim>{}, dof_handlers, constraint, quad, data);
   }
 
   MatrixFreeOperators::
@@ -99,7 +99,7 @@ test()
   LinearAlgebra::distributed::Vector<number> in, out, ref;
   mf_data_0->initialize_dof_vector(in);
 
-  for (unsigned int i = 0; i < in.local_size(); ++i)
+  for (unsigned int i = 0; i < in.locally_owned_size(); ++i)
     in.local_element(i) = random_value<double>();
 
   mf_c0.initialize_dof_vector(out);

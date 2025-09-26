@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -86,7 +86,8 @@ sub_test()
       MatrixFree<dim, number> mf_data, mf_data_color, mf_data_partition;
       {
         const QGauss<1> quad(fe_degree + 1);
-        mf_data.reinit(dof,
+        mf_data.reinit(MappingQ1<dim>{},
+                       dof,
                        constraints,
                        quad,
                        typename MatrixFree<dim, number>::AdditionalData(
@@ -96,12 +97,14 @@ sub_test()
         // some irregularity to the blocks (stress the
         // non-overlapping computation harder)
         mf_data_color.reinit(
+          MappingQ1<dim>{},
           dof,
           constraints,
           quad,
           typename MatrixFree<dim, number>::AdditionalData(
             MatrixFree<dim, number>::AdditionalData::partition_color, 3));
         mf_data_partition.reinit(
+          MappingQ1<dim>{},
           dof,
           constraints,
           quad,
@@ -128,8 +131,7 @@ sub_test()
 
       // make 10 sweeps in order to get in some
       // variation to the threaded program
-      const double float_factor =
-        std::is_same<number, float>::value ? 0.01 : 1.;
+      const double float_factor = std::is_same_v<number, float> ? 0.01 : 1.;
       for (unsigned int sweep = 0; sweep < 10; ++sweep)
         {
           mf_color.vmult(out_color, in_dist);

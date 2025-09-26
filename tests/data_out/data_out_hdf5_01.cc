@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2018 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -56,8 +56,10 @@ test()
   data_out.write_filtered_data(data_filter);
   data_out.write_hdf5_parallel(data_filter, "out.h5", MPI_COMM_SELF);
   std::vector<XDMFEntry> xdmf_entries;
-  xdmf_entries.push_back(
-    data_out.create_xdmf_entry(data_filter, "out.h5", 0, MPI_COMM_SELF));
+
+  // Use a point in time that requires high precision output
+  xdmf_entries.push_back(data_out.create_xdmf_entry(
+    data_filter, "out.h5", 1 + 1e-10, MPI_COMM_SELF));
 
   data_out.write_xdmf_file(xdmf_entries, "out.xdmf", MPI_COMM_SELF);
 
@@ -84,7 +86,7 @@ main(int argc, char *argv[])
 
       return 0;
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,7 +35,7 @@
 
 template <int dim, int spacedim>
 void
-print_result(const Mapping<dim, spacedim> &      mapping,
+print_result(const Mapping<dim, spacedim>       &mapping,
              const Triangulation<dim, spacedim> &tria,
              const Point<dim>                    p,
              const double                        tolerance)

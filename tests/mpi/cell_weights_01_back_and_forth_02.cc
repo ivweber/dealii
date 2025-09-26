@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,7 +40,7 @@ template <int dim>
 unsigned int
 cell_weight_1(
   const typename parallel::distributed::Triangulation<dim>::cell_iterator &cell,
-  const typename parallel::distributed::Triangulation<dim>::CellStatus status)
+  const CellStatus status)
 {
   return current_cell_weight++;
 }
@@ -64,12 +64,10 @@ test()
 
   // repartition the mesh as described above, first in some arbitrary
   // way, and then with no weights
-  tr.signals.cell_weight.connect(std::bind(&cell_weight_1<dim>,
-                                           std::placeholders::_1,
-                                           std::placeholders::_2));
+  tr.signals.weight.connect(&cell_weight_1<dim>);
   tr.repartition();
 
-  tr.signals.cell_weight.disconnect_all_slots();
+  tr.signals.weight.disconnect_all_slots();
   tr.repartition();
 
   const auto n_locally_owned_active_cells_per_processor =

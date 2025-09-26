@@ -145,7 +145,7 @@ template <int dim, int spacedim>
 void
 check(const FiniteElement<dim, spacedim> &fe1,
       const FiniteElement<dim, spacedim> &fe2,
-      const std::string &                 name)
+      const std::string                  &name)
 {
   deallog << "Checking " << name << " in " << dim << "d and spacedim "
           << spacedim << std::endl;
@@ -212,7 +212,7 @@ main()
 
       return 0;
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

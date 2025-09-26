@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -48,7 +48,7 @@ FE_DGPNonparametric<dim, spacedim>::FE_DGPNonparametric(
       std::vector<ComponentMask>(
         FiniteElementData<dim>(get_dpo_vector(degree), 1, degree)
           .n_dofs_per_cell(),
-        std::vector<bool>(1, true)))
+        ComponentMask(std::vector<bool>(1, true))))
   , polynomial_space(Polynomials::Legendre::generate_complete_basis(degree))
 {
   const unsigned int n_dofs = this->n_dofs_per_cell();
@@ -137,7 +137,7 @@ FE_DGPNonparametric<dim, spacedim>::clone() const
 template <int dim, int spacedim>
 double
 FE_DGPNonparametric<dim, spacedim>::shape_value(const unsigned int i,
-                                                const Point<dim> & p) const
+                                                const Point<dim>  &p) const
 {
   (void)i;
   (void)p;
@@ -153,7 +153,7 @@ template <int dim, int spacedim>
 double
 FE_DGPNonparametric<dim, spacedim>::shape_value_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   (void)i;
@@ -171,7 +171,7 @@ FE_DGPNonparametric<dim, spacedim>::shape_value_component(
 template <int dim, int spacedim>
 Tensor<1, dim>
 FE_DGPNonparametric<dim, spacedim>::shape_grad(const unsigned int i,
-                                               const Point<dim> & p) const
+                                               const Point<dim>  &p) const
 {
   (void)i;
   (void)p;
@@ -186,7 +186,7 @@ template <int dim, int spacedim>
 Tensor<1, dim>
 FE_DGPNonparametric<dim, spacedim>::shape_grad_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   (void)i;
@@ -204,7 +204,7 @@ FE_DGPNonparametric<dim, spacedim>::shape_grad_component(
 template <int dim, int spacedim>
 Tensor<2, dim>
 FE_DGPNonparametric<dim, spacedim>::shape_grad_grad(const unsigned int i,
-                                                    const Point<dim> & p) const
+                                                    const Point<dim>  &p) const
 {
   (void)i;
   (void)p;
@@ -220,7 +220,7 @@ template <int dim, int spacedim>
 Tensor<2, dim>
 FE_DGPNonparametric<dim, spacedim>::shape_grad_grad_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   (void)i;
@@ -262,7 +262,7 @@ FE_DGPNonparametric<dim, spacedim>::requires_update_flags(
 {
   UpdateFlags out = flags;
 
-  if ((flags & (update_values | update_gradients | update_hessians)) != 0u)
+  if (flags & (update_values | update_gradients | update_hessians))
     out |= update_quadrature_points;
 
   return out;
@@ -309,9 +309,8 @@ FE_DGPNonparametric<dim, spacedim>::fill_fe_values(
   const Quadrature<dim> &,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &                                                            mapping_data,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -365,9 +364,8 @@ FE_DGPNonparametric<dim, spacedim>::fill_fe_face_values(
   const hp::QCollection<dim - 1> &,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &                                                            mapping_data,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -422,9 +420,8 @@ FE_DGPNonparametric<dim, spacedim>::fill_fe_subface_values(
   const Quadrature<dim - 1> &,
   const Mapping<dim, spacedim> &,
   const typename Mapping<dim, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &                                                            mapping_data,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -474,7 +471,7 @@ template <int dim, int spacedim>
 void
 FE_DGPNonparametric<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int) const
 {
   // this is only implemented, if the source

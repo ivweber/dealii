@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2021 by the deal.II authors
+ * Copyright (C) 2009 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,9 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Luca Heltai, Cataldo Manigrasso, 2009
+ * Authors: Luca Heltai, Cataldo Manigrasso, 2009
  */
 
 
@@ -27,6 +26,7 @@
 #include <deal.II/base/convergence_table.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/quadrature_selector.h>
+#include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/parsed_function.h>
 #include <deal.II/base/utilities.h>
 
@@ -47,7 +47,7 @@
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/vector_tools.h>
@@ -868,7 +868,7 @@ namespace Step34
            ExcIndexRange(0, fe.n_dofs_per_cell(), index));
 
     static std::vector<QGaussOneOverR<2>> quadratures;
-    if (quadratures.size() == 0)
+    if (quadratures.empty())
       for (unsigned int i = 0; i < fe.n_dofs_per_cell(); ++i)
         quadratures.emplace_back(singular_quadrature_order,
                                  fe.get_unit_support_points()[i],

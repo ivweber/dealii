@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2018 by the deal.II authors
+// Copyright (C) 2010 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -97,7 +97,7 @@ test(const unsigned int refs,
 
   std::string filename_scal =
     ("scal_check_" + Utilities::int_to_string(id) + ".vtu");
-  std::ofstream file_scal(filename_scal.c_str());
+  std::ofstream file_scal(filename_scal);
   data_out_scal.write_vtu(file_scal);
   data_out_scal.write_vtk(deallog.get_file_stream());
 
@@ -119,7 +119,7 @@ test(const unsigned int refs,
 
   std::string filename_euler =
     ("euler_check_" + Utilities::int_to_string(id) + ".vtu");
-  std::ofstream file_euler(filename_euler.c_str());
+  std::ofstream file_euler(filename_euler);
 
   data_out_euler.write_vtu(file_euler);
   data_out_euler.write_vtk(deallog.get_file_stream());

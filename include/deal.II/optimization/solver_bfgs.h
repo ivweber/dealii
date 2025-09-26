@@ -1,6 +1,6 @@
 //-----------------------------------------------------------
 //
-//    Copyright (C) 2018 - 2020 by the deal.II authors
+//    Copyright (C) 2018 - 2023 by the deal.II authors
 //
 //    This file is part of the deal.II library.
 //
@@ -23,6 +23,8 @@
 #include <deal.II/numerics/history.h>
 
 #include <deal.II/optimization/line_minimization.h>
+
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -88,7 +90,7 @@ public:
   /**
    * Constructor.
    */
-  explicit SolverBFGS(SolverControl &       residual_control,
+  explicit SolverBFGS(SolverControl        &residual_control,
                       const AdditionalData &data = AdditionalData());
 
   /**
@@ -107,7 +109,7 @@ public:
   void
   solve(
     const std::function<Number(const VectorType &x, VectorType &g)> &compute,
-    VectorType &                                                     x);
+    VectorType                                                      &x);
 
   /**
    * Connect a slot to perform a custom line-search.
@@ -151,7 +153,7 @@ public:
    */
   boost::signals2::connection
   connect_preconditioner_slot(
-    const std::function<void(VectorType &                         g,
+    const std::function<void(VectorType                          &g,
                              const FiniteSizeHistory<VectorType> &s,
                              const FiniteSizeHistory<VectorType> &y)> &slot);
 
@@ -172,7 +174,7 @@ protected:
   /**
    * Signal used to perform preconditioning.
    */
-  boost::signals2::signal<void(VectorType &                         g,
+  boost::signals2::signal<void(VectorType                          &g,
                                const FiniteSizeHistory<VectorType> &s,
                                const FiniteSizeHistory<VectorType> &y)>
     preconditioner_signal;
@@ -193,7 +195,7 @@ SolverBFGS<VectorType>::AdditionalData::AdditionalData(
 
 
 template <typename VectorType>
-SolverBFGS<VectorType>::SolverBFGS(SolverControl &       solver_control,
+SolverBFGS<VectorType>::SolverBFGS(SolverControl        &solver_control,
                                    const AdditionalData &data)
   : SolverBase<VectorType>(solver_control)
   , additional_data(data)
@@ -201,7 +203,7 @@ SolverBFGS<VectorType>::SolverBFGS(SolverControl &       solver_control,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 boost::signals2::connection
 SolverBFGS<VectorType>::connect_line_search_slot(
   const std::function<
@@ -214,10 +216,10 @@ SolverBFGS<VectorType>::connect_line_search_slot(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 boost::signals2::connection
 SolverBFGS<VectorType>::connect_preconditioner_slot(
-  const std::function<void(VectorType &                         g,
+  const std::function<void(VectorType                          &g,
                            const FiniteSizeHistory<VectorType> &s,
                            const FiniteSizeHistory<VectorType> &y)> &slot)
 {
@@ -234,7 +236,7 @@ void
 SolverBFGS<VectorType>::solve(
   const std::function<typename VectorType::value_type(const VectorType &x,
                                                       VectorType &f)> &compute,
-  VectorType &                                                         x)
+  VectorType                                                          &x)
 {
   // Also see scipy Fortran implementation
   // https://github.com/scipy/scipy/blob/master/scipy/optimize/lbfgsb_src/lbfgsb.f
@@ -274,7 +276,7 @@ SolverBFGS<VectorType>::solve(
           Assert(a1 > 0., ExcInternalError());
           f_prev = f;
 
-          // 1D line-search function
+          // 1d line-search function
           const auto line_func =
             [&](const Number &x_line) -> std::pair<Number, Number> {
             x = x0;

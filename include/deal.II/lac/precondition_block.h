@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,8 +29,9 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*! @addtogroup Preconditioners
- *@{
+/**
+ * @addtogroup Preconditioners
+ * @{
  */
 
 
@@ -180,7 +181,7 @@ protected:
    * Additionally, a relaxation parameter for derived classes may be provided.
    */
   void
-  initialize(const MatrixType &            A,
+  initialize(const MatrixType             &A,
              const std::vector<size_type> &permutation,
              const std::vector<size_type> &inverse_permutation,
              const AdditionalData          parameters);
@@ -271,7 +272,7 @@ public:
    */
   template <typename number2>
   void
-  forward_step(Vector<number2> &      dst,
+  forward_step(Vector<number2>       &dst,
                const Vector<number2> &prev,
                const Vector<number2> &src,
                const bool             transpose_diagonal) const;
@@ -289,7 +290,7 @@ public:
    */
   template <typename number2>
   void
-  backward_step(Vector<number2> &      dst,
+  backward_step(Vector<number2>       &dst,
                 const Vector<number2> &prev,
                 const Vector<number2> &src,
                 const bool             transpose_diagonal) const;
@@ -328,7 +329,7 @@ public:
    */
   DeclException0(ExcInverseMatricesAlreadyExist);
 
-  //@}
+  /** @} */
 
 protected:
   /**
@@ -890,7 +891,7 @@ public:
   Tstep(Vector<number2> &dst, const Vector<number2> &rhs) const;
 };
 
-/*@}*/
+/** @} */
 //---------------------------------------------------------------------------
 
 #ifndef DOXYGEN

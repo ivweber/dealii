@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -48,7 +48,7 @@ FE_RT_Bubbles<dim>::FE_RT_Bubbles(const unsigned int deg)
                              FiniteElementData<dim>::Hdiv),
       get_ria_vector(deg),
       std::vector<ComponentMask>(PolynomialsRT_Bubbles<dim>::n_polynomials(deg),
-                                 std::vector<bool>(dim, true)))
+                                 ComponentMask(std::vector<bool>(dim, true))))
 {
   Assert(dim >= 2, ExcImpossibleInDim(dim));
   Assert(
@@ -117,7 +117,7 @@ template <int dim>
 void
 FE_RT_Bubbles<dim>::initialize_quad_dof_index_permutation_and_sign_change()
 {
-  // for 1D and 2D, do nothing
+  // for 1d and 2d, do nothing
   if (dim < 3)
     return;
 
@@ -208,8 +208,11 @@ FE_RT_Bubbles<dim>::initialize_support_points(const unsigned int deg)
   // one for each direction
   QGaussLobatto<1>      high(deg + 1);
   std::vector<Point<1>> pts = high.get_points();
-  pts.erase(pts.begin());
-  pts.erase(pts.end() - 1);
+  if (pts.size() > 2)
+    {
+      pts.erase(pts.begin());
+      pts.erase(pts.end() - 1);
+    }
 
   std::vector<double> wts(pts.size(), 1);
   Quadrature<1>       low(pts, wts);
@@ -304,7 +307,7 @@ template <int dim>
 void
 FE_RT_Bubbles<dim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->generalized_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),

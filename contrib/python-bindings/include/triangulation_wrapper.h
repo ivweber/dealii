@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,18 +40,55 @@ namespace python
     typedef std::vector<CellAccessorWrapper>::iterator iterator;
 
     /**
-     * Constructor. Takes a string @p dim with one of the following values
-     * "2D", "2d", "3D", or "3d".
+     * Declare some symbolic names for mesh smoothing. These values are copied
+     * from the Triangulation class, please find the documentation for their
+     * meanings.
      */
-    TriangulationWrapper(const std::string &dim);
+    enum MeshSmoothing
+    {
+      none                               = 0x0,
+      limit_level_difference_at_vertices = 0x1,
+      eliminate_unrefined_islands        = 0x2,
+      patch_level_1                      = 0x4,
+      coarsest_level_1                   = 0x8,
+      allow_anisotropic_smoothing        = 0x10,
+      eliminate_refined_inner_islands    = 0x100,
+      eliminate_refined_boundary_islands = 0x200,
+      do_not_produce_unrefined_islands   = 0x400,
+      smoothing_on_refinement =
+        (limit_level_difference_at_vertices | eliminate_unrefined_islands),
+      smoothing_on_coarsening =
+        (eliminate_refined_inner_islands | eliminate_refined_boundary_islands |
+         do_not_produce_unrefined_islands),
+      maximum_smoothing = 0xffff ^ allow_anisotropic_smoothing
+    };
+
+    /**
+     * Constructor. Takes a string @p dim with one of the following values
+     * "2D", "2d", "3D", or "3d". The optional @p mesh_smoothing determines
+     * the level of smoothness of the mesh size function that should be enforced
+     * upon mesh refinement. The optional @p check_for_distorted_cells
+     * determines whether the triangulation should check whether any of the
+     * cells are distorted.
+     */
+    TriangulationWrapper(const std::string &dim,
+                         const int          mesh_smoothing            = none,
+                         const bool         check_for_distorted_cells = false);
 
     /**
      * Constructor. Takes a string @p dim with one of the following values
      * "2D", "2d", "3D", or "3d" and a string @p spacedim with one of the
      * following values "2D", "2d", "3D", or "3d". The dimension of @p spacedim
-     * must be larger than the dimension of @p dim
+     * must be larger than the dimension of @p dim. The optional @p mesh_smoothing
+     * determines the level of smoothness of the mesh size function that should
+     * be enforced upon mesh refinement. The optional @p check_for_distorted_cells
+     * determines whether the triangulation should check whether any of the
+     * cells are distorted.
      */
-    TriangulationWrapper(const std::string &dim, const std::string &spacedim);
+    TriangulationWrapper(const std::string &dim,
+                         const std::string &spacedim,
+                         const int          mesh_smoothing            = none,
+                         const bool         check_for_distorted_cells = false);
 
     /**
      * Destructor.
@@ -108,8 +145,8 @@ namespace python
      */
     void
     generate_subdivided_hyper_rectangle(boost::python::list &repetitions,
-                                        PointWrapper &       p1,
-                                        PointWrapper &       p2,
+                                        PointWrapper        &p1,
+                                        PointWrapper        &p2,
                                         const bool           colorize = false);
 
     /**
@@ -122,8 +159,8 @@ namespace python
      */
     void
     generate_subdivided_steps_hyper_rectangle(boost::python::list &step_sizes,
-                                              PointWrapper &       p1,
-                                              PointWrapper &       p2,
+                                              PointWrapper        &p1,
+                                              PointWrapper        &p2,
                                               const bool colorize = false);
 
     /**
@@ -137,7 +174,7 @@ namespace python
     void
     generate_subdivided_material_hyper_rectangle(
       boost::python::list &spacing,
-      PointWrapper &       p,
+      PointWrapper        &p,
       boost::python::list &material_id,
       const bool           colorize = false);
 
@@ -223,7 +260,7 @@ namespace python
     /*! @copydoc GridGenerator::hyper_shell
      */
     void
-    generate_hyper_shell(PointWrapper & center,
+    generate_hyper_shell(PointWrapper  &center,
                          const double   inner_radius,
                          const double   outer_radius,
                          const unsigned n_cells  = 0,
@@ -250,7 +287,7 @@ namespace python
      */
     void
     replicate_triangulation(TriangulationWrapper &tria_in,
-                            boost::python::list & extents);
+                            boost::python::list  &extents);
 
     /*! @copydoc GridGenerator::flatten_triangulation
      */
@@ -282,7 +319,7 @@ namespace python
     /*! @copydoc GridTools::find_active_cell_around_point
      */
     CellAccessorWrapper
-    find_active_cell_around_point(PointWrapper &  p,
+    find_active_cell_around_point(PointWrapper   &p,
                                   MappingQWrapper mapping = MappingQWrapper());
 
     /*! @copydoc GridTools::find_cells_adjacent_to_vertex
@@ -299,6 +336,16 @@ namespace python
      */
     void
     reset_manifold(const int number);
+
+    /*! @copydoc Triangulation::get_mesh_smoothing
+     */
+    int
+    get_mesh_smoothing();
+
+    /*! @copydoc Triangulation::set_mesh_smoothing
+     */
+    void
+    set_mesh_smoothing(const int mesh_smoothing);
 
     /*! @copydoc Triangulation::refine_global
      */
@@ -337,7 +384,7 @@ namespace python
     /*! @copydoc GridTools::compute_aspect_ratio_of_cells
      */
     boost::python::list
-    compute_aspect_ratio_of_cells(const MappingQWrapper &  mapping,
+    compute_aspect_ratio_of_cells(const MappingQWrapper   &mapping,
                                   const QuadratureWrapper &quadrature);
 
     /**
@@ -390,7 +437,10 @@ namespace python
      * Helper function for the constructors.
      */
     void
-    setup(const std::string &dimension, const std::string &spacedimension);
+    setup(const std::string &dimension,
+          const std::string &spacedimension,
+          const int          mesh_smoothing,
+          const bool         check_for_distorted_cells);
 
     /**
      * Dimension of the underlying Triangulation object.

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -66,13 +66,15 @@ struct Mat1 : MaterialBase
   pack_values(std::vector<double> &values) const final
   {
     AssertDimension(values.size(), number_of_values());
-    std::copy(pt.begin_raw(), pt.end_raw(), values.begin());
+    for (unsigned int d = 0; d < 2; ++d)
+      values[d] = pt[d];
   }
   virtual void
   unpack_values(const std::vector<double> &values) final
   {
     AssertDimension(values.size(), number_of_values());
-    std::copy(values.cbegin(), values.cend(), pt.begin_raw());
+    for (unsigned int d = 0; d < 2; ++d)
+      pt[d] = values[d];
   }
 };
 
@@ -98,7 +100,7 @@ struct Mat2 : MaterialBase
 
 void
 initialize_data(const Triangulation<2> &tria,
-                QuadratureStorage &     storage,
+                QuadratureStorage      &storage,
                 const unsigned int      n_data_points_per_cell)
 {
   deallog << "Initializing quadrature cell data" << std::endl;
@@ -118,8 +120,8 @@ initialize_data(const Triangulation<2> &tria,
 
 void
 assign_value_to_data(const Triangulation<2> &tria,
-                     FEValues<2> &           fe_values,
-                     QuadratureStorage &     storage,
+                     FEValues<2>            &fe_values,
+                     QuadratureStorage      &storage,
                      const unsigned int      n_data_points_per_cell)
 {
   deallog << "Assigning quadrature cell data" << std::endl;
@@ -152,8 +154,8 @@ DeclException3(ExcWrongValue,
                << ", delta = " << arg3);
 
 void
-check_data(const Triangulation<2> & tria,
-           FEValues<2> &            fe_values,
+check_data(const Triangulation<2>  &tria,
+           FEValues<2>             &fe_values,
            const QuadratureStorage &storage,
            const unsigned int       n_data_points_per_cell)
 {

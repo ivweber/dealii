@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -67,7 +67,7 @@ namespace python
     PointWrapper
     project_real_point_to_unit_point_on_face(CellAccessorWrapper &cell,
                                              const unsigned int   face_no,
-                                             PointWrapper &       point);
+                                             PointWrapper        &point);
 
     /**
      * Get the underlying mapping.

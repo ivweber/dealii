@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,8 +30,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup mg */
-/*@{*/
+/**
+ * @addtogroup mg
+ * @{
+ */
 
 namespace mg
 {
@@ -78,20 +80,20 @@ namespace mg
 
     virtual void
     vmult(const unsigned int level,
-          VectorType &       dst,
-          const VectorType & src) const override;
+          VectorType        &dst,
+          const VectorType  &src) const override;
     virtual void
     vmult_add(const unsigned int level,
-              VectorType &       dst,
-              const VectorType & src) const override;
+              VectorType        &dst,
+              const VectorType  &src) const override;
     virtual void
     Tvmult(const unsigned int level,
-           VectorType &       dst,
-           const VectorType & src) const override;
+           VectorType        &dst,
+           const VectorType  &src) const override;
     virtual void
     Tvmult_add(const unsigned int level,
-               VectorType &       dst,
-               const VectorType & src) const override;
+               VectorType        &dst,
+               const VectorType  &src) const override;
     virtual unsigned int
     get_minlevel() const override;
     virtual unsigned int
@@ -148,7 +150,7 @@ public:
    */
   virtual void
   vmult(const unsigned int    level,
-        Vector<number> &      dst,
+        Vector<number>       &dst,
         const Vector<number> &src) const;
 
   /**
@@ -156,7 +158,7 @@ public:
    */
   virtual void
   vmult_add(const unsigned int    level,
-            Vector<number> &      dst,
+            Vector<number>       &dst,
             const Vector<number> &src) const;
 
   /**
@@ -164,7 +166,7 @@ public:
    */
   virtual void
   Tvmult(const unsigned int    level,
-         Vector<number> &      dst,
+         Vector<number>       &dst,
          const Vector<number> &src) const;
 
   /**
@@ -172,7 +174,7 @@ public:
    */
   virtual void
   Tvmult_add(const unsigned int    level,
-             Vector<number> &      dst,
+             Vector<number>       &dst,
              const Vector<number> &src) const;
 
 private:
@@ -191,7 +193,7 @@ private:
   unsigned int col;
 };
 
-/*@}*/
+/** @} */
 
 /*----------------------------------------------------------------------*/
 
@@ -247,8 +249,8 @@ namespace mg
   template <typename VectorType>
   void
   Matrix<VectorType>::vmult(const unsigned int level,
-                            VectorType &       dst,
-                            const VectorType & src) const
+                            VectorType        &dst,
+                            const VectorType  &src) const
   {
     matrices[level].vmult(dst, src);
   }
@@ -258,8 +260,8 @@ namespace mg
   template <typename VectorType>
   void
   Matrix<VectorType>::vmult_add(const unsigned int level,
-                                VectorType &       dst,
-                                const VectorType & src) const
+                                VectorType        &dst,
+                                const VectorType  &src) const
   {
     matrices[level].vmult_add(dst, src);
   }
@@ -269,8 +271,8 @@ namespace mg
   template <typename VectorType>
   void
   Matrix<VectorType>::Tvmult(const unsigned int level,
-                             VectorType &       dst,
-                             const VectorType & src) const
+                             VectorType        &dst,
+                             const VectorType  &src) const
   {
     matrices[level].Tvmult(dst, src);
   }
@@ -280,8 +282,8 @@ namespace mg
   template <typename VectorType>
   void
   Matrix<VectorType>::Tvmult_add(const unsigned int level,
-                                 VectorType &       dst,
-                                 const VectorType & src) const
+                                 VectorType        &dst,
+                                 const VectorType  &src) const
   {
     matrices[level].Tvmult_add(dst, src);
   }
@@ -351,7 +353,7 @@ MGMatrixSelect<MatrixType, number>::select_block(const unsigned int brow,
 template <typename MatrixType, typename number>
 void
 MGMatrixSelect<MatrixType, number>::vmult(const unsigned int    level,
-                                          Vector<number> &      dst,
+                                          Vector<number>       &dst,
                                           const Vector<number> &src) const
 {
   Assert(matrix != 0, ExcNotInitialized());
@@ -365,7 +367,7 @@ MGMatrixSelect<MatrixType, number>::vmult(const unsigned int    level,
 template <typename MatrixType, typename number>
 void
 MGMatrixSelect<MatrixType, number>::vmult_add(const unsigned int    level,
-                                              Vector<number> &      dst,
+                                              Vector<number>       &dst,
                                               const Vector<number> &src) const
 {
   Assert(matrix != 0, ExcNotInitialized());
@@ -379,7 +381,7 @@ MGMatrixSelect<MatrixType, number>::vmult_add(const unsigned int    level,
 template <typename MatrixType, typename number>
 void
 MGMatrixSelect<MatrixType, number>::Tvmult(const unsigned int    level,
-                                           Vector<number> &      dst,
+                                           Vector<number>       &dst,
                                            const Vector<number> &src) const
 {
   Assert(matrix != 0, ExcNotInitialized());
@@ -393,7 +395,7 @@ MGMatrixSelect<MatrixType, number>::Tvmult(const unsigned int    level,
 template <typename MatrixType, typename number>
 void
 MGMatrixSelect<MatrixType, number>::Tvmult_add(const unsigned int    level,
-                                               Vector<number> &      dst,
+                                               Vector<number>       &dst,
                                                const Vector<number> &src) const
 {
   Assert(matrix != 0, ExcNotInitialized());

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -54,9 +54,9 @@ test()
 
   unsigned int counter = 0;
 
-  for (auto &cell : dof_handler)
+  for (auto &cell : dof_handler.cell_iterators())
     if (counter++ < tria.n_cells() / 2)
-      cell.set_active_fe_index(1);
+      cell->set_active_fe_index(1);
 
   dof_handler.distribute_dofs(fe);
 

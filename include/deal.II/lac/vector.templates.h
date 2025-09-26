@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,6 +42,7 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 
 DEAL_II_NAMESPACE_OPEN
@@ -61,7 +62,7 @@ Vector<Number>::apply_givens_rotation(const std::array<Number, 3> &csr,
                                       const size_type              i,
                                       const size_type              k)
 {
-  auto &       V = *this;
+  auto        &V = *this;
   const Number t = V(i);
   V(i)           = csr[0] * V(i) + csr[1] * V(k);
   V(k)           = -csr[1] * t + csr[0] * V(k);
@@ -84,7 +85,7 @@ namespace internal
   template <typename Number>
   void
   copy_petsc_vector(const PETScWrappers::VectorBase &v,
-                    ::dealii::Vector<Number> &       out)
+                    ::dealii::Vector<Number>        &out)
   {
     if (v.size() == 0)
       {
@@ -107,8 +108,8 @@ namespace internal
       scatter_context, v, sequential_vector, INSERT_VALUES, SCATTER_FORWARD);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
 
-    PetscScalar *start_ptr;
-    ierr = VecGetArray(sequential_vector, &start_ptr);
+    const PetscScalar *start_ptr;
+    ierr = VecGetArrayRead(sequential_vector, &start_ptr);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
 
     const PETScWrappers::VectorBase::size_type v_size = v.size();
@@ -118,7 +119,7 @@ namespace internal
     internal::VectorOperations::copy(start_ptr,
                                      start_ptr + out.size(),
                                      out.begin());
-    ierr = VecRestoreArray(sequential_vector, &start_ptr);
+    ierr = VecRestoreArrayRead(sequential_vector, &start_ptr);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
 
     ierr = VecScatterDestroy(&scatter_context);
@@ -238,18 +239,6 @@ Vector<Number>::grow_or_shrink(const size_type n)
   values.resize(n);
 
   maybe_reset_thread_partitioner();
-}
-
-
-
-template <typename Number>
-template <typename Number2>
-void
-Vector<Number>::reinit(const Vector<Number2> &v,
-                       const bool             omit_zeroing_entries)
-{
-  do_reinit(v.size(), omit_zeroing_entries, false);
-  thread_loop_partitioner = v.thread_loop_partitioner;
 }
 
 
@@ -569,6 +558,22 @@ Vector<Number>::add_and_dot(const Number          a,
 
 
 template <typename Number>
+void
+Vector<Number>::extract_subvector_to(
+  const ArrayView<const types::global_dof_index> &indices,
+  ArrayView<Number>                              &elements) const
+{
+  AssertDimension(indices.size(), elements.size());
+  for (unsigned int i = 0; i < indices.size(); ++i)
+    {
+      AssertIndexRange(indices[i], size());
+      elements[i] = (*this)[indices[i]];
+    }
+}
+
+
+
+template <typename Number>
 Vector<Number> &
 Vector<Number>::operator+=(const Vector<Number> &v)
 {
@@ -828,7 +833,7 @@ Vector<Number>::operator==(const Vector<Number2> &v) const
 
 template <typename Number>
 void
-Vector<Number>::print(std::ostream &     out,
+Vector<Number>::print(std::ostream      &out,
                       const unsigned int precision,
                       const bool         scientific,
                       const bool         across) const

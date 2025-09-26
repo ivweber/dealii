@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,11 +18,14 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mpi.h>
+
 #include <deal.II/lac/trilinos_tpetra_vector.h>
 
 #ifdef DEAL_II_TRILINOS_WITH_TPETRA
 
 #  include <deal.II/base/index_set.h>
+#  include <deal.II/base/trilinos_utilities.h>
 
 #  include <deal.II/lac/read_write_vector.h>
 
@@ -44,9 +47,9 @@ namespace LinearAlgebra
     template <typename Number>
     Vector<Number>::Vector()
       : Subscriptor()
-      , vector(new Tpetra::Vector<Number, int, types::global_dof_index>(
-          Teuchos::RCP<Tpetra::Map<int, types::global_dof_index>>(
-            new Tpetra::Map<int, types::global_dof_index>(
+      , vector(new Tpetra::Vector<Number, int, types::signed_global_dof_index>(
+          Teuchos::RCP<Tpetra::Map<int, types::signed_global_dof_index>>(
+            new Tpetra::Map<int, types::signed_global_dof_index>(
               0,
               0,
               Utilities::Trilinos::tpetra_comm_self()))))
@@ -57,7 +60,7 @@ namespace LinearAlgebra
     template <typename Number>
     Vector<Number>::Vector(const Vector<Number> &V)
       : Subscriptor()
-      , vector(new Tpetra::Vector<Number, int, types::global_dof_index>(
+      , vector(new Tpetra::Vector<Number, int, types::signed_global_dof_index>(
           V.trilinos_vector(),
           Teuchos::Copy))
     {}
@@ -66,10 +69,10 @@ namespace LinearAlgebra
 
     template <typename Number>
     Vector<Number>::Vector(const IndexSet &parallel_partitioner,
-                           const MPI_Comm &communicator)
+                           const MPI_Comm  communicator)
       : Subscriptor()
-      , vector(new Tpetra::Vector<Number, int, types::global_dof_index>(
-          Teuchos::rcp(new Tpetra::Map<int, types::global_dof_index>(
+      , vector(new Tpetra::Vector<Number, int, types::signed_global_dof_index>(
+          Teuchos::rcp(new Tpetra::Map<int, types::signed_global_dof_index>(
             parallel_partitioner.make_tpetra_map(communicator, false)))))
     {}
 
@@ -78,15 +81,16 @@ namespace LinearAlgebra
     template <typename Number>
     void
     Vector<Number>::reinit(const IndexSet &parallel_partitioner,
-                           const MPI_Comm &communicator,
+                           const MPI_Comm  communicator,
                            const bool      omit_zeroing_entries)
     {
-      Tpetra::Map<int, types::global_dof_index> input_map =
+      Tpetra::Map<int, types::signed_global_dof_index> input_map =
         parallel_partitioner.make_tpetra_map(communicator, false);
       if (vector->getMap()->isSameAs(input_map) == false)
         vector = std::make_unique<
-          Tpetra::Vector<Number, int, types::global_dof_index>>(Teuchos::rcp(
-          new Tpetra::Map<int, types::global_dof_index>(input_map)));
+          Tpetra::Vector<Number, int, types::signed_global_dof_index>>(
+          Teuchos::rcp(
+            new Tpetra::Map<int, types::signed_global_dof_index>(input_map)));
       else if (omit_zeroing_entries == false)
         {
           vector->putScalar(0.);
@@ -97,19 +101,51 @@ namespace LinearAlgebra
 
     template <typename Number>
     void
-    Vector<Number>::reinit(const VectorSpaceVector<Number> &V,
-                           const bool omit_zeroing_entries)
+    Vector<Number>::reinit(const Vector<Number> &V,
+                           const bool            omit_zeroing_entries)
     {
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&V) != nullptr,
-             ExcVectorTypeNotCompatible());
-
-      // Downcast V. If fails, throws an exception.
-      const Vector<Number> &down_V = dynamic_cast<const Vector<Number> &>(V);
-
-      reinit(down_V.locally_owned_elements(),
-             down_V.get_mpi_communicator(),
+      reinit(V.locally_owned_elements(),
+             V.get_mpi_communicator(),
              omit_zeroing_entries);
+    }
+
+
+
+    template <typename Number>
+    void
+    Vector<Number>::extract_subvector_to(
+      const ArrayView<const types::global_dof_index> &indices,
+      ArrayView<Number>                              &elements) const
+    {
+      AssertDimension(indices.size(), elements.size());
+      const auto &vector = trilinos_vector();
+      const auto &map    = vector.getMap();
+
+#  if DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+      auto vector_2d = vector.template getLocalView<Kokkos::HostSpace>(
+        Tpetra::Access::ReadOnly);
+#  else
+      /*
+       * For Trilinos older than 13.2 we would normally have to call
+       * vector.template sync<Kokkos::HostSpace>() at this place in order
+       * to sync between memory spaces. This is necessary for GPU support.
+       * Unfortunately, we are in a const context here and cannot call to
+       * sync() (which is a non-const member function).
+       *
+       * Let us choose to simply ignore this problem for such an old
+       * Trilinos version.
+       */
+      auto vector_2d = vector.template getLocalView<Kokkos::HostSpace>();
+#  endif
+      auto vector_1d = Kokkos::subview(vector_2d, Kokkos::ALL(), 0);
+
+      for (unsigned int i = 0; i < indices.size(); ++i)
+        {
+          AssertIndexRange(indices[i], size());
+          const auto trilinos_i = map->getLocalElement(
+            static_cast<TrilinosWrappers::types::int_type>(indices[i]));
+          elements[i] = vector_1d(trilinos_i);
+        }
     }
 
 
@@ -128,7 +164,7 @@ namespace LinearAlgebra
         {
           if (size() == V.size())
             {
-              Tpetra::Import<int, types::global_dof_index> data_exchange(
+              Tpetra::Import<int, types::signed_global_dof_index> data_exchange(
                 vector->getMap(), V.trilinos_vector().getMap());
 
               vector->doImport(V.trilinos_vector(),
@@ -137,7 +173,7 @@ namespace LinearAlgebra
             }
           else
             vector = std::make_unique<
-              Tpetra::Vector<Number, int, types::global_dof_index>>(
+              Tpetra::Vector<Number, int, types::signed_global_dof_index>>(
               V.trilinos_vector());
         }
 
@@ -162,11 +198,11 @@ namespace LinearAlgebra
 
     template <typename Number>
     void
-    Vector<Number>::import(
+    Vector<Number>::import_elements(
       const ReadWriteVector<Number> &V,
       VectorOperation::values        operation,
-      std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
-        communication_pattern)
+      const std::shared_ptr<const Utilities::MPI::CommunicationPatternBase>
+        &communication_pattern)
     {
       // If no communication pattern is given, create one. Otherwise, use the
       // one given.
@@ -198,22 +234,33 @@ namespace LinearAlgebra
               "LinearAlgebra::TpetraWrappers::CommunicationPattern."));
         }
 
-      Tpetra::Export<int, types::global_dof_index> tpetra_export(
+      Tpetra::Export<int, types::signed_global_dof_index> tpetra_export(
         tpetra_comm_pattern->get_tpetra_export());
-      Tpetra::Vector<Number, int, types::global_dof_index> source_vector(
+      Tpetra::Vector<Number, int, types::signed_global_dof_index> source_vector(
         tpetra_export.getSourceMap());
 
-      source_vector.template sync<Kokkos::HostSpace>();
-      auto x_2d = source_vector.template getLocalView<Kokkos::HostSpace>();
-      auto x_1d = Kokkos::subview(x_2d, Kokkos::ALL(), 0);
-      source_vector.template modify<Kokkos::HostSpace>();
-      const size_t localLength = source_vector.getLocalLength();
-      auto         values_it   = V.begin();
-      for (size_t k = 0; k < localLength; ++k)
-        x_1d(k) = *values_it++;
-      source_vector.template sync<
-        typename Tpetra::Vector<Number, int, types::global_dof_index>::
-          device_type::memory_space>();
+      {
+#  if DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+        auto x_2d = source_vector.template getLocalView<Kokkos::HostSpace>(
+          Tpetra::Access::ReadWrite);
+#  else
+        source_vector.template sync<Kokkos::HostSpace>();
+        auto x_2d = source_vector.template getLocalView<Kokkos::HostSpace>();
+#  endif
+        auto x_1d = Kokkos::subview(x_2d, Kokkos::ALL(), 0);
+#  if !DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+        source_vector.template modify<Kokkos::HostSpace>();
+#  endif
+        const size_t localLength = source_vector.getLocalLength();
+        auto         values_it   = V.begin();
+        for (size_t k = 0; k < localLength; ++k)
+          x_1d(k) = *values_it++;
+#  if !DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+        source_vector.template sync<
+          typename Tpetra::Vector<Number, int, types::signed_global_dof_index>::
+            device_type::memory_space>();
+#  endif
+      }
       if (operation == VectorOperation::insert)
         vector->doExport(source_vector, tpetra_export, Tpetra::REPLACE);
       else if (operation == VectorOperation::add)
@@ -251,34 +298,26 @@ namespace LinearAlgebra
 
     template <typename Number>
     Vector<Number> &
-    Vector<Number>::operator+=(const VectorSpaceVector<Number> &V)
+    Vector<Number>::operator+=(const Vector<Number> &V)
     {
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&V) != nullptr,
-             ExcVectorTypeNotCompatible());
-
-      // Downcast V. If fails, throws an exception.
-      const Vector<Number> &down_V = dynamic_cast<const Vector<Number> &>(V);
       // If the maps are the same we can update right away.
-      if (vector->getMap()->isSameAs(*(down_V.trilinos_vector().getMap())))
+      if (vector->getMap()->isSameAs(*(V.trilinos_vector().getMap())))
         {
-          vector->update(1., down_V.trilinos_vector(), 1.);
+          vector->update(1., V.trilinos_vector(), 1.);
         }
       else
         {
-          Assert(this->size() == down_V.size(),
-                 ExcDimensionMismatch(this->size(), down_V.size()));
+          Assert(this->size() == V.size(),
+                 ExcDimensionMismatch(this->size(), V.size()));
 
           // TODO: Tpetra doesn't have a combine mode that also updates local
           // elements, maybe there is a better workaround.
-          Tpetra::Vector<Number, int, types::global_dof_index> dummy(
+          Tpetra::Vector<Number, int, types::signed_global_dof_index> dummy(
             vector->getMap(), false);
-          Tpetra::Import<int, types::global_dof_index> data_exchange(
-            down_V.trilinos_vector().getMap(), dummy.getMap());
+          Tpetra::Import<int, types::signed_global_dof_index> data_exchange(
+            V.trilinos_vector().getMap(), dummy.getMap());
 
-          dummy.doImport(down_V.trilinos_vector(),
-                         data_exchange,
-                         Tpetra::INSERT);
+          dummy.doImport(V.trilinos_vector(), data_exchange, Tpetra::INSERT);
 
           vector->update(1.0, dummy, 1.0);
         }
@@ -290,7 +329,7 @@ namespace LinearAlgebra
 
     template <typename Number>
     Vector<Number> &
-    Vector<Number>::operator-=(const VectorSpaceVector<Number> &V)
+    Vector<Number>::operator-=(const Vector<Number> &V)
     {
       this->add(-1., V);
 
@@ -301,20 +340,14 @@ namespace LinearAlgebra
 
     template <typename Number>
     Number
-    Vector<Number>::operator*(const VectorSpaceVector<Number> &V) const
+    Vector<Number>::operator*(const Vector<Number> &V) const
     {
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&V) != nullptr,
-             ExcVectorTypeNotCompatible());
-
-      // Downcast V. If fails, throws an exception.
-      const Vector<Number> &down_V = dynamic_cast<const Vector<Number> &>(V);
-      Assert(this->size() == down_V.size(),
-             ExcDimensionMismatch(this->size(), down_V.size()));
-      Assert(vector->getMap()->isSameAs(*down_V.trilinos_vector().getMap()),
+      Assert(this->size() == V.size(),
+             ExcDimensionMismatch(this->size(), V.size()));
+      Assert(vector->getMap()->isSameAs(*V.trilinos_vector().getMap()),
              ExcDifferentParallelPartitioning());
 
-      return vector->dot(down_V.trilinos_vector());
+      return vector->dot(V.trilinos_vector());
     }
 
 
@@ -325,86 +358,72 @@ namespace LinearAlgebra
     {
       AssertIsFinite(a);
 
+#  if DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+      auto vector_2d = vector->template getLocalView<Kokkos::HostSpace>(
+        Tpetra::Access::ReadWrite);
+#  else
       vector->template sync<Kokkos::HostSpace>();
       auto vector_2d = vector->template getLocalView<Kokkos::HostSpace>();
+#  endif
       auto vector_1d = Kokkos::subview(vector_2d, Kokkos::ALL(), 0);
+#  if !DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
       vector->template modify<Kokkos::HostSpace>();
+#  endif
       const size_t localLength = vector->getLocalLength();
       for (size_t k = 0; k < localLength; ++k)
         {
           vector_1d(k) += a;
         }
+#  if !DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
       vector->template sync<
-        typename Tpetra::Vector<Number, int, types::global_dof_index>::
+        typename Tpetra::Vector<Number, int, types::signed_global_dof_index>::
           device_type::memory_space>();
+#  endif
     }
 
 
 
     template <typename Number>
     void
-    Vector<Number>::add(const Number a, const VectorSpaceVector<Number> &V)
+    Vector<Number>::add(const Number a, const Vector<Number> &V)
     {
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&V) != nullptr,
-             ExcVectorTypeNotCompatible());
-
-      // Downcast V. If fails, throws an exception.
-      const Vector<Number> &down_V = dynamic_cast<const Vector<Number> &>(V);
       AssertIsFinite(a);
-      Assert(vector->getMap()->isSameAs(*(down_V.trilinos_vector().getMap())),
+      Assert(vector->getMap()->isSameAs(*(V.trilinos_vector().getMap())),
              ExcDifferentParallelPartitioning());
 
-      vector->update(a, down_V.trilinos_vector(), 1.);
+      vector->update(a, V.trilinos_vector(), 1.);
     }
 
 
 
     template <typename Number>
     void
-    Vector<Number>::add(const Number                     a,
-                        const VectorSpaceVector<Number> &V,
-                        const Number                     b,
-                        const VectorSpaceVector<Number> &W)
+    Vector<Number>::add(const Number          a,
+                        const Vector<Number> &V,
+                        const Number          b,
+                        const Vector<Number> &W)
     {
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&V) != nullptr,
-             ExcVectorTypeNotCompatible());
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&W) != nullptr,
-             ExcVectorTypeNotCompatible());
-
-      // Downcast V. If fails, throws an exception.
-      const Vector<Number> &down_V = dynamic_cast<const Vector<Number> &>(V);
-      // Downcast W. If fails, throws an exception.
-      const Vector<Number> &down_W = dynamic_cast<const Vector<Number> &>(W);
-      Assert(vector->getMap()->isSameAs(*(down_V.trilinos_vector().getMap())),
+      Assert(vector->getMap()->isSameAs(*(V.trilinos_vector().getMap())),
              ExcDifferentParallelPartitioning());
-      Assert(vector->getMap()->isSameAs(*(down_W.trilinos_vector().getMap())),
+      Assert(vector->getMap()->isSameAs(*(W.trilinos_vector().getMap())),
              ExcDifferentParallelPartitioning());
       AssertIsFinite(a);
       AssertIsFinite(b);
 
-      vector->update(
-        a, down_V.trilinos_vector(), b, down_W.trilinos_vector(), 1.);
+      vector->update(a, V.trilinos_vector(), b, W.trilinos_vector(), 1.);
     }
 
 
 
     template <typename Number>
     void
-    Vector<Number>::sadd(const Number                     s,
-                         const Number                     a,
-                         const VectorSpaceVector<Number> &V)
+    Vector<Number>::sadd(const Number          s,
+                         const Number          a,
+                         const Vector<Number> &V)
     {
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&V) != nullptr,
-             ExcVectorTypeNotCompatible());
-
       *this *= s;
-      // Downcast V. It fails, throws an exception.
-      const Vector<Number> &down_V = dynamic_cast<const Vector<Number> &>(V);
-      Vector<Number>        tmp(down_V);
+
+      Vector<Number> tmp(V);
       tmp *= a;
       *this += tmp;
     }
@@ -413,45 +432,28 @@ namespace LinearAlgebra
 
     template <typename Number>
     void
-    Vector<Number>::scale(const VectorSpaceVector<Number> &scaling_factors)
+    Vector<Number>::scale(const Vector<Number> &scaling_factors)
     {
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&scaling_factors) != nullptr,
-             ExcVectorTypeNotCompatible());
-
-      // Downcast scaling_factors. If fails, throws an exception.
-      const Vector<Number> &down_scaling_factors =
-        dynamic_cast<const Vector<Number> &>(scaling_factors);
       Assert(vector->getMap()->isSameAs(
-               *(down_scaling_factors.trilinos_vector().getMap())),
+               *(scaling_factors.trilinos_vector().getMap())),
              ExcDifferentParallelPartitioning());
 
-      vector->elementWiseMultiply(1.,
-                                  *down_scaling_factors.vector,
-                                  *vector,
-                                  0.);
+      vector->elementWiseMultiply(1., *scaling_factors.vector, *vector, 0.);
     }
 
 
 
     template <typename Number>
     void
-    Vector<Number>::equ(const Number a, const VectorSpaceVector<Number> &V)
+    Vector<Number>::equ(const Number a, const Vector<Number> &V)
     {
-      // Check that casting will work.
-      Assert(dynamic_cast<const Vector<Number> *>(&V) != nullptr,
-             ExcVectorTypeNotCompatible());
-
-      // Downcast V. If fails, throws an exception.
-      const Vector<Number> &down_V = dynamic_cast<const Vector<Number> &>(V);
       // If we don't have the same map, copy.
-      if (vector->getMap()->isSameAs(*down_V.trilinos_vector().getMap()) ==
-          false)
+      if (vector->getMap()->isSameAs(*V.trilinos_vector().getMap()) == false)
         this->sadd(0., a, V);
       else
         {
           // Otherwise, just update
-          vector->update(a, down_V.trilinos_vector(), 0.);
+          vector->update(a, V.trilinos_vector(), 0.);
         }
     }
 
@@ -463,7 +465,7 @@ namespace LinearAlgebra
     {
       // get a representation of the vector and
       // loop over all the elements
-      Number *      start_ptr = vector->getDataNonConst().get();
+      Number       *start_ptr = vector->getDataNonConst().get();
       const Number *ptr       = start_ptr,
                    *eptr      = start_ptr + vector->getLocalLength();
       unsigned int flag       = 0;
@@ -500,7 +502,7 @@ namespace LinearAlgebra
 
 
     template <typename Number>
-    typename LinearAlgebra::VectorSpaceVector<Number>::real_type
+    typename Vector<Number>::real_type
     Vector<Number>::l1_norm() const
     {
       return vector->norm1();
@@ -509,7 +511,7 @@ namespace LinearAlgebra
 
 
     template <typename Number>
-    typename LinearAlgebra::VectorSpaceVector<Number>::real_type
+    typename Vector<Number>::real_type
     Vector<Number>::l2_norm() const
     {
       return vector->norm2();
@@ -518,7 +520,7 @@ namespace LinearAlgebra
 
 
     template <typename Number>
-    typename LinearAlgebra::VectorSpaceVector<Number>::real_type
+    typename Vector<Number>::real_type
     Vector<Number>::linfty_norm() const
     {
       return vector->normInf();
@@ -528,9 +530,9 @@ namespace LinearAlgebra
 
     template <typename Number>
     Number
-    Vector<Number>::add_and_dot(const Number                     a,
-                                const VectorSpaceVector<Number> &V,
-                                const VectorSpaceVector<Number> &W)
+    Vector<Number>::add_and_dot(const Number          a,
+                                const Vector<Number> &V,
+                                const Vector<Number> &W)
     {
       this->add(a, V);
 
@@ -561,8 +563,9 @@ namespace LinearAlgebra
     MPI_Comm
     Vector<Number>::get_mpi_communicator() const
     {
-      const auto tpetra_comm = dynamic_cast<const Teuchos::MpiComm<int> *>(
-        vector->getMap()->getComm().get());
+      const auto *const tpetra_comm =
+        dynamic_cast<const Teuchos::MpiComm<int> *>(
+          vector->getMap()->getComm().get());
       Assert(tpetra_comm != nullptr, ExcInternalError());
       return *(tpetra_comm->getRawMpiComm())();
     }
@@ -600,7 +603,13 @@ namespace LinearAlgebra
 
 
     template <typename Number>
-    const Tpetra::Vector<Number, int, types::global_dof_index> &
+    void
+    Vector<Number>::compress(const VectorOperation::values /*operation*/)
+    {}
+
+
+    template <typename Number>
+    const Tpetra::Vector<Number, int, types::signed_global_dof_index> &
     Vector<Number>::trilinos_vector() const
     {
       return *vector;
@@ -609,7 +618,7 @@ namespace LinearAlgebra
 
 
     template <typename Number>
-    Tpetra::Vector<Number, int, types::global_dof_index> &
+    Tpetra::Vector<Number, int, types::signed_global_dof_index> &
     Vector<Number>::trilinos_vector()
     {
       return *vector;
@@ -619,7 +628,7 @@ namespace LinearAlgebra
 
     template <typename Number>
     void
-    Vector<Number>::print(std::ostream &     out,
+    Vector<Number>::print(std::ostream      &out,
                           const unsigned int precision,
                           const bool         scientific,
                           const bool         across) const
@@ -637,9 +646,14 @@ namespace LinearAlgebra
       else
         out.setf(std::ios::fixed, std::ios::floatfield);
 
+#  if DEAL_II_TRILINOS_VERSION_GTE(13, 2, 0)
+      auto vector_2d = vector->template getLocalView<Kokkos::HostSpace>(
+        Tpetra::Access::ReadOnly);
+#  else
       vector->template sync<Kokkos::HostSpace>();
       auto vector_2d = vector->template getLocalView<Kokkos::HostSpace>();
-      auto vector_1d = Kokkos::subview(vector_2d, Kokkos::ALL(), 0);
+#  endif
+      auto         vector_1d    = Kokkos::subview(vector_2d, Kokkos::ALL(), 0);
       const size_t local_length = vector->getLocalLength();
 
       if (across)
@@ -671,7 +685,7 @@ namespace LinearAlgebra
     template <typename Number>
     void
     Vector<Number>::create_tpetra_comm_pattern(const IndexSet &source_index_set,
-                                               const MPI_Comm &mpi_comm)
+                                               const MPI_Comm  mpi_comm)
     {
       source_stored_elements = source_index_set;
       tpetra_comm_pattern =

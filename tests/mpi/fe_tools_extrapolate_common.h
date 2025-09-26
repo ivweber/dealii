@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2018 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,7 +43,7 @@
 
 #include "../tests.h"
 
-//#define DEBUG_OUTPUT_VTK
+// #define DEBUG_OUTPUT_VTK
 
 template <int dim>
 class TestFunction : public Function<dim>
@@ -97,7 +97,7 @@ make_tria()
 template <int dim>
 DoFHandler<dim> *
 make_dof_handler(const parallel::distributed::Triangulation<dim> &tria,
-                 const FiniteElement<dim> &                       fe)
+                 const FiniteElement<dim>                        &fe)
 {
   DoFHandler<dim> *dof_handler = new DoFHandler<dim>(tria);
   dof_handler->distribute_dofs(fe);
@@ -109,8 +109,8 @@ make_dof_handler(const parallel::distributed::Triangulation<dim> &tria,
 // output some indicators for a given vector
 template <unsigned int dim, typename VectorType>
 void
-output_vector(const VectorType &     v,
-              const std::string &    output_name,
+output_vector(const VectorType      &v,
+              const std::string     &output_name,
               const DoFHandler<dim> &dof_handler)
 {
   DataOut<dim> data_out;
@@ -124,21 +124,21 @@ output_vector(const VectorType &     v,
     (output_name + "." +
      Utilities::int_to_string(Utilities::MPI::this_mpi_process(MPI_COMM_WORLD),
                               1));
-  std::ofstream output((filename + ".vtu").c_str());
+  std::ofstream output(filename + ".vtu");
   data_out.write_vtu(output);
 }
 
 
 
 template <typename VectorType>
-typename std::enable_if<!IsBlockVector<VectorType>::value, VectorType>::type
+std::enable_if_t<!IsBlockVector<VectorType>::value, VectorType>
 build_ghosted(const IndexSet &owned_indices, const IndexSet &ghosted_indices)
 {
   return VectorType(owned_indices, ghosted_indices, MPI_COMM_WORLD);
 }
 
 template <typename VectorType>
-typename std::enable_if<IsBlockVector<VectorType>::value, VectorType>::type
+std::enable_if_t<IsBlockVector<VectorType>::value, VectorType>
 build_ghosted(const IndexSet &owned_indices, const IndexSet &ghosted_indices)
 {
   std::vector<IndexSet> owned_indices_vector(1, owned_indices);
@@ -151,14 +151,14 @@ build_ghosted(const IndexSet &owned_indices, const IndexSet &ghosted_indices)
 
 
 template <typename VectorType>
-typename std::enable_if<!IsBlockVector<VectorType>::value, VectorType>::type
+std::enable_if_t<!IsBlockVector<VectorType>::value, VectorType>
 build_distributed(const IndexSet &owned_indices)
 {
   return VectorType(owned_indices, MPI_COMM_WORLD);
 }
 
 template <typename VectorType>
-typename std::enable_if<IsBlockVector<VectorType>::value, VectorType>::type
+std::enable_if_t<IsBlockVector<VectorType>::value, VectorType>
 build_distributed(const IndexSet &owned_indices)
 {
   std::vector<IndexSet> owned_indices_vector(1, owned_indices);
@@ -200,12 +200,12 @@ check_this(const FiniteElement<dim> &fe1, const FiniteElement<dim> &fe2)
   DoFTools::make_hanging_node_constraints(*dof2, cm2);
   cm2.close();
 
-  IndexSet locally_owned_dofs1 = dof1->locally_owned_dofs();
-  IndexSet locally_relevant_dofs1;
-  DoFTools::extract_locally_relevant_dofs(*dof1, locally_relevant_dofs1);
-  IndexSet locally_owned_dofs2 = dof2->locally_owned_dofs();
-  IndexSet locally_relevant_dofs2;
-  DoFTools::extract_locally_relevant_dofs(*dof2, locally_relevant_dofs2);
+  const IndexSet &locally_owned_dofs1 = dof1->locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs1 =
+    DoFTools::extract_locally_relevant_dofs(*dof1);
+  const IndexSet &locally_owned_dofs2 = dof2->locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs2 =
+    DoFTools::extract_locally_relevant_dofs(*dof2);
 
   VectorType in_ghosted =
     build_ghosted<VectorType>(locally_owned_dofs1, locally_relevant_dofs1);
@@ -331,12 +331,12 @@ check_this_dealii(const FiniteElement<dim> &fe1, const FiniteElement<dim> &fe2)
   DoFTools::make_hanging_node_constraints(*dof2, cm2);
   cm2.close();
 
-  IndexSet locally_owned_dofs1 = dof1->locally_owned_dofs();
-  IndexSet locally_relevant_dofs1;
-  DoFTools::extract_locally_relevant_dofs(*dof1, locally_relevant_dofs1);
-  IndexSet locally_owned_dofs2 = dof2->locally_owned_dofs();
-  IndexSet locally_relevant_dofs2;
-  DoFTools::extract_locally_relevant_dofs(*dof2, locally_relevant_dofs2);
+  const IndexSet &locally_owned_dofs1 = dof1->locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs1 =
+    DoFTools::extract_locally_relevant_dofs(*dof1);
+  const IndexSet &locally_owned_dofs2 = dof2->locally_owned_dofs();
+  const IndexSet  locally_relevant_dofs2 =
+    DoFTools::extract_locally_relevant_dofs(*dof2);
 
   VectorType in_ghosted =
     build_ghosted<VectorType>(locally_owned_dofs1, locally_relevant_dofs1);

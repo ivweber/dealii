@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2018 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -70,6 +70,13 @@ test()
 
       // check that the two vectors are equal
       deallog << "Check 1: " << (v1 == v2 ? "true" : "false") << std::endl;
+
+      // print vectors
+      v1.print(deallog.get_file_stream(), 10, true, false);
+
+      // Extract the PETSc VECNEST and use print from PETScWrappers::VectorBase
+      PETScWrappers::VectorBase v1b(v1.petsc_vector());
+      v1b.print(deallog.get_file_stream(), 10, true, false);
     };
 
   // Check 2: loop forward and back
@@ -243,7 +250,7 @@ main(int argc, char **argv)
         test();
       }
     }
-  catch (std::exception &e)
+  catch (const std::exception &e)
     {
       std::cerr << std::endl
                 << std::endl

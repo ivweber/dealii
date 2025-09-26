@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2021 by the deal.II authors
+ * Copyright (C) 2009 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -165,7 +165,8 @@ namespace Step40
     dof_handler.distribute_dofs(fe);
 
     locally_owned_dofs = dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+    locally_relevant_dofs =
+      DoFTools::extract_locally_relevant_dofs(dof_handler);
 
     locally_relevant_solution.reinit(locally_owned_dofs,
                                      locally_relevant_dofs,
@@ -288,7 +289,7 @@ namespace Step40
                                            system_rhs,
                                            preconditioner),
                               solver_control.last_step(),
-                              5,
+                              1,
                               9);
 
     constraints.distribute(completely_distributed_solution);
@@ -340,12 +341,7 @@ namespace Step40
   void
   LaplaceProblem<dim>::run()
   {
-    deallog << "Running with "
-#ifdef USE_PETSC_LA
-            << "PETSc"
-#else
-            << "Trilinos"
-#endif
+    deallog << "Running "
             << " on " << Utilities::MPI::n_mpi_processes(mpi_communicator)
             << " MPI rank(s)..." << std::endl;
 
@@ -424,7 +420,7 @@ main(int argc, char *argv[])
       LaplaceProblem<2> laplace_problem_2d;
       laplace_problem_2d.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

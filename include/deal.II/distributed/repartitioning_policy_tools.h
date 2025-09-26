@@ -23,7 +23,7 @@
 DEAL_II_NAMESPACE_OPEN
 
 /**
- * A namespace with repartitioning policies. These classes return vectors of
+ * A namespace with repartitioning policies. These classes return vectors
  * of the new owners of the active locally owned and ghost cells of a
  * Triangulation object. The returned vectors can be used, e.g., in
  * TriangulationDescription::Utilities::create_description_from_triangulation()
@@ -163,8 +163,7 @@ namespace RepartitioningPolicyTools
     CellWeightPolicy(
       const std::function<unsigned int(
         const typename Triangulation<dim, spacedim>::cell_iterator &,
-        const typename Triangulation<dim, spacedim>::CellStatus)>
-        &weighting_function);
+        const CellStatus)> &weighting_function);
 
     virtual LinearAlgebra::distributed::Vector<double>
     partition(const Triangulation<dim, spacedim> &tria_in) const override;
@@ -175,7 +174,7 @@ namespace RepartitioningPolicyTools
      */
     const std::function<
       unsigned int(const typename Triangulation<dim, spacedim>::cell_iterator &,
-                   const typename Triangulation<dim, spacedim>::CellStatus)>
+                   const CellStatus)>
       weighting_function;
   };
 

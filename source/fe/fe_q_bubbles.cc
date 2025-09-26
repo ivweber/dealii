@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2021 by the deal.II authors
+// Copyright (C) 2012 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,7 +26,6 @@
 #include <deal.II/fe/fe_q_bubbles.h>
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
@@ -47,7 +46,7 @@ namespace internal
       template <int dim, int spacedim>
       inline void
       compute_embedding_matrices(
-        const dealii::FE_Q_Bubbles<dim, spacedim> &   fe,
+        const dealii::FE_Q_Bubbles<dim, spacedim>    &fe,
         std::vector<std::vector<FullMatrix<double>>> &matrices,
         const bool                                    isotropic_only)
       {
@@ -118,7 +117,7 @@ namespace internal
             tr.begin_active()->set_refine_flag(RefinementCase<dim>(ref_case));
             tr.execute_coarsening_and_refinement();
 
-            dealii::DoFHandler<dim, spacedim> dh(tr);
+            DoFHandler<dim, spacedim> dh(tr);
             dh.distribute_dofs(fe);
 
             dealii::FEValues<dim, spacedim> fine(get_default_linear_mapping(tr),
@@ -137,8 +136,8 @@ namespace internal
               nc, std::vector<types::global_dof_index>(fe.n_dofs_per_cell()));
 
             // now create the mass matrix and all the right_hand sides
-            unsigned int                                           child_no = 0;
-            typename dealii::DoFHandler<dim>::active_cell_iterator cell =
+            unsigned int                                   child_no = 0;
+            typename DoFHandler<dim>::active_cell_iterator cell =
               dh.begin_active();
             for (; cell != dh.end(); ++cell, ++child_no)
               {
@@ -356,7 +355,7 @@ void
 FE_Q_Bubbles<dim, spacedim>::
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const
+    std::vector<double>               &nodal_values) const
 {
   Assert(support_point_values.size() == this->unit_support_points.size(),
          ExcDimensionMismatch(support_point_values.size(),
@@ -385,7 +384,7 @@ template <int dim, int spacedim>
 void
 FE_Q_Bubbles<dim, spacedim>::get_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
-  FullMatrix<double> &                interpolation_matrix) const
+  FullMatrix<double>                 &interpolation_matrix) const
 {
   // We don't know how to do this properly, yet.
   // However, for SolutionTransfer to work we need to provide an implementation

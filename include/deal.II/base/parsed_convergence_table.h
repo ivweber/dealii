@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,15 +21,12 @@
 #include <deal.II/base/convergence_table.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/function_parser.h>
-#include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/quadrature_lib.h>
-#include <deal.II/base/utilities.h>
 
 #include <deal.II/dofs/dof_handler.h>
 
-#include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping.h>
 
-#include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 
 #include <deal.II/lac/vector.h>
@@ -37,6 +34,10 @@
 #include <deal.II/numerics/vector_tools_integrate_difference.h>
 
 DEAL_II_NAMESPACE_OPEN
+
+#ifndef DOXYGEN
+class ParameterHandler;
+#endif
 
 /**
  * @brief The ParsedConvergenceTable class
@@ -105,7 +106,7 @@ DEAL_II_NAMESPACE_OPEN
  * By calling the method add_parameters() passing a ParameterHandler object,
  * the following options will be defined in the given ParameterHandler object
  * (in the current level of the ParameterHandler object, i.e., whatever level
- * you have entered with the ParamterHandler::enter_subsection() method),
+ * you have entered with the ParameterHandler::enter_subsection() method),
  * and can be modified at run time through a parameter file:
  * @code
  * set Enable computation of the errors = true
@@ -172,7 +173,7 @@ public:
    * unique component name.
    */
   ParsedConvergenceTable(
-    const std::vector<std::string> &                    component_names = {"u"},
+    const std::vector<std::string>                     &component_names = {"u"},
     const std::vector<std::set<VectorTools::NormType>> &list_of_error_norms = {
       {VectorTools::H1_norm, VectorTools::L2_norm, VectorTools::Linfty_norm}});
 
@@ -241,13 +242,13 @@ public:
    * @endcode
    */
   ParsedConvergenceTable(
-    const std::vector<std::string> &                    component_names,
+    const std::vector<std::string>                     &component_names,
     const std::vector<std::set<VectorTools::NormType>> &list_of_error_norms,
     const double                                        exponent,
-    const std::set<std::string> &                       extra_columns,
-    const std::string &                                 rate_key,
-    const std::string &                                 rate_mode,
-    const std::string &                                 error_file_name,
+    const std::set<std::string>                        &extra_columns,
+    const std::string                                  &rate_key,
+    const std::string                                  &rate_mode,
+    const std::string                                  &error_file_name,
     const unsigned int                                  precision,
     const bool                                          compute_error);
 
@@ -273,20 +274,20 @@ public:
   template <int dim, int spacedim, typename VectorType>
   void
   error_from_exact(const DoFHandler<dim, spacedim> &vspace,
-                   const VectorType &               solution,
-                   const Function<spacedim> &       exact,
-                   const Function<spacedim> *       weight = nullptr);
+                   const VectorType                &solution,
+                   const Function<spacedim>        &exact,
+                   const Function<spacedim>        *weight = nullptr);
 
   /**
    * Same as above, with a different mapping.
    */
   template <int dim, int spacedim, typename VectorType>
   void
-  error_from_exact(const Mapping<dim, spacedim> &   mapping,
+  error_from_exact(const Mapping<dim, spacedim>    &mapping,
                    const DoFHandler<dim, spacedim> &vspace,
-                   const VectorType &               solution,
-                   const Function<spacedim> &       exact,
-                   const Function<spacedim> *       weight = nullptr);
+                   const VectorType                &solution,
+                   const Function<spacedim>        &exact,
+                   const Function<spacedim>        *weight = nullptr);
 
   /**
    * Add an additional column (with name @p column_name) to the table, by invoking
@@ -355,7 +356,7 @@ public:
    * key in the parameter file.
    */
   void
-  add_extra_column(const std::string &            column_name,
+  add_extra_column(const std::string             &column_name,
                    const std::function<double()> &custom_function,
                    const bool                     compute_rate = true);
 
@@ -481,9 +482,9 @@ private:
 template <int dim, int spacedim, typename VectorType>
 void
 ParsedConvergenceTable::difference(const DoFHandler<dim, spacedim> &dh,
-                                   const VectorType &               solution1,
-                                   const VectorType &               solution2,
-                                   const Function<spacedim> *       weight)
+                                   const VectorType                &solution1,
+                                   const VectorType                &solution2,
+                                   const Function<spacedim>        *weight)
 {
   AssertThrow(solution1.size() == solution2.size(),
               ExcDimensionMismatch(solution1.size(), solution2.size()));
@@ -500,11 +501,11 @@ ParsedConvergenceTable::difference(const DoFHandler<dim, spacedim> &dh,
 
 template <int dim, int spacedim, typename VectorType>
 void
-ParsedConvergenceTable::difference(const Mapping<dim, spacedim> &   mapping,
+ParsedConvergenceTable::difference(const Mapping<dim, spacedim>    &mapping,
                                    const DoFHandler<dim, spacedim> &dh,
-                                   const VectorType &               solution1,
-                                   const VectorType &               solution2,
-                                   const Function<spacedim> *       weight)
+                                   const VectorType                &solution1,
+                                   const VectorType                &solution2,
+                                   const Function<spacedim>        *weight)
 {
   AssertThrow(solution1.size() == solution2.size(),
               ExcDimensionMismatch(solution1.size(), solution2.size()));
@@ -523,7 +524,7 @@ ParsedConvergenceTable::difference(const Mapping<dim, spacedim> &   mapping,
 template <int dim, int spacedim, typename VectorType>
 void
 ParsedConvergenceTable::error_from_exact(const DoFHandler<dim, spacedim> &dh,
-                                         const VectorType &        solution,
+                                         const VectorType         &solution,
                                          const Function<spacedim> &exact,
                                          const Function<spacedim> *weight)
 {
@@ -540,7 +541,7 @@ template <int dim, int spacedim, typename VectorType>
 void
 ParsedConvergenceTable::error_from_exact(const Mapping<dim, spacedim> &mapping,
                                          const DoFHandler<dim, spacedim> &dh,
-                                         const VectorType &        solution,
+                                         const VectorType         &solution,
                                          const Function<spacedim> &exact,
                                          const Function<spacedim> *weight)
 {
@@ -608,9 +609,9 @@ ParsedConvergenceTable::error_from_exact(const Mapping<dim, spacedim> &mapping,
             continue;
 
           auto components_expr = zero_components;
-          for (unsigned int i = 0; i < n_components; ++i)
-            if (mask[i] == true)
-              components_expr[i] = weight_components[i];
+          for (unsigned int j = 0; j < n_components; ++j)
+            if (mask[j] == true)
+              components_expr[j] = weight_components[j];
 
           FunctionFromFunctionObjects<spacedim> select_component(
             components_expr);

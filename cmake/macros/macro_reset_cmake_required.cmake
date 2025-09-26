@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2013 - 2014 by the deal.II authors
+## Copyright (C) 2013 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -21,9 +21,9 @@
 #     RESET_CMAKE_REQUIRED_FLAGS
 #
 
-MACRO(RESET_CMAKE_REQUIRED)
-  SET(CMAKE_REQUIRED_FLAGS ${DEAL_II_CXX_FLAGS_SAVED})
-  SET(CMAKE_REQUIRED_INCLUDES)
-  SET(CMAKE_REQUIRED_LIBRARIES ${DEAL_II_LINKER_FLAGS_SAVED})
-ENDMACRO()
+macro(reset_cmake_required)
+  set(CMAKE_REQUIRED_FLAGS ${DEAL_II_CXX_FLAGS_SAVED})
+  set(CMAKE_REQUIRED_INCLUDES)
+  set(CMAKE_REQUIRED_LIBRARIES ${DEAL_II_LINKER_FLAGS_SAVED})
+endmacro()
 

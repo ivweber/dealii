@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,9 +19,9 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/smartpointer.h>
 #include <deal.II/base/table.h>
-#include <deal.II/base/thread_management.h>
 
 #include <deal.II/lac/lapack_support.h>
 #include <deal.II/lac/vector_memory.h>
@@ -62,7 +62,7 @@ public:
   /**
    * Declare type for container size.
    */
-  using size_type = std::make_unsigned<types::blas_int>::type;
+  using size_type = std::make_unsigned_t<types::blas_int>;
 
   /**
    * Constructor. Initialize the matrix as a square matrix with dimension
@@ -75,13 +75,11 @@ public:
    */
   explicit LAPACKFullMatrix(const size_type size = 0);
 
-
   /**
    * Constructor. Initialize the matrix as a rectangular matrix $\rm{rows}
    * \times \rm{cols}$.
    */
   LAPACKFullMatrix(const size_type rows, const size_type cols);
-
 
   /**
    * Copy constructor. This constructor does a deep copy of the matrix.
@@ -343,7 +341,7 @@ public:
    */
   template <typename number2>
   void
-  vmult(Vector<number2> &      w,
+  vmult(Vector<number2>       &w,
         const Vector<number2> &v,
         const bool             adding = false) const;
 
@@ -351,7 +349,7 @@ public:
    * Specialization of above function for compatible Vector::value_type.
    */
   void
-  vmult(Vector<number> &      w,
+  vmult(Vector<number>       &w,
         const Vector<number> &v,
         const bool            adding = false) const;
 
@@ -384,7 +382,7 @@ public:
    */
   template <typename number2>
   void
-  Tvmult(Vector<number2> &      w,
+  Tvmult(Vector<number2>       &w,
          const Vector<number2> &v,
          const bool             adding = false) const;
 
@@ -392,7 +390,7 @@ public:
    * Specialization of above function for compatible Vector::value_type.
    */
   void
-  Tvmult(Vector<number> &      w,
+  Tvmult(Vector<number>       &w,
          const Vector<number> &v,
          const bool            adding = false) const;
 
@@ -428,7 +426,7 @@ public:
    * @p This function uses the BLAS function Xgemm.
    */
   void
-  mmult(LAPACKFullMatrix<number> &      C,
+  mmult(LAPACKFullMatrix<number>       &C,
         const LAPACKFullMatrix<number> &B,
         const bool                      adding = false) const;
 
@@ -437,7 +435,7 @@ public:
    * LAPACKFullMatrix.
    */
   void
-  mmult(FullMatrix<number> &            C,
+  mmult(FullMatrix<number>             &C,
         const LAPACKFullMatrix<number> &B,
         const bool                      adding = false) const;
 
@@ -456,7 +454,7 @@ public:
    * @note This function uses the BLAS function Xgemm.
    */
   void
-  Tmmult(LAPACKFullMatrix<number> &      C,
+  Tmmult(LAPACKFullMatrix<number>       &C,
          const LAPACKFullMatrix<number> &B,
          const bool                      adding = false) const;
 
@@ -465,7 +463,7 @@ public:
    * LAPACKFullMatrix.
    */
   void
-  Tmmult(FullMatrix<number> &            C,
+  Tmmult(FullMatrix<number>             &C,
          const LAPACKFullMatrix<number> &B,
          const bool                      adding = false) const;
 
@@ -481,13 +479,14 @@ public:
    * @note It is assumed that @p A, @p B and @p V have compatible sizes and that
    * @p C already has the right size.
    *
-   * @note This function is not provided by LAPACK. The function first forms $\rm{diag}(\mathbf V) \cdot \mathbf B$ product and
-   * then uses Xgemm function.
+   * @note This function is not provided by LAPACK. The function first forms
+   * $\rm{diag}(\mathbf V) \cdot \mathbf B$ product and then uses the Xgemm
+   * function.
    */
   void
-  Tmmult(LAPACKFullMatrix<number> &      C,
+  Tmmult(LAPACKFullMatrix<number>       &C,
          const LAPACKFullMatrix<number> &B,
-         const Vector<number> &          V,
+         const Vector<number>           &V,
          const bool                      adding = false) const;
 
   /**
@@ -505,7 +504,7 @@ public:
    * @note This function uses the BLAS function Xgemm.
    */
   void
-  mTmult(LAPACKFullMatrix<number> &      C,
+  mTmult(LAPACKFullMatrix<number>       &C,
          const LAPACKFullMatrix<number> &B,
          const bool                      adding = false) const;
 
@@ -514,7 +513,7 @@ public:
    * LAPACKFullMatrix.
    */
   void
-  mTmult(FullMatrix<number> &            C,
+  mTmult(FullMatrix<number>             &C,
          const LAPACKFullMatrix<number> &B,
          const bool                      adding = false) const;
 
@@ -534,7 +533,7 @@ public:
    * @note This function uses the BLAS function Xgemm.
    */
   void
-  TmTmult(LAPACKFullMatrix<number> &      C,
+  TmTmult(LAPACKFullMatrix<number>       &C,
           const LAPACKFullMatrix<number> &B,
           const bool                      adding = false) const;
 
@@ -543,7 +542,7 @@ public:
    * LAPACKFullMatrix.
    */
   void
-  TmTmult(FullMatrix<number> &            C,
+  TmTmult(FullMatrix<number>             &C,
           const LAPACKFullMatrix<number> &B,
           const bool                      adding = false) const;
 
@@ -718,7 +717,7 @@ public:
   compute_eigenvalues_symmetric(const number        lower_bound,
                                 const number        upper_bound,
                                 const number        abs_accuracy,
-                                Vector<number> &    eigenvalues,
+                                Vector<number>     &eigenvalues,
                                 FullMatrix<number> &eigenvectors);
 
   /**
@@ -749,11 +748,11 @@ public:
    */
   void
   compute_generalized_eigenvalues_symmetric(
-    LAPACKFullMatrix<number> &   B,
+    LAPACKFullMatrix<number>    &B,
     const number                 lower_bound,
     const number                 upper_bound,
     const number                 abs_accuracy,
-    Vector<number> &             eigenvalues,
+    Vector<number>              &eigenvalues,
     std::vector<Vector<number>> &eigenvectors,
     const types::blas_int        itype = 1);
 
@@ -774,7 +773,7 @@ public:
    */
   void
   compute_generalized_eigenvalues_symmetric(
-    LAPACKFullMatrix<number> &   B,
+    LAPACKFullMatrix<number>    &B,
     std::vector<Vector<number>> &eigenvectors,
     const types::blas_int        itype = 1);
 
@@ -794,7 +793,7 @@ public:
    * values of A. V is a NxN orthonal matrix containing the right singular
    * vectors corresponding the singular values of A.
    *
-   * Note that the variable #svd_vt contains the tranpose of V and can be
+   * Note that the variable #svd_vt contains the transpose of V and can be
    * accessed by get_svd_vt(), while U is accessed with get_svd_u().
    */
   void
@@ -830,10 +829,33 @@ public:
   compute_inverse_svd_with_kernel(const unsigned int kernel_size);
 
   /**
-   * Retrieve eigenvalue after compute_eigenvalues() was called.
+   * Retrieve eigenvalue after compute_eigenvalues() was called. The return
+   * type is always a complex number: In case the underlying matrix is
+   * real-valued, the type `std::complex<number>` is returned, whereas
+   * `number` is returned for complex numbers.
    */
-  std::complex<number>
+  std::complex<typename numbers::NumberTraits<number>::real_type>
   eigenvalue(const size_type i) const;
+
+  /**
+   * After a call to compute_eigenvalues(), this function returns the $n\times
+   * n$ matrix of (right) eigenvectors in a decomposition of the form $A V = V
+   * \Lambda$. Note that this function constructs the associated matrix on the
+   * fly, since LAPACK packs complex-conjugate eigenvalue/eigenvector pairs of
+   * real-valued matrices into a real-valued return matrix. This call only
+   * succeeds in case the respective flag `right_eigenvectors` in
+   * compute_eigenvalues() has been set to true.
+   */
+  FullMatrix<std::complex<typename numbers::NumberTraits<number>::real_type>>
+  get_right_eigenvectors() const;
+
+  /**
+   * Return the matrix of left eigenvectors after a call to
+   * compute_eigenvalues(), following the same principles as
+   * get_right_eigenvectors().
+   */
+  FullMatrix<std::complex<typename numbers::NumberTraits<number>::real_type>>
+  get_left_eigenvectors() const;
 
   /**
    * Retrieve singular values after compute_svd() or compute_inverse_svd() was
@@ -885,11 +907,11 @@ public:
    * function is not allowed.
    */
   void
-  print_formatted(std::ostream &     out,
+  print_formatted(std::ostream      &out,
                   const unsigned int precision   = 3,
                   const bool         scientific  = true,
                   const unsigned int width       = 0,
-                  const char *       zero_string = " ",
+                  const char        *zero_string = " ",
                   const double       denominator = 1.,
                   const double       threshold   = 0.) const;
 
@@ -972,7 +994,7 @@ private:
   /**
    * Thread mutex.
    */
-  mutable std::mutex mutex;
+  mutable Threads::Mutex mutex;
 };
 
 
@@ -1016,6 +1038,7 @@ LAPACKFullMatrix<number>::set(const size_type i,
 }
 
 
+
 template <typename number>
 inline typename LAPACKFullMatrix<number>::size_type
 LAPACKFullMatrix<number>::m() const
@@ -1023,12 +1046,16 @@ LAPACKFullMatrix<number>::m() const
   return static_cast<size_type>(this->n_rows());
 }
 
+
+
 template <typename number>
 inline typename LAPACKFullMatrix<number>::size_type
 LAPACKFullMatrix<number>::n() const
 {
   return static_cast<size_type>(this->n_cols());
 }
+
+
 
 template <typename number>
 template <typename MatrixType>
@@ -1088,6 +1115,7 @@ LAPACKFullMatrix<number>::fill(const MatrixType &M,
 }
 
 
+
 template <typename number>
 template <typename number2>
 void
@@ -1101,6 +1129,7 @@ LAPACKFullMatrix<number>::vmult(Vector<number2> &,
 }
 
 
+
 template <typename number>
 template <typename number2>
 void
@@ -1111,6 +1140,7 @@ LAPACKFullMatrix<number>::vmult_add(Vector<number2> &,
          ExcMessage("LAPACKFullMatrix<number>::vmult_add must be called with a "
                     "matching Vector<double> vector type."));
 }
+
 
 
 template <typename number>
@@ -1126,6 +1156,7 @@ LAPACKFullMatrix<number>::Tvmult(Vector<number2> &,
 }
 
 
+
 template <typename number>
 template <typename number2>
 void
@@ -1133,14 +1164,38 @@ LAPACKFullMatrix<number>::Tvmult_add(Vector<number2> &,
                                      const Vector<number2> &) const
 {
   Assert(false,
-         ExcMessage(
-           "LAPACKFullMatrix<number>::Tvmult_add must be called with a "
-           "matching Vector<double> vector type."));
+         ExcMessage("LAPACKFullMatrix<number>::Tvmult_add must be called "
+                    "with a matching Vector<double> vector type."));
 }
 
 
+
+namespace internal
+{
+  namespace LAPACKFullMatrixImplementation
+  {
+    template <typename RealNumber>
+    std::complex<RealNumber>
+    pack_complex(const RealNumber &real_part, const RealNumber &imaginary_part)
+    {
+      return std::complex<RealNumber>(real_part, imaginary_part);
+    }
+
+    // The eigenvalues in LAPACKFullMatrix with complex-valued matrices are
+    // contained in the 'wi' array, ignoring the 'wr' array.
+    template <typename Number>
+    std::complex<Number>
+    pack_complex(const Number &, const std::complex<Number> &complex_number)
+    {
+      return complex_number;
+    }
+  } // namespace LAPACKFullMatrixImplementation
+} // namespace internal
+
+
+
 template <typename number>
-inline std::complex<number>
+inline std::complex<typename numbers::NumberTraits<number>::real_type>
 LAPACKFullMatrix<number>::eigenvalue(const size_type i) const
 {
   Assert(state & LAPACKSupport::eigenvalues, ExcInvalidState());
@@ -1148,11 +1203,9 @@ LAPACKFullMatrix<number>::eigenvalue(const size_type i) const
   Assert(wi.size() == this->n_rows(), ExcInternalError());
   AssertIndexRange(i, this->n_rows());
 
-  if (numbers::NumberTraits<number>::is_complex)
-    return std::complex<number>(wi[i]);
-  else
-    return std::complex<number>(wr[i], wi[i]);
+  return internal::LAPACKFullMatrixImplementation::pack_complex(wr[i], wi[i]);
 }
+
 
 
 template <typename number>
@@ -1167,6 +1220,7 @@ LAPACKFullMatrix<number>::singular_value(const size_type i) const
 }
 
 
+
 template <typename number>
 inline const LAPACKFullMatrix<number> &
 LAPACKFullMatrix<number>::get_svd_u() const
@@ -1176,6 +1230,7 @@ LAPACKFullMatrix<number>::get_svd_u() const
 
   return *svd_u;
 }
+
 
 
 template <typename number>

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -52,9 +52,9 @@ public:
 
   void
   local_mass_operator(
-    const MatrixFree<dim, Number> &              data,
-    VectorType &                                 dst,
-    const VectorType &                           src,
+    const MatrixFree<dim, Number>               &data,
+    VectorType                                  &dst,
+    const VectorType                            &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, -1, 0, dim, Number> fe_eval(data);
@@ -74,9 +74,9 @@ public:
 
   void
   local_inverse_mass_operator(
-    const MatrixFree<dim, Number> &              data,
-    VectorType &                                 dst,
-    const VectorType &                           src,
+    const MatrixFree<dim, Number>               &data,
+    VectorType                                  &dst,
+    const VectorType                            &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, -1, 0, dim, Number> fe_eval(data);
@@ -134,7 +134,7 @@ do_test(const DoFHandler<dim> &dof)
     data.tasks_block_size = 3;
     AffineConstraints<double> constraints;
 
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   MatrixFreeTest<dim, number> mf(mf_data);

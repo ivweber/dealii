@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2019 by the deal.II Authors
+// Copyright (C) 2015 - 2022 by the deal.II Authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,9 +31,8 @@
 
 // This function initializes a container of Number type
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, std::vector<Number>>::value,
-  Container<Number>>::type
+std::enable_if_t<std::is_same_v<Container<Number>, std::vector<Number>>,
+                 Container<Number>>
 initialize_container(std::vector<hsize_t> dimensions)
 {
   return Container<Number>(std::accumulate(
@@ -43,8 +42,8 @@ initialize_container(std::vector<hsize_t> dimensions)
 
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<std::is_same<Container<Number>, Vector<Number>>::value,
-                        Container<Number>>::type
+std::enable_if_t<std::is_same_v<Container<Number>, Vector<Number>>,
+                 Container<Number>>
 initialize_container(std::vector<hsize_t> dimensions)
 {
   return Container<Number>(std::accumulate(
@@ -54,9 +53,8 @@ initialize_container(std::vector<hsize_t> dimensions)
 
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, FullMatrix<Number>>::value,
-  Container<Number>>::type
+std::enable_if_t<std::is_same_v<Container<Number>, FullMatrix<Number>>,
+                 Container<Number>>
 initialize_container(std::vector<hsize_t> dimensions)
 {
   return FullMatrix<Number>(dimensions[0], dimensions[1]);
@@ -66,9 +64,7 @@ initialize_container(std::vector<hsize_t> dimensions)
 
 // This function assigns data to the elements of the container
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, std::vector<Number>>::value,
-  void>::type
+std::enable_if_t<std::is_same_v<Container<Number>, std::vector<Number>>, void>
 assign_data(Container<Number> &data)
 {
   for (unsigned int idx = 0; idx < data.size(); ++idx)
@@ -80,8 +76,7 @@ assign_data(Container<Number> &data)
 
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<std::is_same<Container<Number>, Vector<Number>>::value,
-                        void>::type
+std::enable_if_t<std::is_same_v<Container<Number>, Vector<Number>>, void>
 assign_data(Container<Number> &data)
 {
   for (unsigned int idx = 0; idx < data.size(); ++idx)
@@ -93,9 +88,7 @@ assign_data(Container<Number> &data)
 
 
 template <template <class...> class Container, typename Number>
-typename std::enable_if<
-  std::is_same<Container<Number>, FullMatrix<Number>>::value,
-  void>::type
+std::enable_if_t<std::is_same_v<Container<Number>, FullMatrix<Number>>, void>
 assign_data(Container<Number> &data)
 {
   for (unsigned int row_idx = 0; row_idx < data.m(); ++row_idx)
@@ -180,27 +173,27 @@ type_to_string()
 {
   std::string type_name;
 
-  if (std::is_same<Number, float>::value)
+  if (std::is_same_v<Number, float>)
     {
       type_name = std::string("float");
     }
-  else if (std::is_same<Number, double>::value)
+  else if (std::is_same_v<Number, double>)
     {
       type_name = std::string("double");
     }
-  else if (std::is_same<Number, std::complex<float>>::value)
+  else if (std::is_same_v<Number, std::complex<float>>)
     {
       type_name = std::string("std::complex<float>");
     }
-  else if (std::is_same<Number, std::complex<double>>::value)
+  else if (std::is_same_v<Number, std::complex<double>>)
     {
       type_name = std::string("std::complex<double>");
     }
-  else if (std::is_same<Number, int>::value)
+  else if (std::is_same_v<Number, int>)
     {
       type_name = std::string("int");
     }
-  else if (std::is_same<Number, unsigned int>::value)
+  else if (std::is_same_v<Number, unsigned int>)
     {
       type_name = std::string("unsigned int");
     }
@@ -213,7 +206,7 @@ type_to_string()
 // This function tests parallel write and gets the group by reference
 template <typename Number>
 void
-write_test(HDF5::Group &      root_group,
+write_test(HDF5::Group       &root_group,
            MPI_Comm           mpi_communicator,
            ConditionalOStream pcout)
 {
@@ -561,7 +554,7 @@ write_test(HDF5::Group &      root_group,
                                             0, // fourth point
                                             0,
                                             0,
-                                            3}; // fith point
+                                            3}; // fifth point
         std::vector<Number>  data        = {32, 33, 35, 36, 38};
 
         dataset.write_selection(data, coordinates);
@@ -781,7 +774,7 @@ write_test(HDF5::Group &      root_group,
                                             0, // fourth point
                                             0,
                                             0,
-                                            3}; // fith point
+                                            3}; // fifth point
         Vector<Number>       data(5);
         data[0] = 32;
         data[1] = 33;
@@ -1092,7 +1085,7 @@ read_test(HDF5::Group        root_group,
                                           1, // fourth point
                                           0,
                                           3,
-                                          2}; // fith point
+                                          2}; // fifth point
 
       auto data = dataset.read_selection<std::vector<Number>>(coordinates);
 
@@ -1126,7 +1119,7 @@ read_test(HDF5::Group        root_group,
                                           1, // fourth point
                                           0,
                                           3,
-                                          2}; // fith point
+                                          2}; // fifth point
 
       auto data = dataset.read_selection<Vector<Number>>(coordinates);
 
@@ -1388,7 +1381,7 @@ main(int argc, char **argv)
 #endif
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

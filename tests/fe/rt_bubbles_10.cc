@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,8 +44,6 @@
 #define PRECISION 5
 
 
-std::ofstream logfile("output");
-
 template <int dim>
 void
 test(const unsigned int degree)
@@ -88,9 +86,9 @@ test(const unsigned int degree)
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(PRECISION);
   deallog << std::fixed;
-  deallog.attach(logfile);
 
   for (unsigned int i = 1; i < 4; ++i)
     {

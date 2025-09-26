@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2021 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,7 +20,7 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/mg_level_object.h>
-#include <deal.II/base/thread_management.h>
+#include <deal.II/base/mutex.h>
 
 #include <deal.II/dofs/dof_handler.h>
 
@@ -36,58 +36,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup mapping */
-/*@{*/
-
 /**
- * @deprecated Use MappingFEField<dim, spacedim, VectorType> instead.
+ * @addtogroup mapping
+ * @{
  */
-template <int dim,
-          int spacedim            = dim,
-          typename VectorType     = Vector<double>,
-          typename DoFHandlerType = void>
-class MappingFEField;
-
-#ifndef DOXYGEN
-// prevent doxygen from complaining about potential recursive class relations
-template <int dim, int spacedim, typename VectorType, typename DoFHandlerType>
-class MappingFEField : public MappingFEField<dim, spacedim, VectorType, void>
-{
-public:
-  DEAL_II_DEPRECATED
-  MappingFEField(const DoFHandlerType &euler_dof_handler,
-                 const VectorType &    euler_vector,
-                 const ComponentMask & mask = ComponentMask())
-    : MappingFEField<dim, spacedim, VectorType, void>(euler_dof_handler,
-                                                      euler_vector,
-                                                      mask)
-  {}
-
-  DEAL_II_DEPRECATED
-  MappingFEField(const DoFHandlerType &         euler_dof_handler,
-                 const std::vector<VectorType> &euler_vector,
-                 const ComponentMask &          mask = ComponentMask())
-    : MappingFEField<dim, spacedim, VectorType, void>(euler_dof_handler,
-                                                      euler_vector,
-                                                      mask)
-  {}
-
-  DEAL_II_DEPRECATED
-  MappingFEField(const DoFHandlerType &           euler_dof_handler,
-                 const MGLevelObject<VectorType> &euler_vector,
-                 const ComponentMask &            mask = ComponentMask())
-    : MappingFEField<dim, spacedim, VectorType, void>(euler_dof_handler,
-                                                      euler_vector,
-                                                      mask)
-  {}
-
-  DEAL_II_DEPRECATED
-  MappingFEField(
-    const MappingFEField<dim, spacedim, VectorType, DoFHandlerType> &mapping)
-    : MappingFEField<dim, spacedim, VectorType, void>(mapping)
-  {}
-};
-#endif // DOXYGEN
 
 /**
  * The MappingFEField is a generalization of the MappingQEulerian class, for
@@ -124,9 +76,8 @@ public:
  *    MappingFEField<dim,spacedim> map(dhq, eulerq, mask);
  * @endcode
  */
-template <int dim, int spacedim, typename VectorType>
-class MappingFEField<dim, spacedim, VectorType, void>
-  : public Mapping<dim, spacedim>
+template <int dim, int spacedim = dim, typename VectorType = Vector<double>>
+class MappingFEField : public Mapping<dim, spacedim>
 {
 public:
   /**
@@ -162,8 +113,8 @@ public:
    * If an incompatible mask is passed, an exception is thrown.
    */
   MappingFEField(const DoFHandler<dim, spacedim> &euler_dof_handler,
-                 const VectorType &               euler_vector,
-                 const ComponentMask &            mask = ComponentMask());
+                 const VectorType                &euler_vector,
+                 const ComponentMask             &mask = {});
 
   /**
    * Constructor taking vectors on the multigrid levels rather than the active
@@ -175,8 +126,8 @@ public:
    * the other constructor need to be provided.
    */
   MappingFEField(const DoFHandler<dim, spacedim> &euler_dof_handler,
-                 const std::vector<VectorType> &  euler_vector,
-                 const ComponentMask &            mask = ComponentMask());
+                 const std::vector<VectorType>   &euler_vector,
+                 const ComponentMask             &mask = {});
 
   /**
    * Constructor with MGLevelObject instead of std::vector, otherwise the same
@@ -187,13 +138,12 @@ public:
    */
   MappingFEField(const DoFHandler<dim, spacedim> &euler_dof_handler,
                  const MGLevelObject<VectorType> &euler_vector,
-                 const ComponentMask &            mask = ComponentMask());
+                 const ComponentMask             &mask = {});
 
   /**
    * Copy constructor.
    */
-  MappingFEField(
-    const MappingFEField<dim, spacedim, VectorType, void> &mapping);
+  MappingFEField(const MappingFEField<dim, spacedim, VectorType> &mapping);
 
   /**
    * Return a pointer to a copy of the present object. The caller of this copy
@@ -253,7 +203,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<1, dim>> &                  input,
+  transform(const ArrayView<const Tensor<1, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<1, spacedim>> &output) const override;
@@ -267,7 +217,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<2, dim>> &                  input,
+  transform(const ArrayView<const Tensor<2, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<2, spacedim>> &output) const override;
@@ -281,7 +231,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<3, dim>> &                  input,
+  transform(const ArrayView<const Tensor<3, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<3, spacedim>> &output) const override;
@@ -338,7 +288,7 @@ public:
      * Constructor.
      */
     InternalData(const FiniteElement<dim, spacedim> &fe,
-                 const ComponentMask &               mask);
+                 const ComponentMask                &mask);
 
     /**
      * Shape function at quadrature point. Shape functions are in tensor
@@ -556,8 +506,8 @@ protected:
   fill_fe_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const CellSimilarity::Similarity                            cell_similarity,
-    const Quadrature<dim> &                                     quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
+    const Quadrature<dim>                                      &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
     internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
@@ -568,8 +518,8 @@ protected:
   fill_fe_face_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const unsigned int                                          face_no,
-    const hp::QCollection<dim - 1> &                            quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
+    const hp::QCollection<dim - 1>                             &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
     internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
@@ -579,8 +529,16 @@ protected:
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const unsigned int                                          face_no,
     const unsigned int                                          subface_no,
-    const Quadrature<dim - 1> &                                 quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
+    const Quadrature<dim - 1>                                  &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+      &output_data) const override;
+
+  virtual void
+  fill_fe_immersed_surface_values(
+    const typename Triangulation<dim, spacedim>::cell_iterator &cell,
+    const NonMatching::ImmersedSurfaceQuadrature<dim>          &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
     internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
@@ -603,15 +561,15 @@ protected:
   /**
    * Reference to the vector of shifts.
    */
-  std::vector<SmartPointer<const VectorType,
-                           MappingFEField<dim, spacedim, VectorType, void>>>
+  std::vector<
+    SmartPointer<const VectorType, MappingFEField<dim, spacedim, VectorType>>>
     euler_vector;
 
   /**
    * Pointer to the DoFHandler to which the mapping vector is associated.
    */
   SmartPointer<const DoFHandler<dim, spacedim>,
-               MappingFEField<dim, spacedim, VectorType, void>>
+               MappingFEField<dim, spacedim, VectorType>>
     euler_dof_handler;
 
 private:
@@ -651,9 +609,9 @@ private:
   Point<dim>
   do_transform_real_to_unit_cell(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-    const Point<spacedim> &                                     p,
-    const Point<dim> &                                          initial_p_unit,
-    InternalData &                                              mdata) const;
+    const Point<spacedim>                                      &p,
+    const Point<dim>                                           &initial_p_unit,
+    InternalData                                               &mdata) const;
 
   /**
    * Update internal degrees of freedom.
@@ -661,7 +619,7 @@ private:
   void
   update_internal_dofs(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-    const typename MappingFEField<dim, spacedim, VectorType, void>::InternalData
+    const typename MappingFEField<dim, spacedim, VectorType>::InternalData
       &data) const;
 
   /**
@@ -670,8 +628,8 @@ private:
   virtual void
   compute_shapes_virtual(
     const std::vector<Point<dim>> &unit_points,
-    typename MappingFEField<dim, spacedim, VectorType, void>::InternalData
-      &data) const;
+    typename MappingFEField<dim, spacedim, VectorType>::InternalData &data)
+    const;
 
   /*
    * Which components to use for the mapping.
@@ -698,27 +656,27 @@ private:
   /**
    * A variable to guard access to the fe_values variable.
    */
-  mutable std::mutex fe_values_mutex;
+  mutable Threads::Mutex fe_values_mutex;
 
   void
   compute_data(const UpdateFlags      update_flags,
                const Quadrature<dim> &q,
                const unsigned int     n_original_q_points,
-               InternalData &         data) const;
+               InternalData          &data) const;
 
   void
   compute_face_data(const UpdateFlags      update_flags,
                     const Quadrature<dim> &q,
                     const unsigned int     n_original_q_points,
-                    InternalData &         data) const;
+                    InternalData          &data) const;
 
 
   // Declare other MappingFEField classes friends.
-  template <int, int, class, class>
+  template <int, int, class>
   friend class MappingFEField;
 };
 
-/*@}*/
+/** @} */
 
 /* -------------- declaration of explicit specializations ------------- */
 

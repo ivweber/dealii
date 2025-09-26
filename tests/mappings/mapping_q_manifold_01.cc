@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2020 by the deal.II authors
+// Copyright (C) 2016 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -149,7 +149,7 @@ VectorFunction<dim>::value(const Point<dim> &p, Vector<double> &values) const
 template <int dim>
 void
 VectorFunction<dim>::vector_value(const Point<dim> &p,
-                                  Vector<double> &  values) const
+                                  Vector<double>   &values) const
 {
   for (int i = 0; i < dim; ++i)
     values(i) = value(p, i);

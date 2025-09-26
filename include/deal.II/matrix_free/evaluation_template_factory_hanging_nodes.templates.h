@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,9 +36,9 @@ namespace internal
     const unsigned int                                         fe_degree,
     const MatrixFreeFunctions::ShapeInfo<VectorizedArrayType> &shape_info,
     const bool                                                 transpose,
-    const std::array<MatrixFreeFunctions::ConstraintKinds,
-                     VectorizedArrayType::size()> &            c_mask,
-    VectorizedArrayType *                                      values)
+    const std::array<MatrixFreeFunctions::compressed_constraint_kind,
+                     VectorizedArrayType::size()>             &c_mask,
+    VectorizedArrayType                                       *values)
   {
     instantiation_helper_degree_run<
       1,

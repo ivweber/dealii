@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 - 2022 by the deal.II authors
+// Copyright (C) 2023 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,6 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
+#include <deal.II/base/config.h>
+
 #include <deal.II/base/quadrature.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/table.h>
@@ -20,18 +22,20 @@
 
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/fe/fe_face.h>
 #include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/fe_face.h>
+#include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_pyramid_p.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_simplex_p.h>
 #include <deal.II/fe/fe_simplex_p_bubbles.h>
-#include <deal.II/fe/fe_wedge_p.h>
-#include <deal.II/fe/fe_hermite.h>
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/fe_wedge_p.h>
 #include <deal.II/fe/mapping_cartesian.h>
+
+#include <deal.II/grid/reference_cell.h>
 
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/precondition.h>
@@ -56,20 +60,16 @@ DEAL_II_NAMESPACE_OPEN
 
 
 
-/*
- * In the future it may be possible to relax the restrictions on mappings
- * that can be used with FE_Hermite and implement these in a mapping
- * class, so the name MappingHermite is used in some places. At the moment
- * this has not been investigated properly, so MappingHermite is defined
- * here as an alias for MappingCartesian.
- */
-template <int dim, int spacedim = dim>
-using MappingHermite = MappingCartesian<dim>;
-
-
-
 namespace internal
 {
+  inline unsigned int
+  get_regularity_from_degree(const unsigned int fe_degree)
+  {
+    return (fe_degree == 0) ? 0 : (fe_degree - 1) / 2;
+  }
+
+
+
   inline std::vector<unsigned int>
   get_hermite_dpo_vector(const unsigned int dim, const unsigned int regularity)
   {
@@ -212,32 +212,18 @@ namespace internal
 
   template <int dim>
   TensorProductPolynomials<dim>
-  get_hermite_polynomials(const unsigned int regularity)
+  get_hermite_polynomials(const unsigned int fe_degree)
   {
-    TensorProductPolynomials<dim> poly_space(
-      Polynomials::HermitePoly::generate_complete_basis(regularity));
+    const unsigned int regularity = get_regularity_from_degree(fe_degree);
+
+    TensorProductPolynomials<dim> polynomial_basis(
+      Polynomials::PolynomialsHermite::generate_complete_basis(regularity));
 
     std::vector<unsigned int> renumber =
       internal::hermite_hierarchic_to_lexicographic_numbering<dim>(regularity);
-    poly_space.set_numbering(renumber);
+    polynomial_basis.set_numbering(renumber);
 
-    return poly_space;
-  }
-
-
-
-  static inline unsigned int
-  binomial(const unsigned int n, const unsigned int i)
-  {
-    unsigned int C = 1, k = 1;
-
-    for (unsigned int j = n; j > i; --j)
-      {
-        C *= j;
-        C /= k++;
-      }
-
-    return C;
+    return polynomial_basis;
   }
 
 
@@ -252,38 +238,20 @@ namespace internal
   class Rescaler
   {
   public:
-    void
-    rescale_fe_hermite_values(
-      const FE_Hermite<xdim, xspacedim> &                        fe_herm,
-      const typename Mapping<xdim, xspacedim>::InternalDataBase &mapping_data,
-      Table<2, xNumber> &                                        value_list);
-
-
-
     template <int spacedim, typename Number>
     void
     rescale_fe_hermite_values(
       Rescaler<1, spacedim, Number> & /*rescaler*/,
-      const FE_Hermite<1, spacedim> &                        fe_herm,
+      const FE_Hermite<1, spacedim>                         &fe_herm,
       const typename Mapping<1, spacedim>::InternalDataBase &mapping_data,
-      Table<2, Number> &                                     value_list)
+      Table<2, Number>                                      &value_list)
     {
       unsigned int n_q_points;
       double       cell_extent = 1.0;
 
       // Check mapping_data is associated with a compatible mapping class
-      if (dynamic_cast<const typename MappingHermite<1, spacedim>::InternalData
-                         *>(&mapping_data) != nullptr)
-        {
-          const typename MappingHermite<1, spacedim>::InternalData *data =
-            dynamic_cast<
-              const typename MappingHermite<1, spacedim>::InternalData *>(
-              &mapping_data);
-          n_q_points  = data->quadrature_points.size();
-          cell_extent = data->cell_extents[0];
-        }
-      else if (dynamic_cast<const typename MappingCartesian<1>::InternalData *>(
-                 &mapping_data) != nullptr)
+      if (dynamic_cast<const typename MappingCartesian<1>::InternalData *>(
+            &mapping_data) != nullptr)
         {
           const typename MappingCartesian<1>::InternalData *data =
             dynamic_cast<const typename MappingCartesian<1>::InternalData *>(
@@ -333,26 +301,16 @@ namespace internal
     void
     rescale_fe_hermite_values(
       Rescaler<2, spacedim, Number> & /*rescaler*/,
-      const FE_Hermite<2, spacedim> &                        fe_herm,
+      const FE_Hermite<2, spacedim>                         &fe_herm,
       const typename Mapping<2, spacedim>::InternalDataBase &mapping_data,
-      Table<2, Number> &                                     value_list)
+      Table<2, Number>                                      &value_list)
     {
       unsigned int n_q_points;
       Tensor<1, 2> cell_extents;
 
       // Check mapping_data is associated with a compatible mapping class
-      if (dynamic_cast<const typename MappingHermite<2, spacedim>::InternalData
-                         *>(&mapping_data) != nullptr)
-        {
-          const typename MappingHermite<2, spacedim>::InternalData *data =
-            dynamic_cast<
-              const typename MappingHermite<2, spacedim>::InternalData *>(
-              &mapping_data);
-          n_q_points   = data->quadrature_points.size();
-          cell_extents = data->cell_extents;
-        }
-      else if (dynamic_cast<const typename MappingCartesian<2>::InternalData *>(
-                 &mapping_data) != nullptr)
+      if (dynamic_cast<const typename MappingCartesian<2>::InternalData *>(
+            &mapping_data) != nullptr)
         {
           const typename MappingCartesian<2>::InternalData *data =
             dynamic_cast<const typename MappingCartesian<2>::InternalData *>(
@@ -417,26 +375,16 @@ namespace internal
     void
     rescale_fe_hermite_values(
       Rescaler<3, spacedim, Number> & /*rescaler*/,
-      const FE_Hermite<3, spacedim> &                        fe_herm,
+      const FE_Hermite<3, spacedim>                         &fe_herm,
       const typename Mapping<3, spacedim>::InternalDataBase &mapping_data,
-      Table<2, Number> &                                     value_list)
+      Table<2, Number>                                      &value_list)
     {
       unsigned int n_q_points;
       Tensor<1, 3> cell_extents;
 
       // Check mapping_data is associated with a compatible mapping class
-      if (dynamic_cast<const typename MappingHermite<3, spacedim>::InternalData
-                         *>(&mapping_data) != nullptr)
-        {
-          const typename MappingHermite<3, spacedim>::InternalData *data =
-            dynamic_cast<
-              const typename MappingHermite<3, spacedim>::InternalData *>(
-              &mapping_data);
-          n_q_points   = data->quadrature_points.size();
-          cell_extents = data->cell_extents;
-        }
-      else if (dynamic_cast<const typename MappingCartesian<3>::InternalData *>(
-                 &mapping_data) != nullptr)
+      if (dynamic_cast<const typename MappingCartesian<3>::InternalData *>(
+            &mapping_data) != nullptr)
         {
           const typename MappingCartesian<3>::InternalData *data =
             dynamic_cast<const typename MappingCartesian<3>::InternalData *>(
@@ -529,20 +477,30 @@ namespace internal
 
 // Constructors
 template <int dim, int spacedim>
-FE_Hermite<dim, spacedim>::FE_Hermite(const unsigned int regularity)
+FE_Hermite<dim, spacedim>::FE_Hermite(const unsigned int fe_degree)
   : FE_Poly<dim, spacedim>(
-      internal::get_hermite_polynomials<dim>(regularity),
-      FiniteElementData<dim>(internal::get_hermite_dpo_vector(dim, regularity),
+      internal::get_hermite_polynomials<dim>(fe_degree),
+      FiniteElementData<dim>(internal::get_hermite_dpo_vector(
+                               dim,
+                               internal::get_regularity_from_degree(fe_degree)),
                              1,
-                             2 * regularity + 1,
-                             (regularity > 0 ? FiniteElementData<dim>::H2 :
-
-                                               FiniteElementData<dim>::H1)),
-      std::vector<bool>(Utilities::pow(2 * (regularity + 1), dim), false),
-      std::vector<ComponentMask>(Utilities::pow(2 * (regularity + 1), dim),
+                             std::max(1U, fe_degree),
+                             ((fe_degree > 2) ? FiniteElementData<dim>::H2 :
+                                                FiniteElementData<dim>::H1)),
+      std::vector<bool>(Utilities::pow(std::max(2U, fe_degree + 1), dim),
+                        false),
+      std::vector<ComponentMask>(Utilities::pow(std::max(2U, fe_degree + 1),
+                                                dim),
                                  std::vector<bool>(1, true)))
-  , regularity(regularity)
-{}
+  , regularity(internal::get_regularity_from_degree(fe_degree))
+{
+  Assert((fe_degree % 2 == 1),
+         ExcMessage(
+           "ERROR: The current implementation of Hermite interpolation "
+           "polynomials is only defined for odd polynomial degrees. Running "
+           "in release mode will use a polynomial degree of max(1,fe_degree-1) "
+           "to protect against unexpected internal bugs."));
+}
 
 
 
@@ -551,8 +509,8 @@ std::string
 FE_Hermite<dim, spacedim>::get_name() const
 {
   std::ostringstream name_buffer;
-  name_buffer << "FE_Hermite<" << dim << "," << spacedim << ">("
-              << this->regularity << ")";
+  name_buffer << "FE_Hermite<" << dim << "," << spacedim << ">(" << this->degree
+              << ")";
   return name_buffer.str();
 }
 
@@ -571,7 +529,8 @@ UpdateFlags
 FE_Hermite<dim, spacedim>::requires_update_flags(const UpdateFlags flags) const
 {
   UpdateFlags out = FE_Poly<dim, spacedim>::requires_update_flags(flags);
-  if (flags&(update_values|update_gradients|update_hessians|update_3rd_derivatives))
+  if (flags & (update_values | update_gradients | update_hessians |
+               update_3rd_derivatives))
     out |= update_rescale; // since we need to rescale values, gradients, ...
   return out;
 }
@@ -579,36 +538,17 @@ FE_Hermite<dim, spacedim>::requires_update_flags(const UpdateFlags flags) const
 
 
 /**
- * A large part of the following function is copied from FE_Q_Base, the main 
- * difference is that some additional constraints are needed between two
- * Hermite finite elements 
+ * A large part of the following function is copied from FE_Q_Base. At present
+ * the case of two Hermite bases meeting is not implemented as it is unlikely
+ * that two different Hermite bases would be used in an hp method. This may be
+ * implemented in a later update.
  */
 template <int dim, int spacedim>
 std::vector<std::pair<unsigned int, unsigned int>>
 FE_Hermite<dim, spacedim>::hp_vertex_dof_identities(
   const FiniteElement<dim, spacedim> &fe_other) const
 {
-  /*if (const FE_Hermite<dim, spacedim> *fe_herm_other = 
-        dynamic_cast<FE_Hermite<dim, spacedim> *>(&fe_other))
-    {
-      // In this case there will be several DoFs that need to be matched between
-      // the elements to ensure continuity. The number of DoFs to be matched is
-      // dependent on the polynomial degree of the lower order element, and dim
-      //
-      // Note: is this using hierarchical or lexicographic numbering at the vertices?
-      if (this->degree < fe_herm_other->degree)
-        {
-          std::vector<std::pair<unsigned int, unsigned int>> dof_matches;
-          dof_matches.reserve(this->n_dofs_per_vertex());
-
-
-        }
-      else
-        {
-
-        }
-    }
-  else */if (dynamic_cast<const FE_Q_Base<dim, spacedim> *>(&fe_other) != nullptr)
+  if (dynamic_cast<const FE_Q_Base<dim, spacedim> *>(&fe_other) != nullptr)
     {
       // there should be exactly one single DoF of FE_Q_Base at a vertex, and it
       // should have an identical value to the first Hermite DoF
@@ -638,6 +578,12 @@ FE_Hermite<dim, spacedim>::hp_vertex_dof_identities(
       // constraints to declare
       return {};
     }
+  else if (const FE_Hermite<dim, spacedim> *fe_herm_other =
+             dynamic_cast<const FE_Hermite<dim, spacedim> *>(&fe_other))
+    {
+      Assert(false, ExcNotImplemented());
+      return {};
+    }
   else
     {
       Assert(false, ExcNotImplemented());
@@ -647,87 +593,57 @@ FE_Hermite<dim, spacedim>::hp_vertex_dof_identities(
 
 
 
+/**
+ * This function only supplies empty lists of pairs, since Hermite
+ * stores all DoFs on vertices meaning there is no continuity that
+ * could be enforced.
+ */
 template <int dim, int spacedim>
 std::vector<std::pair<unsigned int, unsigned int>>
 FE_Hermite<dim, spacedim>::hp_line_dof_identities(
   const FiniteElement<dim, spacedim> &fe_other) const
 {
-  if (dynamic_cast<const FE_Nothing<dim> *>(&fe_other) != nullptr)
-    {
-      // the FE_Nothing has no degrees of freedom, so there are no
-      // equivalencies to be recorded
-      return {};
-    }
-  else if (fe_other.n_unique_faces() == 1 && fe_other.n_dofs_per_face(0) == 0)
-    {
-      // if the other element has no elements on faces at all,
-      // then it would be impossible to enforce any kind of
-      // continuity even if we knew exactly what kind of element
-      // we have -- simply because the other element declares
-      // that it is discontinuous because it has no DoFs on
-      // its faces. in that case, just state that we have no
-      // constraints to declare
-      return {};
-    }
-  else
-    {
-      Assert(false, ExcNotImplemented());
-      return {};
-    }
+  (void)fe_other;
+  return {};
 }
 
 
 
+/**
+ * Similar to above, no continuity can be enforced on quads
+ * for Hermite.
+ */
 template <int dim, int spacedim>
 std::vector<std::pair<unsigned int, unsigned int>>
 FE_Hermite<dim, spacedim>::hp_quad_dof_identities(
   const FiniteElement<dim, spacedim> &fe_other,
   const unsigned int                  face_no) const
 {
-  if (dynamic_cast<const FE_Nothing<dim> *>(&fe_other) != nullptr)
-    {
-      // the FE_Nothing has no degrees of freedom, so there are no
-      // equivalencies to be recorded
-      return {};
-    }
-  else if (fe_other.n_unique_faces() == 1 && fe_other.n_dofs_per_face(0) == 0)
-    {
-      // if the other element has no elements on faces at all,
-      // then it would be impossible to enforce any kind of
-      // continuity even if we knew exactly what kind of element
-      // we have -- simply because the other element declares
-      // that it is discontinuous because it has no DoFs on
-      // its faces. in that case, just state that we have no
-      // constraints to declare
-      return {};
-    }
-  else
-    {
-      Assert(false, ExcNotImplemented());
-      return {};
-    }
+  (void)fe_other;
+  (void)face_no;
+  return {};
 }
 
 
 
 /*
-* The layout of this function is largely copied directly from FE_Q,
-* however FE_Hermite can behave significantly differently in terms
-* of domination due to how the function space is defined */
+ * The layout of this function is largely copied directly from FE_Q,
+ * however FE_Hermite can behave significantly differently in terms
+ * of domination due to how the function space is defined */
 template <int dim, int spacedim>
 FiniteElementDomination::Domination
 FE_Hermite<dim, spacedim>::compare_for_domination(
-  const FiniteElement<dim, spacedim>& fe_other,
+  const FiniteElement<dim, spacedim> &fe_other,
   const unsigned int                  codim) const
-  {
-    Assert(codim <= dim, ExcImpossibleInDim(dim));
+{
+  Assert(codim <= dim, ExcImpossibleInDim(dim));
 
-    if (codim > 0)
-      if (dynamic_cast<const FE_DGQ<dim, spacedim> *>(&fe_other) != nullptr)
-        // there are no requirements between continuous and discontinuous elements
-        return FiniteElementDomination::no_requirements;
+  if (codim > 0)
+    if (dynamic_cast<const FE_DGQ<dim, spacedim> *>(&fe_other) != nullptr)
+      // there are no requirements between continuous and discontinuous elements
+      return FiniteElementDomination::no_requirements;
 
-     
+
   // vertex/line/face domination
   // (if fe_other is not derived from FE_DGQ)
   // & cell domination
@@ -746,12 +662,12 @@ FE_Hermite<dim, spacedim>::compare_for_domination(
         dynamic_cast<const FE_Q<dim, spacedim> *>(&fe_other))
     {
       if (fe_q_other->degree == 1)
-      {
-        if (this->degree == 1)
-          return FiniteElementDomination::either_element_can_dominate;
-        else
-          return FiniteElementDomination::other_element_dominates;
-      }
+        {
+          if (this->degree == 1)
+            return FiniteElementDomination::either_element_can_dominate;
+          else
+            return FiniteElementDomination::other_element_dominates;
+        }
       else if (this->degree <= fe_q_other->degree)
         return FiniteElementDomination::this_element_dominates;
       else
@@ -761,12 +677,12 @@ FE_Hermite<dim, spacedim>::compare_for_domination(
              dynamic_cast<const FE_SimplexP<dim, spacedim> *>(&fe_other))
     {
       if (fe_p_other->degree == 1)
-      {
-        if (this->degree == 1)
-          return FiniteElementDomination::either_element_can_dominate;
-        else
-          return FiniteElementDomination::other_element_dominates;
-      }
+        {
+          if (this->degree == 1)
+            return FiniteElementDomination::either_element_can_dominate;
+          else
+            return FiniteElementDomination::other_element_dominates;
+        }
       else if (this->degree <= fe_p_other->degree)
         return FiniteElementDomination::this_element_dominates;
       else
@@ -776,12 +692,12 @@ FE_Hermite<dim, spacedim>::compare_for_domination(
              dynamic_cast<const FE_WedgeP<dim, spacedim> *>(&fe_other))
     {
       if (fe_wp_other->degree == 1)
-      {
-        if (this->degree == 1)
-          return FiniteElementDomination::either_element_can_dominate;
-        else
-          return FiniteElementDomination::other_element_dominates;
-      }
+        {
+          if (this->degree == 1)
+            return FiniteElementDomination::either_element_can_dominate;
+          else
+            return FiniteElementDomination::other_element_dominates;
+        }
       else if (this->degree <= fe_wp_other->degree)
         return FiniteElementDomination::this_element_dominates;
       else
@@ -791,12 +707,12 @@ FE_Hermite<dim, spacedim>::compare_for_domination(
              dynamic_cast<const FE_PyramidP<dim, spacedim> *>(&fe_other))
     {
       if (fe_pp_other->degree == 1)
-      {
-        if (this->degree == 1)
-          return FiniteElementDomination::either_element_can_dominate;
-        else
-          return FiniteElementDomination::other_element_dominates;
-      }
+        {
+          if (this->degree == 1)
+            return FiniteElementDomination::either_element_can_dominate;
+          else
+            return FiniteElementDomination::other_element_dominates;
+        }
       else if (this->degree <= fe_pp_other->degree)
         return FiniteElementDomination::this_element_dominates;
       else
@@ -813,10 +729,10 @@ FE_Hermite<dim, spacedim>::compare_for_domination(
         // interface
         return FiniteElementDomination::no_requirements;
     }
- 
+
   Assert(false, ExcNotImplemented());
   return FiniteElementDomination::neither_element_dominates;
-  }
+}
 
 
 
@@ -831,12 +747,83 @@ FE_Hermite<dim, spacedim>::get_lexicographic_to_hierarchic_numbering() const
 
 
 template <int dim, int spacedim>
+Table<2, unsigned int>
+FE_Hermite<dim, spacedim>::get_dofs_corresponding_to_outward_normal_derivatives(
+  const unsigned int derivative_order) const
+{
+  /*
+   * Create a look-up table for finding relevant dofs on all
+   * 2*dim faces of reference cell
+   */
+  const unsigned int degree        = this->degree;
+  const unsigned int regularity    = this->get_regularity();
+  const unsigned int dofs_per_face = this->n_dofs_per_face();
+  AssertDimension(dofs_per_face,
+                  (regularity + 1) * Utilities::pow(degree + 1, dim - 1));
+
+  const unsigned int relevant_dofs_per_face = dofs_per_face / (regularity + 1);
+  Table<2, unsigned int> dofs_on_each_face(2 * dim, relevant_dofs_per_face);
+
+  /*
+   * Use knowledge of the local degree numbering for this version,
+   * saving expensive calls to reinit
+   */
+  const std::vector<unsigned int> l2h =
+    get_lexicographic_to_hierarchic_numbering();
+  const unsigned int dofs_per_cell = Utilities::pow(degree + 1, dim);
+  AssertDimension(dofs_per_cell, l2h.size());
+  (void)dofs_per_cell;
+
+  /*
+   * The following loop uses the variables batch_size, batch_index
+   * and local_index to simplify calculations. The idea is to find
+   * relevant DoFs in batches, with each batch representing a
+   * set of DoFs of interest on a given face that occur consecutively
+   * in the ordering of all DoFs on the reference cell.
+   * To quickly summarise what the variables mean:
+   * sublist_index: index of a DoF in the list of relevant DoF indices
+   * index: index of a DoF in the list of all DoFs on the cell
+   * batch_size: Number of consecutive DoFs in the ordering that are
+   *             all of interest,
+   * batch index: Index of the current batch in the list of batches
+   * local_index: Index of the current DoF within a batch
+   *
+   * The variable correction is used because the pattern of relevant
+   * DoFs on opposite face pairs is always the same, just separated by
+   * a constant offset value in the indices, so it's easier to calculate
+   * the pattern once and find this offset value.
+   */
+  for (unsigned int d = 0, batch_size = 1; d < dim;
+       ++d, batch_size *= degree + 1)
+    for (unsigned int sublist_index = 0; sublist_index < relevant_dofs_per_face;
+         ++sublist_index)
+      {
+        const unsigned int local_index = sublist_index % batch_size;
+        const unsigned int batch_index = sublist_index / batch_size;
+
+        unsigned int index =
+          local_index +
+          (batch_index * (degree + 1) + derivative_order) * batch_size;
+        unsigned int correction = batch_size * (regularity + 1);
+        Assert(index + correction < dofs_per_cell,
+               ExcDimensionMismatch(index + correction, dofs_per_cell));
+
+        dofs_on_each_face(2 * d, sublist_index)     = l2h[index];
+        dofs_on_each_face(2 * d + 1, sublist_index) = l2h[index + correction];
+      }
+
+  return dofs_on_each_face;
+}
+
+
+
+template <int dim, int spacedim>
 void
 FE_Hermite<dim, spacedim>::fill_fe_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &,
   const CellSimilarity::Similarity cell_similarity,
   const Quadrature<dim> & /*quadrature*/,
-  const Mapping<dim, spacedim> &                           mapping,
+  const Mapping<dim, spacedim>                            &mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
   const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
                                                                      spacedim>
@@ -855,11 +842,10 @@ FE_Hermite<dim, spacedim>::fill_fe_values(
   const typename FE_Hermite<dim, spacedim>::InternalData &fe_data =
     static_cast<const typename FE_Hermite<dim, spacedim>::InternalData &>(
       fe_internal);
-    
 
   const UpdateFlags flags(fe_data.update_each);
 
-  // Transform values gradients and higher derivatives. Values also need to
+  // Transform values, gradients and higher derivatives. Values also need to
   // be rescaled according the the nodal derivative they correspond to.
   if ((flags & update_values) &&
       (cell_similarity != CellSimilarity::translation))
@@ -932,9 +918,9 @@ void
 FE_Hermite<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const hp::QCollection<dim - 1> &                            quadrature,
-  const Mapping<dim, spacedim> &                              mapping,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
+  const hp::QCollection<dim - 1>                             &quadrature,
+  const Mapping<dim, spacedim>                               &mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &mapping_internal,
   const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
                                                                      spacedim>
     &,
@@ -955,12 +941,10 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
     static_cast<const typename FE_Hermite<dim, spacedim>::InternalData &>(
       fe_internal);
 
-  Assert(
-    (dynamic_cast<const typename MappingHermite<dim, spacedim>::InternalData *>(
-       &mapping_internal) != nullptr) ||
-      (dynamic_cast<const typename MappingCartesian<dim, spacedim>::InternalData
-                      *>(&mapping_internal) != nullptr),
-    ExcInternalError());
+  Assert((dynamic_cast<
+            const typename MappingCartesian<dim, spacedim>::InternalData *>(
+            &mapping_internal) != nullptr),
+         ExcInternalError());
 
   AssertDimension(quadrature.size(), 1U);
 
@@ -969,11 +953,13 @@ FE_Hermite<dim, spacedim>::fill_fe_face_values(
    * faces are stored contiguously)
    */
   const typename QProjector<dim>::DataSetDescriptor offset =
-    QProjector<dim>::DataSetDescriptor::face(face_no,
-                                             cell->face_orientation(face_no),
-                                             cell->face_flip(face_no),
-                                             cell->face_rotation(face_no),
-                                             quadrature[0].size());
+    QProjector<dim>::DataSetDescriptor::face(
+      ReferenceCells::get_hypercube<dim>(),
+      face_no,
+      cell->face_orientation(face_no),
+      cell->face_flip(face_no),
+      cell->face_rotation(face_no),
+      quadrature[0].size());
 
   const UpdateFlags flags(fe_data.update_each);
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,6 +28,21 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace internal
 {
+  /**
+   * This struct is used to implement
+   * FEEvaluation::fast_evaluation_supported() and
+   * FEFaceEvaluation::fast_evaluation_supported().
+   */
+  struct FastEvaluationSupported
+  {
+    template <int fe_degree, int n_q_points_1d>
+    static bool
+    run()
+    {
+      return fe_degree != -1;
+    }
+  };
+
   template <int degree, typename EvaluatorType, typename... Args>
   bool
   instantiation_helper_run(const unsigned int given_degree,
@@ -45,6 +60,8 @@ namespace internal
         else if (n_q_points_1d == (3 * degree) / 2 + 1)
           return EvaluatorType::template run<degree, (3 * degree) / 2 + 1>(
             args...);
+        else if ((n_q_points_1d == (2 * degree)) && (degree <= 4))
+          return EvaluatorType::template run<degree, (2 * degree)>(args...);
         else
           // slow path
           return EvaluatorType::template run<-1, 0>(args...);

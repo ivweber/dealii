@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2018 - 2019 by the deal.II authors
+## Copyright (C) 2018 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -17,13 +17,13 @@
 # At the present time we only install one script from this directory.
 #
 
-SET(_scripts
+set(_scripts
   ${CMAKE_CURRENT_SOURCE_DIR}/indent.py
   )
-FILE(COPY ${_scripts}
+file(COPY ${_scripts}
   DESTINATION ${CMAKE_BINARY_DIR}/${DEAL_II_SHARE_RELDIR}/scripts
   )
-INSTALL(FILES ${_scripts}
+install(FILES ${_scripts}
   DESTINATION ${DEAL_II_SHARE_RELDIR}/scripts
   COMPONENT library
   )

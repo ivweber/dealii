@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2021 by the deal.II authors
+// Copyright (C) 2012 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -74,7 +74,7 @@ namespace Step37
 
     virtual void
     value_list(const std::vector<Point<dim>> &points,
-               std::vector<double> &          values,
+               std::vector<double>           &values,
                const unsigned int             component = 0) const;
   };
 
@@ -93,7 +93,7 @@ namespace Step37
 
   template <int dim>
   double
-  Coefficient<dim>::value(const Point<dim> & p,
+  Coefficient<dim>::value(const Point<dim>  &p,
                           const unsigned int component) const
   {
     return value<double>(p, component);
@@ -104,7 +104,7 @@ namespace Step37
   template <int dim>
   void
   Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                               std::vector<double> &          values,
+                               std::vector<double>           &values,
                                const unsigned int             component) const
   {
     Assert(values.size() == points.size(),
@@ -128,7 +128,7 @@ namespace Step37
     clear();
 
     void
-    reinit(const DoFHandler<dim> &          dof_handler,
+    reinit(const DoFHandler<dim>           &dof_handler,
            const AffineConstraints<number> &constraints,
            const unsigned int level = numbers::invalid_unsigned_int);
 
@@ -153,9 +153,9 @@ namespace Step37
 
   private:
     void
-    local_apply(const MatrixFree<dim, number> &              data,
-                Vector<double> &                             dst,
-                const Vector<double> &                       src,
+    local_apply(const MatrixFree<dim, number>               &data,
+                Vector<double>                              &dst,
+                const Vector<double>                        &src,
                 const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     void
@@ -209,7 +209,7 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::reinit(
-    const DoFHandler<dim> &          dof_handler,
+    const DoFHandler<dim>           &dof_handler,
     const AffineConstraints<number> &constraints,
     const unsigned int               level)
   {
@@ -219,7 +219,8 @@ namespace Step37
     additional_data.mg_level = level;
     additional_data.mapping_update_flags =
       (update_gradients | update_JxW_values | update_quadrature_points);
-    data.reinit(dof_handler,
+    data.reinit(MappingQ1<dim>{},
+                dof_handler,
                 constraints,
                 QGauss<1>(fe_degree + 1),
                 additional_data);
@@ -250,9 +251,9 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::local_apply(
-    const MatrixFree<dim, number> &              data,
-    Vector<double> &                             dst,
-    const Vector<double> &                       src,
+    const MatrixFree<dim, number>               &data,
+    Vector<double>                              &dst,
+    const Vector<double>                        &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, fe_degree, fe_degree + 1, 1, number> phi(data);
@@ -277,7 +278,7 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::vmult(
-    Vector<double> &      dst,
+    Vector<double>       &dst,
     const Vector<double> &src) const
   {
     dst = 0;
@@ -289,7 +290,7 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::Tvmult(
-    Vector<double> &      dst,
+    Vector<double>       &dst,
     const Vector<double> &src) const
   {
     dst = 0;
@@ -301,7 +302,7 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::Tvmult_add(
-    Vector<double> &      dst,
+    Vector<double>       &dst,
     const Vector<double> &src) const
   {
     vmult_add(dst, src);
@@ -312,7 +313,7 @@ namespace Step37
   template <int dim, int fe_degree, typename number>
   void
   LaplaceOperator<dim, fe_degree, number>::vmult_add(
-    Vector<double> &      dst,
+    Vector<double>       &dst,
     const Vector<double> &src) const
   {
     data.cell_loop(&LaplaceOperator::local_apply, this, dst, src);

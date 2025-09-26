@@ -53,43 +53,6 @@
 
 using namespace dealii::MatrixFreeOperators;
 
-template <int dim, typename LAPLACEOPERATOR>
-class MGTransferMF
-  : public MGTransferMatrixFree<dim, typename LAPLACEOPERATOR::value_type>
-{
-public:
-  MGTransferMF(const MGLevelObject<LAPLACEOPERATOR> &laplace,
-               const MGConstrainedDoFs &             mg_constrained_dofs)
-    : MGTransferMatrixFree<dim, typename LAPLACEOPERATOR::value_type>(
-        mg_constrained_dofs)
-    , laplace_operator(laplace)
-  {}
-
-  /**
-   * Overload copy_to_mg from MGTransferPrebuilt to get the vectors compatible
-   * with MatrixFree and bypass the crude vector initialization in
-   * MGTransferPrebuilt
-   */
-  template <class InVector, int spacedim>
-  void
-  copy_to_mg(const DoFHandler<dim, spacedim> &         mg_dof_handler,
-             MGLevelObject<LinearAlgebra::distributed::Vector<
-               typename LAPLACEOPERATOR::value_type>> &dst,
-             const InVector &                          src) const
-  {
-    for (unsigned int level = dst.min_level(); level <= dst.max_level();
-         ++level)
-      laplace_operator[level].initialize_dof_vector(dst[level]);
-    MGTransferMatrixFree<dim, typename LAPLACEOPERATOR::value_type>::copy_to_mg(
-      mg_dof_handler, dst, src);
-  }
-
-private:
-  const MGLevelObject<LAPLACEOPERATOR> &laplace_operator;
-};
-
-
-
 template <typename MatrixType, typename Number>
 class MGCoarseIterative
   : public MGCoarseGridBase<LinearAlgebra::distributed::Vector<Number>>
@@ -106,7 +69,7 @@ public:
 
   virtual void
   operator()(const unsigned int                                level,
-             LinearAlgebra::distributed::Vector<double> &      dst,
+             LinearAlgebra::distributed::Vector<double>       &dst,
              const LinearAlgebra::distributed::Vector<double> &src) const
   {
     ReductionControl solver_control(1e4, 1e-50, 1e-10);
@@ -124,19 +87,20 @@ template <int dim, int fe_degree, int n_q_points_1d, typename number>
 void
 do_test(const DoFHandler<dim> &dof)
 {
-  if (std::is_same<number, float>::value == true)
+  if (std::is_same_v<number, float> == true)
     {
       deallog.push("float");
     }
   else
-    {}
+    {
+    }
 
   deallog << "Testing " << dof.get_fe().get_name();
   deallog << std::endl;
   deallog << "Number of degrees of freedom: " << dof.n_dofs() << std::endl;
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof);
 
   // Dirichlet BC
   Functions::ZeroFunction<dim>                        zero_function;
@@ -194,7 +158,7 @@ do_test(const DoFHandler<dim> &dof)
     DoFTools::make_hanging_node_constraints(dof, hanging_node_constraints);
     hanging_node_constraints.close();
 
-    for (unsigned int i = 0; i < in.local_size(); ++i)
+    for (unsigned int i = 0; i < in.locally_owned_size(); ++i)
       if (!hanging_node_constraints.is_constrained(
             in.get_partitioner()->local_to_global(i)))
         in.local_element(i) = 1.;
@@ -223,8 +187,8 @@ do_test(const DoFHandler<dim> &dof)
       mg_additional_data.mg_level         = level;
 
       AffineConstraints<double> level_constraints;
-      IndexSet                  relevant_dofs;
-      DoFTools::extract_locally_relevant_level_dofs(dof, level, relevant_dofs);
+      const IndexSet            relevant_dofs =
+        DoFTools::extract_locally_relevant_level_dofs(dof, level);
       level_constraints.reinit(relevant_dofs);
       level_constraints.add_lines(
         mg_constrained_dofs.get_boundary_indices(level));
@@ -249,9 +213,14 @@ do_test(const DoFHandler<dim> &dof)
        ++level)
     mg_interface_matrices[level].initialize(mg_matrices[level]);
 
-  MGTransferMF<dim, LevelMatrixType> mg_transfer(mg_matrices,
-                                                 mg_constrained_dofs);
-  mg_transfer.build(dof);
+  std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>> partitioners;
+  for (unsigned int level = mg_matrices.min_level();
+       level <= mg_matrices.max_level();
+       ++level)
+    partitioners.push_back(mg_level_data[level].get_vector_partitioner());
+
+  MGTransferMatrixFree<dim, double> mg_transfer(mg_constrained_dofs);
+  mg_transfer.build(dof, partitioners);
 
   MGCoarseIterative<LevelMatrixType, number> mg_coarse;
   mg_coarse.initialize(mg_matrices[0]);
@@ -287,7 +256,7 @@ do_test(const DoFHandler<dim> &dof)
   mg.set_edge_matrices(mg_interface, mg_interface);
   PreconditionMG<dim,
                  LinearAlgebra::distributed::Vector<double>,
-                 MGTransferMF<dim, LevelMatrixType>>
+                 MGTransferMatrixFree<dim, double>>
     preconditioner(dof, mg, mg_transfer);
 
   {
@@ -299,7 +268,7 @@ do_test(const DoFHandler<dim> &dof)
     solver.solve(fine_matrix, sol, in, preconditioner);
   }
 
-  if (std::is_same<number, float>::value == true)
+  if (std::is_same_v<number, float> == true)
     deallog.pop();
 
   fine_matrix.clear();

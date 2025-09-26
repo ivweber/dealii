@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,23 +22,41 @@
 
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/subscriptor.h>
+#include <deal.II/base/vectorization.h>
 
+#include <deal.II/lac/block_vector_base.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/householder.h>
 #include <deal.II/lac/lapack_full_matrix.h>
+#include <deal.II/lac/orthogonalization.h>
 #include <deal.II/lac/solver.h>
 #include <deal.II/lac/solver_control.h>
 #include <deal.II/lac/vector.h>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <vector>
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup Solvers */
-/*@{*/
+// forward declarations
+#ifndef DOXYGEN
+namespace LinearAlgebra
+{
+  namespace distributed
+  {
+    template <typename, typename>
+    class Vector;
+  } // namespace distributed
+} // namespace LinearAlgebra
+#endif
+
+/**
+ * @addtogroup Solvers
+ * @{
+ */
 
 namespace internal
 {
@@ -172,7 +190,7 @@ namespace internal
  * connect_condition_number_slot and @p connect_eigenvalues_slot. These slots
  * will then be called from the solver with the estimates as argument.
  */
-template <class VectorType = Vector<double>>
+template <typename VectorType = Vector<double>>
 class SolverGMRES : public SolverBase<VectorType>
 {
 public:
@@ -185,12 +203,18 @@ public:
      * Constructor. By default, set the number of temporary vectors to 30,
      * i.e. do a restart every 28 iterations. Also set preconditioning from
      * left, the residual of the stopping criterion to the default residual,
-     * and re-orthogonalization only if necessary.
+     * and re-orthogonalization only if necessary. Also, the batched mode with
+     * reduced functionality to track information is disabled by default.
      */
-    explicit AdditionalData(const unsigned int max_n_tmp_vectors     = 30,
-                            const bool         right_preconditioning = false,
-                            const bool         use_default_residual  = true,
-                            const bool force_re_orthogonalization    = false);
+    explicit AdditionalData(
+      const unsigned int max_n_tmp_vectors          = 30,
+      const bool         right_preconditioning      = false,
+      const bool         use_default_residual       = true,
+      const bool         force_re_orthogonalization = false,
+      const bool         batched_mode               = false,
+      const LinearAlgebra::OrthogonalizationStrategy
+        orthogonalization_strategy =
+          LinearAlgebra::OrthogonalizationStrategy::modified_gram_schmidt);
 
     /**
      * Maximum number of temporary vectors. This parameter controls the size
@@ -221,14 +245,27 @@ public:
      * if necessary.
      */
     bool force_re_orthogonalization;
+
+    /**
+     * Flag to control whether a reduced mode of the solver should be
+     * run. This is necessary when running (several) SolverGMRES instances
+     * involving very small and cheap linear systems where the feedback from
+     * all signals, eigenvalue computations, and log stream are disabled.
+     */
+    bool batched_mode;
+
+    /**
+     * Strategy to orthogonalize vectors.
+     */
+    LinearAlgebra::OrthogonalizationStrategy orthogonalization_strategy;
   };
 
   /**
    * Constructor.
    */
-  SolverGMRES(SolverControl &           cn,
+  SolverGMRES(SolverControl            &cn,
               VectorMemory<VectorType> &mem,
-              const AdditionalData &    data = AdditionalData());
+              const AdditionalData     &data = AdditionalData());
 
   /**
    * Constructor. Use an object of type GrowingVectorMemory as a default to
@@ -246,9 +283,9 @@ public:
    */
   template <typename MatrixType, typename PreconditionerType>
   void
-  solve(const MatrixType &        A,
-        VectorType &              x,
-        const VectorType &        b,
+  solve(const MatrixType         &A,
+        VectorType               &x,
+        const VectorType         &b,
         const PreconditionerType &preconditioner);
 
   /**
@@ -371,6 +408,13 @@ protected:
   boost::signals2::signal<void(int)> re_orthogonalize_signal;
 
   /**
+   * A reference to the underlying SolverControl object. In the regular case,
+   * this is not needed, as the signal from the base class is used, but the
+   * batched variant cannot use those mechanisms due to the high costs.
+   */
+  SolverControl &solver_control;
+
+  /**
    * Implementation of the computation of the norm of the residual.
    */
   virtual double
@@ -388,28 +432,6 @@ protected:
                   int             col) const;
 
   /**
-   * Orthogonalize the vector @p vv against the @p dim (orthogonal) vectors
-   * given by the first argument using the modified Gram-Schmidt algorithm.
-   * The factors used for orthogonalization are stored in @p h. The boolean @p
-   * re_orthogonalize specifies whether the modified Gram-Schmidt algorithm
-   * should be applied twice. The algorithm checks loss of orthogonality in
-   * the procedure every fifth step and sets the flag to true in that case.
-   * All subsequent iterations use re-orthogonalization.
-   * Calls the signal re_orthogonalize_signal if it is connected.
-   */
-  static double
-  modified_gram_schmidt(
-    const internal::SolverGMRESImplementation::TmpVectors<VectorType>
-      &                                       orthogonal_vectors,
-    const unsigned int                        dim,
-    const unsigned int                        accumulated_iterations,
-    VectorType &                              vv,
-    Vector<double> &                          h,
-    bool &                                    re_orthogonalize,
-    const boost::signals2::signal<void(int)> &re_orthogonalize_signal =
-      boost::signals2::signal<void(int)>());
-
-  /**
    * Estimates the eigenvalues from the Hessenberg matrix, H_orig, generated
    * during the inner iterations. Uses these estimate to compute the condition
    * number. Calls the signals eigenvalues_signal and cond_signal with these
@@ -422,7 +444,7 @@ protected:
     const boost::signals2::signal<
       void(const std::vector<std::complex<double>> &)> &eigenvalues_signal,
     const boost::signals2::signal<void(const FullMatrix<double> &)>
-      &                                          hessenberg_signal,
+                                                &hessenberg_signal,
     const boost::signals2::signal<void(double)> &cond_signal);
 
   /**
@@ -431,10 +453,27 @@ protected:
   FullMatrix<double> H;
 
   /**
-   * Auxiliary matrix for inverting @p H
+   * Auxiliary vector for orthogonalization
    */
-  FullMatrix<double> H1;
+  Vector<double> gamma;
+
+  /**
+   * Auxiliary vector for orthogonalization
+   */
+  Vector<double> ci;
+
+  /**
+   * Auxiliary vector for orthogonalization
+   */
+  Vector<double> si;
+
+  /**
+   * Auxiliary vector for orthogonalization
+   */
+  Vector<double> h;
 };
+
+
 
 /**
  * Implementation of the Generalized minimal residual method with flexible
@@ -456,7 +495,7 @@ protected:
  *
  * For more details see @cite Saad1991.
  */
-template <class VectorType = Vector<double>>
+template <typename VectorType = Vector<double>>
 class SolverFGMRES : public SolverBase<VectorType>
 {
 public:
@@ -468,28 +507,38 @@ public:
     /**
      * Constructor. By default, set the maximum basis size to 30.
      */
-    explicit AdditionalData(const unsigned int max_basis_size = 30)
+    explicit AdditionalData(
+      const unsigned int max_basis_size = 30,
+      const LinearAlgebra::OrthogonalizationStrategy
+        orthogonalization_strategy =
+          LinearAlgebra::OrthogonalizationStrategy::modified_gram_schmidt)
       : max_basis_size(max_basis_size)
+      , orthogonalization_strategy(orthogonalization_strategy)
     {}
 
     /**
      * Maximum basis size.
      */
     unsigned int max_basis_size;
+
+    /**
+     * Strategy to orthogonalize vectors.
+     */
+    LinearAlgebra::OrthogonalizationStrategy orthogonalization_strategy;
   };
 
   /**
    * Constructor.
    */
-  SolverFGMRES(SolverControl &           cn,
+  SolverFGMRES(SolverControl            &cn,
                VectorMemory<VectorType> &mem,
-               const AdditionalData &    data = AdditionalData());
+               const AdditionalData     &data = AdditionalData());
 
   /**
    * Constructor. Use an object of type GrowingVectorMemory as a default to
    * allocate memory.
    */
-  SolverFGMRES(SolverControl &       cn,
+  SolverFGMRES(SolverControl        &cn,
                const AdditionalData &data = AdditionalData());
 
   /**
@@ -497,9 +546,9 @@ public:
    */
   template <typename MatrixType, typename PreconditionerType>
   void
-  solve(const MatrixType &        A,
-        VectorType &              x,
-        const VectorType &        b,
+  solve(const MatrixType         &A,
+        VectorType               &x,
+        const VectorType         &b,
         const PreconditionerType &preconditioner);
 
 private:
@@ -519,7 +568,7 @@ private:
   FullMatrix<double> H1;
 };
 
-/*@}*/
+/** @} */
 /* --------------------- Inline and template functions ------------------- */
 
 
@@ -528,7 +577,7 @@ namespace internal
 {
   namespace SolverGMRESImplementation
   {
-    template <class VectorType>
+    template <typename VectorType>
     inline TmpVectors<VectorType>::TmpVectors(const unsigned int max_size,
                                               VectorMemory<VectorType> &vmem)
       : mem(vmem)
@@ -537,7 +586,7 @@ namespace internal
 
 
 
-    template <class VectorType>
+    template <typename VectorType>
     inline VectorType &
     TmpVectors<VectorType>::operator[](const unsigned int i) const
     {
@@ -549,23 +598,23 @@ namespace internal
 
 
 
-    template <class VectorType>
+    template <typename VectorType>
     inline VectorType &
     TmpVectors<VectorType>::operator()(const unsigned int i,
-                                       const VectorType & temp)
+                                       const VectorType  &temp)
     {
       AssertIndexRange(i, data.size());
       if (data[i] == nullptr)
         {
           data[i] = std::move(typename VectorMemory<VectorType>::Pointer(mem));
-          data[i]->reinit(temp);
+          data[i]->reinit(temp, true);
         }
       return *data[i];
     }
 
 
 
-    template <class VectorType>
+    template <typename VectorType>
     unsigned int
     TmpVectors<VectorType>::size() const
     {
@@ -582,21 +631,43 @@ namespace internal
       return x.real() < y.real() ||
              (x.real() == y.real() && x.imag() < y.imag());
     }
+
+    // A function to solve the (upper) triangular system after Givens
+    // rotations on a matrix that has possibly unused rows and columns
+    inline void
+    solve_triangular(const unsigned int        dim,
+                     const FullMatrix<double> &H,
+                     const Vector<double>     &rhs,
+                     Vector<double>           &solution)
+    {
+      for (int i = dim - 1; i >= 0; --i)
+        {
+          double s = rhs(i);
+          for (unsigned int j = i + 1; j < dim; ++j)
+            s -= solution(j) * H(i, j);
+          solution(i) = s / H(i, i);
+          AssertIsFinite(solution(i));
+        }
+    }
   } // namespace SolverGMRESImplementation
 } // namespace internal
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline SolverGMRES<VectorType>::AdditionalData::AdditionalData(
-  const unsigned int max_n_tmp_vectors,
-  const bool         right_preconditioning,
-  const bool         use_default_residual,
-  const bool         force_re_orthogonalization)
+  const unsigned int                             max_n_tmp_vectors,
+  const bool                                     right_preconditioning,
+  const bool                                     use_default_residual,
+  const bool                                     force_re_orthogonalization,
+  const bool                                     batched_mode,
+  const LinearAlgebra::OrthogonalizationStrategy orthogonalization_strategy)
   : max_n_tmp_vectors(max_n_tmp_vectors)
   , right_preconditioning(right_preconditioning)
   , use_default_residual(use_default_residual)
   , force_re_orthogonalization(force_re_orthogonalization)
+  , batched_mode(batched_mode)
+  , orthogonalization_strategy(orthogonalization_strategy)
 {
   Assert(3 <= max_n_tmp_vectors,
          ExcMessage("SolverGMRES needs at least three "
@@ -605,26 +676,28 @@ inline SolverGMRES<VectorType>::AdditionalData::AdditionalData(
 
 
 
-template <class VectorType>
-SolverGMRES<VectorType>::SolverGMRES(SolverControl &           cn,
+template <typename VectorType>
+SolverGMRES<VectorType>::SolverGMRES(SolverControl            &cn,
                                      VectorMemory<VectorType> &mem,
-                                     const AdditionalData &    data)
+                                     const AdditionalData     &data)
   : SolverBase<VectorType>(cn, mem)
   , additional_data(data)
+  , solver_control(cn)
 {}
 
 
 
-template <class VectorType>
-SolverGMRES<VectorType>::SolverGMRES(SolverControl &       cn,
+template <typename VectorType>
+SolverGMRES<VectorType>::SolverGMRES(SolverControl        &cn,
                                      const AdditionalData &data)
   : SolverBase<VectorType>(cn)
   , additional_data(data)
+  , solver_control(cn)
 {}
 
 
 
-template <class VectorType>
+template <typename VectorType>
 inline void
 SolverGMRES<VectorType>::givens_rotation(Vector<double> &h,
                                          Vector<double> &b,
@@ -651,81 +724,513 @@ SolverGMRES<VectorType>::givens_rotation(Vector<double> &h,
 
 
 
-template <class VectorType>
-inline double
-SolverGMRES<VectorType>::modified_gram_schmidt(
-  const internal::SolverGMRESImplementation::TmpVectors<VectorType>
-    &                                       orthogonal_vectors,
-  const unsigned int                        dim,
-  const unsigned int                        accumulated_iterations,
-  VectorType &                              vv,
-  Vector<double> &                          h,
-  bool &                                    reorthogonalize,
-  const boost::signals2::signal<void(int)> &reorthogonalize_signal)
+namespace internal
 {
-  Assert(dim > 0, ExcInternalError());
-  const unsigned int inner_iteration = dim - 1;
+  namespace SolverGMRESImplementation
+  {
+    template <typename VectorType, typename Enable = void>
+    struct is_dealii_compatible_distributed_vector;
 
-  // need initial norm for detection of re-orthogonalization, see below
-  double     norm_vv_start = 0;
-  const bool consider_reorthogonalize =
-    (reorthogonalize == false) && (inner_iteration % 5 == 4);
-  if (consider_reorthogonalize)
-    norm_vv_start = vv.l2_norm();
-
-  // Orthogonalization
-  h(0) = vv * orthogonal_vectors[0];
-  for (unsigned int i = 1; i < dim; ++i)
-    h(i) = vv.add_and_dot(-h(i - 1),
-                          orthogonal_vectors[i - 1],
-                          orthogonal_vectors[i]);
-  double norm_vv =
-    std::sqrt(vv.add_and_dot(-h(dim - 1), orthogonal_vectors[dim - 1], vv));
-
-  // Re-orthogonalization if loss of orthogonality detected. For the test, use
-  // a strategy discussed in C. T. Kelley, Iterative Methods for Linear and
-  // Nonlinear Equations, SIAM, Philadelphia, 1995: Compare the norm of vv
-  // after orthogonalization with its norm when starting the
-  // orthogonalization. If vv became very small (here: less than the square
-  // root of the machine precision times 10), it is almost in the span of the
-  // previous vectors, which indicates loss of precision.
-  if (consider_reorthogonalize)
+    template <typename VectorType>
+    struct is_dealii_compatible_distributed_vector<
+      VectorType,
+      typename std::enable_if<!internal::is_block_vector<VectorType>>::type>
     {
-      if (norm_vv >
-          10. * norm_vv_start *
-            std::sqrt(
-              std::numeric_limits<typename VectorType::value_type>::epsilon()))
-        return norm_vv;
+      static constexpr bool value = std::is_same_v<
+        VectorType,
+        LinearAlgebra::distributed::Vector<typename VectorType::value_type,
+                                           MemorySpace::Host>>;
+    };
 
+
+
+    template <typename VectorType>
+    struct is_dealii_compatible_distributed_vector<
+      VectorType,
+      typename std::enable_if<internal::is_block_vector<VectorType>>::type>
+    {
+      static constexpr bool value = std::is_same_v<
+        typename VectorType::BlockType,
+        LinearAlgebra::distributed::Vector<typename VectorType::value_type,
+                                           MemorySpace::Host>>;
+    };
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<!IsBlockVector<VectorType>::value, VectorType>
+                * = nullptr>
+    unsigned int
+    n_blocks(const VectorType &)
+    {
+      return 1;
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<IsBlockVector<VectorType>::value, VectorType> * =
+                nullptr>
+    unsigned int
+    n_blocks(const VectorType &vector)
+    {
+      return vector.n_blocks();
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<!IsBlockVector<VectorType>::value, VectorType>
+                * = nullptr>
+    VectorType &
+    block(VectorType &vector, const unsigned int b)
+    {
+      AssertDimension(b, 0);
+      (void)b;
+      return vector;
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<!IsBlockVector<VectorType>::value, VectorType>
+                * = nullptr>
+    const VectorType &
+    block(const VectorType &vector, const unsigned int b)
+    {
+      AssertDimension(b, 0);
+      (void)b;
+      return vector;
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<IsBlockVector<VectorType>::value, VectorType> * =
+                nullptr>
+    typename VectorType::BlockType &
+    block(VectorType &vector, const unsigned int b)
+    {
+      return vector.block(b);
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<IsBlockVector<VectorType>::value, VectorType> * =
+                nullptr>
+    const typename VectorType::BlockType &
+    block(const VectorType &vector, const unsigned int b)
+    {
+      return vector.block(b);
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<
+                !is_dealii_compatible_distributed_vector<VectorType>::value,
+                VectorType> * = nullptr>
+    void
+    Tvmult_add(const unsigned int dim,
+               const VectorType  &vv,
+               const internal::SolverGMRESImplementation::TmpVectors<VectorType>
+                              &orthogonal_vectors,
+               Vector<double> &h)
+    {
+      for (unsigned int i = 0; i < dim; ++i)
+        h[i] += vv * orthogonal_vectors[i];
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<
+                is_dealii_compatible_distributed_vector<VectorType>::value,
+                VectorType> * = nullptr>
+    void
+    Tvmult_add(const unsigned int dim,
+               const VectorType  &vv,
+               const internal::SolverGMRESImplementation::TmpVectors<VectorType>
+                              &orthogonal_vectors,
+               Vector<double> &h)
+    {
+      for (unsigned int b = 0; b < n_blocks(vv); ++b)
+        {
+          unsigned int j = 0;
+
+          if (dim <= 128)
+            {
+              // optimized path
+              static constexpr unsigned int n_lanes =
+                VectorizedArray<double>::size();
+
+              VectorizedArray<double> hs[128];
+              for (unsigned int d = 0; d < dim; ++d)
+                hs[d] = 0.0;
+
+              unsigned int c = 0;
+
+              for (; c < block(vv, b).locally_owned_size() / n_lanes / 4;
+                   ++c, j += n_lanes * 4)
+                for (unsigned int i = 0; i < dim; ++i)
+                  {
+                    VectorizedArray<double> vvec[4];
+                    for (unsigned int k = 0; k < 4; ++k)
+                      vvec[k].load(block(vv, b).begin() + j + k * n_lanes);
+
+                    for (unsigned int k = 0; k < 4; ++k)
+                      {
+                        VectorizedArray<double> temp;
+                        temp.load(block(orthogonal_vectors[i], b).begin() + j +
+                                  k * n_lanes);
+                        hs[i] += temp * vvec[k];
+                      }
+                  }
+
+              c *= 4;
+              for (; c < block(vv, b).locally_owned_size() / n_lanes;
+                   ++c, j += n_lanes)
+                for (unsigned int i = 0; i < dim; ++i)
+                  {
+                    VectorizedArray<double> vvec, temp;
+                    vvec.load(block(vv, b).begin() + j);
+                    temp.load(block(orthogonal_vectors[i], b).begin() + j);
+                    hs[i] += temp * vvec;
+                  }
+
+              for (unsigned int i = 0; i < dim; ++i)
+                for (unsigned int v = 0; v < n_lanes; ++v)
+                  h(i) += hs[i][v];
+            }
+
+          // remainder loop of optimized path or non-optimized path (if
+          // dim>128)
+          for (; j < block(vv, b).locally_owned_size(); ++j)
+            for (unsigned int i = 0; i < dim; ++i)
+              h(i) += block(orthogonal_vectors[i], b).local_element(j) *
+                      block(vv, b).local_element(j);
+        }
+
+      Utilities::MPI::sum(h, block(vv, 0).get_mpi_communicator(), h);
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<
+                !is_dealii_compatible_distributed_vector<VectorType>::value,
+                VectorType> * = nullptr>
+    double
+    subtract_and_norm(
+      const unsigned int dim,
+      const internal::SolverGMRESImplementation::TmpVectors<VectorType>
+                           &orthogonal_vectors,
+      const Vector<double> &h,
+      VectorType           &vv)
+    {
+      Assert(dim > 0, ExcInternalError());
+
+      for (unsigned int i = 0; i < dim; ++i)
+        vv.add(-h(i), orthogonal_vectors[i]);
+
+      return std::sqrt(vv.add_and_dot(-h(dim), orthogonal_vectors[dim], vv));
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<
+                is_dealii_compatible_distributed_vector<VectorType>::value,
+                VectorType> * = nullptr>
+    double
+    subtract_and_norm(
+      const unsigned int dim,
+      const internal::SolverGMRESImplementation::TmpVectors<VectorType>
+                           &orthogonal_vectors,
+      const Vector<double> &h,
+      VectorType           &vv)
+    {
+      static constexpr unsigned int n_lanes = VectorizedArray<double>::size();
+
+      double norm_vv_temp = 0.0;
+
+      for (unsigned int b = 0; b < n_blocks(vv); ++b)
+        {
+          VectorizedArray<double> norm_vv_temp_vectorized = 0.0;
+
+          unsigned int j = 0;
+          unsigned int c = 0;
+          for (; c < block(vv, b).locally_owned_size() / n_lanes / 4;
+               ++c, j += n_lanes * 4)
+            {
+              VectorizedArray<double> temp[4];
+
+              for (unsigned int k = 0; k < 4; ++k)
+                temp[k].load(block(vv, b).begin() + j + k * n_lanes);
+
+              for (unsigned int i = 0; i < dim; ++i)
+                {
+                  const double factor = h(i);
+                  for (unsigned int k = 0; k < 4; ++k)
+                    {
+                      VectorizedArray<double> vec;
+                      vec.load(block(orthogonal_vectors[i], b).begin() + j +
+                               k * n_lanes);
+                      temp[k] -= factor * vec;
+                    }
+                }
+
+              for (unsigned int k = 0; k < 4; ++k)
+                temp[k].store(block(vv, b).begin() + j + k * n_lanes);
+
+              norm_vv_temp_vectorized +=
+                (temp[0] * temp[0] + temp[1] * temp[1]) +
+                (temp[2] * temp[2] + temp[3] * temp[3]);
+            }
+
+          c *= 4;
+          for (; c < block(vv, b).locally_owned_size() / n_lanes;
+               ++c, j += n_lanes)
+            {
+              VectorizedArray<double> temp;
+              temp.load(block(vv, b).begin() + j);
+
+              for (unsigned int i = 0; i < dim; ++i)
+                {
+                  VectorizedArray<double> vec;
+                  vec.load(block(orthogonal_vectors[i], b).begin() + j);
+                  temp -= h(i) * vec;
+                }
+
+              temp.store(block(vv, b).begin() + j);
+
+              norm_vv_temp_vectorized += temp * temp;
+            }
+
+          for (unsigned int v = 0; v < n_lanes; ++v)
+            norm_vv_temp += norm_vv_temp_vectorized[v];
+
+          for (; j < block(vv, b).locally_owned_size(); ++j)
+            {
+              double temp = block(vv, b).local_element(j);
+              for (unsigned int i = 0; i < dim; ++i)
+                temp -= h(i) * block(orthogonal_vectors[i], b).local_element(j);
+              block(vv, b).local_element(j) = temp;
+
+              norm_vv_temp += temp * temp;
+            }
+        }
+
+      return std::sqrt(
+        Utilities::MPI::sum(norm_vv_temp, block(vv, 0).get_mpi_communicator()));
+    }
+
+
+    template <typename VectorType,
+              std::enable_if_t<
+                !is_dealii_compatible_distributed_vector<VectorType>::value,
+                VectorType> * = nullptr>
+    double
+    sadd_and_norm(VectorType       &v,
+                  const double      factor_a,
+                  const VectorType &b,
+                  const double      factor_b)
+    {
+      v.sadd(factor_a, factor_b, b);
+      return v.l2_norm();
+    }
+
+
+    template <typename VectorType,
+              std::enable_if_t<
+                is_dealii_compatible_distributed_vector<VectorType>::value,
+                VectorType> * = nullptr>
+    double
+    sadd_and_norm(VectorType       &v,
+                  const double      factor_a,
+                  const VectorType &w,
+                  const double      factor_b)
+    {
+      double norm = 0;
+
+      for (unsigned int b = 0; b < n_blocks(v); ++b)
+        for (unsigned int j = 0; j < block(v, b).locally_owned_size(); ++j)
+          {
+            const double temp = block(v, b).local_element(j) * factor_a +
+                                block(w, b).local_element(j) * factor_b;
+
+            block(v, b).local_element(j) = temp;
+
+            norm += temp * temp;
+          }
+
+      return std::sqrt(
+        Utilities::MPI::sum(norm, block(v, 0).get_mpi_communicator()));
+    }
+
+
+
+    template <typename VectorType,
+              std::enable_if_t<
+                !is_dealii_compatible_distributed_vector<VectorType>::value,
+                VectorType> * = nullptr>
+    void
+    add(VectorType           &p,
+        const unsigned int    dim,
+        const Vector<double> &h,
+        const internal::SolverGMRESImplementation::TmpVectors<VectorType>
+                  &tmp_vectors,
+        const bool zero_out)
+    {
+      if (zero_out)
+        p.equ(h(0), tmp_vectors[0]);
       else
-        {
-          reorthogonalize = true;
-          if (!reorthogonalize_signal.empty())
-            reorthogonalize_signal(accumulated_iterations);
-        }
-    }
+        p.add(h(0), tmp_vectors[0]);
 
-  if (reorthogonalize == true)
-    {
-      double htmp = vv * orthogonal_vectors[0];
-      h(0) += htmp;
       for (unsigned int i = 1; i < dim; ++i)
-        {
-          htmp = vv.add_and_dot(-htmp,
-                                orthogonal_vectors[i - 1],
-                                orthogonal_vectors[i]);
-          h(i) += htmp;
-        }
-      norm_vv =
-        std::sqrt(vv.add_and_dot(-htmp, orthogonal_vectors[dim - 1], vv));
+        p.add(h(i), tmp_vectors[i]);
     }
 
-  return norm_vv;
-}
+
+
+    template <typename VectorType,
+              std::enable_if_t<
+                is_dealii_compatible_distributed_vector<VectorType>::value,
+                VectorType> * = nullptr>
+    void
+    add(VectorType           &p,
+        const unsigned int    dim,
+        const Vector<double> &h,
+        const internal::SolverGMRESImplementation::TmpVectors<VectorType>
+                  &tmp_vectors,
+        const bool zero_out)
+    {
+      for (unsigned int b = 0; b < n_blocks(p); ++b)
+        for (unsigned int j = 0; j < block(p, b).locally_owned_size(); ++j)
+          {
+            double temp = zero_out ? 0 : block(p, b).local_element(j);
+            for (unsigned int i = 0; i < dim; ++i)
+              temp += block(tmp_vectors[i], b).local_element(j) * h(i);
+            block(p, b).local_element(j) = temp;
+          }
+    }
 
 
 
-template <class VectorType>
+    /**
+     * Orthogonalize the vector @p vv against the @p dim (orthogonal) vectors
+     * given by @p orthogonal_vectors using the modified or classical
+     * Gram-Schmidt algorithm.
+     * The factors used for orthogonalization are stored in @p h. The boolean @p
+     * re_orthogonalize specifies whether the Gram-Schmidt algorithm
+     * should be applied twice. The algorithm checks loss of orthogonality in
+     * the procedure every fifth step and sets the flag to true in that case.
+     * All subsequent iterations use re-orthogonalization.
+     * Calls the signal re_orthogonalize_signal if it is connected.
+     */
+    template <typename VectorType>
+    inline double
+    iterated_gram_schmidt(
+      const LinearAlgebra::OrthogonalizationStrategy orthogonalization_strategy,
+      const internal::SolverGMRESImplementation::TmpVectors<VectorType>
+                                               &orthogonal_vectors,
+      const unsigned int                        dim,
+      const unsigned int                        accumulated_iterations,
+      VectorType                               &vv,
+      Vector<double>                           &h,
+      bool                                     &reorthogonalize,
+      const boost::signals2::signal<void(int)> &reorthogonalize_signal =
+        boost::signals2::signal<void(int)>())
+    {
+      Assert(dim > 0, ExcInternalError());
+      const unsigned int inner_iteration = dim - 1;
+
+      // need initial norm for detection of re-orthogonalization, see below
+      double     norm_vv_start = 0;
+      const bool consider_reorthogonalize =
+        (reorthogonalize == false) && (inner_iteration % 5 == 4);
+      if (consider_reorthogonalize)
+        norm_vv_start = vv.l2_norm();
+
+      for (unsigned int i = 0; i < dim; ++i)
+        h[i] = 0;
+
+      for (unsigned int c = 0; c < 2;
+           ++c) // 0: orthogonalize, 1: reorthogonalize
+        {
+          // Orthogonalization
+          double norm_vv = 0.0;
+
+          if (orthogonalization_strategy ==
+              LinearAlgebra::OrthogonalizationStrategy::modified_gram_schmidt)
+            {
+              double htmp = vv * orthogonal_vectors[0];
+              h(0) += htmp;
+              for (unsigned int i = 1; i < dim; ++i)
+                {
+                  htmp = vv.add_and_dot(-htmp,
+                                        orthogonal_vectors[i - 1],
+                                        orthogonal_vectors[i]);
+                  h(i) += htmp;
+                }
+
+              norm_vv = std::sqrt(
+                vv.add_and_dot(-htmp, orthogonal_vectors[dim - 1], vv));
+            }
+          else if (orthogonalization_strategy ==
+                   LinearAlgebra::OrthogonalizationStrategy::
+                     classical_gram_schmidt)
+            {
+              Tvmult_add(dim, vv, orthogonal_vectors, h);
+              norm_vv = subtract_and_norm(dim, orthogonal_vectors, h, vv);
+            }
+          else
+            {
+              AssertThrow(false, ExcNotImplemented());
+            }
+
+          if (c == 1)
+            return norm_vv; // reorthogonalization already performed -> finished
+
+          // Re-orthogonalization if loss of orthogonality detected. For the
+          // test, use a strategy discussed in C. T. Kelley, Iterative Methods
+          // for Linear and Nonlinear Equations, SIAM, Philadelphia, 1995:
+          // Compare the norm of vv after orthogonalization with its norm when
+          // starting the orthogonalization. If vv became very small (here: less
+          // than the square root of the machine precision times 10), it is
+          // almost in the span of the previous vectors, which indicates loss of
+          // precision.
+          if (consider_reorthogonalize)
+            {
+              if (norm_vv >
+                  10. * norm_vv_start *
+                    std::sqrt(std::numeric_limits<
+                              typename VectorType::value_type>::epsilon()))
+                return norm_vv;
+
+              else
+                {
+                  reorthogonalize = true;
+                  if (!reorthogonalize_signal.empty())
+                    reorthogonalize_signal(accumulated_iterations);
+                }
+            }
+
+          if (reorthogonalize == false)
+            return norm_vv; // no reorthogonalization needed -> finished
+        }
+
+      AssertThrow(false, ExcInternalError());
+
+      return 0.0;
+    }
+  } // namespace SolverGMRESImplementation
+} // namespace internal
+
+
+
+template <typename VectorType>
 inline void
 SolverGMRES<VectorType>::compute_eigs_and_cond(
   const FullMatrix<double> &H_orig,
@@ -733,7 +1238,7 @@ SolverGMRES<VectorType>::compute_eigs_and_cond(
   const boost::signals2::signal<void(const std::vector<std::complex<double>> &)>
     &eigenvalues_signal,
   const boost::signals2::signal<void(const FullMatrix<double> &)>
-    &                                          hessenberg_signal,
+                                              &hessenberg_signal,
   const boost::signals2::signal<void(double)> &cond_signal)
 {
   // Avoid copying the Hessenberg matrix if it isn't needed.
@@ -777,19 +1282,21 @@ SolverGMRES<VectorType>::compute_eigs_and_cond(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 template <typename MatrixType, typename PreconditionerType>
 void
-SolverGMRES<VectorType>::solve(const MatrixType &        A,
-                               VectorType &              x,
-                               const VectorType &        b,
+SolverGMRES<VectorType>::solve(const MatrixType         &A,
+                               VectorType               &x,
+                               const VectorType         &b,
                                const PreconditionerType &preconditioner)
 {
   // TODO:[?] Check, why there are two different start residuals.
   // TODO:[GK] Make sure the parameter in the constructor means maximum basis
   // size
 
-  LogStream::Prefix prefix("GMRES");
+  std::unique_ptr<LogStream::Prefix> prefix;
+  if (!additional_data.batched_mode)
+    prefix = std::make_unique<LogStream::Prefix>("GMRES");
 
   // extra call to std::max to placate static analyzers: coverity rightfully
   // complains that data.max_n_tmp_vectors - 2 may overflow
@@ -806,9 +1313,11 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
   unsigned int accumulated_iterations = 0;
 
   const bool do_eigenvalues =
-    !condition_number_signal.empty() || !all_condition_numbers_signal.empty() ||
-    !eigenvalues_signal.empty() || !all_eigenvalues_signal.empty() ||
-    !hessenberg_signal.empty() || !all_hessenberg_signal.empty();
+    !additional_data.batched_mode &&
+    (!condition_number_signal.empty() ||
+     !all_condition_numbers_signal.empty() || !eigenvalues_signal.empty() ||
+     !all_eigenvalues_signal.empty() || !hessenberg_signal.empty() ||
+     !all_hessenberg_signal.empty());
   // for eigenvalue computation, need to collect the Hessenberg matrix (before
   // applying Givens rotations)
   FullMatrix<double> H_orig;
@@ -816,12 +1325,13 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
     H_orig.reinit(n_tmp_vectors, n_tmp_vectors - 1);
 
   // matrix used for the orthogonalization process later
-  H.reinit(n_tmp_vectors, n_tmp_vectors - 1);
+  H.reinit(n_tmp_vectors, n_tmp_vectors - 1, /* omit_initialization */ true);
 
   // some additional vectors, also used in the orthogonalization
-  dealii::Vector<double> gamma(n_tmp_vectors), ci(n_tmp_vectors - 1),
-    si(n_tmp_vectors - 1), h(n_tmp_vectors - 1);
-
+  gamma.reinit(n_tmp_vectors);
+  ci.reinit(n_tmp_vectors - 1);
+  si.reinit(n_tmp_vectors - 1);
+  h.reinit(n_tmp_vectors - 1);
 
   unsigned int dim = 0;
 
@@ -867,19 +1377,23 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
       // reset this vector to the right size
       h.reinit(n_tmp_vectors - 1);
 
+      double rho = 0.0;
+
       if (left_precondition)
         {
           A.vmult(p, x);
           p.sadd(-1., 1., b);
           preconditioner.vmult(v, p);
+          rho = v.l2_norm();
         }
       else
         {
           A.vmult(v, x);
-          v.sadd(-1., 1., b);
-        };
-
-      double rho = v.l2_norm();
+          rho = dealii::internal::SolverGMRESImplementation::sadd_and_norm(v,
+                                                                           -1,
+                                                                           b,
+                                                                           1.0);
+        }
 
       // check the residual here as well since it may be that we got the exact
       // (or an almost exact) solution vector at the outset. if we wouldn't
@@ -887,8 +1401,11 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
       if (use_default_residual)
         {
           last_res = rho;
-          iteration_state =
-            this->iteration_status(accumulated_iterations, rho, x);
+          if (additional_data.batched_mode)
+            iteration_state = solver_control.check(accumulated_iterations, rho);
+          else
+            iteration_state =
+              this->iteration_status(accumulated_iterations, rho, x);
 
           if (iteration_state != SolverControl::iterate)
             break;
@@ -907,8 +1424,11 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
 
           double res = r->l2_norm();
           last_res   = res;
-          iteration_state =
-            this->iteration_status(accumulated_iterations, res, x);
+          if (additional_data.batched_mode)
+            iteration_state = solver_control.check(accumulated_iterations, rho);
+          else
+            iteration_state =
+              this->iteration_status(accumulated_iterations, res, x);
 
           if (iteration_state != SolverControl::iterate)
             break;
@@ -943,13 +1463,16 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
 
           dim = inner_iteration + 1;
 
-          const double s         = modified_gram_schmidt(tmp_vectors,
-                                                 dim,
-                                                 accumulated_iterations,
-                                                 vv,
-                                                 h,
-                                                 re_orthogonalize,
-                                                 re_orthogonalize_signal);
+          const double s =
+            internal::SolverGMRESImplementation::iterated_gram_schmidt(
+              additional_data.orthogonalization_strategy,
+              tmp_vectors,
+              dim,
+              accumulated_iterations,
+              vv,
+              h,
+              re_orthogonalize,
+              re_orthogonalize_signal);
           h(inner_iteration + 1) = s;
 
           // s=0 is a lucky breakdown, the solver will reach convergence,
@@ -976,32 +1499,33 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
           if (use_default_residual)
             {
               last_res = rho;
-              iteration_state =
-                this->iteration_status(accumulated_iterations, rho, x);
+              if (additional_data.batched_mode)
+                iteration_state =
+                  solver_control.check(accumulated_iterations, rho);
+              else
+                iteration_state =
+                  this->iteration_status(accumulated_iterations, rho, x);
             }
           else
             {
-              deallog << "default_res=" << rho << std::endl;
+              if (!additional_data.batched_mode)
+                deallog << "default_res=" << rho << std::endl;
 
-              dealii::Vector<double> h_(dim);
               *x_     = x;
               *gamma_ = gamma;
-              H1.reinit(dim + 1, dim);
-
-              for (unsigned int i = 0; i < dim + 1; ++i)
-                for (unsigned int j = 0; j < dim; ++j)
-                  H1(i, j) = H(i, j);
-
-              H1.backward(h_, *gamma_);
+              internal::SolverGMRESImplementation::solve_triangular(dim,
+                                                                    H,
+                                                                    *gamma_,
+                                                                    h);
 
               if (left_precondition)
                 for (unsigned int i = 0; i < dim; ++i)
-                  x_->add(h_(i), tmp_vectors[i]);
+                  x_->add(h(i), tmp_vectors[i]);
               else
                 {
                   p = 0.;
                   for (unsigned int i = 0; i < dim; ++i)
-                    p.add(h_(i), tmp_vectors[i]);
+                    p.add(h(i), tmp_vectors[i]);
                   preconditioner.vmult(*r, p);
                   x_->add(1., *r);
                 };
@@ -1022,38 +1546,36 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
                   const double preconditioned_res = x_->l2_norm();
                   last_res                        = preconditioned_res;
 
-                  iteration_state =
-                    this->iteration_status(accumulated_iterations,
-                                           preconditioned_res,
-                                           x);
+                  if (additional_data.batched_mode)
+                    iteration_state =
+                      solver_control.check(accumulated_iterations, rho);
+                  else
+                    iteration_state =
+                      this->iteration_status(accumulated_iterations,
+                                             preconditioned_res,
+                                             x);
                 }
             }
-        };
+        }
+
       // end of inner iteration. now calculate the solution from the temporary
       // vectors
-      h.reinit(dim);
-      H1.reinit(dim + 1, dim);
+      internal::SolverGMRESImplementation::solve_triangular(dim, H, gamma, h);
 
-      for (unsigned int i = 0; i < dim + 1; ++i)
-        for (unsigned int j = 0; j < dim; ++j)
-          H1(i, j) = H(i, j);
-
-      compute_eigs_and_cond(H_orig,
-                            dim,
-                            all_eigenvalues_signal,
-                            all_hessenberg_signal,
-                            condition_number_signal);
-
-      H1.backward(h, gamma);
+      if (do_eigenvalues)
+        compute_eigs_and_cond(H_orig,
+                              dim,
+                              all_eigenvalues_signal,
+                              all_hessenberg_signal,
+                              condition_number_signal);
 
       if (left_precondition)
-        for (unsigned int i = 0; i < dim; ++i)
-          x.add(h(i), tmp_vectors[i]);
+        dealii::internal::SolverGMRESImplementation::add(
+          x, dim, h, tmp_vectors, false);
       else
         {
-          p = 0.;
-          for (unsigned int i = 0; i < dim; ++i)
-            p.add(h(i), tmp_vectors[i]);
+          dealii::internal::SolverGMRESImplementation::add(
+            p, dim, h, tmp_vectors, true);
           preconditioner.vmult(v, p);
           x.add(1., v);
         };
@@ -1062,13 +1584,14 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
     }
   while (iteration_state == SolverControl::iterate);
 
-  compute_eigs_and_cond(H_orig,
-                        dim,
-                        eigenvalues_signal,
-                        hessenberg_signal,
-                        condition_number_signal);
+  if (do_eigenvalues)
+    compute_eigs_and_cond(H_orig,
+                          dim,
+                          eigenvalues_signal,
+                          hessenberg_signal,
+                          condition_number_signal);
 
-  if (!krylov_space_signal.empty())
+  if (!additional_data.batched_mode && !krylov_space_signal.empty())
     krylov_space_signal(tmp_vectors);
 
   // in case of failure: throw exception
@@ -1078,7 +1601,7 @@ SolverGMRES<VectorType>::solve(const MatrixType &        A,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 boost::signals2::connection
 SolverGMRES<VectorType>::connect_condition_number_slot(
   const std::function<void(double)> &slot,
@@ -1096,7 +1619,7 @@ SolverGMRES<VectorType>::connect_condition_number_slot(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 boost::signals2::connection
 SolverGMRES<VectorType>::connect_eigenvalues_slot(
   const std::function<void(const std::vector<std::complex<double>> &)> &slot,
@@ -1114,7 +1637,7 @@ SolverGMRES<VectorType>::connect_eigenvalues_slot(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 boost::signals2::connection
 SolverGMRES<VectorType>::connect_hessenberg_slot(
   const std::function<void(const FullMatrix<double> &)> &slot,
@@ -1132,7 +1655,7 @@ SolverGMRES<VectorType>::connect_hessenberg_slot(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 boost::signals2::connection
 SolverGMRES<VectorType>::connect_krylov_space_slot(
   const std::function<void(
@@ -1143,7 +1666,7 @@ SolverGMRES<VectorType>::connect_krylov_space_slot(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 boost::signals2::connection
 SolverGMRES<VectorType>::connect_re_orthogonalization_slot(
   const std::function<void(int)> &slot)
@@ -1153,7 +1676,7 @@ SolverGMRES<VectorType>::connect_re_orthogonalization_slot(
 
 
 
-template <class VectorType>
+template <typename VectorType>
 double
 SolverGMRES<VectorType>::criterion()
 {
@@ -1166,18 +1689,18 @@ SolverGMRES<VectorType>::criterion()
 
 //----------------------------------------------------------------------//
 
-template <class VectorType>
-SolverFGMRES<VectorType>::SolverFGMRES(SolverControl &           cn,
+template <typename VectorType>
+SolverFGMRES<VectorType>::SolverFGMRES(SolverControl            &cn,
                                        VectorMemory<VectorType> &mem,
-                                       const AdditionalData &    data)
+                                       const AdditionalData     &data)
   : SolverBase<VectorType>(cn, mem)
   , additional_data(data)
 {}
 
 
 
-template <class VectorType>
-SolverFGMRES<VectorType>::SolverFGMRES(SolverControl &       cn,
+template <typename VectorType>
+SolverFGMRES<VectorType>::SolverFGMRES(SolverControl        &cn,
                                        const AdditionalData &data)
   : SolverBase<VectorType>(cn)
   , additional_data(data)
@@ -1185,12 +1708,12 @@ SolverFGMRES<VectorType>::SolverFGMRES(SolverControl &       cn,
 
 
 
-template <class VectorType>
+template <typename VectorType>
 template <typename MatrixType, typename PreconditionerType>
 void
-SolverFGMRES<VectorType>::solve(const MatrixType &        A,
-                                VectorType &              x,
-                                const VectorType &        b,
+SolverFGMRES<VectorType>::solve(const MatrixType         &A,
+                                VectorType               &x,
+                                const VectorType         &b,
                                 const PreconditionerType &preconditioner)
 {
   LogStream::Prefix prefix("FGMRES");
@@ -1211,6 +1734,8 @@ SolverFGMRES<VectorType>::solve(const MatrixType &        A,
 
   // matrix used for the orthogonalization process later
   H.reinit(basis_size + 1, basis_size);
+
+  Vector<double> h(basis_size + 1);
 
   // Vectors for projected system
   Vector<double> projected_rhs;
@@ -1247,10 +1772,19 @@ SolverFGMRES<VectorType>::solve(const MatrixType &        A,
           A.vmult(*aux, z[j]);
 
           // Gram-Schmidt
-          H(0, j) = *aux * v[0];
-          for (unsigned int i = 1; i <= j; ++i)
-            H(i, j) = aux->add_and_dot(-H(i - 1, j), v[i - 1], v[i]);
-          H(j + 1, j) = a = std::sqrt(aux->add_and_dot(-H(j, j), v[j], *aux));
+          bool         re_orthogonalize = false;
+          const double s =
+            internal::SolverGMRESImplementation::iterated_gram_schmidt<
+              VectorType>(additional_data.orthogonalization_strategy,
+                          v,
+                          j + 1,
+                          0,
+                          *aux,
+                          h,
+                          re_orthogonalize);
+          for (unsigned int i = 0; i <= j; ++i)
+            H(i, j) = h(i);
+          H(j + 1, j) = a = s;
 
           // Compute projected solution
 

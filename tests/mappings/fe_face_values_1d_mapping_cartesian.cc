@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2020 by the deal.II authors
+// Copyright (C) 2011 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -47,8 +47,8 @@
 
 template <int dim>
 inline void
-plot_faces(Mapping<dim> &                           mapping,
-           FiniteElement<dim> &                     fe,
+plot_faces(Mapping<dim>                            &mapping,
+           FiniteElement<dim>                      &fe,
            typename DoFHandler<dim>::cell_iterator &cell)
 {
   // create a QGauss<0>(4), which should
@@ -91,8 +91,8 @@ plot_faces(Mapping<dim> &                           mapping,
 
 template <int dim>
 inline void
-plot_subfaces(Mapping<dim> &                           mapping,
-              FiniteElement<dim> &                     fe,
+plot_subfaces(Mapping<dim>                            &mapping,
+              FiniteElement<dim>                      &fe,
               typename DoFHandler<dim>::cell_iterator &cell)
 {
   // create a QGauss<0>(4), which should

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -205,7 +205,7 @@ namespace MeshWorker
       const unsigned int patch_dim =
         (info.face_number == numbers::invalid_unsigned_int) ? dim : (dim - 1);
       const unsigned int row_length = n_points;
-      // If patches are 1D, end the
+      // If patches are 1d, end the
       // patch after a row, else end
       // it after a square
       const unsigned int row_length2 =

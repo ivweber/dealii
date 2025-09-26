@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -166,7 +166,7 @@ check()
                 cell->set_refine_flag();
 
                 // make sure that the
-                // corrsponding cell
+                // corresponding cell
                 // on grid 2 is also
                 // refined if that
                 // has not yet

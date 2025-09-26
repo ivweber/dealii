@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -312,8 +312,7 @@ namespace Step23
     const std::string filename =
       "solution-" + Utilities::int_to_string(timestep_number, 3) + ".vtu";
     DataOutBase::VtkFlags vtk_flags;
-    vtk_flags.compression_level =
-      DataOutBase::VtkFlags::ZlibCompressionLevel::best_speed;
+    vtk_flags.compression_level = DataOutBase::CompressionLevel::best_speed;
     data_out.set_flags(vtk_flags);
     std::ofstream output(filename);
     data_out.write_vtu(output);
@@ -449,7 +448,7 @@ main(int argc, char **argv)
       WaveEquation<2> wave_equation_solver;
       wave_equation_solver.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -49,9 +49,6 @@
 #include <iostream>
 
 #include "../tests.h"
-
-std::ofstream logfile("output");
-
 
 template <int dim>
 class AdvectionProblem
@@ -524,9 +521,9 @@ AdvectionProblem<dim>::run()
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(2);
-  logfile << std::setprecision(2);
-  deallog.attach(logfile);
+  deallog.get_file_stream() << std::setprecision(2);
 
   {
     AdvectionProblem<2> advection_problem;

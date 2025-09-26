@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -200,7 +200,7 @@
  *
  * With the aid of the diagram below (it and some of the listed details courtesy of this
  * <a href="https://en.wikipedia.org/wiki/Automatic_differentiation">Wikipedia article</a>),
- * let us think about the represention of the calculation of the function
+ * let us think about the representation of the calculation of the function
  * $f (\mathbf{x}) = \sin (x_{1}) + x_{1} x_{2}$ and its derivatives:
  *
  * <div class="twocolumn" style="width: 80%">
@@ -490,7 +490,7 @@
  *
  * - Classes designed to operate at the quadrature point level (or any general continuum point):
  *   - Differentiation::AD::ScalarFunction: %Differentiation of a scalar-valued function.
- *       One typical use would be the the development of constitutive laws directly from a strain
+ *       One typical use would be the development of constitutive laws directly from a strain
  *       energy function. An example of this exact use case is given in step-71.
  *   - Differentiation::AD::VectorFunction: %Differentiation of a vector-valued function.
  *       This could be used to linearize the kinematic variables of a constitutive law, or assist

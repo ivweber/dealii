@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,8 +33,9 @@ template <typename number>
 class Vector;
 #endif
 
-/*! @addtogroup Matrix1
- *@{
+/**
+ * @addtogroup Matrix1
+ * @{
  */
 
 
@@ -53,7 +54,7 @@ class TridiagonalMatrix
 {
 public:
   ///@name Constructors
-  //@{
+  /** @{ */
   /**
    * Declare type for container size.
    */
@@ -75,10 +76,10 @@ public:
   reinit(size_type n, bool symmetric = false);
 
 
-  //@}
+  /** @} */
 
   ///@name Non-modifying operators
-  //@{
+  /** @{ */
 
   /**
    * Number of rows of this matrix. Note that the matrix is an <i>m x
@@ -102,10 +103,10 @@ public:
   bool
   all_zero() const;
 
-  //@}
+  /** @} */
 
   ///@name Element access
-  //@{
+  /** @{ */
   /**
    * Read-only access to a value. This is restricted to the case where
    * <i>|i-j| <= 1</i>.
@@ -125,10 +126,10 @@ public:
   number &
   operator()(size_type i, size_type j);
 
-  //@}
+  /** @} */
 
   ///@name Multiplications with vectors
-  //@{
+  /** @{ */
 
   /**
    * Matrix-vector-multiplication. Multiplies <tt>v</tt> from the right and
@@ -140,7 +141,7 @@ public:
    * Source and destination must not be the same vector.
    */
   void
-  vmult(Vector<number> &      w,
+  vmult(Vector<number>       &w,
         const Vector<number> &v,
         const bool            adding = false) const;
 
@@ -163,7 +164,7 @@ public:
    * Source and destination must not be the same vector.
    */
   void
-  Tvmult(Vector<number> &      w,
+  Tvmult(Vector<number>       &w,
          const Vector<number> &v,
          const bool            adding = false) const;
 
@@ -189,7 +190,7 @@ public:
    * Return the square of the norm of the vector <tt>v</tt> with respect to
    * the norm induced by this matrix, i.e. <i>(v,Mv)</i>. This is useful, e.g.
    * in the finite element context, where the <i>L<sup>2</sup></i> norm of a
-   * function equals the matrix norm with respect to the mass matrix of the
+   * function equals the matrix norm with respect to the @ref GlossMassMatrix "mass matrix" of the
    * vector representing the nodal values of the finite element function.
    *
    * Obviously, the matrix needs to be quadratic for this operation.
@@ -197,10 +198,10 @@ public:
   number
   matrix_norm_square(const Vector<number> &v) const;
 
-  //@}
+  /** @} */
 
   ///@name LAPACK operations
-  //@{
+  /** @{ */
   /**
    * Compute the eigenvalues of the symmetric tridiagonal matrix.
    *
@@ -214,19 +215,19 @@ public:
    */
   number
   eigenvalue(const size_type i) const;
-  //@}
+  /** @} */
 
   ///@name Miscellanea
-  //@{
+  /** @{ */
   /**
    * Output of the matrix in user-defined format.
    */
   template <class OutputStream>
   void
-  print(OutputStream &     s,
+  print(OutputStream      &s,
         const unsigned int width     = 5,
         const unsigned int precision = 2) const;
-  //@}
+  /** @} */
 
 private:
   /**
@@ -265,7 +266,7 @@ private:
   LAPACKSupport::State state;
 };
 
-/**@}*/
+/** @} */
 
 //---------------------------------------------------------------------------
 #ifndef DOXYGEN
@@ -344,7 +345,7 @@ TridiagonalMatrix<number>::operator()(size_type i, size_type j)
 template <typename number>
 template <class OutputStream>
 void
-TridiagonalMatrix<number>::print(OutputStream &     s,
+TridiagonalMatrix<number>::print(OutputStream      &s,
                                  const unsigned int width,
                                  const unsigned int) const
 {

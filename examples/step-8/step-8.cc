@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2000 - 2021 by the deal.II authors
+ * Copyright (C) 2000 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, University of Heidelberg, 2000
  */
@@ -136,7 +135,7 @@ namespace Step8
   // just fine in 3d, however.
   template <int dim>
   void right_hand_side(const std::vector<Point<dim>> &points,
-                       std::vector<Tensor<1, dim>> &  values)
+                       std::vector<Tensor<1, dim>>   &values)
   {
     AssertDimension(values.size(), points.size());
     Assert(dim >= 2, ExcNotImplemented());
@@ -189,12 +188,26 @@ namespace Step8
   // the solution function has, which is <code>dim</code> since we consider
   // displacement in each space direction. The FESystem class can handle this:
   // we pass it the finite element of which we would like to compose the
-  // system of, and how often it shall be repeated:
-
+  // system of, and how often to repeat it. There are different ways to
+  // tell the FESystem constructor how to do this, but the one that is
+  // closest to mathematical notation is to write out what we want to do
+  // mathematically: We want to construct the finite element space
+  // $Q_1^d$ where the index 1 corresponds to the polynomial degree and
+  // the exponent $d$ to the space dimension -- because the *displacement*
+  // we try to simulate here is a vector with exactly $d$ components. The
+  // FESystem class then lets us create this space by initialization with
+  // `FE_Q<dim>(1)^dim`, emulating the mathematical notation.
+  //
+  // (We could also have written `fe(FE_Q<dim>(1), dim)`, which would simply
+  // have called a different constructor of the FESystem class that first
+  // takes the "base element" and then a "multiplicity", i.e., a number that
+  // indicates how many times the base element is to be repeated. The two
+  // ways of writing things are entirely equivalent; we choose the one that
+  // is closer to mathematical notation.)
   template <int dim>
   ElasticProblem<dim>::ElasticProblem()
     : dof_handler(triangulation)
-    , fe(FE_Q<dim>(1), dim)
+    , fe(FE_Q<dim>(1) ^ dim)
   {}
   // In fact, the FESystem class has several more constructors which can
   // perform more complex operations than just stacking together several
@@ -308,7 +321,7 @@ namespace Step8
         mu.value_list(fe_values.get_quadrature_points(), mu_values);
         right_hand_side(fe_values.get_quadrature_points(), rhs_values);
 
-        // Then assemble the entries of the local stiffness matrix and right
+        // Then assemble the entries of the local @ref GlossStiffnessMatrix "stiffness matrix" and right
         // hand side vector. This follows almost one-to-one the pattern
         // described in the introduction of this example.  One of the few
         // comments in place is that we can compute the number
@@ -344,7 +357,7 @@ namespace Step8
                      fe_values.quadrature_point_indices())
                   {
                     cell_matrix(i, j) +=
-                      // The first term is $\lambda \partial_i u_i, \partial_j
+                      // The first term is $(\lambda \partial_i u_i, \partial_j
                       // v_j) + (\mu \partial_i u_j, \partial_j v_i)$. Note
                       // that <code>shape_grad(i,q_point)</code> returns the
                       // gradient of the only nonzero component of the i-th
@@ -541,7 +554,7 @@ namespace Step8
   // The reason for refining is a bit accidental: we use the QGauss
   // quadrature formula with two points in each direction for integration of the
   // right hand side; that means that there are four quadrature points on each
-  // cell (in 2D). If we only refine the initial grid once globally, then there
+  // cell (in 2d). If we only refine the initial grid once globally, then there
   // will be only four quadrature points in each direction on the
   // domain. However, the right hand side function was chosen to be rather
   // localized and in that case, by pure chance, it happens that all quadrature

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -86,7 +86,7 @@ namespace Differentiation
       << "previously declared all symbolic variables that are present "
       << "in the expression?");
 
-    //@}
+    /** @} */
 
     /**
      * A class to wrap SymEngine expressions.
@@ -180,7 +180,7 @@ namespace Differentiation
       /**
        * @name Constructors
        */
-      //@{
+      /** @{ */
 
       /**
        * Default constructor.
@@ -204,8 +204,7 @@ namespace Differentiation
        * code or math functions that are loaded into the standard namespace.
        */
       template <typename NumberType,
-                typename = typename std::enable_if<
-                  std::is_arithmetic<NumberType>::value>::type>
+                typename = std::enable_if_t<std::is_arithmetic_v<NumberType>>>
       explicit Expression(const NumberType &value);
 
       /**
@@ -216,8 +215,7 @@ namespace Differentiation
        * code or math functions that are loaded into the standard namespace.
        */
       template <typename NumberType,
-                typename = typename std::enable_if<
-                  std::is_arithmetic<NumberType>::value>::type>
+                typename = std::enable_if_t<std::is_arithmetic_v<NumberType>>>
       explicit Expression(const std::complex<NumberType> &value);
 
       /**
@@ -232,8 +230,7 @@ namespace Differentiation
        * be integral types.
        */
       template <typename NumberType,
-                typename = typename std::enable_if<
-                  std::is_integral<NumberType>::value>::type>
+                typename = std::enable_if_t<std::is_integral_v<NumberType>>>
       Expression(const NumberType &numerator, const NumberType &denominator);
 
       /**
@@ -303,7 +300,7 @@ namespace Differentiation
        * argument.
        */
       Expression(const std::vector<std::pair<Expression, Expression>>
-                   &               condition_expression,
+                                  &condition_expression,
                  const Expression &expression_otherwise);
 
       /**
@@ -358,7 +355,7 @@ namespace Differentiation
        * This constructor initializes a function symbol with a string
        * representing its symbolic name.
        */
-      Expression(const std::string &         symbol_func,
+      Expression(const std::string          &symbol_func,
                  const types::symbol_vector &arguments);
 
       /**
@@ -405,12 +402,12 @@ namespace Differentiation
        */
       virtual ~Expression() = default;
 
-      //@}
+      /** @} */
 
       /**
        * Utilities
        */
-      //@{
+      /** @{ */
 
       /**
        * Parse an expression from a string representing a symbolic @p expression.
@@ -503,12 +500,12 @@ namespace Differentiation
       BOOST_SERIALIZATION_SPLIT_MEMBER()
 #  endif
 
-      //@}
+      /** @} */
 
       /**
        * @name Values
        */
-      //@{
+      /** @{ */
 
       /**
        * Return the value or expression that this class instance represents.
@@ -530,12 +527,12 @@ namespace Differentiation
       const SymEngine::RCP<const SymEngine::Basic> &
       get_RCP() const;
 
-      //@}
+      /** @} */
 
       /**
        * @name Math and relational operators with (potentially) symbolic types
        */
-      //@{
+      /** @{ */
 
       /**
        * Assignment operator.
@@ -591,12 +588,12 @@ namespace Differentiation
       Expression &
       operator/=(const Expression &rhs);
 
-      //@}
+      /** @} */
 
       /**
        * @name Math and relational operators with numeric types
        */
-      //@{
+      /** @{ */
 
       /**
        * Assignment operator.
@@ -659,12 +656,12 @@ namespace Differentiation
       Expression &
       operator/=(const NumberType &rhs);
 
-      //@}
+      /** @} */
 
       /**
        * @name Differentiation
        */
-      //@{
+      /** @{ */
 
       /**
        * Return the derivative of this object's @p expression
@@ -688,12 +685,12 @@ namespace Differentiation
       Expression
       differentiate(const SymEngine::RCP<const SymEngine::Basic> &symbol) const;
 
-      //@}
+      /** @} */
 
       /**
        * @name Dictionary-based substitution
        */
-      //@{
+      /** @{ */
 
       /**
        * Perform substitution of all symbols found in this object's @p expression
@@ -782,12 +779,12 @@ namespace Differentiation
       substitute_and_evaluate(
         const SymEngine::map_basic_basic &substitution_values) const;
 
-      //@}
+      /** @} */
 
       /**
        * @name Conversion operators
        */
-      //@{
+      /** @{ */
 
       /**
        * Conversion operator for real integer or floating point values, and
@@ -854,7 +851,7 @@ namespace Differentiation
        */
       operator const SymEngine::RCP<const SymEngine::Basic> &() const;
 
-      //@}
+      /** @} */
 
     protected:
       /**
@@ -874,7 +871,7 @@ namespace Differentiation
     /**
      * @name Type traits
      */
-    //@{
+    /** @{ */
 
     /**
      * A struct to indicate whether a given @p NumberType is a supported
@@ -895,12 +892,12 @@ namespace Differentiation
     struct is_sd_number<Expression> : std::true_type
     {};
 
-    //@}
+    /** @} */
 
     /**
      * @name Bitwise operators
      */
-    //@{
+    /** @{ */
 
     /**
      * Bitwise left shift operator.
@@ -918,12 +915,12 @@ namespace Differentiation
     std::istream &
     operator>>(std::istream &stream, Expression &expression);
 
-    //@}
+    /** @} */
 
     /**
      * @name Comparison operators
      */
-    //@{
+    /** @{ */
 
     /**
      * Equality operator.
@@ -973,12 +970,12 @@ namespace Differentiation
     Expression
     operator>=(const Expression &lhs, const Expression &rhs);
 
-    //@}
+    /** @} */
 
     /**
      * @name Logical operators
      */
-    //@{
+    /** @{ */
 
     /**
      * Logical not operator.
@@ -1036,12 +1033,12 @@ namespace Differentiation
     Expression
     operator||(const Expression &lhs, const Expression &rhs);
 
-    //@}
+    /** @} */
 
     /**
      * @name Mathematical operators
      */
-    //@{
+    /** @{ */
 
     /**
      * Addition operator.
@@ -1084,8 +1081,8 @@ namespace Differentiation
      * scalar expressions using Expression more natural.
      */
     template <typename NumberType,
-              typename = typename std::enable_if<
-                std::is_constructible<Expression, NumberType>::value>::type>
+              typename = std::enable_if_t<
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator+(const NumberType &lhs, const Expression &rhs)
     {
@@ -1101,8 +1098,8 @@ namespace Differentiation
      * scalar expressions using Expression more natural.
      */
     template <typename NumberType,
-              typename = typename std::enable_if<
-                std::is_constructible<Expression, NumberType>::value>::type>
+              typename = std::enable_if_t<
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator+(const Expression &lhs, const NumberType &rhs)
     {
@@ -1118,8 +1115,8 @@ namespace Differentiation
      * scalar expressions using Expression more natural.
      */
     template <typename NumberType,
-              typename = typename std::enable_if<
-                std::is_constructible<Expression, NumberType>::value>::type>
+              typename = std::enable_if_t<
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator-(const NumberType &lhs, const Expression &rhs)
     {
@@ -1135,8 +1132,8 @@ namespace Differentiation
      * scalar expressions using Expression more natural.
      */
     template <typename NumberType,
-              typename = typename std::enable_if<
-                std::is_constructible<Expression, NumberType>::value>::type>
+              typename = std::enable_if_t<
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator-(const Expression &lhs, const NumberType &rhs)
     {
@@ -1152,8 +1149,8 @@ namespace Differentiation
      * scalar expressions using Expression more natural.
      */
     template <typename NumberType,
-              typename = typename std::enable_if<
-                std::is_constructible<Expression, NumberType>::value>::type>
+              typename = std::enable_if_t<
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator*(const NumberType &lhs, const Expression &rhs)
     {
@@ -1169,8 +1166,8 @@ namespace Differentiation
      * scalar expressions using Expression more natural.
      */
     template <typename NumberType,
-              typename = typename std::enable_if<
-                std::is_constructible<Expression, NumberType>::value>::type>
+              typename = std::enable_if_t<
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator*(const Expression &lhs, const NumberType &rhs)
     {
@@ -1186,8 +1183,8 @@ namespace Differentiation
      * scalar expressions using Expression more natural.
      */
     template <typename NumberType,
-              typename = typename std::enable_if<
-                std::is_constructible<Expression, NumberType>::value>::type>
+              typename = std::enable_if_t<
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator/(const NumberType &lhs, const Expression &rhs)
     {
@@ -1203,15 +1200,15 @@ namespace Differentiation
      * scalar expressions using Expression more natural.
      */
     template <typename NumberType,
-              typename = typename std::enable_if<
-                std::is_constructible<Expression, NumberType>::value>::type>
+              typename = std::enable_if_t<
+                std::is_constructible_v<Expression, NumberType>>>
     inline Expression
     operator/(const Expression &lhs, const NumberType &rhs)
     {
       return lhs / Expression(rhs);
     }
 
-    //@}
+    /** @} */
 
   } // namespace SD
 } // namespace Differentiation
@@ -1255,7 +1252,7 @@ namespace Differentiation
       std::stringstream sstream;
       sstream << *this;
       const std::string expr = sstream.str();
-      ar &              expr;
+      ar               &expr;
     }
 
 
@@ -1264,7 +1261,7 @@ namespace Differentiation
     Expression::load(Archive &ar, const unsigned int /*version*/)
     {
       std::string expr;
-      ar &        expr;
+      ar         &expr;
       parse(expr);
     }
 
@@ -1376,27 +1373,21 @@ namespace internal
       return t;
     }
 
-    template <
-      typename T,
-      typename = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     static Differentiation::SD::Expression
     value(const T &t)
     {
       return Differentiation::SD::Expression(t);
     }
 
-    template <
-      typename T,
-      typename = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     static Differentiation::SD::Expression
     value(T &&t)
     {
       return Differentiation::SD::Expression(t);
     }
 
-    template <
-      typename T,
-      typename = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     static Differentiation::SD::Expression
     value(const std::complex<T> &t)
     {

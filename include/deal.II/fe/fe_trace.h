@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,7 +30,7 @@ DEAL_II_NAMESPACE_OPEN
  * A finite element, which is the trace of FE_Q elements, that is a tensor
  * product of polynomials on the faces, undefined in the interior of the cells
  * and continuous. The basis functions on the faces are formed by a tensor
- * product of 1D Lagrange polynomials with equidistant points up to degree 2
+ * product of 1d Lagrange polynomials with equidistant points up to degree 2
  * and Gauss-Lobatto points starting from degree 3.
  *
  * This finite element is the trace space of FE_Q on the faces.
@@ -75,7 +75,7 @@ public:
   virtual void
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const override;
+    std::vector<double>               &nodal_values) const override;
 
   /**
    * This function returns @p true, if the shape function @p shape_index has
@@ -109,7 +109,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<dim, spacedim> &source,
-                                FullMatrix<double> &                matrix,
+                                FullMatrix<double>                 &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -124,7 +124,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim, spacedim> &source,
     const unsigned int                  subface,
-    FullMatrix<double> &                matrix,
+    FullMatrix<double>                 &matrix,
     const unsigned int                  face_no = 0) const override;
 
   /**
@@ -150,7 +150,7 @@ private:
 
 
 /**
- * FE_TraceQ in 1D, i.e., with degrees of freedom on the element vertices.
+ * FE_TraceQ in 1d, i.e., with degrees of freedom on the element vertices.
  */
 template <int spacedim>
 class FE_TraceQ<1, spacedim> : public FE_FaceQ<1, spacedim>

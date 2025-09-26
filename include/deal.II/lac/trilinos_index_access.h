@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2018 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,18 +32,14 @@ DEAL_II_NAMESPACE_OPEN
 namespace TrilinosWrappers
 {
   /**
-   * A helper function that queries the size of an Epetra_BlockMap object
-   * and calls either the 32 or 64 bit function to get the number of global
-   * elements in the map.
+   * A helper function that queries the size of an Epetra_BlockMap object. We
+   * always call the 64 bit function to get the number of global elements in the
+   * map.
    */
-  inline TrilinosWrappers::types::int_type
+  inline TrilinosWrappers::types::int64_type
   n_global_elements(const Epetra_BlockMap &map)
   {
-#  ifdef DEAL_II_WITH_64BIT_INDICES
     return map.NumGlobalElements64();
-#  else
-    return map.NumGlobalElements();
-#  endif
   }
 
   /**
@@ -79,7 +75,7 @@ namespace TrilinosWrappers
    * either the 32 or 64 bit function.
    */
   inline TrilinosWrappers::types::int_type
-  global_index(const Epetra_BlockMap &               map,
+  global_index(const Epetra_BlockMap                &map,
                const dealii::types::global_dof_index i)
   {
 #  ifdef DEAL_II_WITH_64BIT_INDICES
@@ -133,17 +129,13 @@ namespace TrilinosWrappers
   }
 
   /**
-   * A helper function that finds the number of global entries by calling
-   * either the 32 or 64 bit function.
+   * A helper function that finds the number of global entries. We always call
+   * the 64 bit function.
    */
-  inline TrilinosWrappers::types::int_type
+  inline TrilinosWrappers::types::int64_type
   n_global_entries(const Epetra_CrsGraph &graph)
   {
-#  ifdef DEAL_II_WITH_64BIT_INDICES
     return graph.NumGlobalEntries64();
-#  else
-    return graph.NumGlobalEntries();
-#  endif
   }
 
   /**
@@ -151,7 +143,7 @@ namespace TrilinosWrappers
    * either the 32 or 64 bit function.
    */
   inline TrilinosWrappers::types::int_type
-  global_row_index(const Epetra_CrsMatrix &              matrix,
+  global_row_index(const Epetra_CrsMatrix               &matrix,
                    const dealii::types::global_dof_index i)
   {
 #  ifdef DEAL_II_WITH_64BIT_INDICES
@@ -166,7 +158,7 @@ namespace TrilinosWrappers
    * either the 32 or 64 bit function.
    */
   inline TrilinosWrappers::types::int_type
-  global_column_index(const Epetra_CrsMatrix &              matrix,
+  global_column_index(const Epetra_CrsMatrix               &matrix,
                       const dealii::types::global_dof_index i)
   {
 #  ifdef DEAL_II_WITH_64BIT_INDICES

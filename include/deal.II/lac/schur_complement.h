@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2015 - 2020 by the deal.II authors
+// Copyright (C) 2015 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,7 +30,7 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * @name Creation of a LinearOperator related to the Schur Complement
  */
-//@{
+/** @{ */
 
 /**
  * @relatesalso LinearOperator
@@ -176,7 +176,7 @@ DEAL_II_NAMESPACE_OPEN
  * A better preconditioner in such a case would be one that provides a more
  * representative approximation for $ S^{-1} $. One approach is shown in
  * step-22, where $ D $ is the null matrix and the preconditioner for $ S^{-1}
- * $ is derived from the mass matrix over this space.
+ * $ is derived from the @ref GlossMassMatrix "mass matrix" over this space.
  *
  * From another viewpoint, a similar result can be achieved by first
  * constructing an object that represents an approximation for $ S $ wherein
@@ -261,13 +261,13 @@ schur_complement(const LinearOperator<Domain_1, Range_1, Payload> &A_inv,
     return -1.0 * C * A_inv * B;
 }
 
-//@}
+/** @} */
 
 
 /**
  * @name Creation of PackagedOperation objects related to the Schur Complement
  */
-//@{
+/** @{ */
 
 /**
  * @relatesalso PackagedOperation
@@ -297,8 +297,8 @@ template <typename Range_1,
 PackagedOperation<Range_2>
 condense_schur_rhs(const LinearOperator<Range_1, Domain_1, Payload> &A_inv,
                    const LinearOperator<Range_2, Domain_1, Payload> &C,
-                   const Range_1 &                                   f,
-                   const Range_2 &                                   g)
+                   const Range_1                                    &f,
+                   const Range_2                                    &g)
 {
   // We return the result of the compound PackagedOperation
   // directly, so as to ensure that the underlying Payload
@@ -336,8 +336,8 @@ PackagedOperation<Domain_1>
 postprocess_schur_solution(
   const LinearOperator<Range_1, Domain_1, Payload> &A_inv,
   const LinearOperator<Range_1, Domain_2, Payload> &B,
-  const Domain_2 &                                  y,
-  const Range_1 &                                   f)
+  const Domain_2                                   &y,
+  const Range_1                                    &f)
 {
   // We return the result of the compound PackagedOperation
   // directly, so as to ensure that the underlying Payload
@@ -347,7 +347,7 @@ postprocess_schur_solution(
   return A_inv * (f - B * y);
 }
 
-//@}
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

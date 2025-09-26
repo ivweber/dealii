@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -37,11 +37,11 @@
 
 template <typename SolverType, typename MatrixType, typename VectorType>
 void
-check_solve(SolverType &              solver,
-            const SolverControl &     solver_control,
-            const MatrixType &        A,
-            const MatrixType &        B,
-            std::vector<VectorType> & u,
+check_solve(SolverType               &solver,
+            const SolverControl      &solver_control,
+            const MatrixType         &A,
+            const MatrixType         &B,
+            std::vector<VectorType>  &u,
             std::vector<PetscScalar> &v)
 {
   deallog << "Solver type: " << typeid(solver).name() << std::endl;

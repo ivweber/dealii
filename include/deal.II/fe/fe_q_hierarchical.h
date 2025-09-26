@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,8 +24,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup fe */
-/*@{*/
+/**
+ * @addtogroup fe
+ * @{
+ */
 
 /**
  * Implementation of hierarchical @p Qp shape functions that yield the finite
@@ -63,12 +65,12 @@ DEAL_II_NAMESPACE_OPEN
  * shape function are defined in the exact same way:
  *
  * <ul>
- * <li> 1D case:
+ * <li> 1d case:
  *   @verbatim
  *      0-------1
  *   @endverbatim
  *
- * <li> 2D case:
+ * <li> 2d case:
  *   @verbatim
  *      2-------3
  *      |       |
@@ -77,7 +79,7 @@ DEAL_II_NAMESPACE_OPEN
  *      0-------1
  *   @endverbatim
  *
- * <li> 3D case:
+ * <li> 3d case:
  *   @verbatim
  *         6-------7        6-------7
  *        /|       |       /       /|
@@ -131,12 +133,12 @@ DEAL_II_NAMESPACE_OPEN
  *
  * <h4>Q2 elements</h4>
  * <ul>
- * <li> 1D case:
+ * <li> 1d case:
  *   @verbatim
  *      0---2---1
  *   @endverbatim
  *
- * <li> 2D case:
+ * <li> 2d case:
  *   @verbatim
  *      2---7---3
  *      |       |
@@ -145,7 +147,7 @@ DEAL_II_NAMESPACE_OPEN
  *      0---6---1
  *   @endverbatim
  *
- * <li> 3D case:
+ * <li> 3d case:
  *   @verbatim
  *         6--15---7        6--15---7
  *        /|       |       /       /|
@@ -263,12 +265,12 @@ DEAL_II_NAMESPACE_OPEN
  *
  * <h4>Q3 elements</h4>
  * <ul>
- * <li> 1D case:
+ * <li> 1d case:
  *   @verbatim
  *      0--2--3--1
  *   @endverbatim
  *
- * <li> 2D case:
+ * <li> 2d case:
  *   @verbatim
  *      2--10-11-3
  *      |        |
@@ -373,12 +375,12 @@ DEAL_II_NAMESPACE_OPEN
  *
  * <h4>Q4 elements</h4>
  * <ul>
- * <li> 1D case:
+ * <li> 1d case:
  *   @verbatim
  *      0--2--3--4--1
  *   @endverbatim
  *
- * <li> 2D case:
+ * <li> 2d case:
  *   @verbatim
  *      2--13-14-15-3
  *      |           |
@@ -585,7 +587,7 @@ public:
    */
   virtual void
   get_interpolation_matrix(const FiniteElement<dim> &source,
-                           FullMatrix<double> &      matrix) const override;
+                           FullMatrix<double>       &matrix) const override;
 
   /**
    * Embedding matrix between grids. Only isotropic refinement is supported.
@@ -634,7 +636,7 @@ public:
   compare_for_domination(const FiniteElement<dim> &fe_other,
                          const unsigned int codim = 0) const override final;
 
-  /*@}*/
+  /** @} */
 
   /**
    * Return the matrix interpolating from a face of one element to the face of
@@ -649,7 +651,7 @@ public:
    */
   virtual void
   get_face_interpolation_matrix(const FiniteElement<dim> &source,
-                                FullMatrix<double> &      matrix,
+                                FullMatrix<double>       &matrix,
                                 const unsigned int face_no = 0) const override;
 
   /**
@@ -667,7 +669,7 @@ public:
   get_subface_interpolation_matrix(
     const FiniteElement<dim> &source,
     const unsigned int        subface,
-    FullMatrix<double> &      matrix,
+    FullMatrix<double>       &matrix,
     const unsigned int        face_no = 0) const override;
 
   /**
@@ -793,7 +795,7 @@ private:
   friend class FE_Q_Hierarchical;
 };
 
-/*@}*/
+/** @} */
 
 /* -------------- declaration of explicit specializations ------------- */
 

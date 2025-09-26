@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2020 by the deal.II authors
+// Copyright (C) 2010 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -37,97 +37,97 @@ extern "C"
   // http://www.mathkeisan.com/usersguide/man/pdnaupd.html
   void
   pdnaupd_(MPI_Fint *comm,
-           int *     ido,
-           char *    bmat,
-           int *     n,
-           char *    which,
-           int *     nev,
-           double *  tol,
-           double *  resid,
-           int *     ncv,
-           double *  v,
-           int *     nloc,
-           int *     iparam,
-           int *     ipntr,
-           double *  workd,
-           double *  workl,
-           int *     lworkl,
-           int *     info);
+           int      *ido,
+           char     *bmat,
+           int      *n,
+           char     *which,
+           int      *nev,
+           double   *tol,
+           double   *resid,
+           int      *ncv,
+           double   *v,
+           int      *nloc,
+           int      *iparam,
+           int      *ipntr,
+           double   *workd,
+           double   *workl,
+           int      *lworkl,
+           int      *info);
 
   // http://www.mathkeisan.com/usersguide/man/pdsaupd.html
   void
   pdsaupd_(MPI_Fint *comm,
-           int *     ido,
-           char *    bmat,
-           int *     n,
-           char *    which,
-           int *     nev,
-           double *  tol,
-           double *  resid,
-           int *     ncv,
-           double *  v,
-           int *     nloc,
-           int *     iparam,
-           int *     ipntr,
-           double *  workd,
-           double *  workl,
-           int *     lworkl,
-           int *     info);
+           int      *ido,
+           char     *bmat,
+           int      *n,
+           char     *which,
+           int      *nev,
+           double   *tol,
+           double   *resid,
+           int      *ncv,
+           double   *v,
+           int      *nloc,
+           int      *iparam,
+           int      *ipntr,
+           double   *workd,
+           double   *workl,
+           int      *lworkl,
+           int      *info);
 
   // http://www.mathkeisan.com/usersguide/man/pdneupd.html
   void
   pdneupd_(MPI_Fint *comm,
-           int *     rvec,
-           char *    howmany,
-           int *     select,
-           double *  d,
-           double *  di,
-           double *  z,
-           int *     ldz,
-           double *  sigmar,
-           double *  sigmai,
-           double *  workev,
-           char *    bmat,
-           int *     n,
-           char *    which,
-           int *     nev,
-           double *  tol,
-           double *  resid,
-           int *     ncv,
-           double *  v,
-           int *     nloc,
-           int *     iparam,
-           int *     ipntr,
-           double *  workd,
-           double *  workl,
-           int *     lworkl,
-           int *     info);
+           int      *rvec,
+           char     *howmany,
+           int      *select,
+           double   *d,
+           double   *di,
+           double   *z,
+           int      *ldz,
+           double   *sigmar,
+           double   *sigmai,
+           double   *workev,
+           char     *bmat,
+           int      *n,
+           char     *which,
+           int      *nev,
+           double   *tol,
+           double   *resid,
+           int      *ncv,
+           double   *v,
+           int      *nloc,
+           int      *iparam,
+           int      *ipntr,
+           double   *workd,
+           double   *workl,
+           int      *lworkl,
+           int      *info);
 
   // http://www.mathkeisan.com/usersguide/man/pdseupd.html
   void
   pdseupd_(MPI_Fint *comm,
-           int *     rvec,
-           char *    howmany,
-           int *     select,
-           double *  d,
-           double *  z,
-           int *     ldz,
-           double *  sigmar,
-           char *    bmat,
-           int *     n,
-           char *    which,
-           int *     nev,
-           double *  tol,
-           double *  resid,
-           int *     ncv,
-           double *  v,
-           int *     nloc,
-           int *     iparam,
-           int *     ipntr,
-           double *  workd,
-           double *  workl,
-           int *     lworkl,
-           int *     info);
+           int      *rvec,
+           char     *howmany,
+           int      *select,
+           double   *d,
+           double   *z,
+           int      *ldz,
+           double   *sigmar,
+           char     *bmat,
+           int      *n,
+           char     *which,
+           int      *nev,
+           double   *tol,
+           double   *resid,
+           int      *ncv,
+           double   *v,
+           int      *nloc,
+           int      *iparam,
+           int      *ipntr,
+           double   *workd,
+           double   *workl,
+           int      *lworkl,
+           int      *info);
 
   // other resources:
   //    http://acts.nersc.gov/superlu/example5/pnslac.c.html
@@ -145,7 +145,7 @@ extern "C"
  *
  * In this class we make use of the method applied to the generalized
  * eigenspectrum problem $(A-\lambda B)x=0$, for $x\neq0$; where $A$ is a
- * system matrix, $B$ is a mass matrix, and $\lambda, x$ are a set of
+ * system matrix, $B$ is a @ref GlossMassMatrix "mass matrix", and $\lambda, x$ are a set of
  * eigenvalues and eigenvectors respectively.
  *
  * The ArpackSolver can be used in application codes in the following way:
@@ -294,8 +294,8 @@ public:
   /**
    * Constructor.
    */
-  PArpackSolver(SolverControl &       control,
-                const MPI_Comm &      mpi_communicator,
+  PArpackSolver(SolverControl        &control,
+                const MPI_Comm        mpi_communicator,
                 const AdditionalData &data = AdditionalData());
 
   /**
@@ -311,7 +311,7 @@ public:
    * blockvectors used.
    */
   void
-  reinit(const IndexSet &             locally_owned_dofs,
+  reinit(const IndexSet              &locally_owned_dofs,
          const std::vector<IndexSet> &partitioning);
 
   /**
@@ -348,11 +348,11 @@ public:
    */
   template <typename MatrixType1, typename MatrixType2, typename INVERSE>
   void
-  solve(const MatrixType1 &                A,
-        const MatrixType2 &                B,
-        const INVERSE &                    inverse,
+  solve(const MatrixType1                 &A,
+        const MatrixType2                 &B,
+        const INVERSE                     &inverse,
         std::vector<std::complex<double>> &eigenvalues,
-        std::vector<VectorType> &          eigenvectors,
+        std::vector<VectorType>           &eigenvectors,
         const unsigned int                 n_eigenvalues);
 
   /**
@@ -360,11 +360,11 @@ public:
    */
   template <typename MatrixType1, typename MatrixType2, typename INVERSE>
   void
-  solve(const MatrixType1 &                A,
-        const MatrixType2 &                B,
-        const INVERSE &                    inverse,
+  solve(const MatrixType1                 &A,
+        const MatrixType2                 &B,
+        const INVERSE                     &inverse,
         std::vector<std::complex<double>> &eigenvalues,
-        std::vector<VectorType *> &        eigenvectors,
+        std::vector<VectorType *>         &eigenvectors,
         const unsigned int                 n_eigenvalues);
 
   /**
@@ -637,8 +637,8 @@ PArpackSolver<VectorType>::AdditionalData::AdditionalData(
 
 
 template <typename VectorType>
-PArpackSolver<VectorType>::PArpackSolver(SolverControl &       control,
-                                         const MPI_Comm &      mpi_communicator,
+PArpackSolver<VectorType>::PArpackSolver(SolverControl        &control,
+                                         const MPI_Comm        mpi_communicator,
                                          const AdditionalData &data)
   : solver_control(control)
   , additional_data(data)
@@ -686,7 +686,7 @@ void
 PArpackSolver<VectorType>::internal_reinit(const IndexSet &locally_owned_dofs)
 {
   // store local indices to write to vectors
-  locally_owned_dofs.fill_index_vector(local_indices);
+  local_indices = locally_owned_dofs.get_index_vector();
 
   // scalars
   nloc = locally_owned_dofs.n_elements();
@@ -767,9 +767,9 @@ PArpackSolver<VectorType>::reinit(const IndexSet &locally_owned_dofs,
 template <typename VectorType>
 template <typename MatrixType1, typename MatrixType2, typename INVERSE>
 void
-PArpackSolver<VectorType>::solve(const MatrixType1 &                A,
-                                 const MatrixType2 &                B,
-                                 const INVERSE &                    inverse,
+PArpackSolver<VectorType>::solve(const MatrixType1                 &A,
+                                 const MatrixType2                 &B,
+                                 const INVERSE                     &inverse,
                                  std::vector<std::complex<double>> &eigenvalues,
                                  std::vector<VectorType> &eigenvectors,
                                  const unsigned int       n_eigenvalues)
@@ -787,7 +787,7 @@ template <typename MatrixType1, typename MatrixType2, typename INVERSE>
 void
 PArpackSolver<VectorType>::solve(const MatrixType1 &system_matrix,
                                  const MatrixType2 &mass_matrix,
-                                 const INVERSE &    inverse,
+                                 const INVERSE     &inverse,
                                  std::vector<std::complex<double>> &eigenvalues,
                                  std::vector<VectorType *> &eigenvectors,
                                  const unsigned int         n_eigenvalues)
@@ -1148,6 +1148,7 @@ PArpackSolver<VectorType>::solve(const MatrixType1 &system_matrix,
   {
     tmp = 0.0;
     tmp.add(nloc, local_indices.data(), resid.data());
+    tmp.compress(VectorOperation::add);
     solver_control.check(iparam[2], tmp.l2_norm());
   }
 }

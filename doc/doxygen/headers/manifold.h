@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2020 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -456,5 +456,4 @@
  * it can get from a boundary description alone.
  *
  * @ingroup grid
- * @author Luca Heltai, 2013, Martin Kronbichler, 2017
  */

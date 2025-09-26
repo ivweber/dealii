@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -249,7 +249,7 @@ TestPointValueHistory<dim>::run()
     {
       deallog << "Copying output file " << filenames[i] << std::endl;
 
-      std::ifstream in(filenames[i].c_str());
+      std::ifstream in(filenames[i]);
       AssertThrow(in, ExcIO());
 
       std::string s;

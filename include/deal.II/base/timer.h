@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,8 +20,7 @@
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/base/mpi.h>
-#include <deal.II/base/thread_management.h>
-#include <deal.II/base/utilities.h>
+#include <deal.II/base/mutex.h>
 
 #include <chrono>
 #include <list>
@@ -137,7 +136,7 @@ public:
    * communicator occurs; the extra cost of the synchronization is not
    * measured.
    */
-  Timer(const MPI_Comm &mpi_communicator, const bool sync_lap_times = false);
+  Timer(const MPI_Comm mpi_communicator, const bool sync_lap_times = false);
 
   /**
    * Return a reference to the data structure containing basic statistics on
@@ -161,7 +160,7 @@ public:
    * Print the data returned by Timer::get_last_lap_wall_time_data() to the
    * given stream.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   print_last_lap_wall_time_data(StreamType &stream) const;
 
@@ -169,7 +168,7 @@ public:
    * Print the data returned by Timer::get_accumulated_wall_time_data() to the
    * given stream.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   print_accumulated_wall_time_data(StreamType &stream) const;
 
@@ -671,7 +670,7 @@ public:
    * @param output_type A variable indicating what kind of timing the output
    * should represent (CPU or wall time).
    */
-  TimerOutput(std::ostream &        stream,
+  TimerOutput(std::ostream         &stream,
               const OutputFrequency output_frequency,
               const OutputType      output_type);
 
@@ -685,7 +684,7 @@ public:
    * @param output_type A variable indicating what kind of timing the output
    * should represent (CPU or wall time).
    */
-  TimerOutput(ConditionalOStream &  stream,
+  TimerOutput(ConditionalOStream   &stream,
               const OutputFrequency output_frequency,
               const OutputType      output_type);
 
@@ -712,8 +711,8 @@ public:
    * <code>MPI_Barrier</code> call before starting and stopping the timer for
    * each section.
    */
-  TimerOutput(const MPI_Comm &      mpi_comm,
-              std::ostream &        stream,
+  TimerOutput(const MPI_Comm        mpi_comm,
+              std::ostream         &stream,
               const OutputFrequency output_frequency,
               const OutputType      output_type);
 
@@ -740,8 +739,8 @@ public:
    * <code>MPI_Barrier</code> call before starting and stopping the timer for
    * each section.)
    */
-  TimerOutput(const MPI_Comm &      mpi_comm,
-              ConditionalOStream &  stream,
+  TimerOutput(const MPI_Comm        mpi_comm,
+              ConditionalOStream   &stream,
               const OutputFrequency output_frequency,
               const OutputType      output_type);
 
@@ -796,8 +795,8 @@ public:
    * median is given).
    */
   void
-  print_wall_time_statistics(const MPI_Comm &mpi_comm,
-                             const double    print_quantile = 0.) const;
+  print_wall_time_statistics(const MPI_Comm mpi_comm,
+                             const double   print_quantile = 0.) const;
 
   /**
    * By calling this function, all output can be disabled. This function
@@ -919,7 +918,7 @@ Timer::get_accumulated_wall_time_data() const
 
 
 
-template <class StreamType>
+template <typename StreamType>
 inline void
 Timer::print_last_lap_wall_time_data(StreamType &stream) const
 {
@@ -931,7 +930,7 @@ Timer::print_last_lap_wall_time_data(StreamType &stream) const
 
 
 
-template <class StreamType>
+template <typename StreamType>
 inline void
 Timer::print_accumulated_wall_time_data(StreamType &stream) const
 {
@@ -944,7 +943,7 @@ Timer::print_accumulated_wall_time_data(StreamType &stream) const
 
 
 inline TimerOutput::Scope::Scope(dealii::TimerOutput &timer_,
-                                 const std::string &  section_name_)
+                                 const std::string   &section_name_)
   : timer(timer_)
   , section_name(section_name_)
   , in(true)

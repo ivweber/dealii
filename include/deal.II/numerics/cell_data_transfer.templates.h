@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,7 +35,7 @@ namespace internal
     void
     post_unpack_action(VectorType &out)
     {
-      out.compress(::dealii::VectorOperation::insert);
+      out.compress(VectorOperation::insert);
     }
 
     template <typename value_type>
@@ -51,7 +51,7 @@ namespace internal
 
 template <int dim, int spacedim, typename VectorType>
 CellDataTransfer<dim, spacedim, VectorType>::CellDataTransfer(
-  const Triangulation<dim, spacedim> &               triangulation,
+  const Triangulation<dim, spacedim>                &triangulation,
   const std::function<std::vector<value_type>(
     const typename Triangulation<dim, spacedim>::cell_iterator &parent,
     const value_type parent_value)>                  refinement_strategy,
@@ -138,7 +138,7 @@ CellDataTransfer<dim, spacedim, VectorType>::
 template <int dim, int spacedim, typename VectorType>
 void
 CellDataTransfer<dim, spacedim, VectorType>::unpack(const VectorType &in,
-                                                    VectorType &      out)
+                                                    VectorType       &out)
 {
 #ifdef DEBUG
   Assert(in.size() == n_active_cells_pre,

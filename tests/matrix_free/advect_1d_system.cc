@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -100,9 +100,9 @@ public:
 
 private:
   void
-  local_apply(const MatrixFree<dim, number> &              data,
-              VectorType &                                 dst,
-              const VectorType &                           src,
+  local_apply(const MatrixFree<dim, number>               &data,
+              VectorType                                  &dst,
+              const VectorType                            &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, fe_degree, n_q_points_1d, n_components, number> phi(
@@ -129,9 +129,9 @@ private:
 
   void
   local_apply_face(
-    const MatrixFree<dim, number> &              data,
-    VectorType &                                 dst,
-    const VectorType &                           src,
+    const MatrixFree<dim, number>               &data,
+    VectorType                                  &dst,
+    const VectorType                            &src,
     const std::pair<unsigned int, unsigned int> &face_range) const
   {
     FEFaceEvaluation<dim, fe_degree, n_q_points_1d, n_components, number> phi_m(
@@ -158,7 +158,7 @@ private:
             value_type u_minus = phi_m.get_value(q),
                        u_plus  = phi_p.get_value(q);
             const VectorizedArray<number> normal_times_advection =
-              advection * phi_m.get_normal_vector(q);
+              advection * phi_m.normal_vector(q);
             const value_type flux_times_normal =
               make_vectorized_array<number>(0.5) *
               ((u_minus + u_plus) * normal_times_advection +
@@ -176,9 +176,9 @@ private:
 
   void
   local_apply_boundary_face(
-    const MatrixFree<dim, number> &              data,
-    VectorType &                                 dst,
-    const VectorType &                           src,
+    const MatrixFree<dim, number>               &data,
+    VectorType                                  &dst,
+    const VectorType                            &src,
     const std::pair<unsigned int, unsigned int> &face_range) const
   {
     FEFaceEvaluation<dim, fe_degree, n_q_points_1d, n_components, number>
@@ -200,7 +200,7 @@ private:
             value_type                    u_minus = fe_eval.get_value(q);
             value_type                    u_plus  = -u_minus;
             const VectorizedArray<number> normal_times_advection =
-              advection * fe_eval.get_normal_vector(q);
+              advection * fe_eval.normal_vector(q);
             const value_type flux_times_normal =
               make_vectorized_array<number>(0.5) *
               ((u_minus + u_plus) * normal_times_advection +
@@ -213,7 +213,7 @@ private:
       }
   }
 
-  const MatrixFree<dim, number> &         data;
+  const MatrixFree<dim, number>          &data;
   const bool                              zero_within_loop;
   const unsigned int                      start_vector_component;
   Tensor<1, dim, VectorizedArray<number>> advection;
@@ -294,7 +294,7 @@ test(const unsigned int n_refine)
     (update_gradients | update_JxW_values);
 
   MatrixFree<dim, double> mf_data;
-  mf_data.reinit(dof, constraints, quad, data);
+  mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
 
   mf_data.initialize_dof_vector(in);
   mf_data.initialize_dof_vector(out);

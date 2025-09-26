@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2021 by the deal.II authors
+// Copyright (C) 2006 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,6 +29,7 @@ DEAL_II_NAMESPACE_OPEN
 // Forward declarations
 #ifndef DOXYGEN
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class Triangulation;
 template <class Accessor>
 class TriaRawIterator;
@@ -187,9 +188,9 @@ namespace internal
       /**
        * Return an iterator to the next free slot for a single object. This
        * function is only used by Triangulation::execute_refinement()
-       * in 3D.
+       * in 3d.
        *
-       * @warning Interestingly, this function is not used for 1D or 2D
+       * @warning Interestingly, this function is not used for 1d or 2d
        * triangulations, where it seems the authors of the refinement function
        * insist on reimplementing its contents.
        *
@@ -202,9 +203,9 @@ namespace internal
       /**
        * Return an iterator to the next free slot for a pair of objects. This
        * function is only used by Triangulation::execute_refinement()
-       * in 3D.
+       * in 3d.
        *
-       * @warning Interestingly, this function is not used for 1D or 2D
+       * @warning Interestingly, this function is not used for 1d or 2d
        * triangulations, where it seems the authors of the refinement function
        * insist on reimplementing its contents.
        *
@@ -373,9 +374,10 @@ namespace internal
     inline unsigned int
     TriaObjects::n_objects() const
     {
-      // assume that each cell has the same number of faces
-      const unsigned int faces_per_cell = 2 * this->structdim;
-      return cells.size() / faces_per_cell;
+      // ensure that sizes are consistent, and then return one that
+      // corresponds to the number of objects
+      AssertDimension(cells.size(), manifold_id.size() * 2 * this->structdim);
+      return manifold_id.size();
     }
 
 
@@ -530,15 +532,15 @@ namespace internal
     void
     TriaObjects::serialize(Archive &ar, const unsigned int)
     {
-      ar &structdim;
-      ar &cells &children;
-      ar &       refinement_cases;
-      ar &       used;
-      ar &       user_flags;
-      ar &       boundary_or_material_id;
-      ar &       manifold_id;
+      ar                                   &structdim;
+      ar &cells                            &children;
+      ar                                   &refinement_cases;
+      ar                                   &used;
+      ar                                   &user_flags;
+      ar                                   &boundary_or_material_id;
+      ar                                   &manifold_id;
       ar &next_free_single &next_free_pair &reverse_order_next_free_single;
-      ar &user_data &user_data_type;
+      ar &user_data                        &user_data_type;
     }
 
 

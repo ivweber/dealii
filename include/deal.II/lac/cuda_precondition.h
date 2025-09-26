@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,7 +23,7 @@
 
 #include <memory>
 
-#ifdef DEAL_II_COMPILER_CUDA_AWARE
+#ifdef DEAL_II_WITH_CUDA
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -122,13 +122,13 @@ namespace CUDAWrappers
      */
     void
     initialize(const SparseMatrix<Number> &matrix,
-               const AdditionalData &      additional_data = AdditionalData());
+               const AdditionalData       &additional_data = AdditionalData());
 
     /**
      * Apply the preconditioner.
      */
     void
-    vmult(LinearAlgebra::CUDAWrappers::Vector<Number> &      dst,
+    vmult(LinearAlgebra::CUDAWrappers::Vector<Number>       &dst,
           const LinearAlgebra::CUDAWrappers::Vector<Number> &src) const;
 
     /**
@@ -136,7 +136,7 @@ namespace CUDAWrappers
      * is the same as vmult().
      */
     void
-    Tvmult(LinearAlgebra::CUDAWrappers::Vector<Number> &      dst,
+    Tvmult(LinearAlgebra::CUDAWrappers::Vector<Number>       &dst,
            const LinearAlgebra::CUDAWrappers::Vector<Number> &src) const;
 
     /**
@@ -196,31 +196,31 @@ namespace CUDAWrappers
     SmartPointer<const SparseMatrix<Number>> matrix_pointer;
 
     /**
-     * Pointer to the values (on the device) of the computed preconditioning
+     * Pointer to the values (on the @ref GlossDevice "device") of the computed preconditioning
      * matrix.
      */
     std::unique_ptr<Number[], void (*)(Number *)> P_val_dev;
 
     /**
-     * Pointer to the row pointer (on the device) of the sparse matrix this
+     * Pointer to the row pointer (on the @ref GlossDevice "device") of the sparse matrix this
      * object was initialized with. Guarded by matrix_pointer.
      */
     const int *P_row_ptr_dev;
 
     /**
-     * Pointer to the column indices (on the device) of the sparse matrix this
+     * Pointer to the column indices (on the @ref GlossDevice "device") of the sparse matrix this
      * object was initialized with. Guarded by matrix_pointer.
      */
     const int *P_column_index_dev;
 
     /**
-     * Pointer to the value (on the device) for a temporary (helper) vector
+     * Pointer to the value (on the @ref GlossDevice "device") for a temporary (helper) vector
      * used in vmult().
      */
     std::unique_ptr<Number[], void (*)(Number *)> tmp_dev;
 
     /**
-     * Pointer to an internal buffer (on the device) that is used for
+     * Pointer to an internal buffer (on the @ref GlossDevice "device") that is used for
      * computing the decomposition.
      */
     std::unique_ptr<void, void (*)(void *)> buffer_dev;
@@ -288,7 +288,7 @@ namespace CUDAWrappers
     {
       /**
        * Constructor. cuSPARSE allows to compute and use level information.
-       *  to the documentation this might improve performance.
+       * to the documentation this might improve performance.
        * It is suggested to try both options.
        */
       AdditionalData(bool use_level_analysis = true);
@@ -335,20 +335,20 @@ namespace CUDAWrappers
      */
     void
     initialize(const SparseMatrix<Number> &matrix,
-               const AdditionalData &      additional_data = AdditionalData());
+               const AdditionalData       &additional_data = AdditionalData());
 
     /**
      * Apply the preconditioner.
      */
     void
-    vmult(LinearAlgebra::CUDAWrappers::Vector<Number> &      dst,
+    vmult(LinearAlgebra::CUDAWrappers::Vector<Number>       &dst,
           const LinearAlgebra::CUDAWrappers::Vector<Number> &src) const;
 
     /**
      * Apply the transposed preconditioner. Not yet implemented.
      */
     void
-    Tvmult(LinearAlgebra::CUDAWrappers::Vector<Number> &      dst,
+    Tvmult(LinearAlgebra::CUDAWrappers::Vector<Number>       &dst,
            const LinearAlgebra::CUDAWrappers::Vector<Number> &src) const;
 
     /**
@@ -413,31 +413,31 @@ namespace CUDAWrappers
     SmartPointer<const SparseMatrix<Number>> matrix_pointer;
 
     /**
-     * Pointer to the values (on the device) of the computed preconditioning
+     * Pointer to the values (on the @ref GlossDevice "device") of the computed preconditioning
      * matrix.
      */
     std::unique_ptr<Number[], void (*)(Number *)> P_val_dev;
 
     /**
-     * Pointer to the row pointer (on the device) of the sparse matrix this
+     * Pointer to the row pointer (on the @ref GlossDevice "device") of the sparse matrix this
      * object was initialized with. Guarded by matrix_pointer.
      */
     const int *P_row_ptr_dev;
 
     /**
-     * Pointer to the column indices (on the device) of the sparse matrix this
+     * Pointer to the column indices (on the @ref GlossDevice "device") of the sparse matrix this
      * object was initialized with. Guarded by matrix_pointer.
      */
     const int *P_column_index_dev;
 
     /**
-     * Pointer to the value (on the device) for a temporary (helper) vector
+     * Pointer to the value (on the @ref GlossDevice "device") for a temporary (helper) vector
      * used in vmult().
      */
     std::unique_ptr<Number[], void (*)(Number *)> tmp_dev;
 
     /**
-     * Pointer to an internal buffer (on the device) that is used for
+     * Pointer to an internal buffer (on the @ref GlossDevice "device") that is used for
      * computing the decomposition.
      */
     std::unique_ptr<void, void (*)(void *)> buffer_dev;

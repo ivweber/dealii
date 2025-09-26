@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2016 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,7 +32,6 @@
  * @ref distributed).
  *
  * @ingroup threads
- * @author Wolfgang Bangerth, 2008, 2009
  */
 namespace parallel
 {

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2021 by the deal.II authors
+// Copyright (C) 2002 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <limits>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -724,7 +725,7 @@ public:
    *   the destructor is called.
    */
   void
-  replicate_across_communicator(const MPI_Comm &   communicator,
+  replicate_across_communicator(const MPI_Comm     communicator,
                                 const unsigned int root_process);
 
   /**
@@ -1026,7 +1027,7 @@ namespace MatrixTableIterators
     template <bool OtherConstness>
     friend bool
     operator==(
-      const AccessorBase<TableType, Constness, storage_order> &     left,
+      const AccessorBase<TableType, Constness, storage_order>      &left,
       const AccessorBase<TableType, OtherConstness, storage_order> &right)
     {
       return left.container == right.container &&
@@ -2384,7 +2385,7 @@ TableBase<N, T>::fill(const T &value)
 
 template <int N, typename T>
 inline void
-TableBase<N, T>::replicate_across_communicator(const MPI_Comm &   communicator,
+TableBase<N, T>::replicate_across_communicator(const MPI_Comm     communicator,
                                                const unsigned int root_process)
 {
   // Replicate first the actual data, then also exchange the

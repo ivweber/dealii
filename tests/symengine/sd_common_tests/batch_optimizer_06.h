@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -203,7 +203,7 @@ test_serialization(const int n_runs, TimerOutput &timer)
       // Optimizer
       SD::BatchOptimizer<NumberType> optimizer;
 
-      // Deserialze
+      // Deserialize
       std::cout << "Deserializing..." << std::endl;
       std::istringstream            iss(oss.str());
       boost::archive::text_iarchive ia(iss, boost::archive::no_header);

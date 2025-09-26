@@ -42,7 +42,7 @@
 template <int dim>
 void
 write_mesh(const parallel::shared::Triangulation<dim> &tria,
-           const char *                                filename_)
+           const char                                 *filename_)
 {
   DataOut<dim> data_out;
   data_out.attach_triangulation(tria);
@@ -55,7 +55,7 @@ write_mesh(const parallel::shared::Triangulation<dim> &tria,
   const std::string filename =
     (filename_ + Utilities::int_to_string(tria.locally_owned_subdomain(), 4));
   {
-    std::ofstream output((filename + ".vtu").c_str());
+    std::ofstream output(filename + ".vtu");
     data_out.write_vtu(output);
   }
 }

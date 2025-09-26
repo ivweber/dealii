@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -88,9 +88,8 @@ test(const unsigned int n = 5, const unsigned int m = 3)
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints(relevant_set);
   DoFTools::make_hanging_node_constraints(dof, constraints);
@@ -107,7 +106,7 @@ test(const unsigned int n = 5, const unsigned int m = 3)
     typename MatrixFree<dim, number>::AdditionalData data;
     data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
     data.tasks_block_size      = 7;
-    mf_data->reinit(dof, constraints, quad, data);
+    mf_data->reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   MatrixFreeOperators::MassOperator<dim,
@@ -126,7 +125,7 @@ test(const unsigned int n = 5, const unsigned int m = 3)
       mf_data->initialize_dof_vector(left2.block(b));
       left.block(b)  = 0.;
       left2.block(b) = 0.;
-      for (unsigned int i = 0; i < left.block(b).local_size(); ++i)
+      for (unsigned int i = 0; i < left.block(b).locally_owned_size(); ++i)
         {
           const unsigned int glob_index = owned_set.nth_index_in_set(i);
           if (constraints.is_constrained(glob_index))
@@ -139,7 +138,7 @@ test(const unsigned int n = 5, const unsigned int m = 3)
     {
       mf_data->initialize_dof_vector(right.block(b));
       right.block(b) = 0.;
-      for (unsigned int i = 0; i < right.block(b).local_size(); ++i)
+      for (unsigned int i = 0; i < right.block(b).locally_owned_size(); ++i)
         {
           const unsigned int glob_index = owned_set.nth_index_in_set(i);
           if (constraints.is_constrained(glob_index))

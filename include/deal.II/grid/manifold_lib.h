@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -300,7 +300,7 @@ public:
    */
   virtual void
   get_new_points(const ArrayView<const Point<spacedim>> &surrounding_points,
-                 const Table<2, double> &                weights,
+                 const Table<2, double>                 &weights,
                  ArrayView<Point<spacedim>> new_points) const override;
 
   /**
@@ -309,7 +309,7 @@ public:
    */
   virtual Point<spacedim>
   get_new_point(const ArrayView<const Point<spacedim>> &vertices,
-                const ArrayView<const double> &         weights) const override;
+                const ArrayView<const double>          &weights) const override;
 
   /**
    * The center of the spherical coordinate system.
@@ -325,8 +325,8 @@ private:
    */
   std::pair<double, Tensor<1, spacedim>>
   guess_new_point(const ArrayView<const Tensor<1, spacedim>> &directions,
-                  const ArrayView<const double> &             distances,
-                  const ArrayView<const double> &             weights) const;
+                  const ArrayView<const double>              &distances,
+                  const ArrayView<const double>              &weights) const;
 
   /**
    * Return a point on the spherical manifold which is intermediate
@@ -345,8 +345,8 @@ private:
    */
   Point<spacedim>
   get_new_point(const ArrayView<const Tensor<1, spacedim>> &directions,
-                const ArrayView<const double> &             distances,
-                const ArrayView<const double> &             weights,
+                const ArrayView<const double>              &distances,
+                const ArrayView<const double>              &weights,
                 const Point<spacedim> &candidate_point) const;
 
   /**
@@ -364,11 +364,11 @@ private:
    */
   virtual void
   get_new_points(const ArrayView<const Point<spacedim>> &surrounding_points,
-                 const ArrayView<const double> &         weights,
+                 const ArrayView<const double>          &weights,
                  ArrayView<Point<spacedim>>              new_points) const;
 
   /**
-   * A manifold description to be used for get_new_point in 2D.
+   * A manifold description to be used for get_new_point in 2d.
    */
   const PolarManifold<spacedim> polar_manifold;
 };
@@ -407,7 +407,7 @@ public:
    * value is used to determine if a point is on the axis.
    */
   CylindricalManifold(const Tensor<1, spacedim> &direction,
-                      const Point<spacedim> &    point_on_axis,
+                      const Point<spacedim>     &point_on_axis,
                       const double               tolerance = 1e-10);
 
   /**
@@ -449,7 +449,7 @@ public:
    */
   virtual Point<spacedim>
   get_new_point(const ArrayView<const Point<spacedim>> &surrounding_points,
-                const ArrayView<const double> &         weights) const override;
+                const ArrayView<const double>          &weights) const override;
 
 private:
   /**
@@ -524,7 +524,7 @@ public:
    * @param eccentricity Eccentricity of the
    * manifold $e\in\left]0,1\right[$.
    */
-  EllipticalManifold(const Point<spacedim> &    center,
+  EllipticalManifold(const Point<spacedim>     &center,
                      const Tensor<1, spacedim> &major_axis_direction,
                      const double               eccentricity);
 
@@ -608,8 +608,8 @@ public:
    * the function objects are destroyed only after the constructed manifold.
    */
   FunctionManifold(
-    const Function<chartdim> & push_forward_function,
-    const Function<spacedim> & pull_back_function,
+    const Function<chartdim>  &push_forward_function,
+    const Function<spacedim>  &pull_back_function,
     const Tensor<1, chartdim> &periodicity = Tensor<1, chartdim>(),
     const double               tolerance   = 1e-10);
 
@@ -627,7 +627,7 @@ public:
   FunctionManifold(
     std::unique_ptr<Function<chartdim>> push_forward,
     std::unique_ptr<Function<spacedim>> pull_back,
-    const Tensor<1, chartdim> &         periodicity = Tensor<1, chartdim>(),
+    const Tensor<1, chartdim>          &periodicity = Tensor<1, chartdim>(),
     const double                        tolerance   = 1e-10);
 
   /**
@@ -835,7 +835,7 @@ private:
  * interpolation.
  * The use of this class is discussed extensively in step-65.
  *
- * The formula for extending such a description in 2D is, for example,
+ * The formula for extending such a description in 2d is, for example,
  * described on
  * <a href="https://en.wikipedia.org/wiki/Transfinite_interpolation">
  * Wikipedia</a>.  Given a point $(u,v)$ on the chart, the image of this point
@@ -851,7 +851,7 @@ private:
  * four curves describing the lines of the cell. If a curved manifold is
  * attached to any of these lines, the evaluation is done according to
  * Manifold::get_new_point() with the two end points of the line and
- * appropriate weight. In 3D, the generalization of this formula is
+ * appropriate weight. In 3d, the generalization of this formula is
  * implemented, creating a weighted sum of the vertices (positive
  * contribution), the lines (negative), and the faces (positive contribution).
  *
@@ -1016,7 +1016,7 @@ public:
    */
   virtual Point<spacedim>
   get_new_point(const ArrayView<const Point<spacedim>> &surrounding_points,
-                const ArrayView<const double> &         weights) const override;
+                const ArrayView<const double>          &weights) const override;
 
   /**
    * Compute a new set of points that interpolate between the given points @p
@@ -1039,7 +1039,7 @@ public:
    */
   virtual void
   get_new_points(const ArrayView<const Point<spacedim>> &surrounding_points,
-                 const Table<2, double> &                weights,
+                 const Table<2, double>                 &weights,
                  ArrayView<Point<spacedim>> new_points) const override;
 
 private:
@@ -1050,7 +1050,7 @@ private:
    * do the search inside the relevant cells. The cells are sorted by the
    * distance of a Q1 approximation of the inverse mapping to the unit cell of
    * the surrounding points. We expect at most 20 cells (it should be up to 8
-   * candidates on a 3D structured mesh and a bit more on unstructured ones,
+   * candidates on a 3d structured mesh and a bit more on unstructured ones,
    * typically we only get two or three), so get an array with 20 entries of a
    * the indices <tt>cell->index()</tt>.
    */
@@ -1088,7 +1088,7 @@ private:
    */
   Point<dim>
   pull_back(const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-            const Point<spacedim> &                                     p,
+            const Point<spacedim>                                      &p,
             const Point<dim> &initial_guess) const;
 
   /**
@@ -1120,7 +1120,7 @@ private:
   DerivativeForm<1, dim, spacedim>
   push_forward_gradient(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-    const Point<dim> &                                          chart_point,
+    const Point<dim>                                           &chart_point,
     const Point<spacedim> &pushed_forward_chart_point) const;
 
   /**

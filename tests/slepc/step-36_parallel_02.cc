@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2021 by the deal.II authors
+// Copyright (C) 2004 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -104,9 +104,8 @@ test(std::string solver_name, std::string preconditioner_name)
   std::vector<dealii::IndexSet> locally_owned_dofs_per_processor =
     DoFTools::locally_owned_dofs_per_subdomain(dof_handler);
   locally_owned_dofs = locally_owned_dofs_per_processor[this_mpi_process];
-  locally_relevant_dofs.clear();
-  dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
-                                                  locally_relevant_dofs);
+  locally_relevant_dofs =
+    dealii::DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   constraints.clear();
   constraints.reinit(locally_relevant_dofs);
@@ -217,7 +216,7 @@ test(std::string solver_name, std::string preconditioner_name)
 
   // test SLEPc by
   {
-    PETScWrappers::PreconditionBase *preconditioner;
+    PETScWrappers::PreconditionBase *preconditioner = nullptr;
 
     dealii::deallog << preconditioner_name << std::endl;
     if (preconditioner_name == "Jacobi")
@@ -240,19 +239,14 @@ test(std::string solver_name, std::string preconditioner_name)
       }
     else
       {
-        AssertThrow(false, ExcMessage("not supported preconditioner"));
-
-        // make compiler happy
-        preconditioner =
-          new PETScWrappers::PreconditionJacobi(mpi_communicator);
+        AssertThrow(false, ExcMessage("Unsupported preconditioner"));
       }
 
     dealii::SolverControl   linear_solver_control(dof_handler.n_dofs(),
                                                 1e-15,
                                                 /*log_history*/ false,
                                                 /*log_results*/ false);
-    PETScWrappers::SolverCG linear_solver(linear_solver_control,
-                                          mpi_communicator);
+    PETScWrappers::SolverCG linear_solver(linear_solver_control);
     linear_solver.initialize(*preconditioner);
 
     dealii::SolverControl solver_control(100,
@@ -376,7 +370,7 @@ main(int argc, char **argv)
         //        test ("JacobiDavidson");
       }
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

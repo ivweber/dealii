@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2003 - 2021 by the deal.II authors
+ * Copyright (C) 2003 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -136,7 +136,7 @@ namespace Step50
 
     virtual void
     value_list(const std::vector<Point<dim>> &points,
-               std::vector<double> &          values,
+               std::vector<double>           &values,
                const unsigned int             component = 0) const;
   };
 
@@ -157,7 +157,7 @@ namespace Step50
   template <int dim>
   void
   Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                               std::vector<double> &          values,
+                               std::vector<double>           &values,
                                const unsigned int             component) const
   {
     (void)component;
@@ -198,8 +198,8 @@ namespace Step50
     mg_dof_handler.distribute_dofs(fe);
     mg_dof_handler.distribute_mg_dofs();
 
-    DoFTools::extract_locally_relevant_dofs(mg_dof_handler,
-                                            locally_relevant_set);
+    locally_relevant_set =
+      DoFTools::extract_locally_relevant_dofs(mg_dof_handler);
 
     solution.reinit(mg_dof_handler.locally_owned_dofs(), MPI_COMM_WORLD);
     system_rhs.reinit(mg_dof_handler.locally_owned_dofs(), MPI_COMM_WORLD);
@@ -207,10 +207,9 @@ namespace Step50
     constraints.reinit(locally_relevant_set);
     DoFTools::make_hanging_node_constraints(mg_dof_handler, constraints);
 
-    std::set<types::boundary_id>                        dirichlet_boundary_ids;
+    const std::set<types::boundary_id> dirichlet_boundary_ids = {0};
     std::map<types::boundary_id, const Function<dim> *> dirichlet_boundary;
     Functions::ConstantFunction<dim> homogeneous_dirichlet_bc(1.0);
-    dirichlet_boundary_ids.insert(0);
     dirichlet_boundary[0] = &homogeneous_dirichlet_bc;
     VectorTools::interpolate_boundary_values(mg_dof_handler,
                                              dirichlet_boundary,
@@ -354,10 +353,8 @@ namespace Step50
     for (unsigned int level = 0; level < triangulation.n_global_levels();
          ++level)
       {
-        IndexSet dofset;
-        DoFTools::extract_locally_relevant_level_dofs(mg_dof_handler,
-                                                      level,
-                                                      dofset);
+        const IndexSet dofset =
+          DoFTools::extract_locally_relevant_level_dofs(mg_dof_handler, level);
         boundary_constraints[level].reinit(dofset);
         boundary_constraints[level].add_lines(
           mg_constrained_dofs.get_refinement_edge_indices(level));
@@ -415,7 +412,8 @@ namespace Step50
                          local_dof_indices[j]) // ( boundary(i) && boundary(j)
                                                // && i==j )
                    ))
-                {}
+                {
+                }
               else
                 {
                   cell_matrix(i, j) = 0;
@@ -571,7 +569,7 @@ main(int argc, char *argv[])
       LaplaceProblem<2> laplace_problem(1 /*degree*/);
       laplace_problem.run();
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       std::cerr << std::endl
                 << std::endl

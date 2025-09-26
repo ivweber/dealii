@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,7 @@
 
 #include <deal.II/fe/component_mask.h>
 
-#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/vector_tools_common.h>
 
 #include <functional>
 #include <vector>
@@ -36,6 +36,7 @@ template <typename Number>
 class Vector;
 
 template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
 
 namespace FESeries
@@ -73,7 +74,7 @@ namespace SmoothnessEstimator
    *
    * In one dimension, the finite element solution on cell $K$ with polynomial
    * degree $p$ can be written as
-   * @f{eqnarray*}
+   * @f{eqnarray*}{
    *    u_h(x) &=& \sum_j u_j \varphi_j (x) \\
    *    u_{h, k}(x) &=& \sum_{k=0}^{p} a_k \widetilde P_k (x),
    *    \quad a_k = \sum_j {\cal L}_{k,j} u_j
@@ -112,7 +113,7 @@ namespace SmoothnessEstimator
      * coefficients at once. If there are multiple coefficients corresponding to
      * the same absolute value of modes $\|{\bf k}\|_1$, we take the maximum
      * among those. Thus, the least-squares fit is performed on
-     * @f{eqnarray*}
+     * @f{eqnarray*}{
      *   \widetilde P_{\bf k}({\bf x}) &=&
      *     \widetilde P_{k_1} (x_1) \ldots \widetilde P_{k_d} (x_d) \\
      *   \ln \left( \max\limits_{\|{\bf k}\|_1} |a_{\bf k}| \right) &\sim&
@@ -159,9 +160,9 @@ namespace SmoothnessEstimator
     template <int dim, int spacedim, typename VectorType>
     void
     coefficient_decay(FESeries::Legendre<dim, spacedim> &fe_legendre,
-                      const DoFHandler<dim, spacedim> &  dof_handler,
-                      const VectorType &                 solution,
-                      Vector<float> &                    smoothness_indicators,
+                      const DoFHandler<dim, spacedim>   &dof_handler,
+                      const VectorType                  &solution,
+                      Vector<float>                     &smoothness_indicators,
                       const VectorTools::NormType        regression_strategy =
                         VectorTools::Linfty_norm,
                       const double smallest_abs_coefficient = 1e-10,
@@ -216,12 +217,12 @@ namespace SmoothnessEstimator
     void
     coefficient_decay_per_direction(
       FESeries::Legendre<dim, spacedim> &fe_legendre,
-      const DoFHandler<dim, spacedim> &  dof_handler,
-      const VectorType &                 solution,
-      Vector<float> &                    smoothness_indicators,
-      const ComponentMask &coefficients_predicate   = ComponentMask(),
-      const double         smallest_abs_coefficient = 1e-10,
-      const bool           only_flagged_cells       = false);
+      const DoFHandler<dim, spacedim>   &dof_handler,
+      const VectorType                  &solution,
+      Vector<float>                     &smoothness_indicators,
+      const ComponentMask               &coefficients_predicate   = {},
+      const double                       smallest_abs_coefficient = 1e-10,
+      const bool                         only_flagged_cells       = false);
 
     /**
      * Returns a FESeries::Legendre object for Legendre series expansions with
@@ -259,7 +260,7 @@ namespace SmoothnessEstimator
    * From the definition, we can write our Fourier series expansion
    * $a_{\bf k}$ of the finite element solution on cell $K$ with polynomial
    * degree $p$ as a matrix product
-   * @f{eqnarray*}
+   * @f{eqnarray*}{
    *    u_h({\bf x}) &=& \sum_j u_j \varphi_j ({\bf x}) \\
    *    u_{h, {\bf k}}({\bf x}) &=&
    *      \sum_{{\bf k}, \|{\bf k}\|\le p} a_{\bf k} \phi_{\bf k}({\bf x}),
@@ -279,7 +280,7 @@ namespace SmoothnessEstimator
    * If the finite element approximation on cell $K$ is part of the Hilbert
    * space $H^s(K)$, then the following integral must exist for both the finite
    * element and spectral representation of our solution
-   * @f{eqnarray*}
+   * @f{eqnarray*}{
    *   \| \nabla^s u_h({\bf x}) \|_{L^2(K)}^2 &=&
    *     \int\limits_K \left| \nabla^s u_h({\bf x}) \right|^2 d{\bf x} <
    *     \infty \\
@@ -404,9 +405,9 @@ namespace SmoothnessEstimator
     template <int dim, int spacedim, typename VectorType>
     void
     coefficient_decay(FESeries::Fourier<dim, spacedim> &fe_fourier,
-                      const DoFHandler<dim, spacedim> & dof_handler,
-                      const VectorType &                solution,
-                      Vector<float> &                   smoothness_indicators,
+                      const DoFHandler<dim, spacedim>  &dof_handler,
+                      const VectorType                 &solution,
+                      Vector<float>                    &smoothness_indicators,
                       const VectorTools::NormType       regression_strategy =
                         VectorTools::Linfty_norm,
                       const double smallest_abs_coefficient = 1e-10,
@@ -454,12 +455,12 @@ namespace SmoothnessEstimator
     void
     coefficient_decay_per_direction(
       FESeries::Fourier<dim, spacedim> &fe_fourier,
-      const DoFHandler<dim, spacedim> & dof_handler,
-      const VectorType &                solution,
-      Vector<float> &                   smoothness_indicators,
-      const ComponentMask &coefficients_predicate   = ComponentMask(),
-      const double         smallest_abs_coefficient = 1e-10,
-      const bool           only_flagged_cells       = false);
+      const DoFHandler<dim, spacedim>  &dof_handler,
+      const VectorType                 &solution,
+      Vector<float>                    &smoothness_indicators,
+      const ComponentMask              &coefficients_predicate   = {},
+      const double                      smallest_abs_coefficient = 1e-10,
+      const bool                        only_flagged_cells       = false);
 
     /**
      * Returns a FESeries::Fourier object for Fourier series expansions with

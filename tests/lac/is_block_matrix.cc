@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -58,20 +58,6 @@ test()
           << internal::AffineConstraints::IsBlockMatrix<
                BlockSparseMatrixEZ<float>>::value
           << std::endl;
-
-  deallog << internal::AffineConstraints::IsBlockSparsityPattern<
-               SparsityPattern>::value
-          << ' '
-          << internal::AffineConstraints::IsBlockSparsityPattern<
-               DynamicSparsityPattern>::value
-          << std::endl;
-
-  deallog << internal::AffineConstraints::IsBlockSparsityPattern<
-               BlockSparsityPattern>::value
-          << ' '
-          << internal::AffineConstraints::IsBlockSparsityPattern<
-               BlockDynamicSparsityPattern>::value
-          << std::endl;
 }
 
 
@@ -83,7 +69,7 @@ main()
     {
       test();
     }
-  catch (std::exception &e)
+  catch (const std::exception &e)
     {
       std::cerr << std::endl
                 << std::endl

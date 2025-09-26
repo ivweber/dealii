@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2020 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,8 +24,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup MeshWorker */
-/*@{*/
+/**
+ * @addtogroup MeshWorker
+ * @{
+ */
 
 namespace MeshWorker
 {
@@ -109,7 +111,7 @@ namespace MeshWorker
    *
    * @ref AssembleFlags
    */
-  template <class StreamType>
+  template <typename StreamType>
   inline StreamType &
   operator<<(StreamType &s, AssembleFlags u)
   {
@@ -195,7 +197,7 @@ namespace MeshWorker
   }
 } // namespace MeshWorker
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

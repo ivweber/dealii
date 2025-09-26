@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,12 +20,12 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/exceptions.h>
+#include <deal.II/base/mutex.h>
 #include <deal.II/base/point.h>
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/polynomial_space.h>
 #include <deal.II/base/tensor.h>
 #include <deal.II/base/tensor_polynomials_base.h>
-#include <deal.II/base/thread_management.h>
 
 #include <vector>
 
@@ -46,7 +46,7 @@ DEAL_II_NAMESPACE_OPEN
  * More details
  * of two and three dimensional $BDM_{k}$ elements are given below.
  *<dl>
- *   <dt> In 2D:
+ *   <dt> In 2d:
  *   <dd> $ BDM_{k} = \{\mathbf{q} | \mathbf{q} = p_{k} (x,y) +
  *      r \; \text{curl} (x^{k+1}y) + s \;
  *      \text{curl} (xy^{k+1}), p_{k} \in (P_{k})^{2} \}$.
@@ -70,7 +70,7 @@ DEAL_II_NAMESPACE_OPEN
  * $(k+1)(k+2)+2$, with $k+1$ unknowns per
  * edge and $k(k-1)$ interior unknowns.
  *
- *   <dt> In 3D:
+ *   <dt> In 3d:
  *   <dd> $ BDM_{k} =
  *        \{\mathbf{q} | \mathbf{q} = p_{k} (x,y,z)
  *        + \sum_{i=0}^{k} (
@@ -82,7 +82,7 @@ DEAL_II_NAMESPACE_OPEN
  *        \begin{pmatrix}0\\zx^{i+1}y^{k-i}\\0\end{pmatrix})
  *        , p_{k} \in (P_{k})^{3} \}$.
  *
- *   Note: the 3D description of $BDM_{k}$ is not unique.  See <i>Mixed and
+ *   Note: the 3d description of $BDM_{k}$ is not unique.  See <i>Mixed and
  *   Hybrid Finite Element Methods</i> page 122 for an alternative definition.
  *
  *   The dimension of the $BDM_{k}$ space is
@@ -115,14 +115,9 @@ public:
    *
    * The size of the vectors must either be zero or equal <tt>n()</tt>.  In
    * the first case, the function will not compute these values.
-   *
-   * If you need values or derivatives of all tensor product polynomials then
-   * use this function, rather than using any of the <tt>compute_value</tt>,
-   * <tt>compute_grad</tt> or <tt>compute_grad_grad</tt> functions, see below,
-   * in a loop over all tensor product polynomials.
    */
   void
-  evaluate(const Point<dim> &           unit_point,
+  evaluate(const Point<dim>            &unit_point,
            std::vector<Tensor<1, dim>> &values,
            std::vector<Tensor<2, dim>> &grads,
            std::vector<Tensor<3, dim>> &grad_grads,
@@ -157,8 +152,8 @@ private:
   const PolynomialSpace<dim> polynomial_space;
 
   /**
-   * Storage for monomials. In 2D, this is just the polynomial of order
-   * <i>k</i>. In 3D, we need all polynomials from degree zero to <i>k</i>.
+   * Storage for monomials. In 2d, this is just the polynomial of order
+   * <i>k</i>. In 3d, we need all polynomials from degree zero to <i>k</i>.
    */
   std::vector<Polynomials::Polynomial<double>> monomials;
 

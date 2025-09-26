@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -198,6 +198,21 @@ class MultipleParameterLoop;
  * word with a capital letter and use lowercase letters further on. The same
  * applies to the possible entry values to the right of the <tt>=</tt> sign.
  *
+ * The class can also handle json-files and XML-files. The json input file might
+ * look like the following for the previous example:
+ *   @code
+ *     {
+ *       "Nonlinear solver" : {
+ *         "Nonlinear method" : "Gradient",
+ *         "Linear solver" : {
+ *           "Solver" : "CG",
+ *           "Maximum number of iterations" : 30
+ *         }
+ *       }
+ *     }
+ *   @endcode
+ * The advantage of using json-files is that this format is natively supported
+ * by Python, simplifying the running of parameter studies tremendously.
  *
  * <h3>Including other input files</h3>
  *
@@ -1009,7 +1024,7 @@ public:
    * value does not satisfy its pattern is ignored.
    */
   virtual void
-  parse_input(std::istream &     input,
+  parse_input(std::istream      &input,
               const std::string &filename       = "input file",
               const std::string &last_line      = "",
               const bool         skip_undefined = false);
@@ -1107,10 +1122,10 @@ public:
    * error, for example to override an earlier default value.
    */
   void
-  declare_entry(const std::string &          entry,
-                const std::string &          default_value,
+  declare_entry(const std::string           &entry,
+                const std::string           &default_value,
                 const Patterns::PatternBase &pattern = Patterns::Anything(),
-                const std::string &          documentation = "",
+                const std::string           &documentation = "",
                 const bool                   has_to_be_set = false);
 
   /**
@@ -1122,10 +1137,14 @@ public:
    *
    * The action is executed in three different circumstances:
    * - With the default value of the parameter with name @p name, at
-   *   the end of the current function. This is useful because it allows
-   *   for the action to execute whatever it needs to do at least once
-   *   for each parameter, even those that are not actually specified in
-   *   the input file (and thus remain at their default values).
+   *   the end of the current function if @p execute_action is set to
+   *   true. This is useful because it allows for the action to execute
+   *   whatever it needs to do at least once for each parameter, even
+   *   those that are not actually specified in the input file (and
+   *   thus remain at their default values). Note that if the action
+   *   is executed, it converts the default value to a string and back
+   *   afterwards. This can lead to round-off errors so that the default
+   *   values might change in the case of floating-point numbers.
    * - Within the ParameterHandler::set() functions that explicitly
    *   set a value for a parameter.
    * - Within the parse_input() function and similar functions such
@@ -1157,8 +1176,9 @@ public:
    *  ParameterHandler::parse_input() for more information.
    */
   void
-  add_action(const std::string &                                  entry,
-             const std::function<void(const std::string &value)> &action);
+  add_action(const std::string                                   &entry,
+             const std::function<void(const std::string &value)> &action,
+             const bool execute_action = true);
 
   /**
    * Declare a new entry name @p entry, set its default value to the content of
@@ -1175,11 +1195,11 @@ public:
    * successfully can be queried by the functions get_entries_wrongly_not_set()
    * and assert_that_entries_have_been_set().
    */
-  template <class ParameterType>
+  template <typename ParameterType>
   void
-  add_parameter(const std::string &          entry,
-                ParameterType &              parameter,
-                const std::string &          documentation = "",
+  add_parameter(const std::string           &entry,
+                ParameterType               &parameter,
+                const std::string           &documentation = "",
                 const Patterns::PatternBase &pattern =
                   *Patterns::Tools::Convert<ParameterType>::to_pattern(),
                 const bool has_to_be_set = false);
@@ -1272,7 +1292,7 @@ public:
    */
   std::string
   get(const std::vector<std::string> &entry_subsection_path,
-      const std::string &             entry_string) const;
+      const std::string              &entry_string) const;
 
   /**
    * Return value of entry @p entry_string as <code>long int</code>. (A long
@@ -1292,7 +1312,7 @@ public:
    */
   long int
   get_integer(const std::vector<std::string> &entry_subsection_path,
-              const std::string &             entry_string) const;
+              const std::string              &entry_string) const;
 
   /**
    * Return value of entry @p entry_name as @p double.
@@ -1308,7 +1328,7 @@ public:
    */
   double
   get_double(const std::vector<std::string> &entry_subsection_path,
-             const std::string &             entry_string) const;
+             const std::string              &entry_string) const;
   /**
    * Return value of entry @p entry_name as @p bool. The entry may
    * be "true" or "yes" for @p true, "false" or "no" for @p false
@@ -1327,7 +1347,7 @@ public:
    */
   bool
   get_bool(const std::vector<std::string> &entry_subsection_path,
-           const std::string &             entry_string) const;
+           const std::string              &entry_string) const;
 
   /**
    * Change the value presently stored for <tt>entry_name</tt> to the one
@@ -1531,7 +1551,7 @@ public:
    * it called recursively by the previous function.
    */
   void
-  log_parameters_section(LogStream &       out,
+  log_parameters_section(LogStream        &out,
                          const OutputStyle style = DefaultStyle);
 
   /**
@@ -1655,9 +1675,9 @@ public:
                  std::string,
                  std::string,
                  << "Line <" << arg1 << "> of file <" << arg2
-                 << ": There is "
-                    "no such subsection to be entered: "
-                 << arg3);
+                 << ">: You are trying to enter a subsection '" << arg3
+                 << "', but the ParameterHandler object does "
+                 << "not know of any such subsection.");
 
   /**
    * General exception for a line that could not be parsed, taking, as
@@ -1716,7 +1736,7 @@ public:
        "file to include <"
     << arg3 << "> cannot be opened.");
 
-  //@}
+  /** @} */
 
 private:
   /**
@@ -1789,7 +1809,7 @@ private:
    */
   std::string
   get_current_full_path(const std::vector<std::string> &sub_path,
-                        const std::string &             name) const;
+                        const std::string              &name) const;
 
   /**
    * Scan one line of input. <tt>input_filename</tt> and
@@ -1828,11 +1848,11 @@ private:
    */
   void
   recursively_print_parameters(
-    const boost::property_tree::ptree & tree,
-    const std::vector<std::string> &    target_subsection_path,
+    const boost::property_tree::ptree  &tree,
+    const std::vector<std::string>     &target_subsection_path,
     const ParameterHandler::OutputStyle style,
     const unsigned int                  indent_level,
-    std::ostream &                      out) const;
+    std::ostream                       &out) const;
 
   friend class MultipleParameterLoop;
 };
@@ -2130,7 +2150,7 @@ public:
    * just reformat their inputs and then call this version.
    */
   virtual void
-  parse_input(std::istream &     input,
+  parse_input(std::istream      &input,
               const std::string &filename       = "input file",
               const std::string &last_line      = "",
               const bool         skip_undefined = false) override;
@@ -2194,8 +2214,8 @@ private:
      * <tt>split_different_values</tt>.
      */
     Entry(const std::vector<std::string> &Path,
-          const std::string &             Name,
-          const std::string &             Value);
+          const std::string              &Name,
+          const std::string              &Value);
 
     /**
      * Split the entry value into the different branches.
@@ -2284,6 +2304,7 @@ ParameterHandler::save(Archive &ar, const unsigned int) const
 
   std::vector<std::string> descriptions;
 
+  descriptions.reserve(patterns.size());
   for (const auto &pattern : patterns)
     descriptions.push_back(pattern->description());
 
@@ -2302,7 +2323,7 @@ ParameterHandler::load(Archive &ar, const unsigned int)
   ar &*entries.get();
 
   std::vector<std::string> descriptions;
-  ar &                     descriptions;
+  ar                      &descriptions;
 
   patterns.clear();
   for (const auto &description : descriptions)
@@ -2310,15 +2331,15 @@ ParameterHandler::load(Archive &ar, const unsigned int)
 }
 
 
-template <class ParameterType>
+template <typename ParameterType>
 void
-ParameterHandler::add_parameter(const std::string &          entry,
-                                ParameterType &              parameter,
-                                const std::string &          documentation,
+ParameterHandler::add_parameter(const std::string           &entry,
+                                ParameterType               &parameter,
+                                const std::string           &documentation,
                                 const Patterns::PatternBase &pattern,
                                 const bool                   has_to_be_set)
 {
-  static_assert(std::is_const<ParameterType>::value == false,
+  static_assert(std::is_const_v<ParameterType> == false,
                 "You tried to add a parameter using a type "
                 "that is const. Use a non-const type.");
 
@@ -2337,7 +2358,7 @@ ParameterHandler::add_parameter(const std::string &          entry,
     parameter = Patterns::Tools::Convert<ParameterType>::to_value(
       val, *patterns[pattern_index]);
   };
-  add_action(entry, action);
+  add_action(entry, action, false);
 }
 
 DEAL_II_NAMESPACE_CLOSE

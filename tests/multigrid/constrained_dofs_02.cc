@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2021 by the deal.II authors
+// Copyright (C) 2006 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,7 +42,7 @@
 
 #include "../tests.h"
 
-using namespace std;
+
 
 template <int dim>
 void
@@ -83,7 +83,7 @@ template <int dim>
 void
 extract_locally_active_level_dofs(const DoFHandler<dim> &dof_handler,
                                   const unsigned int     level,
-                                  IndexSet &             dof_set)
+                                  IndexSet              &dof_set)
 {
   dof_set = IndexSet(dof_handler.n_dofs(level));
 
@@ -207,8 +207,8 @@ check_fe(FiniteElement<dim> &fe)
       deallog << "get_boundary_indices:" << std::endl;
       bi.print(deallog);
 
-      IndexSet relevant;
-      DoFTools::extract_locally_relevant_level_dofs(dofh, level, relevant);
+      const IndexSet relevant =
+        DoFTools::extract_locally_relevant_level_dofs(dofh, level);
       deallog << "relevant:" << std::endl;
       relevant.print(deallog);
 

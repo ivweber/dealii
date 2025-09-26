@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,7 @@
 
 #include <deal.II/grid/reference_cell.h>
 #include <deal.II/grid/tria_objects.h>
+#include <deal.II/grid/tria_objects_orientations.h>
 
 #include <boost/serialization/utility.hpp>
 
@@ -128,7 +129,7 @@ namespace internal
        * <tt>level=index=-1</tt> is set.
        *
        * <em>Conventions:</em> The @p ith neighbor of a cell is the one which
-       * shares the @p ith face (@p Line in 2D, @p Quad in 3D) of this cell.
+       * shares the @p ith face (@p Line in 2d, @p Quad in 3d) of this cell.
        *
        * The neighbor of a cell has at most the same level as this cell, i.e.
        * it may or may not be refined.
@@ -200,7 +201,7 @@ namespace internal
        * parallel normal vectors. (For both things, see the paper by
        * Agelek, Anderson, Bangerth, Barth in the ACM Transactions on
        * Mathematical Software mentioned in the documentation of the
-       * GridReordering class.)
+       * GridTools::consistently_order_cells() function.)
        *
        * The problem is that we originally had another condition, namely that
        * faces 0, 2 and 4 have normals that point into the cell, while the
@@ -213,16 +214,17 @@ namespace internal
        * In effect, this field has <code>6*n_cells</code> elements, being the
        * number of cells times the six faces each has.
        *
-       * @note Only needed for dim=3.
+       * @note This array is only used in dim == 2 or dim == 3: for dim == 1
+       * meshes consist purely of lines which are always consistently oriented.
        */
-      std::vector<unsigned char> face_orientations;
+      TriaObjectsOrientations face_orientations;
 
       /**
        * Reference cell type of each cell.
        *
        * @note Used only for dim=2 and dim=3.
        */
-      std::vector<dealii::ReferenceCell> reference_cell;
+      std::vector<ReferenceCell> reference_cell;
 
       /**
        * A cache for the vertex indices of the cells (`structdim == dim`), in

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>
@@ -72,9 +73,8 @@ test(const bool adaptive_ref = true)
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(fe);
 
-  IndexSet owned_set = dof.locally_owned_dofs();
-  IndexSet relevant_set;
-  DoFTools::extract_locally_relevant_dofs(dof, relevant_set);
+  const IndexSet &owned_set    = dof.locally_owned_dofs();
+  const IndexSet  relevant_set = DoFTools::extract_locally_relevant_dofs(dof);
 
   AffineConstraints<double> constraints(relevant_set);
   DoFTools::make_hanging_node_constraints(dof, constraints);
@@ -94,11 +94,11 @@ test(const bool adaptive_ref = true)
     typename MatrixFree<dim, number>::AdditionalData data;
     data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
     data.tasks_block_size      = 7;
-    mf_data->reinit(dof, constraints, quad, data);
+    mf_data->reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   const unsigned int     n_cells         = mf_data->n_cell_batches();
-  const auto &           dof_info        = mf_data->get_dof_info();
+  const auto            &dof_info        = mf_data->get_dof_info();
   constexpr unsigned int n_vectorization = VectorizedArray<number>::size();
 
   std::vector<unsigned int> my_rows;
@@ -144,7 +144,7 @@ test(const bool adaptive_ref = true)
       DoFTools::map_dofs_to_support_points(mapping, dof, support_points);
 
       const std::string prefix =
-        std::is_same<float, number>::value ? "float_" : "double_";
+        std::is_same_v<float, number> ? "float_" : "double_";
       const std::string href = (adaptive_ref ? "" : "global_");
       const std::string base_filename =
         prefix + href + "grid" + dealii::Utilities::int_to_string(dim) + "_" +
@@ -152,7 +152,7 @@ test(const bool adaptive_ref = true)
         dealii::Utilities::int_to_string(this_mpi_core);
 
       const std::string filename = base_filename + ".gp";
-      std::ofstream     f(filename.c_str());
+      std::ofstream     f(filename);
 
       f << "set terminal png size 400,410 enhanced font \"Helvetica,8\""
         << std::endl
@@ -170,7 +170,9 @@ test(const bool adaptive_ref = true)
 
       // output cell blocks:
       for (unsigned int cell = 0; cell < n_cells; ++cell)
-        for (unsigned int c = 0; c < mf_data->n_components_filled(cell); ++c)
+        for (unsigned int c = 0;
+             c < mf_data->n_active_entries_per_cell_batch(cell);
+             ++c)
           {
             const auto dof_cell = mf_data->get_cell_iterator(cell, c);
             f << dof_cell->center() << " \"" << cell << "\"\n";

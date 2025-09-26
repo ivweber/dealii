@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -107,8 +107,8 @@ FE_TraceQ<dim, spacedim>::has_support_on_face(
   AssertIndexRange(face_index, GeometryInfo<dim>::faces_per_cell);
 
   // FE_TraceQ shares the numbering of elemental degrees of freedom with FE_Q
-  // except for the missing interior ones (quad dofs in 2D and hex dofs in
-  // 3D). Therefore, it is safe to ask fe_q for the corresponding
+  // except for the missing interior ones (quad dofs in 2d and hex dofs in
+  // 3d). Therefore, it is safe to ask fe_q for the corresponding
   // information. The assertion 'shape_index < this->n_dofs_per_cell()' will
   // make sure that we only access the trace dofs.
   return fe_q.has_support_on_face(shape_index, face_index);
@@ -132,7 +132,7 @@ void
 FE_TraceQ<dim, spacedim>::
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const
+    std::vector<double>               &nodal_values) const
 {
   AssertDimension(support_point_values.size(),
                   this->get_unit_support_points().size());
@@ -153,8 +153,8 @@ std::vector<unsigned int>
 FE_TraceQ<dim, spacedim>::get_dpo_vector(const unsigned int deg)
 {
   // This constructs FE_TraceQ in exactly the same way as FE_Q except for the
-  // interior degrees of freedom that are not present here (line in 1D, quad
-  // in 2D, hex in 3D).
+  // interior degrees of freedom that are not present here (line in 1d, quad
+  // in 2d, hex in 3d).
   AssertThrow(deg > 0, ExcMessage("FE_TraceQ needs to be of degree > 0."));
   std::vector<unsigned int> dpo(dim + 1, 1U);
   dpo[dim] = 0;
@@ -217,7 +217,7 @@ template <int dim, int spacedim>
 void
 FE_TraceQ<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   get_subface_interpolation_matrix(source_fe,
@@ -233,7 +233,7 @@ void
 FE_TraceQ<dim, spacedim>::get_subface_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
   const unsigned int                  subface,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   // this is the code from FE_FaceQ

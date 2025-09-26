@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,8 +36,8 @@
 template <int dim>
 void
 test(const FiniteElement<dim> &fe,
-     const Quadrature<1> &     quad,
-     const std::string &       quadrature_name)
+     const Quadrature<1>      &quad,
+     const std::string        &quadrature_name)
 {
   internal::MatrixFreeFunctions::ShapeInfo<double> shape_info;
   shape_info.reinit(quad, fe, 0);

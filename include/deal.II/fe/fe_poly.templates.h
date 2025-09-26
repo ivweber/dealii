@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2021 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,8 +36,8 @@ DEAL_II_NAMESPACE_OPEN
 template <int dim, int spacedim>
 FE_Poly<dim, spacedim>::FE_Poly(
   const ScalarPolynomialsBase<dim> &poly_space,
-  const FiniteElementData<dim> &    fe_data,
-  const std::vector<bool> &         restriction_is_additive_flags,
+  const FiniteElementData<dim>     &fe_data,
+  const std::vector<bool>          &restriction_is_additive_flags,
   const std::vector<ComponentMask> &nonzero_components)
   : FiniteElement<dim, spacedim>(fe_data,
                                  restriction_is_additive_flags,
@@ -57,7 +57,7 @@ FE_Poly<dim, spacedim>::get_degree() const
 template <int dim, int spacedim>
 double
 FE_Poly<dim, spacedim>::shape_value(const unsigned int i,
-                                    const Point<dim> & p) const
+                                    const Point<dim>  &p) const
 {
   AssertIndexRange(i, this->n_dofs_per_cell());
   return poly_space->compute_value(i, p);
@@ -68,7 +68,7 @@ template <int dim, int spacedim>
 double
 FE_Poly<dim, spacedim>::shape_value_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   (void)component;
@@ -82,7 +82,7 @@ FE_Poly<dim, spacedim>::shape_value_component(
 template <int dim, int spacedim>
 Tensor<1, dim>
 FE_Poly<dim, spacedim>::shape_grad(const unsigned int i,
-                                   const Point<dim> & p) const
+                                   const Point<dim>  &p) const
 {
   AssertIndexRange(i, this->n_dofs_per_cell());
   return poly_space->template compute_derivative<1>(i, p);
@@ -93,7 +93,7 @@ FE_Poly<dim, spacedim>::shape_grad(const unsigned int i,
 template <int dim, int spacedim>
 Tensor<1, dim>
 FE_Poly<dim, spacedim>::shape_grad_component(const unsigned int i,
-                                             const Point<dim> & p,
+                                             const Point<dim>  &p,
                                              const unsigned int component) const
 {
   (void)component;
@@ -107,7 +107,7 @@ FE_Poly<dim, spacedim>::shape_grad_component(const unsigned int i,
 template <int dim, int spacedim>
 Tensor<2, dim>
 FE_Poly<dim, spacedim>::shape_grad_grad(const unsigned int i,
-                                        const Point<dim> & p) const
+                                        const Point<dim>  &p) const
 {
   AssertIndexRange(i, this->n_dofs_per_cell());
   return poly_space->template compute_derivative<2>(i, p);
@@ -119,7 +119,7 @@ template <int dim, int spacedim>
 Tensor<2, dim>
 FE_Poly<dim, spacedim>::shape_grad_grad_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   (void)component;
@@ -133,7 +133,7 @@ FE_Poly<dim, spacedim>::shape_grad_grad_component(
 template <int dim, int spacedim>
 Tensor<3, dim>
 FE_Poly<dim, spacedim>::shape_3rd_derivative(const unsigned int i,
-                                             const Point<dim> & p) const
+                                             const Point<dim>  &p) const
 {
   AssertIndexRange(i, this->n_dofs_per_cell());
   return poly_space->template compute_derivative<3>(i, p);
@@ -145,7 +145,7 @@ template <int dim, int spacedim>
 Tensor<3, dim>
 FE_Poly<dim, spacedim>::shape_3rd_derivative_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   (void)component;
@@ -159,7 +159,7 @@ FE_Poly<dim, spacedim>::shape_3rd_derivative_component(
 template <int dim, int spacedim>
 Tensor<4, dim>
 FE_Poly<dim, spacedim>::shape_4th_derivative(const unsigned int i,
-                                             const Point<dim> & p) const
+                                             const Point<dim>  &p) const
 {
   AssertIndexRange(i, this->n_dofs_per_cell());
   return poly_space->template compute_derivative<4>(i, p);
@@ -171,7 +171,7 @@ template <int dim, int spacedim>
 Tensor<4, dim>
 FE_Poly<dim, spacedim>::shape_4th_derivative_component(
   const unsigned int i,
-  const Point<dim> & p,
+  const Point<dim>  &p,
   const unsigned int component) const
 {
   (void)component;
@@ -193,19 +193,19 @@ FE_Poly<dim, spacedim>::requires_update_flags(const UpdateFlags flags) const
 {
   UpdateFlags out = update_default;
 
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     out |= update_values;
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     out |= update_gradients | update_covariant_transformation;
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     out |= update_hessians | update_covariant_transformation |
            update_gradients | update_jacobian_pushed_forward_grads;
-  if ((flags & update_3rd_derivatives) != 0u)
+  if (flags & update_3rd_derivatives)
     out |= update_3rd_derivatives | update_covariant_transformation |
            update_hessians | update_gradients |
            update_jacobian_pushed_forward_grads |
            update_jacobian_pushed_forward_2nd_derivatives;
-  if ((flags & update_normal_vectors) != 0u)
+  if (flags & update_normal_vectors)
     out |= update_normal_vectors | update_JxW_values;
 
   return out;
@@ -233,7 +233,7 @@ bool
 higher_derivatives_need_correcting(
   const Mapping<dim, spacedim> &mapping,
   const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                mapping_data,
+                    &mapping_data,
   const unsigned int n_q_points,
   const UpdateFlags  update_flags)
 {
@@ -263,12 +263,11 @@ void
 FE_Poly<dim, spacedim>::fill_fe_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &,
   const CellSimilarity::Similarity                         cell_similarity,
-  const Quadrature<dim> &                                  quadrature,
-  const Mapping<dim, spacedim> &                           mapping,
+  const Quadrature<dim>                                   &quadrature,
+  const Mapping<dim, spacedim>                            &mapping,
   const typename Mapping<dim, spacedim>::InternalDataBase &mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &                                                            mapping_data,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -293,7 +292,7 @@ FE_Poly<dim, spacedim>::fill_fe_values(
   // transform gradients and higher derivatives. there is nothing to do
   // for values since we already emplaced them into output_data when
   // we were in get_data()
-  if (((flags & update_gradients) != 0u) &&
+  if ((flags & update_gradients) &&
       (cell_similarity != CellSimilarity::translation))
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       mapping.transform(make_array_view(fe_data.shape_gradients, k),
@@ -301,7 +300,7 @@ FE_Poly<dim, spacedim>::fill_fe_values(
                         mapping_internal,
                         make_array_view(output_data.shape_gradients, k));
 
-  if (((flags & update_hessians) != 0u) &&
+  if ((flags & update_hessians) &&
       (cell_similarity != CellSimilarity::translation))
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
@@ -314,7 +313,7 @@ FE_Poly<dim, spacedim>::fill_fe_values(
         correct_hessians(output_data, mapping_data, quadrature.size());
     }
 
-  if (((flags & update_3rd_derivatives) != 0u) &&
+  if ((flags & update_3rd_derivatives) &&
       (cell_similarity != CellSimilarity::translation))
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
@@ -336,12 +335,11 @@ void
 FE_Poly<dim, spacedim>::fill_fe_face_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
-  const hp::QCollection<dim - 1> &                            quadrature,
-  const Mapping<dim, spacedim> &                              mapping,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &                                                            mapping_data,
+  const hp::QCollection<dim - 1>                             &quadrature,
+  const Mapping<dim, spacedim>                               &mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &mapping_internal,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -381,12 +379,12 @@ FE_Poly<dim, spacedim>::fill_fe_face_values(
   // transform gradients and higher derivatives. we also have to copy
   // the values (unlike in the case of fill_fe_values()) since
   // we need to take into account the offsets
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       for (unsigned int i = 0; i < n_q_points; ++i)
         output_data.shape_values(k, i) = fe_data.shape_values[k][i + offset];
 
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       mapping.transform(
         make_array_view(fe_data.shape_gradients, k, offset, n_q_points),
@@ -394,7 +392,7 @@ FE_Poly<dim, spacedim>::fill_fe_face_values(
         mapping_internal,
         make_array_view(output_data.shape_gradients, k));
 
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
         mapping.transform(
@@ -407,7 +405,7 @@ FE_Poly<dim, spacedim>::fill_fe_face_values(
         correct_hessians(output_data, mapping_data, n_q_points);
     }
 
-  if ((flags & update_3rd_derivatives) != 0u)
+  if (flags & update_3rd_derivatives)
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
         mapping.transform(
@@ -429,12 +427,11 @@ FE_Poly<dim, spacedim>::fill_fe_subface_values(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const unsigned int                                          face_no,
   const unsigned int                                          sub_no,
-  const Quadrature<dim - 1> &                                 quadrature,
-  const Mapping<dim, spacedim> &                              mapping,
-  const typename Mapping<dim, spacedim>::InternalDataBase &   mapping_internal,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<dim,
-                                                                     spacedim>
-    &                                                            mapping_data,
+  const Quadrature<dim - 1>                                  &quadrature,
+  const Mapping<dim, spacedim>                               &mapping,
+  const typename Mapping<dim, spacedim>::InternalDataBase    &mapping_internal,
+  const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+                                                                &mapping_data,
   const typename FiniteElement<dim, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<dim,
                                                                      spacedim>
@@ -473,12 +470,12 @@ FE_Poly<dim, spacedim>::fill_fe_subface_values(
   // transform gradients and higher derivatives. we also have to copy
   // the values (unlike in the case of fill_fe_values()) since
   // we need to take into account the offsets
-  if ((flags & update_values) != 0u)
+  if (flags & update_values)
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       for (unsigned int i = 0; i < quadrature.size(); ++i)
         output_data.shape_values(k, i) = fe_data.shape_values[k][i + offset];
 
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
       mapping.transform(
         make_array_view(fe_data.shape_gradients, k, offset, quadrature.size()),
@@ -486,7 +483,7 @@ FE_Poly<dim, spacedim>::fill_fe_subface_values(
         mapping_internal,
         make_array_view(output_data.shape_gradients, k));
 
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
         mapping.transform(
@@ -499,7 +496,7 @@ FE_Poly<dim, spacedim>::fill_fe_subface_values(
         correct_hessians(output_data, mapping_data, quadrature.size());
     }
 
-  if ((flags & update_3rd_derivatives) != 0u)
+  if (flags & update_3rd_derivatives)
     {
       for (unsigned int k = 0; k < this->n_dofs_per_cell(); ++k)
         mapping.transform(make_array_view(fe_data.shape_3rd_derivatives,
@@ -524,7 +521,7 @@ FE_Poly<dim, spacedim>::correct_hessians(
   internal::FEValuesImplementation::FiniteElementRelatedData<dim, spacedim>
     &output_data,
   const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                mapping_data,
+                    &mapping_data,
   const unsigned int n_q_points) const
 {
   for (unsigned int dof = 0; dof < this->n_dofs_per_cell(); ++dof)
@@ -543,7 +540,7 @@ FE_Poly<dim, spacedim>::correct_third_derivatives(
   internal::FEValuesImplementation::FiniteElementRelatedData<dim, spacedim>
     &output_data,
   const internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
-    &                mapping_data,
+                    &mapping_data,
   const unsigned int n_q_points) const
 {
   for (unsigned int dof = 0; dof < this->n_dofs_per_cell(); ++dof)

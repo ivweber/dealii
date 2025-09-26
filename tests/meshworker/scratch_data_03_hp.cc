@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2021 by the deal.II authors
+ * Copyright (C) 2018 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -154,10 +154,10 @@ test()
           }
     };
 
-  auto boundary_worker = [gamma, &boundary_function](const Iterator &    cell,
+  auto boundary_worker = [gamma, &boundary_function](const Iterator     &cell,
                                                      const unsigned int &f,
-                                                     ScratchData &       s,
-                                                     CopyData &          c) {
+                                                     ScratchData        &s,
+                                                     CopyData           &c) {
     const auto &fev = s.reinit(cell, f);
     const auto &JxW = s.get_JxW_values();
     const auto &p   = s.get_quadrature_points();
@@ -183,14 +183,14 @@ test()
         }
   };
 
-  auto face_worker = [gamma](const Iterator &    cell,
+  auto face_worker = [gamma](const Iterator     &cell,
                              const unsigned int &f,
                              const unsigned int &sf,
-                             const Iterator &    ncell,
+                             const Iterator     &ncell,
                              const unsigned int &nf,
                              const unsigned int &nsf,
-                             ScratchData &       s,
-                             CopyData &          c) {
+                             ScratchData        &s,
+                             CopyData           &c) {
     const auto &fev  = s.reinit(cell, ncell, f, sf);
     const auto &JxW  = s.get_JxW_values();
     const auto &nfev = s.reinit_neighbor(cell, ncell, nf, nsf);

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -83,7 +83,8 @@ sub_test()
       MatrixFree<dim, number> mf_data;
       {
         const QGauss<1> quad(fe_degree + 1);
-        mf_data.reinit(dof,
+        mf_data.reinit(MappingQ1<dim>{},
+                       dof,
                        constraints,
                        quad,
                        typename MatrixFree<dim, number>::AdditionalData(

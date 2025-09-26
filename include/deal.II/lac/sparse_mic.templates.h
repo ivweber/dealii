@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -25,15 +25,6 @@
 #include <deal.II/lac/vector.h>
 
 DEAL_II_NAMESPACE_OPEN
-
-template <typename number>
-SparseMIC<number>::SparseMIC()
-  : diag(0)
-  , inv_diag(0)
-  , inner_sums(0)
-{}
-
-
 
 template <typename number>
 SparseMIC<number>::~SparseMIC()
@@ -70,7 +61,7 @@ template <typename number>
 template <typename somenumber>
 inline void
 SparseMIC<number>::initialize(const SparseMatrix<somenumber> &matrix,
-                              const AdditionalData &          data)
+                              const AdditionalData           &data)
 {
   Assert(matrix.m() == matrix.n(), ExcNotQuadratic());
   Assert(data.strengthen_diagonal >= 0,
@@ -147,7 +138,7 @@ SparseMIC<number>::get_rowsum(const size_type row) const
 template <typename number>
 template <typename somenumber>
 void
-SparseMIC<number>::vmult(Vector<somenumber> &      dst,
+SparseMIC<number>::vmult(Vector<somenumber>       &dst,
                          const Vector<somenumber> &src) const
 {
   Assert(dst.size() == src.size(),

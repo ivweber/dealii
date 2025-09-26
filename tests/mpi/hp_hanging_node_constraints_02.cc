@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -94,8 +94,8 @@ test()
   dof_handler.distribute_dofs(fe_collection);
 
   // make constraints
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   AffineConstraints<double> hanging_node_constraints;
   hanging_node_constraints.reinit(locally_relevant_dofs);

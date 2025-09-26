@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2021 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,7 +22,8 @@
 
 #include <deal.II/base/function.h>
 
-#include <deal.II/hp/dof_handler.h>
+#include <deal.II/dofs/dof_handler.h>
+
 #include <deal.II/hp/fe_values.h>
 
 #include "../tests.h"
@@ -39,9 +40,9 @@ public:
     : data(data_in){};
 
   void
-  local_apply(const MatrixFree<dim, Number> &              data,
-              Vector<Number> &                             dst,
-              const Vector<Number> &                       src,
+  local_apply(const MatrixFree<dim, Number>               &data,
+              Vector<Number>                              &dst,
+              const Vector<Number>                        &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     for (unsigned int i = 1; i <= 9 - 2 * dim; ++i) // skip FE_Nothing
@@ -118,13 +119,10 @@ test()
       quadrature_collection_mf.push_back(QGauss<1>(deg + 1));
     }
 
-  hp::DoFHandler<dim> dof(tria);
+  DoFHandler<dim> dof(tria);
   // set the active FE index in a random order
   {
-    typename hp::DoFHandler<dim>::active_cell_iterator cell =
-                                                         dof.begin_active(),
-                                                       endc = dof.end();
-    for (; cell != endc; ++cell)
+    for (const auto &cell : dof.active_cell_iterators())
       {
         const unsigned int fe_index = Testing::rand() % max_degree;
         cell->set_active_fe_index(fe_index + 1);
@@ -132,8 +130,7 @@ test()
     // We cannot set random cells to FE_Nothing. We get the following error
     // The violated condition was: dominating_fe.n_dofs_per_face(face) <=
     // subface_fe.n_dofs_per_face(face)
-    cell = dof.begin_active();
-    cell->set_active_fe_index(0);
+    dof.begin_active()->set_active_fe_index(0);
   }
 
   // setup DoFs
@@ -160,7 +157,8 @@ test()
   MatrixFree<dim, number>                          mf_data;
   typename MatrixFree<dim, number>::AdditionalData data;
   data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
-  mf_data.reinit(dof, constraints, quadrature_collection_mf, data);
+  mf_data.reinit(
+    MappingQ1<dim>{}, dof, constraints, quadrature_collection_mf, data);
   MatrixFreeTestHP<dim, number> mf(mf_data);
 
   // assemble sparse matrix with (\nabla v,
@@ -173,10 +171,7 @@ test()
     FullMatrix<double>                   cell_matrix;
     std::vector<types::global_dof_index> local_dof_indices;
 
-    typename hp::DoFHandler<dim>::active_cell_iterator cell =
-                                                         dof.begin_active(),
-                                                       endc = dof.end();
-    for (; cell != endc; ++cell)
+    for (const auto &cell : dof.active_cell_iterators())
       {
         const unsigned int dofs_per_cell = cell->get_fe().dofs_per_cell;
 

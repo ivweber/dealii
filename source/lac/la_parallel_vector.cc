@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2018 by the deal.II authors
+// Copyright (C) 2016 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,10 +29,10 @@ namespace LinearAlgebra
 {
   namespace distributed
   {
-#define TEMPL_COPY_CONSTRUCTOR(S1, S2)                  \
-  template Vector<S1, ::dealii::MemorySpace::Host>      \
-    &Vector<S1, ::dealii::MemorySpace::Host>::operator= \
-      <S2>(const Vector<S2, ::dealii::MemorySpace::Host> &)
+#define TEMPL_COPY_CONSTRUCTOR(S1, S2)               \
+  template Vector<S1, ::dealii::MemorySpace::Host> & \
+  Vector<S1, ::dealii::MemorySpace::Host>::operator= \
+    <S2>(const Vector<S2, ::dealii::MemorySpace::Host> &)
 
     TEMPL_COPY_CONSTRUCTOR(double, float);
     TEMPL_COPY_CONSTRUCTOR(float, double);
@@ -42,6 +42,53 @@ namespace LinearAlgebra
 #endif
 
 #undef TEMPL_COPY_CONSTRUCTOR
+
+    template class Vector<float, ::dealii::MemorySpace::Default>;
+    template class Vector<double, ::dealii::MemorySpace::Default>;
+
+#ifndef DOXYGEN
+    template void
+    Vector<float, ::dealii::MemorySpace::Host>::import_elements<
+      ::dealii::MemorySpace::Default>(
+      const Vector<float, ::dealii::MemorySpace::Default> &,
+      VectorOperation::values);
+    template void
+    Vector<double, ::dealii::MemorySpace::Host>::import_elements<
+      ::dealii::MemorySpace::Default>(
+      const Vector<double, ::dealii::MemorySpace::Default> &,
+      VectorOperation::values);
+
+    template void
+    Vector<float, ::dealii::MemorySpace::Default>::import_elements<
+      ::dealii::MemorySpace::Host>(
+      const Vector<float, ::dealii::MemorySpace::Host> &,
+      VectorOperation::values);
+    template void
+    Vector<double, ::dealii::MemorySpace::Default>::import_elements<
+      ::dealii::MemorySpace::Host>(
+      const Vector<double, ::dealii::MemorySpace::Host> &,
+      VectorOperation::values);
+
+    template void
+    Vector<float, ::dealii::MemorySpace::Default>::import_elements<
+      ::dealii::MemorySpace::Default>(
+      const Vector<float, ::dealii::MemorySpace::Default> &,
+      VectorOperation::values);
+    template void
+    Vector<double, ::dealii::MemorySpace::Default>::import_elements<
+      ::dealii::MemorySpace::Default>(
+      const Vector<double, ::dealii::MemorySpace::Default> &,
+      VectorOperation::values);
+
+    template void
+    Vector<float, ::dealii::MemorySpace::Default>::reinit<float>(
+      const Vector<float, ::dealii::MemorySpace::Default> &,
+      const bool);
+    template void
+    Vector<double, ::dealii::MemorySpace::Default>::reinit<double>(
+      const Vector<double, ::dealii::MemorySpace::Default> &,
+      const bool);
+#endif
   } // namespace distributed
 } // namespace LinearAlgebra
 

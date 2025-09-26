@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,14 +31,16 @@ DEAL_II_NAMESPACE_OPEN
 
 // Forward declarations
 #ifndef DOXYGEN
-template <int, int>
+template <int dim, int spacedim>
+DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 class DoFHandler;
 #endif
 
 
-/*!@addtogroup mapping */
-/*@{*/
-
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * This class implements a caching strategy for objects of the MappingQ family
@@ -90,21 +92,8 @@ public:
    * Triangulation::Signals::any_change of the underlying triangulation.
    */
   void
-  initialize(const Mapping<dim, spacedim> &      mapping,
+  initialize(const Mapping<dim, spacedim>       &mapping,
              const Triangulation<dim, spacedim> &triangulation);
-
-  /**
-   * Initialize the data cache by computing the mapping support points for all
-   * cells (on all levels) of the given triangulation.
-   *
-   * @note The cache is invalidated upon the signal
-   * Triangulation::Signals::any_change of the underlying triangulation.
-   *
-   * @deprecated Use initialize() version above instead.
-   */
-  DEAL_II_DEPRECATED void
-  initialize(const Triangulation<dim, spacedim> &triangulation,
-             const MappingQ<dim, spacedim> &     mapping);
 
   /**
    * Initialize the data cache by letting the function given as an argument
@@ -151,20 +140,20 @@ public:
    * Triangulation::Signals::any_change of the underlying triangulation.
    */
   void
-  initialize(const Mapping<dim, spacedim> &      mapping,
+  initialize(const Mapping<dim, spacedim>       &mapping,
              const Triangulation<dim, spacedim> &tria,
              const std::function<Point<spacedim>(
                const typename Triangulation<dim, spacedim>::cell_iterator &,
-               const Point<spacedim> &)> &       transformation_function,
+               const Point<spacedim> &)>        &transformation_function,
              const bool function_describes_relative_displacement);
 
   /**
    * The same as above but taking a dealii::Function object.
    */
   void
-  initialize(const Mapping<dim, spacedim> &      mapping,
+  initialize(const Mapping<dim, spacedim>       &mapping,
              const Triangulation<dim, spacedim> &tria,
-             const Function<spacedim> &          transformation_function,
+             const Function<spacedim>           &transformation_function,
              const bool function_describes_relative_displacement);
 
   /**
@@ -180,9 +169,9 @@ public:
    */
   template <typename VectorType>
   void
-  initialize(const Mapping<dim, spacedim> &   mapping,
+  initialize(const Mapping<dim, spacedim>    &mapping,
              const DoFHandler<dim, spacedim> &dof_handler,
-             const VectorType &               vector,
+             const VectorType                &vector,
              const bool vector_describes_relative_displacement);
 
   /**
@@ -198,7 +187,7 @@ public:
    */
   template <typename VectorType>
   void
-  initialize(const Mapping<dim, spacedim> &   mapping,
+  initialize(const Mapping<dim, spacedim>    &mapping,
              const DoFHandler<dim, spacedim> &dof_handler,
              const MGLevelObject<VectorType> &vectors,
              const bool vector_describes_relative_displacement);
@@ -248,7 +237,7 @@ private:
   bool uses_level_info;
 };
 
-/*@}*/
+/** @} */
 
 DEAL_II_NAMESPACE_CLOSE
 

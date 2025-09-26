@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,7 +21,6 @@
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/bounding_box.h>
 #include <deal.II/base/function.h>
-#include <deal.II/base/mpi.h>
 #include <deal.II/base/smartpointer.h>
 #include <deal.II/base/subscriptor.h>
 
@@ -96,7 +95,7 @@ namespace Particles
      * the initialize function.
      */
     ParticleHandler(const Triangulation<dim, spacedim> &tria,
-                    const Mapping<dim, spacedim> &      mapping,
+                    const Mapping<dim, spacedim>       &mapping,
                     const unsigned int                  n_properties = 0);
 
     /**
@@ -111,7 +110,7 @@ namespace Particles
      */
     void
     initialize(const Triangulation<dim, spacedim> &tria,
-               const Mapping<dim, spacedim> &      mapping,
+               const Mapping<dim, spacedim>       &mapping,
                const unsigned int                  n_properties = 0);
 
     /**
@@ -166,7 +165,7 @@ namespace Particles
      * particles to be newly inserted.
      */
     void
-    reserve(std::size_t n_particles);
+    reserve(const std::size_t n_particles);
 
     /**
      * Update all internally cached numbers. Note that all functions that
@@ -304,8 +303,8 @@ namespace Particles
      */
     particle_iterator
     insert_particle(
-      const Point<spacedim> &     position,
-      const Point<dim> &          reference_position,
+      const Point<spacedim>      &position,
+      const Point<dim>           &reference_position,
       const types::particle_index particle_index,
       const typename Triangulation<dim, spacedim>::active_cell_iterator &cell,
       const ArrayView<const double> &properties = {});
@@ -398,8 +397,8 @@ namespace Particles
     insert_global_particles(
       const std::vector<Point<spacedim>> &positions,
       const std::vector<std::vector<BoundingBox<spacedim>>>
-        &                                       global_bounding_boxes,
-      const std::vector<std::vector<double>> &  properties = {},
+                                               &global_bounding_boxes,
+      const std::vector<std::vector<double>>   &properties = {},
       const std::vector<types::particle_index> &ids        = {});
 
     /**
@@ -481,10 +480,9 @@ namespace Particles
      * be interpreted as a displacement vector, or a vector of absolute
      * positions.
      */
-    template <class VectorType>
-    typename std::enable_if<
-      std::is_convertible<VectorType *, Function<spacedim> *>::value ==
-      false>::type
+    template <typename VectorType>
+    std::enable_if_t<
+      std::is_convertible_v<VectorType *, Function<spacedim> *> == false>
     set_particle_positions(const VectorType &input_vector,
                            const bool        displace_particles = true);
 
@@ -562,7 +560,7 @@ namespace Particles
      * @param[in] add_to_output_vector Control if the function should set the
      * entries of the @p output_vector or if should add to them.
      */
-    template <class VectorType>
+    template <typename VectorType>
     void
     get_particle_positions(VectorType &output_vector,
                            const bool  add_to_output_vector = false);
@@ -653,27 +651,6 @@ namespace Particles
      */
     types::particle_index
     get_next_free_particle_index() const;
-
-    /**
-     * Extract an IndexSet with global dimensions equal to
-     * get_next_free_particle_index(), containing the locally owned
-     * particle indices.
-     *
-     * This function can be used to construct distributed vectors and matrices
-     * to manipulate particles using linear algebra operations.
-     *
-     * Notice that it is the user's responsibility to guarantee that particle
-     * indices are unique, and no check is performed to verify that this is the
-     * case, nor that the union of all IndexSet objects on each mpi process is
-     * complete.
-     *
-     * @return An IndexSet of size get_next_free_particle_index(), containing
-     * n_locally_owned_particle() indices.
-     *
-     * @deprecated Use locally_owned_particle_ids() instead.
-     */
-    DEAL_II_DEPRECATED IndexSet
-    locally_relevant_ids() const;
 
     /**
      * Extract an IndexSet with global dimensions equal to
@@ -826,7 +803,7 @@ namespace Particles
      * prepare_for_serialization() instead. See there for further information
      * about the purpose of this function.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     register_store_callback_function();
 
@@ -840,7 +817,7 @@ namespace Particles
      * deserialize() instead. See there for further information about the
      * purpose of this function.
      */
-    DEAL_II_DEPRECATED_EARLY
+    DEAL_II_DEPRECATED
     void
     register_load_callback_function(const bool serialization);
 
@@ -901,7 +878,7 @@ namespace Particles
      */
     particle_iterator
     insert_particle(
-      const void *&                                                      data,
+      const void                                                       *&data,
       const typename Triangulation<dim, spacedim>::active_cell_iterator &cell);
 
     /**
@@ -1166,7 +1143,7 @@ namespace Particles
     std::vector<char>
     pack_callback(
       const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-      const typename Triangulation<dim, spacedim>::CellStatus     status) const;
+      const CellStatus                                            status) const;
 
     /**
      * Called by listener functions after a refinement step for each cell
@@ -1175,7 +1152,7 @@ namespace Particles
     void
     unpack_callback(
       const typename Triangulation<dim, spacedim>::cell_iterator &cell,
-      const typename Triangulation<dim, spacedim>::CellStatus     status,
+      const CellStatus                                            status,
       const boost::iterator_range<std::vector<char>::const_iterator>
         &data_range);
 
@@ -1347,16 +1324,15 @@ namespace Particles
     // the domain is distributed differently after resuming from a checkpoint.
     ar //&particles
       &global_number_of_particles &global_max_particles_per_cell
-        &                          next_free_particle_index;
+        &next_free_particle_index;
   }
 
 
 
   template <int dim, int spacedim>
-  template <class VectorType>
-  inline typename std::enable_if<
-    std::is_convertible<VectorType *, Function<spacedim> *>::value ==
-    false>::type
+  template <typename VectorType>
+  inline std::enable_if_t<
+    std::is_convertible_v<VectorType *, Function<spacedim> *> == false>
   ParticleHandler<dim, spacedim>::set_particle_positions(
     const VectorType &input_vector,
     const bool        displace_particles)
@@ -1365,9 +1341,9 @@ namespace Particles
                     get_next_free_particle_index() * spacedim);
     for (auto &p : *this)
       {
-        auto       new_point(displace_particles ? p.get_location() :
-                                                  Point<spacedim>());
-        const auto id = p.get_id();
+        Point<spacedim> new_point(displace_particles ? p.get_location() :
+                                                       Point<spacedim>());
+        const auto      id = p.get_id();
         for (unsigned int i = 0; i < spacedim; ++i)
           new_point[i] += input_vector[id * spacedim + i];
         p.set_location(new_point);
@@ -1378,7 +1354,7 @@ namespace Particles
 
 
   template <int dim, int spacedim>
-  template <class VectorType>
+  template <typename VectorType>
   inline void
   ParticleHandler<dim, spacedim>::get_particle_positions(
     VectorType &output_vector,
@@ -1401,15 +1377,6 @@ namespace Particles
       output_vector.compress(VectorOperation::add);
     else
       output_vector.compress(VectorOperation::insert);
-  }
-
-
-
-  template <int dim, int spacedim>
-  inline IndexSet
-  ParticleHandler<dim, spacedim>::locally_relevant_ids() const
-  {
-    return this->locally_owned_particle_ids();
   }
 
 } // namespace Particles

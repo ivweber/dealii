@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2020 by the deal.II authors
+// Copyright (C) 2008 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,6 +20,8 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/exceptions.h>
+#include <deal.II/base/index_set.h>
+#include <deal.II/base/mpi_stub.h>
 
 #include <deal.II/lac/block_sparsity_pattern.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
@@ -28,17 +30,12 @@
 #include <memory>
 #include <vector>
 
-#ifdef DEAL_II_WITH_MPI
-#  include <deal.II/base/index_set.h>
-
-#  include <mpi.h>
-#endif
-
 DEAL_II_NAMESPACE_OPEN
 
 
-/*! @addtogroup Sparsity
- *@{
+/**
+ * @addtogroup Sparsity
+ * @{
  */
 
 /**
@@ -101,7 +98,7 @@ namespace SparsityTools
    * done by calling @p GridTools::partition_triangulation.
    */
   void
-  partition(const SparsityPattern &    sparsity_pattern,
+  partition(const SparsityPattern     &sparsity_pattern,
             const unsigned int         n_partitions,
             std::vector<unsigned int> &partition_indices,
             const Partitioner          partitioner = Partitioner::metis);
@@ -118,10 +115,10 @@ namespace SparsityTools
    * number of active cells in the triangulation.
    */
   void
-  partition(const SparsityPattern &          sparsity_pattern,
+  partition(const SparsityPattern           &sparsity_pattern,
             const std::vector<unsigned int> &cell_weights,
             const unsigned int               n_partitions,
-            std::vector<unsigned int> &      partition_indices,
+            std::vector<unsigned int>       &partition_indices,
             const Partitioner                partitioner = Partitioner::metis);
 
   /**
@@ -157,7 +154,7 @@ namespace SparsityTools
    * coloring arising in shared-memory parallel assembly of matrices.
    */
   unsigned int
-  color_sparsity_pattern(const SparsityPattern &    sparsity_pattern,
+  color_sparsity_pattern(const SparsityPattern     &sparsity_pattern,
                          std::vector<unsigned int> &color_indices);
 
   /**
@@ -211,8 +208,8 @@ namespace SparsityTools
    */
   void
   reorder_Cuthill_McKee(
-    const DynamicSparsityPattern &                        sparsity,
-    std::vector<DynamicSparsityPattern::size_type> &      new_indices,
+    const DynamicSparsityPattern                         &sparsity,
+    std::vector<DynamicSparsityPattern::size_type>       &new_indices,
     const std::vector<DynamicSparsityPattern::size_type> &starting_indices =
       std::vector<DynamicSparsityPattern::size_type>());
 
@@ -239,7 +236,7 @@ namespace SparsityTools
    */
   void
   reorder_hierarchical(
-    const DynamicSparsityPattern &                  sparsity,
+    const DynamicSparsityPattern                   &sparsity,
     std::vector<DynamicSparsityPattern::size_type> &new_indices);
 
 #ifdef DEAL_II_WITH_MPI
@@ -269,9 +266,9 @@ namespace SparsityTools
    */
   void
   distribute_sparsity_pattern(DynamicSparsityPattern &dsp,
-                              const IndexSet &        locally_owned_rows,
-                              const MPI_Comm &        mpi_comm,
-                              const IndexSet &        locally_relevant_rows);
+                              const IndexSet         &locally_owned_rows,
+                              const MPI_Comm          mpi_comm,
+                              const IndexSet         &locally_relevant_rows);
 
   /**
    * Communicate rows in a dynamic sparsity pattern over MPI, similar to the
@@ -285,10 +282,10 @@ namespace SparsityTools
    */
   void
   distribute_sparsity_pattern(
-    DynamicSparsityPattern &                              dsp,
+    DynamicSparsityPattern                               &dsp,
     const std::vector<DynamicSparsityPattern::size_type> &rows_per_cpu,
-    const MPI_Comm &                                      mpi_comm,
-    const IndexSet &                                      myrange);
+    const MPI_Comm                                        mpi_comm,
+    const IndexSet                                       &myrange);
 
   /**
    * Similar to the function above, but for BlockDynamicSparsityPattern
@@ -306,8 +303,8 @@ namespace SparsityTools
    */
   void
   distribute_sparsity_pattern(BlockDynamicSparsityPattern &dsp,
-                              const IndexSet &             locally_owned_rows,
-                              const MPI_Comm &             mpi_comm,
+                              const IndexSet              &locally_owned_rows,
+                              const MPI_Comm               mpi_comm,
                               const IndexSet &locally_relevant_rows);
 
   /**
@@ -317,8 +314,8 @@ namespace SparsityTools
   void
   distribute_sparsity_pattern(BlockDynamicSparsityPattern &dsp,
                               const std::vector<IndexSet> &owned_set_per_cpu,
-                              const MPI_Comm &             mpi_comm,
-                              const IndexSet &             myrange);
+                              const MPI_Comm               mpi_comm,
+                              const IndexSet              &myrange);
 
   /**
    * Gather rows in a dynamic sparsity pattern over MPI.
@@ -345,9 +342,9 @@ namespace SparsityTools
    */
   void
   gather_sparsity_pattern(DynamicSparsityPattern &dsp,
-                          const IndexSet &        locally_owned_rows,
-                          const MPI_Comm &        mpi_comm,
-                          const IndexSet &        locally_relevant_rows);
+                          const IndexSet         &locally_owned_rows,
+                          const MPI_Comm          mpi_comm,
+                          const IndexSet         &locally_relevant_rows);
 
 #endif
 

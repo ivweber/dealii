@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 1999 - 2021 by the deal.II authors
+ * Copyright (C) 1999 - 2022 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  */
 
 // @sect3{Include files}
@@ -132,9 +131,10 @@ void second_grid()
   // manifold indicator, a manifold that produces straight edges is
   // implied. (Manifold indicators are a slightly complicated topic; if
   // you're confused about what exactly is happening here, you may want to
-  // look at the @ref GlossManifoldIndicator "glossary entry on this
-  // topic".) Since the default chosen by GridGenerator::hyper_shell is
-  // reasonable we leave things alone.
+  // look at the
+  // @ref GlossManifoldIndicator "glossary entry on this topic".)
+  // Since the default chosen by GridGenerator::hyper_shell is reasonable
+  // we leave things alone.
   //
   // In order to demonstrate how to write a loop over all cells, we will
   // refine the grid in five steps towards the inner circle of the domain:
@@ -190,7 +190,7 @@ void second_grid()
       // <a href="http://en.cppreference.com/w/cpp/language/range-for">range-
       // based for loops</a>, which wrap up all of the syntax shown above into a
       // much shorter form:
-      for (auto &cell : triangulation.active_cell_iterators())
+      for (const auto &cell : triangulation.active_cell_iterators())
         {
           // @note See @ref Iterators for more information about the iterator
           // classes used in deal.II, and @ref CPP11 for more information about

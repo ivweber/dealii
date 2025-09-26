@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2018 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,17 +14,17 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_sparse_ilu_templates_h
-#  define dealii_sparse_ilu_templates_h
+#define dealii_sparse_ilu_templates_h
 
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  include <deal.II/lac/sparse_ilu.h>
-#  include <deal.II/lac/vector.h>
+#include <deal.II/lac/sparse_ilu.h>
+#include <deal.II/lac/vector.h>
 
-#  include <algorithm>
-#  include <cmath>
+#include <algorithm>
+#include <cmath>
 
 
 DEAL_II_NAMESPACE_OPEN
@@ -34,7 +34,7 @@ template <typename number>
 template <typename somenumber>
 void
 SparseILU<number>::initialize(const SparseMatrix<somenumber> &matrix,
-                              const AdditionalData &          data)
+                              const AdditionalData           &data)
 {
   SparseLUDecomposition<number>::initialize(matrix, data);
 
@@ -55,7 +55,7 @@ SparseILU<number>::initialize(const SparseMatrix<somenumber> &matrix,
   // in the following, we implement algorithm 10.4 in the book by Saad by
   // translating in essence the algorithm given at the end of section 10.3.2,
   // using the names of variables used there
-  const SparsityPattern &  sparsity = this->get_sparsity_pattern();
+  const SparsityPattern   &sparsity = this->get_sparsity_pattern();
   const std::size_t *const ia       = sparsity.rowstart.get();
   const size_type *const   ja       = sparsity.colnums.get();
 
@@ -136,7 +136,7 @@ SparseILU<number>::initialize(const SparseMatrix<somenumber> &matrix,
 template <typename number>
 template <typename somenumber>
 void
-SparseILU<number>::vmult(Vector<somenumber> &      dst,
+SparseILU<number>::vmult(Vector<somenumber>       &dst,
                          const Vector<somenumber> &src) const
 {
   Assert(dst.size() == src.size(),
@@ -218,7 +218,7 @@ SparseILU<number>::vmult(Vector<somenumber> &      dst,
 template <typename number>
 template <typename somenumber>
 void
-SparseILU<number>::Tvmult(Vector<somenumber> &      dst,
+SparseILU<number>::Tvmult(Vector<somenumber>       &dst,
                           const Vector<somenumber> &src) const
 {
   Assert(dst.size() == src.size(),
@@ -259,7 +259,7 @@ SparseILU<number>::Tvmult(Vector<somenumber> &      dst,
         this->prebuilt_lower_bound[row];
 
       const somenumber dst_row = dst(row);
-      const number *   luval   = this->SparseMatrix<number>::val.get() +
+      const number    *luval   = this->SparseMatrix<number>::val.get() +
                             (first_after_diagonal - column_numbers);
       for (const size_type *col = first_after_diagonal; col != rowend;
            ++col, ++luval)
@@ -289,7 +289,7 @@ SparseILU<number>::Tvmult(Vector<somenumber> &      dst,
         this->prebuilt_lower_bound[row];
 
       const somenumber dst_row = dst(row);
-      const number *   luval =
+      const number    *luval =
         this->SparseMatrix<number>::val.get() + (rowstart - column_numbers);
       for (const size_type *col = rowstart; col != first_after_diagonal;
            ++col, ++luval)
@@ -308,4 +308,3 @@ SparseILU<number>::memory_consumption() const
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
-/*-------------------------- sparse_ilu.templates.h -------------------------*/

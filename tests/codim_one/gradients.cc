@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -58,7 +58,7 @@ test(std::string filename)
   GridIn<dim, spacedim>        gi;
 
   gi.attach_triangulation(triangulation);
-  std::ifstream in(filename.c_str());
+  std::ifstream in(filename);
   gi.read_ucd(in);
 
   const QMidpoint<dim> q_midpoint;

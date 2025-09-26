@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -84,7 +84,8 @@ sub_test()
       MatrixFree<dim, number> mf_data, mf_data_color, mf_data_partition;
       {
         const QGauss<1> quad(fe_degree + 1);
-        mf_data.reinit(dof,
+        mf_data.reinit(MappingQ1<dim>{},
+                       dof,
                        constraints,
                        quad,
                        typename MatrixFree<dim, number>::AdditionalData(
@@ -94,6 +95,7 @@ sub_test()
         // some irregularity to the blocks (stress the
         // non-overlapping computation harder)
         mf_data_color.reinit(
+          MappingQ1<dim>{},
           dof,
           constraints,
           quad,
@@ -101,6 +103,7 @@ sub_test()
             MatrixFree<dim, number>::AdditionalData::partition_color, 3));
 
         mf_data_partition.reinit(
+          MappingQ1<dim>{},
           dof,
           constraints,
           quad,
@@ -136,14 +139,14 @@ sub_test()
 
           out_color -= out_dist;
           double diff_norm = out_color.linfty_norm();
-          if (std::is_same<number, float>::value && diff_norm < 5e-6)
+          if (std::is_same_v<number, float> && diff_norm < 5e-6)
             diff_norm = 0;
           deallog << "Sweep " << sweep
                   << ", error in partition/color:                  "
                   << diff_norm << std::endl;
           out_partition -= out_dist;
           diff_norm = out_partition.linfty_norm();
-          if (std::is_same<number, float>::value && diff_norm < 5e-6)
+          if (std::is_same_v<number, float> && diff_norm < 5e-6)
             diff_norm = 0;
           deallog << "Sweep " << sweep
                   << ", error in partition/partition:              "

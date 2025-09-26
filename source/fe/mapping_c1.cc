@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2020 by the deal.II authors
+// Copyright (C) 2001 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -52,7 +52,7 @@ template <>
 void
 MappingC1<2>::add_line_support_points(
   const Triangulation<2>::cell_iterator &cell,
-  std::vector<Point<2>> &                a) const
+  std::vector<Point<2>>                 &a) const
 {
   const unsigned int          dim = 2;
   const std::array<double, 2> interior_gl_points{

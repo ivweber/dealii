@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2021 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,14 +19,12 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mpi_stub.h>
+
 #include <deal.II/distributed/repartitioning_policy_tools.h>
 #include <deal.II/distributed/tria_base.h>
 
 #include <vector>
-
-#ifdef DEAL_II_WITH_MPI
-#  include <mpi.h>
-#endif
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -96,7 +94,7 @@ namespace parallel
      * been constructed, the triangulation `tria` can be created by calling
      * `tria.create_triangulation(construction_data);`.
      *
-     * @note This triangulation supports: 1D/2D/3D, hanging nodes,
+     * @note This triangulation supports: 1D/2d/3d, hanging nodes,
      *       geometric multigrid, and periodicity.
      *
      * @note You can create a triangulation with hanging nodes and multigrid
@@ -107,8 +105,11 @@ namespace parallel
      * @note Currently only simple periodicity conditions (i.e. without offsets
      *       and rotation matrices - see also the documentation of
      *       GridTools::collect_periodic_faces()) are supported.
+     *
+     * @dealiiConceptRequires{(concepts::is_valid_dim_spacedim<dim, spacedim>)}
      */
     template <int dim, int spacedim = dim>
+    DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
     class Triangulation
       : public parallel::DistributedTriangulationBase<dim, spacedim>
     {
@@ -119,16 +120,13 @@ namespace parallel
       using active_cell_iterator =
         typename dealii::Triangulation<dim, spacedim>::active_cell_iterator;
 
-      using CellStatus =
-        typename dealii::Triangulation<dim, spacedim>::CellStatus;
-
       /**
        * Constructor.
        *
        * @param mpi_communicator The MPI communicator to be used for the
        *                         triangulation.
        */
-      explicit Triangulation(const MPI_Comm &mpi_communicator);
+      explicit Triangulation(const MPI_Comm mpi_communicator);
 
       /**
        * Destructor.
@@ -154,7 +152,7 @@ namespace parallel
        *       triangulation.
        */
       virtual void
-      create_triangulation(const std::vector<Point<spacedim>> &      vertices,
+      create_triangulation(const std::vector<Point<spacedim>>       &vertices,
                            const std::vector<dealii::CellData<dim>> &cells,
                            const SubCellData &subcelldata) override;
 
@@ -193,7 +191,7 @@ namespace parallel
       set_partitioner(
         const std::function<void(dealii::Triangulation<dim, spacedim> &,
                                  const unsigned int)> &partitioner,
-        const TriangulationDescription::Settings &     settings);
+        const TriangulationDescription::Settings      &settings);
 
       /**
        * Register a partitioner, which is used within the method
@@ -202,7 +200,7 @@ namespace parallel
       void
       set_partitioner(
         const RepartitioningPolicyTools::Base<dim, spacedim> &partitioner,
-        const TriangulationDescription::Settings &            settings);
+        const TriangulationDescription::Settings             &settings);
 
       /**
        * Execute repartitioning and use the partitioner attached by the
@@ -266,7 +264,7 @@ namespace parallel
        *
        * @deprecated The autopartition parameter has been removed.
        */
-      DEAL_II_DEPRECATED_EARLY
+      DEAL_II_DEPRECATED
       virtual void
       load(const std::string &filename, const bool autopartition) override;
 
@@ -284,7 +282,7 @@ namespace parallel
        * will change in the private member vector local_cell_relations.
        *
        * As no adaptive mesh refinement is supported at the moment for this
-       * class, all cells will be flagged with the CellStatus CELL_PERSIST.
+       * class, all cells will be flagged with CellStatus::cell_will_persist.
        * These relations will currently only be used for serialization.
        *
        * The stored vector will have a size equal to the number of locally owned

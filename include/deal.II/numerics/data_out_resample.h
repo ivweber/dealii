@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,6 +21,7 @@
 #include <deal.II/base/config.h>
 
 #include <deal.II/base/mpi_remote_point_evaluation.h>
+#include <deal.II/base/partitioner.h>
 
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/data_out_dof_data.h>
@@ -30,15 +31,14 @@
 DEAL_II_NAMESPACE_OPEN
 
 /**
- * A DataOut-like class that does not output a numerical solution on
- * the cells of the original triangulation but interpolates the result onto a
- * second triangulation (that can be completely unrelated).
- * By using this class, one can output the result obtained on an unstructured
- * mesh onto a structured one or one can create a slice in 3D.
+ * A DataOut-like class which interpolates values defined on one Triangulation
+ * onto a second potentially unrelated Triangulation. By using this class,
+ * one can output the result obtained on an unstructured mesh onto a
+ * structured one or one can create a slice in 3d.
  *
  * The following code snippet shows the steps how to use the class when the
  * solution is given for a three dimensional triangulation and the result
- * should be outputted on a (2D) slice:
+ * should be outputted on a (2d) slice:
  * @code
  * // setup and first usage
  * DataOutResample<3, 2, 3> data_out(patch_tria,patch_mapping);
@@ -46,10 +46,12 @@ DEAL_II_NAMESPACE_OPEN
  * data_out.build_patches(mapping);
  *
  * // ... no changes in triangulation and mapping -> reuse internal data
- * structures data_out.build_patches();
+ * // structures
+ * data_out.build_patches();
  *
  * // ... changes in triangulation or mapping -> reinitialize internal data
- * structures data_out.build_patches(mapping);
+ * // structures
+ * data_out.build_patches(mapping);
  * @endcode
  *
  * @note While the dimension of the two triangulations might differ, their
@@ -65,7 +67,7 @@ public:
    * should be generated.
    */
   DataOutResample(const Triangulation<patch_dim, spacedim> &patch_tria,
-                  const Mapping<patch_dim, spacedim> &      patch_mapping);
+                  const Mapping<patch_dim, spacedim>       &patch_mapping);
 
   /**
    * Update the @p mapping of original triangulation. One needs to call this

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,12 +21,12 @@
 
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/hp/fe_values.h>
+#include <deal.II/hp/fe_collection.h>
 
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/vector.h>
@@ -45,10 +45,10 @@ namespace internal
       const unsigned int               n_datasets,
       const unsigned int               n_subdivisions,
       const std::vector<unsigned int> &n_postprocessor_outputs,
-      const Mapping<dim, spacedim> &   mapping,
+      const Mapping<dim, spacedim>    &mapping,
       const std::vector<
         std::shared_ptr<dealii::hp::FECollection<dim, spacedim>>>
-        &               finite_elements,
+                       &finite_elements,
       const UpdateFlags update_flags)
       : internal::DataOutImplementation::ParallelDataBase<dim, spacedim>(
           n_datasets,
@@ -97,7 +97,7 @@ void
 DataOutFaces<dim, spacedim>::build_one_patch(
   const FaceDescriptor *cell_and_face,
   internal::DataOutFacesImplementation::ParallelData<dim, spacedim> &data,
-  DataOutBase::Patch<patch_dim, patch_spacedim> &                    patch)
+  DataOutBase::Patch<patch_dim, patch_spacedim>                     &patch)
 {
   const cell_iterator cell        = cell_and_face->first;
   const unsigned int  face_number = cell_and_face->second;
@@ -172,30 +172,30 @@ DataOutFaces<dim, spacedim>::build_one_patch(
                 {
                   // at each point there is only one component of value,
                   // gradient etc.
-                  if ((update_flags & update_values) != 0u)
+                  if (update_flags & update_values)
                     this->dof_data[dataset]->get_function_values(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_scalar.solution_values);
-                  if ((update_flags & update_gradients) != 0u)
+                  if (update_flags & update_gradients)
                     this->dof_data[dataset]->get_function_gradients(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_scalar.solution_gradients);
-                  if ((update_flags & update_hessians) != 0u)
+                  if (update_flags & update_hessians)
                     this->dof_data[dataset]->get_function_hessians(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_scalar.solution_hessians);
 
-                  if ((update_flags & update_quadrature_points) != 0u)
+                  if (update_flags & update_quadrature_points)
                     data.patch_values_scalar.evaluation_points =
                       this_fe_patch_values.get_quadrature_points();
 
-                  if ((update_flags & update_normal_vectors) != 0u)
+                  if (update_flags & update_normal_vectors)
                     data.patch_values_scalar.normals =
                       this_fe_patch_values.get_normal_vectors();
 
@@ -216,30 +216,30 @@ DataOutFaces<dim, spacedim>::build_one_patch(
                   // at each point there is a vector valued function and its
                   // derivative...
                   data.resize_system_vectors(n_components);
-                  if ((update_flags & update_values) != 0u)
+                  if (update_flags & update_values)
                     this->dof_data[dataset]->get_function_values(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_system.solution_values);
-                  if ((update_flags & update_gradients) != 0u)
+                  if (update_flags & update_gradients)
                     this->dof_data[dataset]->get_function_gradients(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_system.solution_gradients);
-                  if ((update_flags & update_hessians) != 0u)
+                  if (update_flags & update_hessians)
                     this->dof_data[dataset]->get_function_hessians(
                       this_fe_patch_values,
                       internal::DataOutImplementation::ComponentExtractor::
                         real_part,
                       data.patch_values_system.solution_hessians);
 
-                  if ((update_flags & update_quadrature_points) != 0u)
+                  if (update_flags & update_quadrature_points)
                     data.patch_values_system.evaluation_points =
                       this_fe_patch_values.get_quadrature_points();
 
-                  if ((update_flags & update_normal_vectors) != 0u)
+                  if (update_flags & update_normal_vectors)
                     data.patch_values_system.normals =
                       this_fe_patch_values.get_normal_vectors();
 
@@ -268,28 +268,30 @@ DataOutFaces<dim, spacedim>::build_one_patch(
             // we treat single component functions separately for efficiency
             // reasons.
             if (n_components == 1)
-            {
-              this->dof_data[dataset]->get_function_values(
-                this_fe_patch_values,
-                internal::DataOutImplementation::ComponentExtractor::real_part,
-                data.patch_values_scalar.solution_values);
-              for (unsigned int q = 0; q < n_q_points; ++q)
-                patch.data(offset, q) =
-                  data.patch_values_scalar.solution_values[q];
-            }
-          else
-            {
-              data.resize_system_vectors(n_components);
-              this->dof_data[dataset]->get_function_values(
-                this_fe_patch_values,
-                internal::DataOutImplementation::ComponentExtractor::real_part,
-                data.patch_values_system.solution_values);
-              for (unsigned int component = 0; component < n_components;
-                   ++component)
+              {
+                this->dof_data[dataset]->get_function_values(
+                  this_fe_patch_values,
+                  internal::DataOutImplementation::ComponentExtractor::
+                    real_part,
+                  data.patch_values_scalar.solution_values);
                 for (unsigned int q = 0; q < n_q_points; ++q)
-                  patch.data(offset + component, q) =
-                    data.patch_values_system.solution_values[q](component);
-            }
+                  patch.data(offset, q) =
+                    data.patch_values_scalar.solution_values[q];
+              }
+            else
+              {
+                data.resize_system_vectors(n_components);
+                this->dof_data[dataset]->get_function_values(
+                  this_fe_patch_values,
+                  internal::DataOutImplementation::ComponentExtractor::
+                    real_part,
+                  data.patch_values_system.solution_values);
+                for (unsigned int component = 0; component < n_components;
+                     ++component)
+                  for (unsigned int q = 0; q < n_q_points; ++q)
+                    patch.data(offset + component, q) =
+                      data.patch_values_system.solution_values[q](component);
+              }
           // increment the counter for the actual data record
           offset += this->dof_data[dataset]->n_output_variables;
         }
@@ -375,7 +377,7 @@ DataOutFaces<dim, spacedim>::build_patches(
   // clear the patches array and allocate the right number of elements
   this->patches.clear();
   this->patches.reserve(all_faces.size());
-  Assert(this->patches.size() == 0, ExcInternalError());
+  Assert(this->patches.empty(), ExcInternalError());
 
 
   std::vector<unsigned int> n_postprocessor_outputs(this->dof_data.size());

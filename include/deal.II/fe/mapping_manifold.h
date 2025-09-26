@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,9 +29,10 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-/*!@addtogroup mapping */
-/*@{*/
-
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * This class implements the functionality for Manifold conforming
@@ -106,7 +107,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<1, dim>> &                  input,
+  transform(const ArrayView<const Tensor<1, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<1, spacedim>> &output) const override;
@@ -120,7 +121,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<2, dim>> &                  input,
+  transform(const ArrayView<const Tensor<2, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<2, spacedim>> &output) const override;
@@ -134,7 +135,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<3, dim>> &                  input,
+  transform(const ArrayView<const Tensor<3, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<3, spacedim>> &output) const override;
@@ -350,9 +351,9 @@ private:
   fill_fe_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const CellSimilarity::Similarity                            cell_similarity,
-    const Quadrature<dim> &                                     quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-    dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    const Quadrature<dim>                                      &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
   using Mapping<dim, spacedim>::fill_fe_face_values;
@@ -362,9 +363,9 @@ private:
   fill_fe_face_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const unsigned int                                          face_no,
-    const hp::QCollection<dim - 1> &                            quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-    dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    const hp::QCollection<dim - 1>                             &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
   // documentation can be found in Mapping::fill_fe_subface_values()
@@ -373,9 +374,9 @@ private:
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const unsigned int                                          face_no,
     const unsigned int                                          subface_no,
-    const Quadrature<dim - 1> &                                 quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-    dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    const Quadrature<dim - 1>                                  &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
   /**
@@ -385,7 +386,7 @@ private:
 
 
 
-/*@}*/
+/** @} */
 
 /*----------------------------------------------------------------------*/
 

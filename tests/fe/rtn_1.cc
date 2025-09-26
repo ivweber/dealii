@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2020 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -92,4 +92,6 @@ main()
   check_support_points(e30);
   FE_RaviartThomasNodal<2> e21(1);
   check_support_points(e21);
+  FE_RaviartThomasNodal<3> e31(1);
+  check_support_points(e31);
 }

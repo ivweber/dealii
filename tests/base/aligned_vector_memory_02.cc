@@ -1,6 +1,6 @@
 // --------------------------------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -83,7 +83,7 @@ void
 test()
 {
   deallog << "---- Creating outer table" << std::endl;
-  Table<1, C> table({1});
+  Table<1, C> table(1);
 
   // Copy the object, then destroy the copy again.
   {

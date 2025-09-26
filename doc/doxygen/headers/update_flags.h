@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2020 by the deal.II authors
+// Copyright (C) 2006 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,7 +46,7 @@
  * - Second, this integral is then approximated through quadrature. This yields
  *   the formula
  *   @f[
- *     A^K_{ij} = \sum_{q}J^{-1}\left[(\hat{\bf x}_q) \hat \nabla \varphi_i(\hat{\bf x}_q)\right] \cdot
+ *     A^K_{ij} = \sum_{q}\left[J^{-1}(\hat{\bf x}_q) \hat \nabla \varphi_i(\hat{\bf x}_q)\right] \cdot
  *     \left[J^{-1}(\hat{\bf x}_q) \hat \nabla \varphi_j(\hat{\bf x}_q)\right]\ |\textrm{det}\ J(\hat{\bf x}_q)|
  *     w_q,
  *   @f]

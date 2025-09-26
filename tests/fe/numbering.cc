@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,9 +20,6 @@
 #include <vector>
 
 #include "../tests.h"
-
-
-std::ofstream logfile("output");
 
 
 template <int dim>
@@ -240,8 +237,9 @@ check(const FE_Q<dim> &fe)
     {
       Assert(l2h[hierarchic_to_lexicographic_numbering[i]] == i,
              ExcInternalError());
-      logfile << dim << "d, degree=" << degree << ": " << l2h[i] << ' '
-              << hierarchic_to_lexicographic_numbering[i] << std::endl;
+      deallog.get_file_stream()
+        << dim << "d, degree=" << degree << ": " << l2h[i] << ' '
+        << hierarchic_to_lexicographic_numbering[i] << std::endl;
     };
 
   // finally, we also have the
@@ -269,9 +267,9 @@ check_dim()
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(2);
   deallog << std::fixed;
-  deallog.attach(logfile);
 
   check_dim<1>();
   check_dim<2>();

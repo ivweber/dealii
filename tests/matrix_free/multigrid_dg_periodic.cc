@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,7 +46,7 @@
 #include <deal.II/multigrid/mg_matrix.h>
 #include <deal.II/multigrid/mg_smoother.h>
 #include <deal.II/multigrid/mg_tools.h>
-#include <deal.II/multigrid/mg_transfer.h>
+#include <deal.II/multigrid/mg_transfer_matrix_free.h>
 #include <deal.II/multigrid/multigrid.h>
 
 #include <deal.II/numerics/vector_tools.h>
@@ -64,7 +64,7 @@ public:
   LaplaceOperator(){};
 
   void
-  initialize(const Mapping<dim> &   mapping,
+  initialize(const Mapping<dim>    &mapping,
              const DoFHandler<dim> &dof_handler,
              const unsigned int     n_q_points_1d,
              const unsigned int     level = numbers::invalid_unsigned_int)
@@ -90,7 +90,7 @@ public:
   }
 
   void
-  vmult(LinearAlgebra::distributed::Vector<number> &      dst,
+  vmult(LinearAlgebra::distributed::Vector<number>       &dst,
         const LinearAlgebra::distributed::Vector<number> &src) const
   {
     dst = 0;
@@ -98,7 +98,7 @@ public:
   }
 
   void
-  Tvmult(LinearAlgebra::distributed::Vector<number> &      dst,
+  Tvmult(LinearAlgebra::distributed::Vector<number>       &dst,
          const LinearAlgebra::distributed::Vector<number> &src) const
   {
     dst = 0;
@@ -106,14 +106,14 @@ public:
   }
 
   void
-  Tvmult_add(LinearAlgebra::distributed::Vector<number> &      dst,
+  Tvmult_add(LinearAlgebra::distributed::Vector<number>       &dst,
              const LinearAlgebra::distributed::Vector<number> &src) const
   {
     vmult_add(dst, src);
   }
 
   void
-  vmult_add(LinearAlgebra::distributed::Vector<number> &      dst,
+  vmult_add(LinearAlgebra::distributed::Vector<number>       &dst,
             const LinearAlgebra::distributed::Vector<number> &src) const
   {
     Assert(src.partitioners_are_globally_compatible(
@@ -165,11 +165,17 @@ public:
     return inverse_diagonal_entries;
   }
 
+  const std::shared_ptr<const Utilities::MPI::Partitioner> &
+  get_vector_partitioner() const
+  {
+    return data.get_vector_partitioner();
+  }
+
 
 private:
   void
-  local_apply(const MatrixFree<dim, number> &                   data,
-              LinearAlgebra::distributed::Vector<number> &      dst,
+  local_apply(const MatrixFree<dim, number>                    &data,
+              LinearAlgebra::distributed::Vector<number>       &dst,
               const LinearAlgebra::distributed::Vector<number> &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
@@ -189,10 +195,10 @@ private:
 
   void
   local_apply_face(
-    const MatrixFree<dim, number> &                   data,
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    const MatrixFree<dim, number>                    &data,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src,
-    const std::pair<unsigned int, unsigned int> &     face_range) const
+    const std::pair<unsigned int, unsigned int>      &face_range) const
   {
     FEFaceEvaluation<dim, -1, 0, 1, number> fe_eval(data, true);
     FEFaceEvaluation<dim, -1, 0, 1, number> fe_eval_neighbor(data, false);
@@ -208,9 +214,9 @@ private:
         fe_eval_neighbor.evaluate(EvaluationFlags::values |
                                   EvaluationFlags::gradients);
         VectorizedArray<number> sigmaF =
-          (std::abs((fe_eval.get_normal_vector(0) *
+          (std::abs((fe_eval.normal_vector(0) *
                      fe_eval.inverse_jacobian(0))[dim - 1]) +
-           std::abs((fe_eval.get_normal_vector(0) *
+           std::abs((fe_eval.normal_vector(0) *
                      fe_eval_neighbor.inverse_jacobian(0))[dim - 1])) *
           (number)(std::max(fe_degree, 1) * (fe_degree + 1.0));
 
@@ -238,10 +244,10 @@ private:
 
   void
   local_apply_boundary(
-    const MatrixFree<dim, number> &                   data,
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    const MatrixFree<dim, number>                    &data,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src,
-    const std::pair<unsigned int, unsigned int> &     face_range) const
+    const std::pair<unsigned int, unsigned int>      &face_range) const
   {
     FEFaceEvaluation<dim, -1, 0, 1, number> fe_eval(data, true);
     for (unsigned int face = face_range.first; face < face_range.second; ++face)
@@ -250,8 +256,8 @@ private:
         fe_eval.read_dof_values(src);
         fe_eval.evaluate(EvaluationFlags::values | EvaluationFlags::gradients);
         VectorizedArray<number> sigmaF =
-          std::abs((fe_eval.get_normal_vector(0) *
-                    fe_eval.inverse_jacobian(0))[dim - 1]) *
+          std::abs(
+            (fe_eval.normal_vector(0) * fe_eval.inverse_jacobian(0))[dim - 1]) *
           (number)(std::max(1, fe_degree) * (fe_degree + 1.0)) * 2.;
 
         for (unsigned int q = 0; q < fe_eval.n_q_points; ++q)
@@ -281,7 +287,8 @@ private:
               inverse_diagonal_entries,
               dummy);
 
-    for (unsigned int i = 0; i < inverse_diagonal_entries.local_size(); ++i)
+    for (unsigned int i = 0; i < inverse_diagonal_entries.locally_owned_size();
+         ++i)
       if (std::abs(inverse_diagonal_entries.local_element(i)) > 1e-10)
         inverse_diagonal_entries.local_element(i) =
           1. / inverse_diagonal_entries.local_element(i);
@@ -291,7 +298,7 @@ private:
 
   void
   local_diagonal_cell(
-    const MatrixFree<dim, number> &             data,
+    const MatrixFree<dim, number>              &data,
     LinearAlgebra::distributed::Vector<number> &dst,
     const unsigned int &,
     const std::pair<unsigned int, unsigned int> &cell_range) const
@@ -323,7 +330,7 @@ private:
 
   void
   local_diagonal_face(
-    const MatrixFree<dim, number> &             data,
+    const MatrixFree<dim, number>              &data,
     LinearAlgebra::distributed::Vector<number> &dst,
     const unsigned int &,
     const std::pair<unsigned int, unsigned int> &face_range) const
@@ -339,10 +346,9 @@ private:
         phi_outer.reinit(face);
 
         VectorizedArray<number> sigmaF =
-          (std::abs(
-             (phi.get_normal_vector(0) * phi.inverse_jacobian(0))[dim - 1]) +
-           std::abs((phi.get_normal_vector(0) *
-                     phi_outer.inverse_jacobian(0))[dim - 1])) *
+          (std::abs((phi.normal_vector(0) * phi.inverse_jacobian(0))[dim - 1]) +
+           std::abs(
+             (phi.normal_vector(0) * phi_outer.inverse_jacobian(0))[dim - 1])) *
           (number)(std::max(fe_degree, 1) * (fe_degree + 1.0));
 
         // Compute phi part
@@ -412,7 +418,7 @@ private:
 
   void
   local_diagonal_boundary(
-    const MatrixFree<dim, number> &             data,
+    const MatrixFree<dim, number>              &data,
     LinearAlgebra::distributed::Vector<number> &dst,
     const unsigned int &,
     const std::pair<unsigned int, unsigned int> &face_range) const
@@ -426,8 +432,7 @@ private:
         phi.reinit(face);
 
         VectorizedArray<number> sigmaF =
-          std::abs(
-            (phi.get_normal_vector(0) * phi.inverse_jacobian(0))[dim - 1]) *
+          std::abs((phi.normal_vector(0) * phi.inverse_jacobian(0))[dim - 1]) *
           (number)(std::max(1, fe_degree) * (fe_degree + 1.0)) * 2.;
 
         for (unsigned int i = 0; i < phi.dofs_per_cell; ++i)
@@ -480,7 +485,7 @@ public:
 
   virtual void
   operator()(const unsigned int,
-             LinearAlgebra::distributed::Vector<double> &      dst,
+             LinearAlgebra::distributed::Vector<double>       &dst,
              const LinearAlgebra::distributed::Vector<double> &src) const
   {
     ReductionControl solver_control(1e4, 1e-50, 1e-7, false, false);
@@ -490,38 +495,6 @@ public:
   }
 
   const MATRIX *coarse_matrix;
-};
-
-
-
-template <typename LAPLACEOPERATOR>
-class MGTransferMF
-  : public MGTransferPrebuilt<
-      LinearAlgebra::distributed::Vector<typename LAPLACEOPERATOR::value_type>>
-{
-public:
-  MGTransferMF(const MGLevelObject<LAPLACEOPERATOR> &laplace)
-    : laplace_operator(laplace){};
-
-  /**
-   * Overload copy_to_mg from MGTransferPrebuilt
-   */
-  template <int dim, class InVector, int spacedim>
-  void
-  copy_to_mg(const DoFHandler<dim, spacedim> &         mg_dof,
-             MGLevelObject<LinearAlgebra::distributed::Vector<
-               typename LAPLACEOPERATOR::value_type>> &dst,
-             const InVector &                          src) const
-  {
-    for (unsigned int level = dst.min_level(); level <= dst.max_level();
-         ++level)
-      laplace_operator[level].initialize_dof_vector(dst[level]);
-    MGTransferPrebuilt<LinearAlgebra::distributed::Vector<
-      typename LAPLACEOPERATOR::value_type>>::copy_to_mg(mg_dof, dst, src);
-  }
-
-private:
-  const MGLevelObject<LAPLACEOPERATOR> &laplace_operator;
 };
 
 
@@ -582,8 +555,14 @@ do_test(const DoFHandler<dim> &dof, const unsigned int n_q_points_1d)
     }
   mg_smoother.initialize(mg_matrices, smoother_data);
 
-  MGTransferMF<LevelMatrixType> mg_transfer(mg_matrices);
-  mg_transfer.build(dof);
+  std::vector<std::shared_ptr<const Utilities::MPI::Partitioner>> partitioners;
+  for (unsigned int level = mg_matrices.min_level();
+       level <= mg_matrices.max_level();
+       ++level)
+    partitioners.push_back(mg_matrices[level].get_vector_partitioner());
+
+  MGTransferMatrixFree<dim, double> mg_transfer;
+  mg_transfer.build(dof, partitioners);
 
   mg::Matrix<LinearAlgebra::distributed::Vector<double>> mg_matrix(mg_matrices);
 
@@ -591,7 +570,7 @@ do_test(const DoFHandler<dim> &dof, const unsigned int n_q_points_1d)
     mg_matrix, mg_coarse, mg_transfer, mg_smoother, mg_smoother);
   PreconditionMG<dim,
                  LinearAlgebra::distributed::Vector<double>,
-                 MGTransferMF<LevelMatrixType>>
+                 MGTransferMatrixFree<dim, double>>
     preconditioner(dof, mg, mg_transfer);
 
   {

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,12 +22,9 @@
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/grid/tria_iterator.templates.h>
 
-#include <deal.II/hp/dof_handler.h>
-
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/la_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/sparse_matrix.h>
@@ -43,16 +40,16 @@ DEAL_II_NAMESPACE_OPEN
 
 
 template <int dim, int spacedim, bool lda>
-template <class InputVector, typename number>
+template <typename Number>
 void
 DoFCellAccessor<dim, spacedim, lda>::get_interpolated_dof_values(
-  const InputVector &values,
-  Vector<number> &   interpolated_values,
-  const unsigned int fe_index_) const
+  const ReadVector<Number> &values,
+  Vector<Number>           &interpolated_values,
+  const types::fe_index     fe_index_) const
 {
-  const unsigned int fe_index =
+  const types::fe_index fe_index =
     (this->dof_handler->hp_capability_enabled == false &&
-     fe_index_ == DoFHandler<dim, spacedim>::invalid_fe_index) ?
+     fe_index_ == numbers::invalid_fe_index) ?
       DoFHandler<dim, spacedim>::default_fe_index :
       fe_index_;
 
@@ -66,7 +63,7 @@ DoFCellAccessor<dim, spacedim, lda>::get_interpolated_dof_values(
           // active cells, you either don't specify an fe_index,
           // or that you specify the correct one
           (fe_index == this->active_fe_index()) ||
-          (fe_index == DoFHandler<dim, spacedim>::invalid_fe_index))
+          (fe_index == numbers::invalid_fe_index))
         this->get_dof_values(values, interpolated_values);
       else
         {
@@ -80,7 +77,7 @@ DoFCellAccessor<dim, spacedim, lda>::get_interpolated_dof_values(
             }
           else
             {
-              Vector<number> tmp(dofs_per_cell);
+              Vector<Number> tmp(dofs_per_cell);
               this->get_dof_values(values, tmp);
 
               FullMatrix<double> interpolation(
@@ -104,7 +101,7 @@ DoFCellAccessor<dim, spacedim, lda>::get_interpolated_dof_values(
       // space to this cell's (unknown) FE space unless an explicit
       // fe_index is given
       Assert((this->dof_handler->hp_capability_enabled == false) ||
-               (fe_index != DoFHandler<dim, spacedim>::invalid_fe_index),
+               (fe_index != numbers::invalid_fe_index),
              ExcMessage(
                "You cannot call this function on non-active cells "
                "of DoFHandler objects unless you provide an explicit "
@@ -132,8 +129,8 @@ DoFCellAccessor<dim, spacedim, lda>::get_interpolated_dof_values(
       // anyway (and in fact is of size zero, see the assertion above)
       if (fe.n_dofs_per_cell() > 0)
         {
-          Vector<number> tmp1(dofs_per_cell);
-          Vector<number> tmp2(dofs_per_cell);
+          Vector<Number> tmp1(dofs_per_cell);
+          Vector<Number> tmp2(dofs_per_cell);
 
           interpolated_values = 0;
 
@@ -179,7 +176,7 @@ DoFCellAccessor<dim, spacedim, lda>::get_interpolated_dof_values(
               for (unsigned int i = 0; i < dofs_per_cell; ++i)
                 if (fe.restriction_is_additive(i))
                   interpolated_values(i) += tmp2(i);
-                else if (tmp2(i) != number())
+                else if (tmp2(i) != Number())
                   interpolated_values(i) = tmp2(i);
             }
         }

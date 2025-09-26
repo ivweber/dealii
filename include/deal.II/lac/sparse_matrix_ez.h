@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2020 by the deal.II authors
+// Copyright (C) 2002 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,27 +14,27 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_sparse_matrix_ez_h
-#  define dealii_sparse_matrix_ez_h
+#define dealii_sparse_matrix_ez_h
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  include <deal.II/base/smartpointer.h>
-#  include <deal.II/base/subscriptor.h>
+#include <deal.II/base/smartpointer.h>
+#include <deal.II/base/subscriptor.h>
 
-#  include <deal.II/lac/exceptions.h>
+#include <deal.II/lac/exceptions.h>
 
-#  include <vector>
+#include <vector>
 
 DEAL_II_NAMESPACE_OPEN
 
 // Forward declarations
-#  ifndef DOXYGEN
+#ifndef DOXYGEN
 template <typename number>
 class Vector;
 template <typename number>
 class FullMatrix;
-#  endif
+#endif
 
 /**
  * @addtogroup Matrix1
@@ -296,7 +296,7 @@ public:
   /**
    * @name Constructors and initialization
    */
-  //@{
+  /** @{ */
   /**
    * Constructor. Initializes an empty matrix of dimension zero times zero.
    */
@@ -364,11 +364,11 @@ public:
    */
   void
   clear();
-  //@}
+  /** @} */
   /**
    * @name Information on the matrix
    */
-  //@{
+  /** @{ */
   /**
    * Return whether the object is empty. It is empty if both dimensions are
    * zero.
@@ -414,7 +414,7 @@ public:
    * existing row lengths and allocated row lengths. Otherwise, just the
    * relation of allocated and used entries is shown.
    */
-  template <class StreamType>
+  template <typename StreamType>
   void
   print_statistics(StreamType &s, bool full = false);
 
@@ -428,16 +428,16 @@ public:
    * printed as well.
    */
   void
-  compute_statistics(size_type &             used,
-                     size_type &             allocated,
-                     size_type &             reserved,
+  compute_statistics(size_type              &used,
+                     size_type              &allocated,
+                     size_type              &reserved,
                      std::vector<size_type> &used_by_line,
                      const bool              compute_by_line) const;
-  //@}
+  /** @} */
   /**
    * @name Modifying entries
    */
-  //@{
+  /** @{ */
   /**
    * Set the element <tt>(i,j)</tt> to @p value.
    *
@@ -491,7 +491,7 @@ public:
   template <typename number2>
   void
   add(const std::vector<size_type> &indices,
-      const FullMatrix<number2> &   full_matrix,
+      const FullMatrix<number2>    &full_matrix,
       const bool                    elide_zero_values = true);
 
   /**
@@ -503,7 +503,7 @@ public:
   void
   add(const std::vector<size_type> &row_indices,
       const std::vector<size_type> &col_indices,
-      const FullMatrix<number2> &   full_matrix,
+      const FullMatrix<number2>    &full_matrix,
       const bool                    elide_zero_values = true);
 
   /**
@@ -519,7 +519,7 @@ public:
   void
   add(const size_type               row,
       const std::vector<size_type> &col_indices,
-      const std::vector<number2> &  values,
+      const std::vector<number2>   &values,
       const bool                    elide_zero_values = true);
 
   /**
@@ -536,7 +536,7 @@ public:
   add(const size_type  row,
       const size_type  n_cols,
       const size_type *col_indices,
-      const number2 *  values,
+      const number2   *values,
       const bool       elide_zero_values      = true,
       const bool       col_indices_are_sorted = false);
 
@@ -575,11 +575,11 @@ public:
   template <typename MatrixType>
   void
   add(const number factor, const MatrixType &matrix);
-  //@}
+  /** @} */
   /**
    * @name Entry Access
    */
-  //@{
+  /** @{ */
   /**
    * Return the value of the entry (i,j).  This may be an expensive operation
    * and you should always take care where to call this function.  In order to
@@ -598,11 +598,11 @@ public:
    */
   number
   el(const size_type i, const size_type j) const;
-  //@}
+  /** @} */
   /**
    * @name Multiplications
    */
-  //@{
+  /** @{ */
   /**
    * Matrix-vector multiplication: let $dst = M*src$ with $M$ being this
    * matrix.
@@ -636,21 +636,21 @@ public:
   template <typename somenumber>
   void
   Tvmult_add(Vector<somenumber> &dst, const Vector<somenumber> &src) const;
-  //@}
+  /** @} */
   /**
    * @name Matrix norms
    */
-  //@{
+  /** @{ */
   /**
    * Frobenius-norm of the matrix.
    */
   number
   l2_norm() const;
-  //@}
+  /** @} */
   /**
    * @name Preconditioning methods
    */
-  //@{
+  /** @{ */
   /**
    * Apply the Jacobi preconditioner, which multiplies every element of the @p
    * src vector by the inverse of the respective diagonal element and
@@ -658,7 +658,7 @@ public:
    */
   template <typename somenumber>
   void
-  precondition_Jacobi(Vector<somenumber> &      dst,
+  precondition_Jacobi(Vector<somenumber>       &dst,
                       const Vector<somenumber> &src,
                       const number              omega = 1.) const;
 
@@ -667,8 +667,8 @@ public:
    */
   template <typename somenumber>
   void
-  precondition_SSOR(Vector<somenumber> &            dst,
-                    const Vector<somenumber> &      src,
+  precondition_SSOR(Vector<somenumber>             &dst,
+                    const Vector<somenumber>       &src,
                     const number                    om = 1.,
                     const std::vector<std::size_t> &pos_right_of_diagonal =
                       std::vector<std::size_t>()) const;
@@ -679,7 +679,7 @@ public:
    */
   template <typename somenumber>
   void
-  precondition_SOR(Vector<somenumber> &      dst,
+  precondition_SOR(Vector<somenumber>       &dst,
                    const Vector<somenumber> &src,
                    const number              om = 1.) const;
 
@@ -689,7 +689,7 @@ public:
    */
   template <typename somenumber>
   void
-  precondition_TSOR(Vector<somenumber> &      dst,
+  precondition_TSOR(Vector<somenumber>       &dst,
                     const Vector<somenumber> &src,
                     const number              om = 1.) const;
 
@@ -706,11 +706,11 @@ public:
   conjugate_add(const MatrixTypeA &A,
                 const MatrixTypeB &B,
                 const bool         transpose = false);
-  //@}
+  /** @} */
   /**
    * @name Iterators
    */
-  //@{
+  /** @{ */
   /**
    * Iterator starting at the first existing entry.
    */
@@ -736,11 +736,11 @@ public:
    */
   const_iterator
   end(const size_type r) const;
-  //@}
+  /** @} */
   /**
    * @name Input/Output
    */
-  //@{
+  /** @{ */
   /**
    * Print the matrix to the given stream, using the format <tt>(line,col)
    * value</tt>, i.e. one nonzero entry of the matrix per line.
@@ -769,11 +769,11 @@ public:
    * large matrix!
    */
   void
-  print_formatted(std::ostream &     out,
+  print_formatted(std::ostream      &out,
                   const unsigned int precision   = 3,
                   const bool         scientific  = true,
                   const unsigned int width       = 0,
-                  const char *       zero_string = " ",
+                  const char        *zero_string = " ",
                   const double       denominator = 1.) const;
 
   /**
@@ -796,7 +796,7 @@ public:
    */
   void
   block_read(std::istream &in);
-  //@}
+  /** @} */
 
   /**
    * @addtogroup Exceptions
@@ -822,7 +822,7 @@ public:
                  int,
                  << "An entry with index (" << arg1 << ',' << arg2
                  << ") cannot be allocated.");
-  //@}
+  /** @} */
 private:
   /**
    * Find an entry and return a const pointer. Return a zero-pointer if the
@@ -851,7 +851,7 @@ private:
    */
   template <typename somenumber>
   void
-  threaded_vmult(Vector<somenumber> &      dst,
+  threaded_vmult(Vector<somenumber>       &dst,
                  const Vector<somenumber> &src,
                  const size_type           begin_row,
                  const size_type           end_row) const;
@@ -866,7 +866,7 @@ private:
   threaded_matrix_norm_square(const Vector<somenumber> &v,
                               const size_type           begin_row,
                               const size_type           end_row,
-                              somenumber *              partial_sum) const;
+                              somenumber               *partial_sum) const;
 
   /**
    * Version of @p matrix_scalar_product which only performs its actions on
@@ -879,7 +879,7 @@ private:
                                  const Vector<somenumber> &v,
                                  const size_type           begin_row,
                                  const size_type           end_row,
-                                 somenumber *              partial_sum) const;
+                                 somenumber               *partial_sum) const;
 
   /**
    * Number of columns. This is used to check vector dimensions only.
@@ -914,7 +914,7 @@ private:
 
 template <typename number>
 inline SparseMatrixEZ<number>::Entry::Entry(const size_type column,
-                                            const number &  value)
+                                            const number   &value)
   : column(column)
   , value(value)
 {}
@@ -1112,7 +1112,7 @@ SparseMatrixEZ<number>::locate(const size_type row, const size_type col)
   AssertIndexRange(row, m());
   AssertIndexRange(col, n());
 
-  const RowInfo & r   = row_info[row];
+  const RowInfo  &r   = row_info[row];
   const size_type end = r.start + r.length;
   for (size_type i = r.start; i < end; ++i)
     {
@@ -1143,7 +1143,7 @@ SparseMatrixEZ<number>::allocate(const size_type row, const size_type col)
   AssertIndexRange(row, m());
   AssertIndexRange(col, n());
 
-  RowInfo &       r   = row_info[row];
+  RowInfo        &r   = row_info[row];
   const size_type end = r.start + r.length;
 
   size_type i = r.start;
@@ -1285,7 +1285,7 @@ template <typename number>
 template <typename number2>
 void
 SparseMatrixEZ<number>::add(const std::vector<size_type> &indices,
-                            const FullMatrix<number2> &   full_matrix,
+                            const FullMatrix<number2>    &full_matrix,
                             const bool                    elide_zero_values)
 {
   // TODO: This function can surely be made more efficient
@@ -1302,7 +1302,7 @@ template <typename number2>
 void
 SparseMatrixEZ<number>::add(const std::vector<size_type> &row_indices,
                             const std::vector<size_type> &col_indices,
-                            const FullMatrix<number2> &   full_matrix,
+                            const FullMatrix<number2>    &full_matrix,
                             const bool                    elide_zero_values)
 {
   // TODO: This function can surely be made more efficient
@@ -1319,7 +1319,7 @@ template <typename number2>
 void
 SparseMatrixEZ<number>::add(const size_type               row,
                             const std::vector<size_type> &col_indices,
-                            const std::vector<number2> &  values,
+                            const std::vector<number2>   &values,
                             const bool                    elide_zero_values)
 {
   // TODO: This function can surely be made more efficient
@@ -1336,7 +1336,7 @@ void
 SparseMatrixEZ<number>::add(const size_type  row,
                             const size_type  n_cols,
                             const size_type *col_indices,
-                            const number2 *  values,
+                            const number2   *values,
                             const bool       elide_zero_values,
                             const bool /*col_indices_are_sorted*/)
 {
@@ -1570,7 +1570,7 @@ SparseMatrixEZ<number>::conjugate_add(const MatrixTypeA &A,
 
 
 template <typename number>
-template <class StreamType>
+template <typename StreamType>
 inline void
 SparseMatrixEZ<number>::print_statistics(StreamType &out, bool full)
 {
@@ -1598,4 +1598,3 @@ SparseMatrixEZ<number>::print_statistics(StreamType &out, bool full)
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
-/*----------------------------   sparse_matrix.h ---------------------------*/

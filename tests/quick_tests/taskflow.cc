@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,9 +17,8 @@
 
 #include <deal.II/base/thread_management.h>
 
-DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
+#include <taskflow/algorithm/for_each.hpp>
 #include <taskflow/taskflow.hpp>
-DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #include <iostream>
 
@@ -49,9 +48,9 @@ test1()
   B.precede(C);
 
   auto p =
-    taskflow.parallel_for(1, 11, 1, [&](int idx) { counter.fetch_add(idx); });
+    taskflow.for_each_index(1, 11, 1, [&](int idx) { counter.fetch_add(idx); });
 
-  C.precede(p.first);
+  C.precede(p);
 
   executor.run(taskflow).wait();
 

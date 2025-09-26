@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2020 by the deal.II authors
+// Copyright (C) 2009 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -146,7 +146,7 @@ template <int dim, int spacedim>
 void
 FE_FaceQ<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   get_subface_interpolation_matrix(source_fe,
@@ -162,7 +162,7 @@ void
 FE_FaceQ<dim, spacedim>::get_subface_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
   const unsigned int                  subface,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   // this function is similar to the respective method in FE_Q
@@ -495,7 +495,7 @@ template <int dim, int spacedim>
 void
 FE_FaceQ<dim, spacedim>::convert_generalized_support_point_values_to_dof_values(
   const std::vector<Vector<double>> &support_point_values,
-  std::vector<double> &              nodal_values) const
+  std::vector<double>               &nodal_values) const
 {
   AssertDimension(support_point_values.size(),
                   this->get_unit_support_points().size());
@@ -561,7 +561,7 @@ template <int spacedim>
 void
 FE_FaceQ<1, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<1, spacedim> &source_fe,
-  FullMatrix<double> &              interpolation_matrix,
+  FullMatrix<double>               &interpolation_matrix,
   const unsigned int                face_no) const
 {
   get_subface_interpolation_matrix(source_fe,
@@ -677,11 +677,11 @@ UpdateFlags
 FE_FaceQ<1, spacedim>::requires_update_flags(const UpdateFlags flags) const
 {
   UpdateFlags out = flags & update_values;
-  if ((flags & update_gradients) != 0u)
+  if (flags & update_gradients)
     out |= update_gradients | update_covariant_transformation;
-  if ((flags & update_hessians) != 0u)
+  if (flags & update_hessians)
     out |= update_hessians | update_covariant_transformation;
-  if ((flags & update_normal_vectors) != 0u)
+  if (flags & update_normal_vectors)
     out |= update_normal_vectors | update_JxW_values;
 
   return out;
@@ -696,9 +696,7 @@ FE_FaceQ<1, spacedim>::fill_fe_values(
   const Quadrature<1> &,
   const Mapping<1, spacedim> &,
   const typename Mapping<1, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<1,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<1, spacedim> &,
   const typename FiniteElement<1, spacedim>::InternalDataBase &,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<1,
                                                                      spacedim>
@@ -717,9 +715,7 @@ FE_FaceQ<1, spacedim>::fill_fe_face_values(
   const hp::QCollection<0> &,
   const Mapping<1, spacedim> &,
   const typename Mapping<1, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<1,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<1, spacedim> &,
   const typename FiniteElement<1, spacedim>::InternalDataBase &fe_internal,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<1,
                                                                      spacedim>
@@ -744,15 +740,13 @@ FE_FaceQ<1, spacedim>::fill_fe_subface_values(
   const Quadrature<0> &,
   const Mapping<1, spacedim> &,
   const typename Mapping<1, spacedim>::InternalDataBase &,
-  const dealii::internal::FEValuesImplementation::MappingRelatedData<1,
-                                                                     spacedim>
-    &,
+  const internal::FEValuesImplementation::MappingRelatedData<1, spacedim> &,
   const typename FiniteElement<1, spacedim>::InternalDataBase &,
   dealii::internal::FEValuesImplementation::FiniteElementRelatedData<1,
                                                                      spacedim>
     &) const
 {
-  Assert(false, ExcMessage("There are no sub-face values to fill in 1D!"));
+  Assert(false, ExcMessage("There are no sub-face values to fill in 1d!"));
 }
 
 
@@ -877,7 +871,7 @@ template <int dim, int spacedim>
 void
 FE_FaceP<dim, spacedim>::get_face_interpolation_matrix(
   const FiniteElement<dim, spacedim> &source_fe,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   get_subface_interpolation_matrix(source_fe,
@@ -893,7 +887,7 @@ void
 FE_FaceP<dim, spacedim>::get_subface_interpolation_matrix(
   const FiniteElement<dim, spacedim> &x_source_fe,
   const unsigned int                  subface,
-  FullMatrix<double> &                interpolation_matrix,
+  FullMatrix<double>                 &interpolation_matrix,
   const unsigned int                  face_no) const
 {
   // this function is similar to the respective method in FE_Q
@@ -1000,7 +994,7 @@ std::pair<Table<2, bool>, std::vector<unsigned int>>
 FE_FaceP<dim, spacedim>::get_constant_modes() const
 {
   Table<2, bool> constant_modes(1, this->n_dofs_per_cell());
-  for (unsigned int face : GeometryInfo<dim>::face_indices())
+  for (const unsigned int face : GeometryInfo<dim>::face_indices())
     constant_modes(0, face * this->n_dofs_per_face(face)) = true;
   return std::pair<Table<2, bool>, std::vector<unsigned int>>(
     constant_modes, std::vector<unsigned int>(1, 0));

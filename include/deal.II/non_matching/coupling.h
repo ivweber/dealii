@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -90,21 +90,17 @@ namespace NonMatching
    * See the tutorial program step-60 for an example on how to use this
    * function.
    */
-  template <int dim0,
-            int dim1,
-            int spacedim,
-            typename Sparsity,
-            typename number = double>
+  template <int dim0, int dim1, int spacedim, typename number = double>
   void
   create_coupling_sparsity_pattern(
     const DoFHandler<dim0, spacedim> &space_dh,
     const DoFHandler<dim1, spacedim> &immersed_dh,
-    const Quadrature<dim1> &          quad,
-    Sparsity &                        sparsity,
-    const AffineConstraints<number> & constraints = AffineConstraints<number>(),
-    const ComponentMask &             space_comps = ComponentMask(),
-    const ComponentMask &             immersed_comps = ComponentMask(),
-    const Mapping<dim0, spacedim> &   space_mapping =
+    const Quadrature<dim1>           &quad,
+    SparsityPatternBase              &sparsity,
+    const AffineConstraints<number>  &constraints    = {},
+    const ComponentMask              &space_comps    = {},
+    const ComponentMask              &immersed_comps = {},
+    const Mapping<dim0, spacedim>    &space_mapping =
       StaticMappingQ1<dim0, spacedim>::mapping,
     const Mapping<dim1, spacedim> &immersed_mapping =
       StaticMappingQ1<dim1, spacedim>::mapping,
@@ -117,29 +113,25 @@ namespace NonMatching
    * space_mapping cannot be specified, since it is taken from the @p cache
    * parameter.
    */
-  template <int dim0,
-            int dim1,
-            int spacedim,
-            typename Sparsity,
-            typename number = double>
+  template <int dim0, int dim1, int spacedim, typename number = double>
   void
   create_coupling_sparsity_pattern(
     const GridTools::Cache<dim0, spacedim> &cache,
-    const DoFHandler<dim0, spacedim> &      space_dh,
-    const DoFHandler<dim1, spacedim> &      immersed_dh,
-    const Quadrature<dim1> &                quad,
-    Sparsity &                              sparsity,
-    const AffineConstraints<number> &constraints = AffineConstraints<number>(),
-    const ComponentMask &            space_comps = ComponentMask(),
-    const ComponentMask &            immersed_comps = ComponentMask(),
-    const Mapping<dim1, spacedim> &  immersed_mapping =
+    const DoFHandler<dim0, spacedim>       &space_dh,
+    const DoFHandler<dim1, spacedim>       &immersed_dh,
+    const Quadrature<dim1>                 &quad,
+    SparsityPatternBase                    &sparsity,
+    const AffineConstraints<number>        &constraints    = {},
+    const ComponentMask                    &space_comps    = {},
+    const ComponentMask                    &immersed_comps = {},
+    const Mapping<dim1, spacedim>          &immersed_mapping =
       StaticMappingQ1<dim1, spacedim>::mapping,
     const AffineConstraints<number> &immersed_constraints =
       AffineConstraints<number>());
 
 
   /**
-   * Create a coupling mass matrix for non-matching, overlapping grids.
+   * Create a coupling @ref GlossMassMatrix "mass matrix" for non-matching, overlapping grids.
    *
    * Given two non-matching triangulations, representing the domains $\Omega$
    * and $B$, with $B \subseteq \Omega$, and two finite element spaces
@@ -185,14 +177,14 @@ namespace NonMatching
   template <int dim0, int dim1, int spacedim, typename Matrix>
   void
   create_coupling_mass_matrix(
-    const DoFHandler<dim0, spacedim> &                    space_dh,
-    const DoFHandler<dim1, spacedim> &                    immersed_dh,
-    const Quadrature<dim1> &                              quad,
-    Matrix &                                              matrix,
+    const DoFHandler<dim0, spacedim>                     &space_dh,
+    const DoFHandler<dim1, spacedim>                     &immersed_dh,
+    const Quadrature<dim1>                               &quad,
+    Matrix                                               &matrix,
     const AffineConstraints<typename Matrix::value_type> &constraints =
       AffineConstraints<typename Matrix::value_type>(),
-    const ComponentMask &          space_comps    = ComponentMask(),
-    const ComponentMask &          immersed_comps = ComponentMask(),
+    const ComponentMask           &space_comps    = {},
+    const ComponentMask           &immersed_comps = {},
     const Mapping<dim0, spacedim> &space_mapping =
       StaticMappingQ1<dim0, spacedim>::mapping,
     const Mapping<dim1, spacedim> &immersed_mapping =
@@ -209,15 +201,15 @@ namespace NonMatching
   template <int dim0, int dim1, int spacedim, typename Matrix>
   void
   create_coupling_mass_matrix(
-    const GridTools::Cache<dim0, spacedim> &              cache,
-    const DoFHandler<dim0, spacedim> &                    space_dh,
-    const DoFHandler<dim1, spacedim> &                    immersed_dh,
-    const Quadrature<dim1> &                              quad,
-    Matrix &                                              matrix,
+    const GridTools::Cache<dim0, spacedim>               &cache,
+    const DoFHandler<dim0, spacedim>                     &space_dh,
+    const DoFHandler<dim1, spacedim>                     &immersed_dh,
+    const Quadrature<dim1>                               &quad,
+    Matrix                                               &matrix,
     const AffineConstraints<typename Matrix::value_type> &constraints =
       AffineConstraints<typename Matrix::value_type>(),
-    const ComponentMask &          space_comps    = ComponentMask(),
-    const ComponentMask &          immersed_comps = ComponentMask(),
+    const ComponentMask           &space_comps    = {},
+    const ComponentMask           &immersed_comps = {},
     const Mapping<dim1, spacedim> &immersed_mapping =
       StaticMappingQ1<dim1, spacedim>::mapping,
     const AffineConstraints<typename Matrix::value_type> &immersed_constraints =
@@ -269,26 +261,22 @@ namespace NonMatching
    * restrictive conditions are required on the two spaces. See the
    * documentation of the other create_coupling_sparsity_pattern() function.
    */
-  template <int dim0,
-            int dim1,
-            int spacedim,
-            typename Sparsity,
-            typename Number = double>
+  template <int dim0, int dim1, int spacedim, typename Number = double>
   void
   create_coupling_sparsity_pattern(
-    const double &                          epsilon,
+    const double                           &epsilon,
     const GridTools::Cache<dim0, spacedim> &cache0,
     const GridTools::Cache<dim1, spacedim> &cache1,
-    const DoFHandler<dim0, spacedim> &      dh0,
-    const DoFHandler<dim1, spacedim> &      dh1,
-    const Quadrature<dim1> &                quad,
-    Sparsity &                              sparsity,
+    const DoFHandler<dim0, spacedim>       &dh0,
+    const DoFHandler<dim1, spacedim>       &dh1,
+    const Quadrature<dim1>                 &quad,
+    SparsityPatternBase                    &sparsity,
     const AffineConstraints<Number> &constraints0 = AffineConstraints<Number>(),
-    const ComponentMask &            comps0       = ComponentMask(),
-    const ComponentMask &            comps1       = ComponentMask());
+    const ComponentMask             &comps0       = {},
+    const ComponentMask             &comps1       = {});
 
   /**
-   * Create a coupling mass matrix for non-matching independent grids,
+   * Create a coupling @ref GlossMassMatrix "mass matrix" for non-matching independent grids,
    * using a convolution kernel with compact support.
    *
    * Given two non-matching triangulations, representing the domains
@@ -336,19 +324,19 @@ namespace NonMatching
   template <int dim0, int dim1, int spacedim, typename Matrix>
   void
   create_coupling_mass_matrix(
-    Functions::CutOffFunctionBase<spacedim> &             kernel,
-    const double &                                        epsilon,
-    const GridTools::Cache<dim0, spacedim> &              cache0,
-    const GridTools::Cache<dim1, spacedim> &              cache1,
-    const DoFHandler<dim0, spacedim> &                    dh0,
-    const DoFHandler<dim1, spacedim> &                    dh1,
-    const Quadrature<dim0> &                              quadrature0,
-    const Quadrature<dim1> &                              quadrature1,
-    Matrix &                                              matrix,
+    Functions::CutOffFunctionBase<spacedim>              &kernel,
+    const double                                         &epsilon,
+    const GridTools::Cache<dim0, spacedim>               &cache0,
+    const GridTools::Cache<dim1, spacedim>               &cache1,
+    const DoFHandler<dim0, spacedim>                     &dh0,
+    const DoFHandler<dim1, spacedim>                     &dh1,
+    const Quadrature<dim0>                               &quadrature0,
+    const Quadrature<dim1>                               &quadrature1,
+    Matrix                                               &matrix,
     const AffineConstraints<typename Matrix::value_type> &constraints0 =
       AffineConstraints<typename Matrix::value_type>(),
-    const ComponentMask &comps0 = ComponentMask(),
-    const ComponentMask &comps1 = ComponentMask());
+    const ComponentMask &comps0 = {},
+    const ComponentMask &comps1 = {});
 } // namespace NonMatching
 DEAL_II_NAMESPACE_CLOSE
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2021 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,8 +43,7 @@ DEAL_II_NAMESPACE_OPEN
  * @endcode
  *
  * deal.II has its own implementation for tensorial objects such as
- * dealii::Tensor<rank, dim, Number> and dealii::SymmetricTensor<rank, dim,
- * Number>
+ * dealii::Tensor and dealii::SymmetricTensor
  *
  * The methods and algorithms implemented in this namespace, however, are
  * fully generic. More precisely, it can operate on nested c-style arrays, or
@@ -558,7 +557,7 @@ namespace TensorAccessors
       using value_type = return_type;
 
       constexpr DEAL_II_ALWAYS_INLINE return_type &
-                                      operator[](unsigned int j) const
+      operator[](unsigned int j) const
       {
         return s_.apply(j)[i_];
       }

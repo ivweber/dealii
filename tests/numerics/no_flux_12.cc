@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2020 by the deal.II authors
+// Copyright (C) 2012 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -87,7 +87,7 @@ run()
   tria.reset_manifold(0);
 
   /*  std::string filename = "Mesh.eps";
-  std::ofstream output (filename.c_str());
+  std::ofstream output (filename);
   GridOut grid_out;
   grid_out.write_eps (tria, output);
   */
@@ -96,10 +96,8 @@ run()
   DoFHandler<dim> dof_handler(tria);
   dof_handler.distribute_dofs(fe);
 
-  AffineConstraints<double>    constraints;
-  std::set<types::boundary_id> no_normal_flux_boundaries;
-  no_normal_flux_boundaries.insert(0); // x=0
-  no_normal_flux_boundaries.insert(5); // z=1
+  AffineConstraints<double>          constraints;
+  const std::set<types::boundary_id> no_normal_flux_boundaries = {0, 5};
 
   VectorTools::compute_no_normal_flux_constraints(dof_handler,
                                                   0,

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,10 +19,49 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/ndarray.h>
 #include <deal.II/base/polynomials_barycentric.h>
 #include <deal.II/base/scalar_polynomials_base.h>
 
 DEAL_II_NAMESPACE_OPEN
+
+
+namespace internal
+{
+  /**
+   * Decompose the shape-function index of a linear wedge into an index
+   * to access the right shape function within the triangle and within
+   * the line.
+   */
+  static const constexpr dealii::ndarray<unsigned int, 6, 2> wedge_table_1{
+    {{{0, 0}}, {{1, 0}}, {{2, 0}}, {{0, 1}}, {{1, 1}}, {{2, 1}}}};
+
+  /**
+   * Decompose the shape-function index of a quadratic wedge into an index
+   * to access the right shape function within the triangle and within
+   * the line.
+   */
+  static const constexpr dealii::ndarray<unsigned int, 18, 2> wedge_table_2{
+    {{{0, 0}},
+     {{1, 0}},
+     {{2, 0}},
+     {{0, 1}},
+     {{1, 1}},
+     {{2, 1}},
+     {{3, 0}},
+     {{4, 0}},
+     {{5, 0}},
+     {{3, 1}},
+     {{4, 1}},
+     {{5, 1}},
+     {{0, 2}},
+     {{1, 2}},
+     {{2, 2}},
+     {{3, 2}},
+     {{4, 2}},
+     {{5, 2}}}};
+} // namespace internal
+
 
 /**
  * Polynomials defined on wedge entities. This class is basis of
@@ -56,8 +95,8 @@ public:
    * @note Currently, only the vectors @p values and @p grads are filled.
    */
   void
-  evaluate(const Point<dim> &           unit_point,
-           std::vector<double> &        values,
+  evaluate(const Point<dim>            &unit_point,
+           std::vector<double>         &values,
            std::vector<Tensor<1, dim>> &grads,
            std::vector<Tensor<2, dim>> &grad_grads,
            std::vector<Tensor<3, dim>> &third_derivatives,
@@ -77,7 +116,7 @@ public:
 
   Tensor<1, dim>
   compute_1st_derivative(const unsigned int i,
-                         const Point<dim> & p) const override;
+                         const Point<dim>  &p) const override;
 
   /**
    * @copydoc ScalarPolynomialsBase::compute_2nd_derivative()
@@ -86,7 +125,7 @@ public:
    */
   Tensor<2, dim>
   compute_2nd_derivative(const unsigned int i,
-                         const Point<dim> & p) const override;
+                         const Point<dim>  &p) const override;
 
   /**
    * @copydoc ScalarPolynomialsBase::compute_3rd_derivative()
@@ -95,7 +134,7 @@ public:
    */
   Tensor<3, dim>
   compute_3rd_derivative(const unsigned int i,
-                         const Point<dim> & p) const override;
+                         const Point<dim>  &p) const override;
 
   /**
    * @copydoc ScalarPolynomialsBase::compute_4th_derivative()
@@ -104,7 +143,7 @@ public:
    */
   Tensor<4, dim>
   compute_4th_derivative(const unsigned int i,
-                         const Point<dim> & p) const override;
+                         const Point<dim>  &p) const override;
 
   /**
    * @copydoc ScalarPolynomialsBase::compute_grad()
@@ -147,7 +186,7 @@ template <int order>
 Tensor<order, dim>
 ScalarLagrangePolynomialWedge<dim>::compute_derivative(
   const unsigned int i,
-  const Point<dim> & p) const
+  const Point<dim>  &p) const
 {
   Tensor<order, dim> der;
 

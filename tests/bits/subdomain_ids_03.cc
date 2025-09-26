@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2018 by the deal.II authors
+// Copyright (C) 2001 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,9 +33,6 @@
 #include <algorithm>
 
 #include "../tests.h"
-
-
-std::ofstream logfile("output");
 
 
 template <int dim>
@@ -83,8 +80,8 @@ test()
 int
 main()
 {
+  initlog();
   deallog << std::setprecision(4);
-  deallog.attach(logfile);
 
   test<1>();
   test<2>();

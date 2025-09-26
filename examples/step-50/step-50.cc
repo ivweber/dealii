@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2019 - 2021 by the deal.II authors
+ * Copyright (C) 2019 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,12 +12,11 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
- * Author: Thomas C. Clevenger, Clemson University
- *         Timo Heister, Clemson University
- *         Guido Kanschat, Heidelberg University
- *         Martin Kronbichler, Technical University of Munich
+ * Authors: Thomas C. Clevenger, Clemson University
+ *          Timo Heister, Clemson University
+ *          Guido Kanschat, Heidelberg University
+ *          Martin Kronbichler, Technical University of Munich
  */
 
 
@@ -37,11 +36,13 @@
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/lac/sparsity_tools.h>
 #include <deal.II/lac/solver_cg.h>
 
 // We use the same strategy as in step-40 to switch between PETSc and
@@ -91,7 +92,7 @@ using namespace dealii;
 // @sect3{Coefficients and helper classes}
 
 // MatrixFree operators must use the
-// dealii::LinearAlgebra::distributed::Vector vector type. Here we define
+// LinearAlgebra::distributed::Vector vector type. Here we define
 // operations which copy to and from Trilinos vectors for compatibility with
 // the matrix-based code. Note that this functionality does not currently
 // exist for PETSc vector types, so Trilinos must be installed to use the
@@ -99,28 +100,27 @@ using namespace dealii;
 namespace ChangeVectorTypes
 {
   template <typename number>
-  void copy(LA::MPI::Vector &                                         out,
-            const dealii::LinearAlgebra::distributed::Vector<number> &in)
+  void copy(LA::MPI::Vector                                  &out,
+            const LinearAlgebra::distributed::Vector<number> &in)
   {
-    dealii::LinearAlgebra::ReadWriteVector<double> rwv(
-      out.locally_owned_elements());
-    rwv.import(in, VectorOperation::insert);
+    LinearAlgebra::ReadWriteVector<double> rwv(out.locally_owned_elements());
+    rwv.import_elements(in, VectorOperation::insert);
 #ifdef USE_PETSC_LA
     AssertThrow(false,
                 ExcMessage("CopyVectorTypes::copy() not implemented for "
                            "PETSc vector types."));
 #else
-    out.import(rwv, VectorOperation::insert);
+    out.import_elements(rwv, VectorOperation::insert);
 #endif
   }
 
 
 
   template <typename number>
-  void copy(dealii::LinearAlgebra::distributed::Vector<number> &out,
-            const LA::MPI::Vector &                             in)
+  void copy(LinearAlgebra::distributed::Vector<number> &out,
+            const LA::MPI::Vector                      &in)
   {
-    dealii::LinearAlgebra::ReadWriteVector<double> rwv;
+    LinearAlgebra::ReadWriteVector<double> rwv;
 #ifdef USE_PETSC_LA
     (void)in;
     AssertThrow(false,
@@ -129,7 +129,7 @@ namespace ChangeVectorTypes
 #else
     rwv.reinit(in);
 #endif
-    out.import(rwv, VectorOperation::insert);
+    out.import_elements(rwv, VectorOperation::insert);
   }
 } // namespace ChangeVectorTypes
 
@@ -248,8 +248,7 @@ Coefficient<dim>::make_coefficient_table(
 
   FEEvaluation<dim, -1, 0, 1, number> fe_eval(mf_storage);
 
-  const unsigned int n_cells    = mf_storage.n_cell_batches();
-  const unsigned int n_q_points = fe_eval.n_q_points;
+  const unsigned int n_cells = mf_storage.n_cell_batches();
 
   coefficient_table->reinit(n_cells, 1);
 
@@ -258,9 +257,9 @@ Coefficient<dim>::make_coefficient_table(
       fe_eval.reinit(cell);
 
       VectorizedArray<number> average_value = 0.;
-      for (unsigned int q = 0; q < n_q_points; ++q)
+      for (const unsigned int q : fe_eval.quadrature_point_indices())
         average_value += value(fe_eval.quadrature_point(q));
-      average_value /= n_q_points;
+      average_value /= fe_eval.n_q_points;
 
       (*coefficient_table)(cell, 0) = average_value;
     }
@@ -323,7 +322,7 @@ bool Settings::try_parse(const std::string &prm_filename)
                     Patterns::Bool(),
                     "Output graphical results.");
 
-  if (prm_filename.size() == 0)
+  if (prm_filename.empty())
     {
       std::cout << "****  Error: No input file provided!\n"
                 << "****  Error: Call this program as './step-50 input.prm\n"
@@ -386,10 +385,9 @@ private:
   // We will use the following types throughout the program. First the
   // matrix-based types, after that the matrix-free classes. For the
   // matrix-free implementation, we use @p float for the level operators.
-  using MatrixType         = LA::MPI::SparseMatrix;
-  using VectorType         = LA::MPI::Vector;
-  using PreconditionAMG    = LA::MPI::PreconditionAMG;
-  using PreconditionJacobi = LA::MPI::PreconditionJacobi;
+  using MatrixType      = LA::MPI::SparseMatrix;
+  using VectorType      = LA::MPI::Vector;
+  using PreconditionAMG = LA::MPI::PreconditionAMG;
 
   using MatrixFreeLevelMatrix = MatrixFreeOperators::LaplaceOperator<
     dim,
@@ -909,12 +907,12 @@ void LaplaceProblem<dim, degree>::assemble_multigrid()
 // This function has two parts in the integration loop: applying the negative
 // of matrix $A$ to $u_0$ by submitting the negative of the gradient, and adding
 // the right-hand side contribution by submitting the value $f$. We must be sure
-// to use `read_dof_values_plain()` for evaluating $u_0$ as `read_dof_vaues()`
+// to use `read_dof_values_plain()` for evaluating $u_0$ as `read_dof_values()`
 // would set all Dirichlet values to zero.
 //
 // Finally, the system_rhs vector is of type LA::MPI::Vector, but the
 // MatrixFree class only work for
-// dealii::LinearAlgebra::distributed::Vector.  Therefore we must
+// LinearAlgebra::distributed::Vector.  Therefore we must
 // compute the right-hand side using MatrixFree functionality and then
 // use the functions in the `ChangeVectorType` namespace to copy it to
 // the correct type.
@@ -948,7 +946,7 @@ void LaplaceProblem<dim, degree>::assemble_rhs()
       phi.read_dof_values_plain(solution_copy);
       phi.evaluate(EvaluationFlags::gradients);
 
-      for (unsigned int q = 0; q < phi.n_q_points; ++q)
+      for (const unsigned int q : phi.quadrature_point_indices())
         {
           phi.submit_gradient(-1.0 *
                                 (coefficient(cell, 0) * phi.get_gradient(q)),
@@ -1004,7 +1002,7 @@ void LaplaceProblem<dim, degree>::solve()
                                       PreconditionIdentity>
             coarse_grid_solver(coarse_solver, mf_mg_matrix[0], identity);
 
-          using Smoother = dealii::PreconditionJacobi<MatrixFreeLevelMatrix>;
+          using Smoother = PreconditionJacobi<MatrixFreeLevelMatrix>;
           MGSmootherPrecondition<MatrixFreeLevelMatrix,
                                  Smoother,
                                  MatrixFreeLevelVector>
@@ -1035,7 +1033,7 @@ void LaplaceProblem<dim, degree>::solve()
             preconditioner(dof_handler, mg, mg_transfer);
 
           // Copy the solution vector and right-hand side from LA::MPI::Vector
-          // to dealii::LinearAlgebra::distributed::Vector so that we can solve.
+          // to LinearAlgebra::distributed::Vector so that we can solve.
           MatrixFreeActiveVector solution_copy;
           MatrixFreeActiveVector right_hand_side_copy;
           mf_system_matrix.initialize_dof_vector(solution_copy);
@@ -1210,7 +1208,7 @@ void LaplaceProblem<dim, degree>::solve()
 template <int dim>
 struct ScratchData
 {
-  ScratchData(const Mapping<dim> &      mapping,
+  ScratchData(const Mapping<dim>       &mapping,
               const FiniteElement<dim> &fe,
               const unsigned int        quadrature_degree,
               const UpdateFlags         update_flags,
@@ -1247,8 +1245,6 @@ struct CopyData
     , value(0.)
   {}
 
-  CopyData(const CopyData &) = default;
-
   struct FaceData
   {
     unsigned int cell_indices[2];
@@ -1279,9 +1275,9 @@ void LaplaceProblem<dim, degree>::estimate()
   using Iterator = typename DoFHandler<dim>::active_cell_iterator;
 
   // Assembler for cell residual $h^2 \| f + \epsilon \triangle u \|_K^2$
-  auto cell_worker = [&](const Iterator &  cell,
+  auto cell_worker = [&](const Iterator   &cell,
                          ScratchData<dim> &scratch_data,
-                         CopyData &        copy_data) {
+                         CopyData         &copy_data) {
     FEValues<dim> &fe_values = scratch_data.fe_values;
     fe_values.reinit(cell);
 
@@ -1308,14 +1304,14 @@ void LaplaceProblem<dim, degree>::estimate()
 
   // Assembler for face term $\sum_F h_F \| \jump{\epsilon \nabla u \cdot n}
   // \|_F^2$
-  auto face_worker = [&](const Iterator &    cell,
+  auto face_worker = [&](const Iterator     &cell,
                          const unsigned int &f,
                          const unsigned int &sf,
-                         const Iterator &    ncell,
+                         const Iterator     &ncell,
                          const unsigned int &nf,
                          const unsigned int &nsf,
-                         ScratchData<dim> &  scratch_data,
-                         CopyData &          copy_data) {
+                         ScratchData<dim>   &scratch_data,
+                         CopyData           &copy_data) {
     FEInterfaceValues<dim> &fe_interface_values =
       scratch_data.fe_interface_values;
     fe_interface_values.reinit(cell, f, sf, ncell, nf, nsf);
@@ -1360,7 +1356,7 @@ void LaplaceProblem<dim, degree>::estimate()
     if (copy_data.cell_index != numbers::invalid_unsigned_int)
       estimated_error_square_per_cell[copy_data.cell_index] += copy_data.value;
 
-    for (auto &cdf : copy_data.face_data)
+    for (const auto &cdf : copy_data.face_data)
       for (unsigned int j = 0; j < 2; ++j)
         estimated_error_square_per_cell[cdf.cell_indices[j]] += cdf.values[j];
   };
@@ -1463,7 +1459,7 @@ void LaplaceProblem<dim, degree>::output_results(const unsigned int cycle)
 // @sect4{LaplaceProblem::run()}
 
 // As in most tutorials, this function calls the various functions defined
-// above to setup, assemble, solve, and output the results.
+// above to set up, assemble, solve, and output the results.
 template <int dim, int degree>
 void LaplaceProblem<dim, degree>::run()
 {

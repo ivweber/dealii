@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2021 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -144,23 +144,5 @@ main()
       mapping, dof_handler, constraints, quadrature_formula, additional_data);
 
     print("use_fast_hanging_node_algorithm = true", matrix_free);
-  }
-
-  {
-    typename MatrixFree<dim, double, VectorizedArray<double, 1>>::AdditionalData
-      additional_data;
-    additional_data.mapping_update_flags = update_gradients | update_values;
-    additional_data.use_fast_hanging_node_algorithm = false;
-
-    MatrixFree<dim, double, VectorizedArray<double, 1>> matrix_free;
-    matrix_free.reinit(
-      mapping, dof_handler, constraints, quadrature_formula, additional_data);
-
-    for (const auto &i :
-         matrix_free.get_dof_info(0).hanging_node_constraint_masks)
-      deallog << static_cast<unsigned int>(i) << std::endl;
-    deallog << std::endl;
-
-    print("use_fast_hanging_node_algorithm = false", matrix_free);
   }
 }

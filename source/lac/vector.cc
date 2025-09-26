@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,10 +31,7 @@ template class Vector<int>;
 template Vector<double> &
 Vector<double>::operator=<int>(const dealii::Vector<int> &);
 template bool
-Vector<int>::operator==<int>(dealii::Vector<int> const &) const;
-
-template void
-Vector<int>::reinit<double>(const Vector<double> &, const bool);
+Vector<int>::operator==<int>(const dealii::Vector<int> &) const;
 
 // instantiate for long double manually because we use it in a few places:
 template class Vector<long double>;

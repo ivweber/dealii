@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2015 by the deal.II authors
+## Copyright (C) 2012 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -16,8 +16,8 @@
 #
 # If 'variable' is empty it will be set to 'value'
 #
-MACRO(SET_IF_EMPTY _variable)
-  IF("${${_variable}}" STREQUAL "")
-    SET(${_variable} ${ARGN})
-  ENDIF()
-ENDMACRO()
+macro(set_if_empty _variable)
+  if("${${_variable}}" STREQUAL "")
+    set(${_variable} ${ARGN})
+  endif()
+endmacro()

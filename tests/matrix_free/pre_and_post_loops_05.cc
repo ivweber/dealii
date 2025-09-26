@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -56,7 +56,7 @@ public:
   {}
 
   void
-  vmult(LinearAlgebra::distributed::Vector<Number> &      dst,
+  vmult(LinearAlgebra::distributed::Vector<Number>       &dst,
         const LinearAlgebra::distributed::Vector<Number> &src) const
   {
     dst = 0;
@@ -115,9 +115,9 @@ private:
 
   void
   local_apply(const MatrixFree<dim, Number> &,
-              LinearAlgebra::distributed::Vector<Number> &      dst,
+              LinearAlgebra::distributed::Vector<Number>       &dst,
               const LinearAlgebra::distributed::Vector<Number> &src,
-              const std::pair<unsigned int, unsigned int> &     range) const
+              const std::pair<unsigned int, unsigned int>      &range) const
   {
     FEEvaluation<dim, fe_degree, n_q_points_1d, 1, Number> fe_eval(data, 1);
 
@@ -160,7 +160,8 @@ test()
     const QGauss<1>                                  quad(fe_degree + 1);
     typename MatrixFree<dim, number>::AdditionalData data;
     data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
-    mf_data.reinit(std::vector<const DoFHandler<dim> *>({&dof2, &dof}),
+    mf_data.reinit(MappingQ1<dim>{},
+                   std::vector<const DoFHandler<dim> *>({&dof2, &dof}),
                    std::vector<const AffineConstraints<double> *>(
                      {&constraints, &constraints}),
                    std::vector<Quadrature<1>>({quad}),
@@ -173,7 +174,7 @@ test()
   mf_data.initialize_dof_vector(vec2, 1);
   mf_data.initialize_dof_vector(vec3, 1);
 
-  for (unsigned int i = 0; i < vec1.local_size(); ++i)
+  for (unsigned int i = 0; i < vec1.locally_owned_size(); ++i)
     {
       // Multiply by 0.01 to make float error with roundoff less than the
       // numdiff absolute tolerance

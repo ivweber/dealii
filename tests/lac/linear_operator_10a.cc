@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2017 - 2021 by the deal.II authors
+// Copyright (C) 2017 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,8 +51,8 @@ template <class PRECONDITIONER,
           class VECTOR,
           class ADDITIONAL_DATA = typename PRECONDITIONER::AdditionalData>
 void
-test_preconditioner(const MATRIX &         A,
-                    const VECTOR &         b,
+test_preconditioner(const MATRIX          &A,
+                    const VECTOR          &b,
                     const ADDITIONAL_DATA &data = ADDITIONAL_DATA())
 {
   const auto lo_A = linear_operator<VECTOR>(A);

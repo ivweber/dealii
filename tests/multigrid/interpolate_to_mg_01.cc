@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2021 by the deal.II authors
+// Copyright (C) 2021 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,7 +23,7 @@
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
-#include <deal.II/fe/mapping_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_tools.h>
@@ -80,8 +80,8 @@ test()
   dof_handler.distribute_dofs(fe);
   dof_handler.distribute_mg_dofs();
 
-  IndexSet locally_relevant_dofs;
-  DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+  const IndexSet locally_relevant_dofs =
+    DoFTools::extract_locally_relevant_dofs(dof_handler);
 
   AffineConstraints<double> constraints;
   constraints.reinit(locally_relevant_dofs);

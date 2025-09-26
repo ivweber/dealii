@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2018 - 2021 by the deal.II authors
+ * Copyright (C) 2018 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,8 +12,8 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
- *      Author: Zhuoran Wang, Colorado State University, 2018
+ *
+ * Author: Zhuoran Wang, Colorado State University, 2018
  */
 
 // @sect3{Include files}
@@ -139,7 +139,7 @@ namespace Step61
 
   template <int dim>
   void Coefficient<dim>::value_list(const std::vector<Point<dim>> &points,
-                                    std::vector<Tensor<2, dim>> &  values) const
+                                    std::vector<Tensor<2, dim>>   &values) const
   {
     AssertDimension(points.size(), values.size());
     for (unsigned int p = 0; p < points.size(); ++p)
@@ -156,7 +156,7 @@ namespace Step61
       : Function<dim>(2)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -175,7 +175,7 @@ namespace Step61
   class RightHandSide : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
   };
 
@@ -210,7 +210,7 @@ namespace Step61
       : Function<dim>(2)
     {}
 
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component) const override;
   };
 
@@ -260,7 +260,7 @@ namespace Step61
   // interface pressures, $p^\circ$ and $p^\partial$.
   template <int dim>
   WGDarcyEquation<dim>::WGDarcyEquation(const unsigned int degree)
-    : fe(FE_DGQ<dim>(degree), 1, FE_FaceQ<dim>(degree), 1)
+    : fe(FE_DGQ<dim>(degree), FE_FaceQ<dim>(degree))
     , dof_handler(triangulation)
     , fe_dgrt(degree)
     , dof_handler_dgrt(triangulation)
@@ -360,7 +360,7 @@ namespace Step61
   // DoFHandler class.
   //
   // We could create a DoFHandler object for the "broken" Raviart-Thomas space
-  // (using the FE_DGRT class), but we really don't want to here: At
+  // (using the FE_DGRaviartThomas class), but we really don't want to here: At
   // least in the current function, we have no need for any globally defined
   // degrees of freedom associated with this broken space, but really only
   // need to reference the shape functions of such a space on the current
@@ -461,7 +461,7 @@ namespace Step61
         coefficient.value_list(fe_values.get_quadrature_points(),
                                coefficient_values);
 
-        // The first cell matrix we will compute is the mass matrix
+        // The first cell matrix we will compute is the @ref GlossMassMatrix "mass matrix"
         // for the Raviart-Thomas space.  Hence, we need to loop over
         // all the quadrature points for the velocity FEValues object.
         cell_matrix_M = 0;

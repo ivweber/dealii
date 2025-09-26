@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2020 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,10 +43,10 @@ namespace internal
       ParallelData(const unsigned int               n_datasets,
                    const unsigned int               n_subdivisions,
                    const std::vector<unsigned int> &n_postprocessor_outputs,
-                   const Mapping<dim, spacedim> &   mapping,
+                   const Mapping<dim, spacedim>    &mapping,
                    const std::vector<
                      std::shared_ptr<dealii::hp::FECollection<dim, spacedim>>>
-                     &               finite_elements,
+                                    &finite_elements,
                    const UpdateFlags update_flags);
 
       std::vector<Point<spacedim>> patch_evaluation_points;
@@ -126,8 +126,15 @@ public:
       cell_iterator;
 
   /**
-   * Constructor determining whether a surface mesh (default) or the whole
-   * wire basket is written.
+   * Constructor.
+   *
+   * @param[in] surface_only If `true`, then this class only generates
+   *   output on faces that lie on the boundary of the domain. This
+   *   is typically what this class is used for: To output information
+   *   about the solution, fluxes, and other quantities that live on
+   *   the boundary of the domain. On the other hand, it is sometimes
+   *   useful to also visualize data on internal faces. This is
+   *   facilitated by setting this argument to `false`.
    */
   DataOutFaces(const bool surface_only = true);
 
@@ -233,19 +240,8 @@ private:
   build_one_patch(
     const FaceDescriptor *cell_and_face,
     internal::DataOutFacesImplementation::ParallelData<dim, spacedim> &data,
-    DataOutBase::Patch<patch_dim, patch_spacedim> &                    patch);
+    DataOutBase::Patch<patch_dim, patch_spacedim>                     &patch);
 };
-
-namespace Legacy
-{
-  /**
-   * @deprecated Use dealii::DataOutFaces without the DoFHandlerType template
-   * instead.
-   */
-  template <int dim, typename DoFHandlerType = DoFHandler<dim>>
-  using DataOutFaces DEAL_II_DEPRECATED =
-    dealii::DataOutFaces<dim, DoFHandlerType::space_dimension>;
-} // namespace Legacy
 
 
 DEAL_II_NAMESPACE_CLOSE

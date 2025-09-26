@@ -37,7 +37,7 @@ PathSearch::initialize_classes()
   path_lists.insert(map_type(std::string("PARAMETER"), v));
 
   /*
-   * TODO: reenable some sensible default paths. Maier, 2012
+   * TODO: re-enable some sensible default paths. Maier, 2012
    */
   path_lists.insert(map_type(std::string("MESH"), v));
 
@@ -111,7 +111,7 @@ PathSearch::PathSearch(const std::string &cls, const unsigned int debug)
 std::string
 PathSearch::find(const std::string &filename,
                  const std::string &suffix,
-                 const char *       open_mode)
+                 const char        *open_mode)
 {
   std::vector<std::string>::const_iterator       path;
   const std::vector<std::string>::const_iterator endp = my_path_list.end();

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 by the deal.II authors
+// Copyright (C) 2020 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -104,13 +104,13 @@ test(const unsigned int n_refinements = 1)
         {
           phi.reinit(cell);
 
-          phi.gather_evaluate(src, true, false);
+          phi.gather_evaluate(src, EvaluationFlags::values);
 
           for (unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell;
                face++)
             {
               phi_m.reinit(cell, face);
-              phi_m.gather_evaluate(src, true, false);
+              phi_m.gather_evaluate(src, EvaluationFlags::values);
 
               AlignedVector<VectorizedArrayType> temp(
                 phi_m.static_dofs_per_cell);

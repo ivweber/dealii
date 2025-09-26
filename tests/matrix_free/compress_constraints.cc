@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,6 +24,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
@@ -83,7 +84,7 @@ test()
 
   const QGauss<1> quad(2);
   MatrixFree<dim> mf;
-  mf.reinit(dof, constraints, quad);
+  mf.reinit(MappingQ1<dim>{}, dof, constraints, quad);
 
   deallog << "Number of hanging nodes: " << constraints.n_constraints()
           << std::endl;

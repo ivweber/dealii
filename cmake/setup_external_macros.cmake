@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2015 by the deal.II authors
+## Copyright (C) 2012 - 2022 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -17,11 +17,11 @@
 # Include all external (cmake) macros that we will use:
 #
 
-INCLUDE(CheckCXXCompilerFlag)
-INCLUDE(CheckCXXSourceCompiles)
-INCLUDE(CheckCXXSourceRuns)
-INCLUDE(CheckCXXSymbolExists)
-INCLUDE(CheckIncludeFileCXX)
+include(CheckCXXCompilerFlag)
+include(CheckCXXSourceCompiles)
+include(CheckCXXSourceRuns)
+include(CheckCXXSymbolExists)
+include(CheckIncludeFileCXX)
 
-INCLUDE(CheckCSourceCompiles)
-INCLUDE(CheckFunctionExists)
+include(CheckCSourceCompiles)
+include(CheckFunctionExists)

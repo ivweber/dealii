@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2000 - 2020 by the deal.II authors
+ * Copyright (C) 2000 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -102,7 +102,7 @@ namespace Step8
   template <int dim>
   void
   right_hand_side(const std::vector<Point<dim>> &points,
-                  std::vector<Tensor<1, dim>> &  values)
+                  std::vector<Tensor<1, dim>>   &values)
   {
     Assert(values.size() == points.size(),
            ExcDimensionMismatch(values.size(), points.size()));
@@ -329,7 +329,7 @@ namespace Step8
     virtual void
     evaluate_vector_field(
       const DataPostprocessorInputs::Vector<dim> &input_data,
-      std::vector<Vector<double>> &               computed_quantities) const
+      std::vector<Vector<double>>                &computed_quantities) const
     {
       AssertDimension(input_data.solution_gradients.size(),
                       computed_quantities.size());
@@ -362,6 +362,10 @@ namespace Step8
 
     StrainPostprocessor<dim> grad_u;
 
+    DataOutBase::VtkFlags vtk_flags;
+    vtk_flags.compression_level =
+      DataOutBase::CompressionLevel::best_compression;
+
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler);
 
@@ -376,6 +380,7 @@ namespace Step8
                              data_component_interpretation);
     data_out.add_data_vector(solution, grad_u);
     data_out.build_patches();
+    data_out.set_flags(vtk_flags);
     data_out.write_vtu(deallog.get_file_stream());
   }
 

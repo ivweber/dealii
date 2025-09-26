@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2020 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,22 +14,22 @@
 // ---------------------------------------------------------------------
 
 #ifndef dealii_solution_transfer_h
-#  define dealii_solution_transfer_h
+#define dealii_solution_transfer_h
 
 
 /*----------------------------   solutiontransfer.h     ----------------------*/
 
 
-#  include <deal.II/base/config.h>
+#include <deal.II/base/config.h>
 
-#  include <deal.II/base/exceptions.h>
-#  include <deal.II/base/smartpointer.h>
+#include <deal.II/base/exceptions.h>
+#include <deal.II/base/smartpointer.h>
 
-#  include <deal.II/dofs/dof_handler.h>
+#include <deal.II/dofs/dof_handler.h>
 
-#  include <deal.II/lac/vector.h>
+#include <deal.II/lac/vector.h>
 
-#  include <vector>
+#include <vector>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -91,7 +91,8 @@ DEAL_II_NAMESPACE_OPEN
  * std::vector<Vector<double> > solutions(n_vectors, Vector<double> (n));
  * soltrans.refine_interpolate(solutions_old, solutions);
  * @endcode
- * This is used in several of the tutorial programs, for example step-31.
+ * This is used in several of the tutorial programs, for example step-31
+ * and step-33.
  *
  * <li> If the grid has cells that will be coarsened, then use @p
  * SolutionTransfer as follows:
@@ -128,9 +129,9 @@ DEAL_II_NAMESPACE_OPEN
  * required for the interpolation process):
  * @code
  * // Create initial indexsets pertaining to the grid before refinement
- * IndexSet locally_owned_dofs, locally_relevant_dofs;
- * locally_owned_dofs = dof_handler.locally_owned_dofs();
- * DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+ * const IndexSet &locally_owned_dofs    = dof_handler.locally_owned_dofs();
+ * const IndexSet  locally_relevant_dofs =
+ *   DoFTools::extract_locally_relevant_dofs(dof_handler);
  *
  * // The solution vector only knows about locally owned DoFs
  * TrilinosWrappers::MPI::Vector solution;
@@ -413,7 +414,7 @@ public:
    */
   void
   interpolate(const std::vector<VectorType> &all_in,
-              std::vector<VectorType> &      all_out) const;
+              std::vector<VectorType>       &all_out) const;
 
   /**
    * Same as the previous function. It interpolates only one function. It
@@ -545,7 +546,7 @@ private:
     std::size_t
     memory_consumption() const;
 
-    std::vector<types::global_dof_index> *                indices_ptr;
+    std::vector<types::global_dof_index>                 *indices_ptr;
     std::vector<Vector<typename VectorType::value_type>> *dof_values_ptr;
     unsigned int                                          active_fe_index;
   };
@@ -566,21 +567,7 @@ private:
     dof_values_on_cell;
 };
 
-namespace Legacy
-{
-  /**
-   * @deprecated Use dealii::SolutionTransfer without the DoFHandlerType
-   * template instead.
-   */
-  template <int dim,
-            typename VectorType     = Vector<double>,
-            typename DoFHandlerType = DoFHandler<dim>>
-  using SolutionTransfer DEAL_II_DEPRECATED =
-    dealii::SolutionTransfer<dim, VectorType, DoFHandlerType::space_dimension>;
-} // namespace Legacy
-
 
 DEAL_II_NAMESPACE_CLOSE
 
-#endif // dealii_solutiontransfer_h
-/*---------------------------- solutiontransfer.h ---------------------------*/
+#endif

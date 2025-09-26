@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2021 by the deal.II authors
+// Copyright (C) 1999 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -198,7 +198,7 @@ public:
    */
   virtual void
   create_triangulation(const std::vector<Point<spacedim>> &vertices,
-                       const std::vector<CellData<dim>> &  cells,
+                       const std::vector<CellData<dim>>   &cells,
                        const SubCellData &subcelldata) override;
 
   /**
@@ -210,19 +210,6 @@ public:
   create_triangulation(
     const TriangulationDescription::Description<dim, spacedim>
       &construction_data) override;
-
-  /**
-   * An overload of the respective function of the base class.
-   *
-   * Throw an error, since this function is not useful in the context of this
-   * class.
-   */
-  DEAL_II_DEPRECATED
-  virtual void
-  create_triangulation_compatibility(
-    const std::vector<Point<spacedim>> &vertices,
-    const std::vector<CellData<dim>> &  cells,
-    const SubCellData &                 subcelldata) override;
 
   /**
    * Write all refine and coarsen flags to the ostream @p out.

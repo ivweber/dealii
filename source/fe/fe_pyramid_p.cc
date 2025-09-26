@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -75,7 +75,7 @@ namespace
 template <int dim, int spacedim>
 FE_PyramidPoly<dim, spacedim>::FE_PyramidPoly(
   const unsigned int                                degree,
-  const internal::GenericDoFsPerObject &            dpos,
+  const internal::GenericDoFsPerObject             &dpos,
   const typename FiniteElementData<dim>::Conformity conformity)
   : dealii::FE_Poly<dim, spacedim>(
       ScalarLagrangePolynomialPyramid<dim>(degree),
@@ -91,15 +91,27 @@ FE_PyramidPoly<dim, spacedim>::FE_PyramidPoly(
       std::vector<ComponentMask>(
         FiniteElementData<dim>(dpos, ReferenceCells::Pyramid, 1, degree)
           .dofs_per_cell,
-        std::vector<bool>(1, true)))
+        ComponentMask(std::vector<bool>(1, true))))
 {
   AssertDimension(dim, 3);
 
   if (degree == 1)
     {
-      for (const unsigned int i : ReferenceCells::Pyramid.vertex_indices())
+      for (const auto i : this->reference_cell().vertex_indices())
         this->unit_support_points.emplace_back(
-          ReferenceCells::Pyramid.vertex<dim>(i));
+          this->reference_cell().template vertex<dim>(i));
+
+      this->unit_face_support_points.resize(this->reference_cell().n_faces());
+
+      for (const auto f : this->reference_cell().face_indices())
+        {
+          const auto face_reference_cell =
+            this->reference_cell().face_reference_cell(f);
+
+          for (const auto i : face_reference_cell.vertex_indices())
+            this->unit_face_support_points[f].emplace_back(
+              face_reference_cell.template vertex<dim - 1>(i));
+        }
     }
   else
     Assert(false, ExcNotImplemented());
@@ -112,7 +124,7 @@ void
 FE_PyramidPoly<dim, spacedim>::
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
-    std::vector<double> &              nodal_values) const
+    std::vector<double>               &nodal_values) const
 {
   AssertDimension(support_point_values.size(),
                   this->get_unit_support_points().size());

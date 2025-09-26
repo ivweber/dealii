@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2020 by the deal.II authors
+// Copyright (C) 1998 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -98,7 +98,7 @@ template <int dim>
 void
 test_projection(const FiniteElement<dim> &fe1,
                 const FiniteElement<dim> &fe2,
-                std::ostream &            out)
+                std::ostream             &out)
 {
   out << fe1.get_name() << " -> " << fe2.get_name() << std::endl;
 

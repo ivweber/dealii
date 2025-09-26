@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 - 2020 by the deal.II authors
+// Copyright (C) 2013 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -66,7 +66,7 @@ public:
   void
   operator()(const MatrixFree<dim, Number> &data,
              Vector<Number> &,
-             const Vector<Number> &                       src,
+             const Vector<Number>                        &src,
              const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim, fe_degree, n_q_points_1d, 1, Number> fe_eval(data);
@@ -114,7 +114,7 @@ protected:
 
 template <int dim, int fe_degree, typename number>
 void
-do_test(const DoFHandler<dim> &          dof,
+do_test(const DoFHandler<dim>           &dof,
         const AffineConstraints<double> &constraints)
 {
   // use this for info on problem
@@ -144,7 +144,7 @@ do_test(const DoFHandler<dim> &          dof,
     data.tasks_parallel_scheme = MatrixFree<dim, number>::AdditionalData::none;
     data.mapping_update_flags  = update_gradients | update_hessians;
     data.initialize_indices    = false;
-    mf_data.reinit(dof, constraints, quad, data);
+    mf_data.reinit(MappingQ1<dim>{}, dof, constraints, quad, data);
   }
 
   deallog << "Testing " << dof.get_fe().get_name() << " without read"

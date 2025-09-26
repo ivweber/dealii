@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2021 by the deal.II authors
+// Copyright (C) 2001 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,7 +24,7 @@ namespace internal
   internal::GenericDoFsPerObject
   expand(const unsigned int               dim,
          const std::vector<unsigned int> &dofs_per_object,
-         const dealii::ReferenceCell      cell_type)
+         const ReferenceCell              cell_type)
   {
     internal::GenericDoFsPerObject result;
 
@@ -94,6 +94,19 @@ namespace internal
 
     return result;
   }
+
+  unsigned int
+  number_unique_entries(const std::vector<unsigned int> &vector)
+  {
+    if (std::all_of(vector.begin(), vector.end(), [&](const auto &e) {
+          return e == vector.front();
+        }))
+      {
+        return 1;
+      }
+    else
+      return vector.size();
+  }
 } // namespace internal
 
 
@@ -104,7 +117,7 @@ FiniteElementData<dim>::FiniteElementData(
   const unsigned int               n_components,
   const unsigned int               degree,
   const Conformity                 conformity,
-  const BlockIndices &             block_indices)
+  const BlockIndices              &block_indices)
   : FiniteElementData(dofs_per_object,
                       dim == 0 ?
                         ReferenceCells::Vertex :
@@ -124,7 +137,7 @@ FiniteElementData<dim>::FiniteElementData(
   const unsigned int               n_components,
   const unsigned int               degree,
   const Conformity                 conformity,
-  const BlockIndices &             block_indices)
+  const BlockIndices              &block_indices)
   : FiniteElementData(internal::expand(dim, dofs_per_object, cell_type),
                       cell_type,
                       n_components,
@@ -133,6 +146,8 @@ FiniteElementData<dim>::FiniteElementData(
                       block_indices)
 {}
 
+
+
 template <int dim>
 FiniteElementData<dim>::FiniteElementData(
   const internal::GenericDoFsPerObject &data,
@@ -140,18 +155,19 @@ FiniteElementData<dim>::FiniteElementData(
   const unsigned int                    n_components,
   const unsigned int                    degree,
   const Conformity                      conformity,
-  const BlockIndices &                  block_indices)
+  const BlockIndices                   &block_indices)
   : reference_cell_kind(reference_cell)
-  , number_unique_quads(data.dofs_per_object_inclusive[2].size())
-  , number_unique_faces(data.dofs_per_object_inclusive[dim - 1].size())
+  , number_of_unique_2d_subobjects(
+      internal::number_unique_entries(data.dofs_per_object_inclusive[2]))
+  , number_unique_faces(
+      internal::number_unique_entries(data.dofs_per_object_inclusive[dim - 1]))
   , dofs_per_vertex(data.dofs_per_object_exclusive[0][0])
   , dofs_per_line(data.dofs_per_object_exclusive[1][0])
-  , n_dofs_on_quad(dim > 1 ? data.dofs_per_object_exclusive[2] :
-                             std::vector<unsigned int>{0})
+  , n_dofs_on_quad(data.dofs_per_object_exclusive[2])
   , dofs_per_quad(n_dofs_on_quad[0])
   , dofs_per_quad_max(
       *max_element(n_dofs_on_quad.begin(), n_dofs_on_quad.end()))
-  , dofs_per_hex(dim > 2 ? data.dofs_per_object_exclusive[3][0] : 0)
+  , dofs_per_hex(data.dofs_per_object_exclusive[3][0])
   , first_line_index(data.object_index[1][0])
   , first_index_of_quads(data.object_index[2])
   , first_quad_index(first_index_of_quads[0])

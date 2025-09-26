@@ -62,7 +62,7 @@ public:
              smoothing_option = dealii::Triangulation<dim>::none);
   void
   run(std::vector<unsigned int> &n_cell,
-      std::set<Location<dim>> &  position_list);
+      std::set<Location<dim>>   &position_list);
 
 private:
   void
@@ -218,7 +218,7 @@ TriaTest<dim>::TriaTest(
 template <int dim>
 void
 TriaTest<dim>::run(std::vector<unsigned int> &n_cell,
-                   std::set<Location<dim>> &  position_list)
+                   std::set<Location<dim>>   &position_list)
 {
   n_cell.clear();
   position_list.clear();
@@ -324,7 +324,7 @@ TriaTest<dim>::write_vtu(const unsigned int counter) const
     case_name + Utilities::int_to_string(counter, 4);
   const std::string slot_itag = ".slot-" + Utilities::int_to_string(myid, 4);
 
-  std::ofstream output((output_tag + slot_itag + ".vtu").c_str());
+  std::ofstream output(output_tag + slot_itag + ".vtu");
   data_out.write_vtu(output);
 
   if (I_am_host)
@@ -337,7 +337,7 @@ TriaTest<dim>::write_vtu(const unsigned int counter) const
           filenames.push_back(output_tag + ".slot-" +
                               Utilities::int_to_string(i, 4) + ".vtu");
         }
-      std::ofstream pvtu_output((output_tag + ".pvtu").c_str());
+      std::ofstream pvtu_output(output_tag + ".pvtu");
       data_out.write_pvtu_record(pvtu_output, filenames);
     }
 #else

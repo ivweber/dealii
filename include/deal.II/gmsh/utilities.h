@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2018 - 2020 by the deal.II authors
+// Copyright (C) 2018 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,11 +30,13 @@
 #    include <TopoDS_Vertex.hxx>
 #  endif
 
-#  include <deal.II/base/parameter_handler.h>
-
 #  include <deal.II/grid/tria.h>
 
 DEAL_II_NAMESPACE_OPEN
+
+#  ifndef DOXYGEN
+class ParameterHandler;
+#  endif
 
 /**
  * A collection of %Gmsh related utilities and classes.
@@ -86,7 +88,7 @@ namespace Gmsh
   template <int spacedim>
   void
   create_triangulation_from_boundary_curve(
-    const TopoDS_Edge &         boundary,
+    const TopoDS_Edge          &boundary,
     Triangulation<2, spacedim> &tria,
     const AdditionalParameters &prm = AdditionalParameters());
 #  endif

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2020 by the deal.II authors
+// Copyright (C) 2004 - 2021 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -86,7 +86,7 @@ main()
         "/grids/comsol/mesh_example_without_domain_geom_info.mphtxt");
       comsol_grid<3>(SOURCE_DIR "/grids/comsol/busbar_with_selections.mphtxt");
     }
-  catch (std::exception &exc)
+  catch (const std::exception &exc)
     {
       deallog << std::endl
               << std::endl

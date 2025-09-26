@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2021 by the deal.II authors
+// Copyright (C) 2003 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -174,7 +174,4 @@
  * module that are only used in the internal data structures of mesh
  * handling. They are generally in the internal namespace, and not meant for
  * use in application code.
- *
- *
- * @author Wolfgang Bangerth, 1998-2006
  */

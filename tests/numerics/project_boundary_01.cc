@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2018 by the deal.II authors
+// Copyright (C) 2000 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -170,7 +170,7 @@ check()
           deallog << "Interpolated boundary values" << std::endl;
           std::map<types::global_dof_index, double> interpolated_bv;
           VectorTools::interpolate_boundary_values(
-            mapping, dof, function_map, interpolated_bv, std::vector<bool>());
+            mapping, dof, function_map, interpolated_bv, ComponentMask());
           write_map(interpolated_bv);
 
           deallog << "Projected boundary values" << std::endl;

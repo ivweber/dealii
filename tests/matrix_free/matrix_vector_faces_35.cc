@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2019 - 2020 by the deal.II authors
+// Copyright (C) 2019 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,17 +34,17 @@ void
 generate_grid(Triangulation<3> &triangulation, int orientation)
 {
   Point<3>              vertices_1[] = {Point<3>(-1., -1., -3.),
-                           Point<3>(+1., -1., -3.),
-                           Point<3>(-1., +1., -3.),
-                           Point<3>(+1., +1., -3.),
-                           Point<3>(-1., -1., -1.),
-                           Point<3>(+1., -1., -1.),
-                           Point<3>(-1., +1., -1.),
-                           Point<3>(+1., +1., -1.),
-                           Point<3>(-1., -1., +1.),
-                           Point<3>(+1., -1., +1.),
-                           Point<3>(-1., +1., +1.),
-                           Point<3>(+1., +1., +1.)};
+                                        Point<3>(+1., -1., -3.),
+                                        Point<3>(-1., +1., -3.),
+                                        Point<3>(+1., +1., -3.),
+                                        Point<3>(-1., -1., -1.),
+                                        Point<3>(+1., -1., -1.),
+                                        Point<3>(-1., +1., -1.),
+                                        Point<3>(+1., +1., -1.),
+                                        Point<3>(-1., -1., +1.),
+                                        Point<3>(+1., -1., +1.),
+                                        Point<3>(-1., +1., +1.),
+                                        Point<3>(+1., +1., +1.)};
   std::vector<Point<3>> vertices(&vertices_1[0], &vertices_1[12]);
 
   std::vector<CellData<3>> cells(2, CellData<3>());
@@ -127,8 +127,8 @@ public:
 private:
   void
   local_apply(const MatrixFree<dim, number, VectorizedArrayType> &data,
-              VectorType &                                        dst,
-              const VectorType &                                  src,
+              VectorType                                         &dst,
+              const VectorType                                   &src,
               const std::pair<unsigned int, unsigned int> &cell_range) const
   {
     FEEvaluation<dim,
@@ -156,9 +156,9 @@ private:
   void
   local_apply_face(
     const MatrixFree<dim, number, VectorizedArrayType> &data,
-    VectorType &                                        dst,
-    const VectorType &                                  src,
-    const std::pair<unsigned int, unsigned int> &       face_range) const
+    VectorType                                         &dst,
+    const VectorType                                   &src,
+    const std::pair<unsigned int, unsigned int>        &face_range) const
   {
     FEFaceEvaluation<dim,
                      fe_degree,
@@ -196,7 +196,7 @@ private:
             value_type u_minus = phi_m.get_value(q),
                        u_plus  = phi_p.get_value(q);
             const VectorizedArrayType normal_times_advection =
-              advection * phi_m.get_normal_vector(q);
+              advection * phi_m.normal_vector(q);
             const value_type flux_times_normal =
               make_vectorized_array<number, VectorizedArrayType::size()>(0.5) *
               ((u_minus + u_plus) * normal_times_advection +
@@ -215,9 +215,9 @@ private:
   void
   local_apply_boundary_face(
     const MatrixFree<dim, number, VectorizedArrayType> &data,
-    VectorType &                                        dst,
-    const VectorType &                                  src,
-    const std::pair<unsigned int, unsigned int> &       face_range) const
+    VectorType                                         &dst,
+    const VectorType                                   &src,
+    const std::pair<unsigned int, unsigned int>        &face_range) const
   {
     FEFaceEvaluation<dim,
                      fe_degree,
@@ -247,7 +247,7 @@ private:
           {
             value_type                u_minus = fe_eval.get_value(q);
             const VectorizedArrayType normal_times_advection =
-              advection * fe_eval.get_normal_vector(q);
+              advection * fe_eval.normal_vector(q);
             const value_type flux_times_normal =
               make_vectorized_array<number, VectorizedArrayType::size()>(0.5) *
               ((u_minus + u_plus) * normal_times_advection +

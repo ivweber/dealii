@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2020 by the deal.II authors
+// Copyright (C) 2001 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -151,7 +151,7 @@ public:
    */
   template <class Matrix>
   void
-  initialize(const Matrix &       matrix,
+  initialize(const Matrix        &matrix,
              const AdditionalData additional_data = AdditionalData());
 
   /**
@@ -278,7 +278,7 @@ public:
    */
   template <class Matrix>
   void
-  solve(const Matrix &  matrix,
+  solve(const Matrix   &matrix,
         Vector<double> &rhs_and_solution,
         const bool      transpose = false);
 
@@ -287,7 +287,7 @@ public:
    */
   template <class Matrix>
   void
-  solve(const Matrix &                matrix,
+  solve(const Matrix                 &matrix,
         Vector<std::complex<double>> &rhs_and_solution,
         const bool                    transpose = false);
 
@@ -296,7 +296,7 @@ public:
    */
   template <class Matrix>
   void
-  solve(const Matrix &       matrix,
+  solve(const Matrix        &matrix,
         BlockVector<double> &rhs_and_solution,
         const bool           transpose = false);
 
@@ -305,7 +305,7 @@ public:
    */
   template <class Matrix>
   void
-  solve(const Matrix &                     matrix,
+  solve(const Matrix                      &matrix,
         BlockVector<std::complex<double>> &rhs_and_solution,
         const bool                         transpose = false);
 

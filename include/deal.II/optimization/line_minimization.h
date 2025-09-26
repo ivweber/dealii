@@ -1,6 +1,6 @@
 //-----------------------------------------------------------
 //
-//    Copyright (C) 2018 - 2020 by the deal.II authors
+//    Copyright (C) 2018 - 2023 by the deal.II authors
 //
 //    This file is part of the deal.II library.
 //
@@ -21,12 +21,15 @@
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/numbers.h>
-#include <deal.II/base/std_cxx17/optional.h>
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/numerics/history.h>
 
+#include <algorithm>
 #include <fstream>
+#include <functional>
+#include <limits>
+#include <optional>
 #include <string>
 
 
@@ -46,7 +49,7 @@ namespace LineMinimization
    * not have a solution for given parameters.
    */
   template <typename NumberType>
-  std_cxx17::optional<NumberType>
+  std::optional<NumberType>
   quadratic_fit(const NumberType x_low,
                 const NumberType f_low,
                 const NumberType g_low,
@@ -63,7 +66,7 @@ namespace LineMinimization
    * The return type is optional as the real-valued solution might not exist.
    */
   template <typename NumberType>
-  std_cxx17::optional<NumberType>
+  std::optional<NumberType>
   cubic_fit(const NumberType x_low,
             const NumberType f_low,
             const NumberType g_low,
@@ -79,7 +82,7 @@ namespace LineMinimization
    * The return type is optional as the real-valued solution might not exist.
    */
   template <typename NumberType>
-  std_cxx17::optional<NumberType>
+  std::optional<NumberType>
   cubic_fit_three_points(const NumberType x_low,
                          const NumberType f_low,
                          const NumberType g_low,
@@ -107,9 +110,9 @@ namespace LineMinimization
            const NumberType                        x_hi,
            const NumberType                        f_hi,
            const NumberType                        g_hi,
-           const FiniteSizeHistory<NumberType> &   x_rec,
-           const FiniteSizeHistory<NumberType> &   f_rec,
-           const FiniteSizeHistory<NumberType> &   g_rec,
+           const FiniteSizeHistory<NumberType>    &x_rec,
+           const FiniteSizeHistory<NumberType>    &f_rec,
+           const FiniteSizeHistory<NumberType>    &g_rec,
            const std::pair<NumberType, NumberType> bounds);
 
   /**
@@ -124,9 +127,9 @@ namespace LineMinimization
                         const NumberType                        x_hi,
                         const NumberType                        f_hi,
                         const NumberType                        g_hi,
-                        const FiniteSizeHistory<NumberType> &   x_rec,
-                        const FiniteSizeHistory<NumberType> &   f_rec,
-                        const FiniteSizeHistory<NumberType> &   g_rec,
+                        const FiniteSizeHistory<NumberType>    &x_rec,
+                        const FiniteSizeHistory<NumberType>    &f_rec,
+                        const FiniteSizeHistory<NumberType>    &g_rec,
                         const std::pair<NumberType, NumberType> bounds);
 
 
@@ -251,7 +254,7 @@ namespace LineMinimization
    *
    *   // Next we can write a function to determine if taking the full Newton
    *   // step is a good idea or not (i.e. if it offers good convergence
-   *   // characterisics). This function calls the one we defined above,
+   *   // characteristics). This function calls the one we defined above,
    *   // and actually only performs the line search if an early exit
    *   // criterion is not met.
    *   auto perform_linesearch = [&]()
@@ -320,7 +323,7 @@ namespace LineMinimization
   std::pair<NumberType, unsigned int>
   line_search(
     const std::function<std::pair<NumberType, NumberType>(const NumberType x)>
-      &              func,
+                    &func,
     const NumberType f0,
     const NumberType g0,
     const std::function<
@@ -330,9 +333,9 @@ namespace LineMinimization
                  const NumberType                        x_hi,
                  const NumberType                        f_hi,
                  const NumberType                        g_hi,
-                 const FiniteSizeHistory<NumberType> &   x_rec,
-                 const FiniteSizeHistory<NumberType> &   f_rec,
-                 const FiniteSizeHistory<NumberType> &   g_rec,
+                 const FiniteSizeHistory<NumberType>    &x_rec,
+                 const FiniteSizeHistory<NumberType>    &f_rec,
+                 const FiniteSizeHistory<NumberType>    &g_rec,
                  const std::pair<NumberType, NumberType> bounds)> &interpolate,
     const NumberType                                               a1,
     const NumberType                                               eta = 0.9,
@@ -349,7 +352,7 @@ namespace LineMinimization
 
 
   template <typename NumberType>
-  std_cxx17::optional<NumberType>
+  std::optional<NumberType>
   quadratic_fit(const NumberType x1,
                 const NumberType f1,
                 const NumberType g1,
@@ -367,7 +370,7 @@ namespace LineMinimization
 
 
   template <typename NumberType>
-  std_cxx17::optional<NumberType>
+  std::optional<NumberType>
   cubic_fit(const NumberType x1,
             const NumberType f1,
             const NumberType g1,
@@ -394,7 +397,7 @@ namespace LineMinimization
 
 
   template <typename NumberType>
-  std_cxx17::optional<NumberType>
+  std::optional<NumberType>
   cubic_fit_three_points(const NumberType x1,
                          const NumberType f1,
                          const NumberType g1,
@@ -417,14 +420,16 @@ namespace LineMinimization
     const NumberType r1       = f2 - f1 - g1 * x2_shift;
     const NumberType r2       = f3 - f1 - g1 * x3_shift;
     const NumberType denom =
-      std::pow(x2_shift * x3_shift, 2) * (x2_shift - x3_shift);
+      Utilities::fixed_power<2>(x2_shift * x3_shift) * (x2_shift - x3_shift);
     if (denom == 0.)
       return {};
 
-    const NumberType A =
-      (r1 * std::pow(x3_shift, 2) - r2 * std::pow(x2_shift, 2)) / denom;
-    const NumberType B =
-      (r2 * std::pow(x2_shift, 3) - r1 * std::pow(x3_shift, 3)) / denom;
+    const NumberType A = (r1 * Utilities::fixed_power<2>(x3_shift) -
+                          r2 * Utilities::fixed_power<2>(x2_shift)) /
+                         denom;
+    const NumberType B = (r2 * Utilities::fixed_power<3>(x2_shift) -
+                          r1 * Utilities::fixed_power<3>(x3_shift)) /
+                         denom;
     const NumberType &C = g1;
 
     // now get the minimizer:
@@ -457,7 +462,7 @@ namespace LineMinimization
     // https://github.com/scipy/scipy/blob/v1.0.0/scipy/optimize/linesearch.py#L555-L563
 
     // First try cubic interpolation
-    std_cxx17::optional<NumberType> res = cubic_fit(x1, f1, g1, x2, f2, g2);
+    std::optional<NumberType> res = cubic_fit(x1, f1, g1, x2, f2, g2);
     if (res && *res >= bounds.first && *res <= bounds.second)
       return *res;
 
@@ -475,12 +480,12 @@ namespace LineMinimization
 
   template <typename NumberType>
   NumberType
-  poly_fit_three_points(const NumberType                     x1,
-                        const NumberType                     f1,
-                        const NumberType                     g1,
-                        const NumberType                     x2,
-                        const NumberType                     f2,
-                        const NumberType                     g2,
+  poly_fit_three_points(const NumberType x1,
+                        const NumberType f1,
+                        const NumberType g1,
+                        const NumberType x2,
+                        const NumberType f2,
+                        const NumberType /*g2*/,
                         const FiniteSizeHistory<NumberType> &x_rec,
                         const FiniteSizeHistory<NumberType> &f_rec,
                         const FiniteSizeHistory<NumberType> & /*g_rec*/,
@@ -493,10 +498,10 @@ namespace LineMinimization
     // https://github.com/scipy/scipy/blob/v1.0.0/scipy/optimize/linesearch.py#L555-L563
 
     // First try cubic interpolation after first iteration
-    std_cxx17::optional<NumberType> res =
+    std::optional<NumberType> res =
       x_rec.size() > 0 ?
         cubic_fit_three_points(x1, f1, g1, x2, f2, x_rec[0], f_rec[0]) :
-        std_cxx17::optional<NumberType>{};
+        std::optional<NumberType>{};
     if (res && *res >= bounds.first && *res <= bounds.second)
       return *res;
 
@@ -516,7 +521,7 @@ namespace LineMinimization
   std::pair<NumberType, unsigned int>
   line_search(
     const std::function<std::pair<NumberType, NumberType>(const NumberType x)>
-      &              func,
+                    &func,
     const NumberType f0,
     const NumberType g0,
     const std::function<
@@ -526,9 +531,9 @@ namespace LineMinimization
                  const NumberType                        x_hi,
                  const NumberType                        f_hi,
                  const NumberType                        g_hi,
-                 const FiniteSizeHistory<NumberType> &   x_rec,
-                 const FiniteSizeHistory<NumberType> &   f_rec,
-                 const FiniteSizeHistory<NumberType> &   g_rec,
+                 const FiniteSizeHistory<NumberType>    &x_rec,
+                 const FiniteSizeHistory<NumberType>    &f_rec,
+                 const FiniteSizeHistory<NumberType>    &g_rec,
                  const std::pair<NumberType, NumberType> bounds)> &choose,
     const NumberType                                               a1,
     const NumberType                                               eta,

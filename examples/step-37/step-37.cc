@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2021 by the deal.II authors
+ * Copyright (C) 2009 - 2023 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -12,7 +12,6 @@
  * the top level directory of deal.II.
  *
  * ---------------------------------------------------------------------
-
  *
  * Authors: Katharina Kormann, Martin Kronbichler, Uppsala University,
  * 2009-2012, updated to MPI version with parallel vectors in 2016
@@ -30,6 +29,7 @@
 #include <deal.II/lac/precondition.h>
 
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
@@ -86,7 +86,7 @@ namespace Step37
   class Coefficient : public Function<dim>
   {
   public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim>  &p,
                          const unsigned int component = 0) const override;
 
     template <typename number>
@@ -127,7 +127,7 @@ namespace Step37
 
 
   template <int dim>
-  double Coefficient<dim>::value(const Point<dim> & p,
+  double Coefficient<dim>::value(const Point<dim>  &p,
                                  const unsigned int component) const
   {
     return value<double>(p, component);
@@ -190,7 +190,7 @@ namespace Step37
   // parameter as is done in the MatrixFreeOperators::LaplaceOperator class.
   //
   // As a sidenote, if we implemented several different operations on the same
-  // grid and degrees of freedom (like a mass matrix and a Laplace matrix), we
+  // grid and degrees of freedom (like a @ref GlossMassMatrix "mass matrix" and a Laplace matrix), we
   // would define two classes like the current one for each of the operators
   // (derived from the MatrixFreeOperators::Base class), and let both of them
   // refer to the same MatrixFree data cache from the general problem
@@ -227,19 +227,19 @@ namespace Step37
 
   private:
     virtual void apply_add(
-      LinearAlgebra::distributed::Vector<number> &      dst,
+      LinearAlgebra::distributed::Vector<number>       &dst,
       const LinearAlgebra::distributed::Vector<number> &src) const override;
 
     void
-    local_apply(const MatrixFree<dim, number> &                   data,
-                LinearAlgebra::distributed::Vector<number> &      dst,
+    local_apply(const MatrixFree<dim, number>                    &data,
+                LinearAlgebra::distributed::Vector<number>       &dst,
                 const LinearAlgebra::distributed::Vector<number> &src,
                 const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     void local_compute_diagonal(
-      const MatrixFree<dim, number> &              data,
-      LinearAlgebra::distributed::Vector<number> & dst,
-      const unsigned int &                         dummy,
+      const MatrixFree<dim, number>               &data,
+      LinearAlgebra::distributed::Vector<number>  &dst,
+      const unsigned int                          &dummy,
       const std::pair<unsigned int, unsigned int> &cell_range) const;
 
     Table<2, VectorizedArray<number>> coefficient;
@@ -288,7 +288,7 @@ namespace Step37
     for (unsigned int cell = 0; cell < n_cells; ++cell)
       {
         phi.reinit(cell);
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           coefficient(cell, q) =
             coefficient_function.value(phi.quadrature_point(q));
       }
@@ -389,10 +389,10 @@ namespace Step37
   // degrees of freedom).  </ol>
   template <int dim, int fe_degree, typename number>
   void LaplaceOperator<dim, fe_degree, number>::local_apply(
-    const MatrixFree<dim, number> &                   data,
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    const MatrixFree<dim, number>                    &data,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src,
-    const std::pair<unsigned int, unsigned int> &     cell_range) const
+    const std::pair<unsigned int, unsigned int>      &cell_range) const
   {
     FEEvaluation<dim, fe_degree, fe_degree + 1, 1, number> phi(data);
 
@@ -404,7 +404,7 @@ namespace Step37
         phi.reinit(cell);
         phi.read_dof_values(src);
         phi.evaluate(EvaluationFlags::gradients);
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           phi.submit_gradient(coefficient(cell, q) * phi.get_gradient(q), q);
         phi.integrate(EvaluationFlags::gradients);
         phi.distribute_local_to_global(dst);
@@ -472,13 +472,14 @@ namespace Step37
   // appearing on locally owned cells (plus those referenced via hanging node
   // constraints) are necessary. However, in deal.II we often set all the
   // degrees of freedom on ghosted elements as ghosted vector entries, called
-  // the @ref GlossLocallyRelevantDof "locally relevant DoFs described in the
-  // glossary". In that case, the MPI-local index of a ghosted vector entry
-  // can in general be different in the two possible ghost sets, despite
-  // referring to the same global index. To avoid problems, FEEvaluation
-  // checks that the partitioning of the vector used for the matrix-vector
-  // product does indeed match with the partitioning of the indices in
-  // MatrixFree by a check called
+  // the
+  // @ref GlossLocallyRelevantDof "locally relevant DoFs described in the glossary".
+  // In that case, the MPI-local index of a ghosted vector entry can in
+  // general be different in the two possible ghost sets, despite referring
+  // to the same global index. To avoid problems, FEEvaluation checks that
+  // the partitioning of the vector used for the matrix-vector product does
+  // indeed match with the partitioning of the indices in MatrixFree by a
+  // check called
   // LinearAlgebra::distributed::Vector::partitioners_are_compatible. To
   // facilitate things, the MatrixFreeOperators::Base class includes a
   // mechanism to fit the ghost set to the correct layout. This happens in the
@@ -490,7 +491,7 @@ namespace Step37
   // entry of vmult() functions, so no information gets lost.
   template <int dim, int fe_degree, typename number>
   void LaplaceOperator<dim, fe_degree, number>::apply_add(
-    LinearAlgebra::distributed::Vector<number> &      dst,
+    LinearAlgebra::distributed::Vector<number>       &dst,
     const LinearAlgebra::distributed::Vector<number> &src) const
   {
     this->data->cell_loop(&LaplaceOperator::local_apply, this, dst, src);
@@ -609,7 +610,7 @@ namespace Step37
   // level matrices where no hanging node constraints appear.
   template <int dim, int fe_degree, typename number>
   void LaplaceOperator<dim, fe_degree, number>::local_compute_diagonal(
-    const MatrixFree<dim, number> &             data,
+    const MatrixFree<dim, number>              &data,
     LinearAlgebra::distributed::Vector<number> &dst,
     const unsigned int &,
     const std::pair<unsigned int, unsigned int> &cell_range) const
@@ -631,7 +632,7 @@ namespace Step37
             phi.submit_dof_value(make_vectorized_array<number>(1.), i);
 
             phi.evaluate(EvaluationFlags::gradients);
-            for (unsigned int q = 0; q < phi.n_q_points; ++q)
+            for (const unsigned int q : phi.quadrature_point_indices())
               phi.submit_gradient(coefficient(cell, q) * phi.get_gradient(q),
                                   q);
             phi.integrate(EvaluationFlags::gradients);
@@ -841,11 +842,10 @@ namespace Step37
     const unsigned int nlevels = triangulation.n_global_levels();
     mg_matrices.resize(0, nlevels - 1);
 
-    std::set<types::boundary_id> dirichlet_boundary;
-    dirichlet_boundary.insert(0);
+    const std::set<types::boundary_id> dirichlet_boundary_ids = {0};
     mg_constrained_dofs.initialize(dof_handler);
     mg_constrained_dofs.make_zero_boundary_constraints(dof_handler,
-                                                       dirichlet_boundary);
+                                                       dirichlet_boundary_ids);
 
     for (unsigned int level = 0; level < nlevels; ++level)
       {
@@ -906,7 +906,7 @@ namespace Step37
          ++cell)
       {
         phi.reinit(cell);
-        for (unsigned int q = 0; q < phi.n_q_points; ++q)
+        for (const unsigned int q : phi.quadrature_point_indices())
           phi.submit_value(make_vectorized_array<double>(1.0), q);
         phi.integrate(EvaluationFlags::values);
         phi.distribute_local_to_global(system_rhs);
@@ -1103,8 +1103,8 @@ namespace Step37
   // optimized for speed rather than disk usage. The default setting (which
   // optimizes for disk usage) makes saving the output take about 4 times as
   // long as running the linear solver, while setting
-  // DataOutBase::VtkFlags::compression_level to
-  // DataOutBase::VtkFlags::best_speed lowers this to only one fourth the time
+  // DataOutBase::CompressionLevel to
+  // best_speed lowers this to only one fourth the time
   // of the linear solve.
   //
   // We disable the output when the mesh gets too large. A variant of this
@@ -1126,7 +1126,7 @@ namespace Step37
     data_out.build_patches(mapping);
 
     DataOutBase::VtkFlags flags;
-    flags.compression_level = DataOutBase::VtkFlags::best_speed;
+    flags.compression_level = DataOutBase::CompressionLevel::best_speed;
     data_out.set_flags(flags);
     data_out.write_vtu_with_pvtu_record(
       "./", "solution", cycle, MPI_COMM_WORLD, 3);
@@ -1140,7 +1140,7 @@ namespace Step37
   // @sect4{LaplaceProblem::run}
 
   // The function that runs the program is very similar to the one in
-  // step-16. We do few refinement steps in 3D compared to 2D, but that's
+  // step-16. We do few refinement steps in 3d compared to 2d, but that's
   // it.
   //
   // Before we run the program, we output some information about the detected

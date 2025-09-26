@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2016 - 2021 by the deal.II authors
+// Copyright (C) 2016 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,13 +42,13 @@ struct FunctionsTestScalar
   static NumberType
   f0(const NumberType &s0)
   {
-    return 4.0 * std::pow(s0, 4);
+    return 4.0 * pow(s0, 4);
   }
 
   static NumberType
   df0_ds0(const NumberType &s0)
   {
-    return 16.0 * std::pow(s0, 3);
+    return 16.0 * pow(s0, 3);
   }
 };
 

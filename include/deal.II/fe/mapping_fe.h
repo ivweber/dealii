@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2020 - 2021 by the deal.II authors
+// Copyright (C) 2020 - 2023 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,9 +34,10 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-/*!@addtogroup mapping */
-/*@{*/
-
+/**
+ * @addtogroup mapping
+ * @{
+ */
 
 /**
  * This class consistently uses a user-provided finite element on all cells of a
@@ -52,7 +53,8 @@ DEAL_II_NAMESPACE_OPEN
  * @note Currently, only implemented for elements with tensor_degree==1 and
  *   n_components==1.
  *
- * @ingroup simplex
+ * Also see
+ * @ref simplex "Simplex support".
  */
 template <int dim, int spacedim = dim>
 class MappingFE : public Mapping<dim, spacedim>
@@ -123,7 +125,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<1, dim>> &                  input,
+  transform(const ArrayView<const Tensor<1, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<1, spacedim>> &output) const override;
@@ -137,7 +139,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<2, dim>> &                  input,
+  transform(const ArrayView<const Tensor<2, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<2, spacedim>> &output) const override;
@@ -151,7 +153,7 @@ public:
 
   // for documentation, see the Mapping base class
   virtual void
-  transform(const ArrayView<const Tensor<3, dim>> &                  input,
+  transform(const ArrayView<const Tensor<3, dim>>                   &input,
             const MappingKind                                        kind,
             const typename Mapping<dim, spacedim>::InternalDataBase &internal,
             const ArrayView<Tensor<3, spacedim>> &output) const override;
@@ -423,9 +425,9 @@ public:
   fill_fe_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const CellSimilarity::Similarity                            cell_similarity,
-    const Quadrature<dim> &                                     quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-    dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    const Quadrature<dim>                                      &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
   using Mapping<dim, spacedim>::fill_fe_face_values;
@@ -435,9 +437,9 @@ public:
   fill_fe_face_values(
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const unsigned int                                          face_no,
-    const hp::QCollection<dim - 1> &                            quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-    dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    const hp::QCollection<dim - 1>                             &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
   // documentation can be found in Mapping::fill_fe_subface_values()
@@ -446,9 +448,9 @@ public:
     const typename Triangulation<dim, spacedim>::cell_iterator &cell,
     const unsigned int                                          face_no,
     const unsigned int                                          subface_no,
-    const Quadrature<dim - 1> &                                 quadrature,
-    const typename Mapping<dim, spacedim>::InternalDataBase &   internal_data,
-    dealii::internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
+    const Quadrature<dim - 1>                                  &quadrature,
+    const typename Mapping<dim, spacedim>::InternalDataBase    &internal_data,
+    internal::FEValuesImplementation::MappingRelatedData<dim, spacedim>
       &output_data) const override;
 
   /**
@@ -477,7 +479,7 @@ private:
 
 
 
-/*@}*/
+/** @} */
 
 /*----------------------------------------------------------------------*/
 

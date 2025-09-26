@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2018 by the deal.II authors
+// Copyright (C) 2005 - 2022 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,7 +36,7 @@ test(std::string filename)
   Triangulation<dim, spacedim> tria;
   GridIn<dim, spacedim>        gi;
   gi.attach_triangulation(tria);
-  std::ifstream in(filename.c_str());
+  std::ifstream in(filename);
   gi.read_ucd(in);
 
   PersistentTriangulation<dim, spacedim>                      ptria(tria);
